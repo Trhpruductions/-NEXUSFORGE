@@ -99,6 +99,11 @@ function sourceRecencyBoost(lastJoinedAt?: Date | null, lastViewedAt?: Date | nu
   return 1;
 }
 
+function toOnboardingScore(completedCount: number, totalCount: number) {
+  if (totalCount <= 0) return 0;
+  return Math.round((completedCount / totalCount) * 100);
+}
+
 function isInviteCodeTakenError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -577,6 +582,142 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
       topSource,
       underperformingSource,
       sources: rankedSources,
+    },
+  });
+});
+
+forgesRouter.get("/:id/onboarding-health", async (req, res) => {
+  const membership = await prisma.forgeMember.findUnique({
+    where: {
+      userId_forgeId: {
+        userId: req.user!.id,
+        forgeId: req.params.id,
+      },
+    },
+  });
+
+  if (!membership) {
+    res.status(403).json({ error: "You are not a member of this Forge" });
+    return;
+  }
+
+  const forge = await prisma.forge.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      inviteCode: true,
+      inviteViewCount: true,
+      channels: {
+        select: {
+          type: true,
+        },
+      },
+      members: {
+        select: {
+          id: true,
+        },
+      },
+      roles: {
+        select: {
+          id: true,
+        },
+      },
+      botInstallations: {
+        where: {
+          enabled: true,
+        },
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!forge) {
+    res.status(404).json({ error: "Forge not found" });
+    return;
+  }
+
+  const hasVoiceSurface = forge.channels.some((channel) => channel.type === "VOICE" || channel.type === "STAGE");
+
+  const tasks = [
+    {
+      id: "channels",
+      label: "Core channels live",
+      description: "Keep at least 3 channels active for launch navigation.",
+      completed: forge.channels.length >= 3,
+      value: forge.channels.length,
+      target: 3,
+      action: "Add channels for key conversations.",
+    },
+    {
+      id: "voice",
+      label: "Voice ready",
+      description: "Enable at least one voice or stage channel for live sessions.",
+      completed: hasVoiceSurface,
+      value: hasVoiceSurface ? 1 : 0,
+      target: 1,
+      action: "Create a voice channel for real-time sessions.",
+    },
+    {
+      id: "invite",
+      label: "Custom invite active",
+      description: "Set a stable invite slug your audience can remember.",
+      completed: Boolean(forge.inviteCode && forge.inviteCode.length >= 3),
+      value: forge.inviteCode ? 1 : 0,
+      target: 1,
+      action: "Claim a custom invite slug in forge controls.",
+    },
+    {
+      id: "traffic",
+      label: "Invite traffic",
+      description: "Drive first audience flow to validate conversion loops.",
+      completed: forge.inviteViewCount >= 25,
+      value: forge.inviteViewCount,
+      target: 25,
+      action: "Share your tagged invite and collect first 25 views.",
+    },
+    {
+      id: "members",
+      label: "Early members",
+      description: "Reach 5 members to unlock initial network effects.",
+      completed: forge.members.length >= 5,
+      value: forge.members.length,
+      target: 5,
+      action: "Invite trusted members to seed activity.",
+    },
+    {
+      id: "roles",
+      label: "Role structure",
+      description: "Create at least one role beyond Owner for moderation scale.",
+      completed: forge.roles.length >= 2,
+      value: forge.roles.length,
+      target: 2,
+      action: "Add a moderator or operator role.",
+    },
+    {
+      id: "automation",
+      label: "Automation online",
+      description: "Install one enabled bot to automate repetitive ops.",
+      completed: forge.botInstallations.length >= 1,
+      value: forge.botInstallations.length,
+      target: 1,
+      action: "Install a bot from Bot Studio and enable it.",
+    },
+  ];
+
+  const completedCount = tasks.filter((task) => task.completed).length;
+  const score = toOnboardingScore(completedCount, tasks.length);
+
+  res.json({
+    health: {
+      summary: {
+        completedCount,
+        totalCount: tasks.length,
+        score,
+      },
+      tasks,
+      nextAction: tasks.find((task) => !task.completed)?.action ?? "Onboarding complete. Scale campaigns and retention loops.",
     },
   });
 });

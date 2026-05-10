@@ -108,6 +108,24 @@ export type ForgeInviteAnalytics = {
   }>;
 };
 
+export type ForgeOnboardingHealth = {
+  summary: {
+    completedCount: number;
+    totalCount: number;
+    score: number;
+  };
+  tasks: Array<{
+    id: string;
+    label: string;
+    description: string;
+    completed: boolean;
+    value: number;
+    target: number;
+    action: string;
+  }>;
+  nextAction: string;
+};
+
 export type PublicForgeInvite = {
   id: string;
   name: string;
@@ -608,6 +626,13 @@ export async function getForge(accessToken: string, forgeId: string) {
 
 export async function getForgeInviteAnalytics(accessToken: string, forgeId: string) {
   const response = await api.get<{ analytics: ForgeInviteAnalytics }>(`/api/forges/${forgeId}/invite-analytics`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getForgeOnboardingHealth(accessToken: string, forgeId: string) {
+  const response = await api.get<{ health: ForgeOnboardingHealth }>(`/api/forges/${forgeId}/onboarding-health`, {
     headers: authHeaders(accessToken),
   });
   return response.data;

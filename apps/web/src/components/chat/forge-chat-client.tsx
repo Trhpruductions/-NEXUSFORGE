@@ -28,6 +28,7 @@ import {
   getForge,
   getForgeInviteAnalytics,
   getForgeInviteAvailability,
+  getForgeOnboardingHealth,
   getCorePlusTelemetry,
   getMessages,
   joinForge,
@@ -260,6 +261,13 @@ export function ForgeChatClient() {
   const inviteAnalyticsQuery = useQuery({
     queryKey: ["forge-invite-analytics", selectedForgeId, accessToken],
     queryFn: () => getForgeInviteAnalytics(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+    refetchInterval: 20000,
+  });
+
+  const onboardingHealthQuery = useQuery({
+    queryKey: ["forge-onboarding-health", selectedForgeId, accessToken],
+    queryFn: () => getForgeOnboardingHealth(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
     refetchInterval: 20000,
   });
@@ -530,6 +538,7 @@ export function ForgeChatClient() {
   );
 
   const inviteAnalytics = inviteAnalyticsQuery.data?.analytics;
+  const onboardingHealth = onboardingHealthQuery.data?.health;
 
   const qualityScoreTone = useMemo(() => {
     const score = inviteAnalytics?.summary.qualityScore ?? 0;
@@ -1991,6 +2000,38 @@ export function ForgeChatClient() {
                   <p className="text-[11px] text-slate-400">
                     Target: push every active source above {Math.max(12, Math.min(40, inviteAnalytics.summary.conversionRate + 5))}% conversion to compound joins.
                   </p>
+                </div>
+              ) : null}
+              {onboardingHealth ? (
+                <div className="grid gap-2 rounded-xl border border-indigo-500/25 bg-indigo-950/15 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-indigo-200">Launch Readiness Checklist</p>
+                    <p className="text-sm font-semibold text-indigo-100">{onboardingHealth.summary.score}%</p>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {onboardingHealth.summary.completedCount}/{onboardingHealth.summary.totalCount} milestones complete.
+                  </p>
+                  <div className="grid gap-1.5">
+                    {onboardingHealth.tasks.slice(0, 5).map((task) => (
+                      <div
+                        key={task.id}
+                        className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+                          task.completed
+                            ? "border-emerald-500/35 bg-emerald-950/20"
+                            : "border-slate-700/75 bg-slate-950/75"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`font-semibold uppercase tracking-[0.14em] ${task.completed ? "text-emerald-200" : "text-slate-200"}`}>
+                            {task.completed ? "Complete" : "Pending"} · {task.label}
+                          </p>
+                          <p className="text-slate-400">{task.value}/{task.target}</p>
+                        </div>
+                        <p className="mt-1 text-slate-400">{task.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-cyan-200">Next action: {onboardingHealth.nextAction}</p>
                 </div>
               ) : null}
               {selectedInviteQrCode ? (
