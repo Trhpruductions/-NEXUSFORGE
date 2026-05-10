@@ -564,6 +564,7 @@ export function ForgeChatClient() {
   const bestSource = inviteAnalytics?.topSource;
   const weakSource = inviteAnalytics?.underperformingSource;
   const campaignLoop = inviteAnalytics?.campaignLoop;
+  const promotionLoop = inviteAnalytics?.promotionLoop;
   const campaignLoopTone =
     campaignLoop?.status === "improving"
       ? "text-emerald-300"
@@ -576,6 +577,22 @@ export function ForgeChatClient() {
       : campaignLoop?.status === "collecting"
         ? "Collecting Data"
         : "Needs Attention";
+  const promotionLoopTone =
+    promotionLoop?.status === "profitable"
+      ? "text-emerald-300"
+      : promotionLoop?.status === "collecting"
+        ? "text-amber-300"
+        : promotionLoop?.status === "mixed"
+          ? "text-cyan-300"
+          : "text-rose-300";
+  const promotionLoopLabel =
+    promotionLoop?.status === "profitable"
+      ? "Profitable"
+      : promotionLoop?.status === "collecting"
+        ? "Collecting Data"
+        : promotionLoop?.status === "mixed"
+          ? "Mixed Signals"
+          : "Needs Pruning";
   const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
   const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
   const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
@@ -2074,6 +2091,68 @@ export function ForgeChatClient() {
                     ))}
                   </div>
                   <p className="text-[11px] text-cyan-200">Recommendation: {campaignLoop.recommendation}</p>
+                </div>
+              ) : null}
+              {promotionLoop ? (
+                <div className="grid gap-2 rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/15 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-200">Promotion ROI Loop</p>
+                    <p className={`text-sm font-semibold ${promotionLoopTone}`}>{promotionLoopLabel}</p>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Decision window closes {new Date(promotionLoop.expiresAt).toLocaleString()}.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Keep</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-200">{promotionLoop.keepCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Hold</p>
+                      <p className="mt-1 text-sm font-semibold text-cyan-200">{promotionLoop.holdCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Kill</p>
+                      <p className="mt-1 text-sm font-semibold text-rose-200">{promotionLoop.killCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Collecting</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-200">{promotionLoop.collectingCount}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {promotionLoop.evaluations.slice(0, 3).map((entry) => (
+                      <div key={entry.source} className="rounded-lg border border-slate-700/75 bg-slate-950/75 px-2.5 py-2 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold uppercase tracking-[0.14em] text-slate-200">{entry.source}</p>
+                          <p
+                            className={
+                              entry.state === "keep"
+                                ? "text-emerald-300"
+                                : entry.state === "hold"
+                                  ? "text-cyan-300"
+                                  : entry.state === "kill"
+                                    ? "text-rose-300"
+                                    : "text-amber-300"
+                            }
+                          >
+                            {entry.state === "keep"
+                              ? "Keep"
+                              : entry.state === "hold"
+                                ? "Hold"
+                                : entry.state === "kill"
+                                  ? "Kill"
+                                  : "Collecting"}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-slate-400">
+                          Delta: +{entry.deltaViews} views, +{entry.deltaJoins} joins, {entry.deltaConversionRate >= 0 ? "+" : ""}
+                          {entry.deltaConversionRate}% conversion
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-fuchsia-200">Recommendation: {promotionLoop.recommendation}</p>
                 </div>
               ) : null}
               {onboardingHealth ? (

@@ -128,6 +128,30 @@ export type ForgeInviteAnalytics = {
       state: "collecting" | "improved" | "stalled";
     }>;
   } | null;
+  promotionLoop: {
+    capturedAt: string;
+    expiresAt: string;
+    generatedAt?: string | null;
+    status: "collecting" | "profitable" | "mixed" | "needs-pruning";
+    recommendation: string;
+    keepCount: number;
+    holdCount: number;
+    killCount: number;
+    collectingCount: number;
+    evaluations: Array<{
+      source: string;
+      baselineViews: number;
+      baselineJoins: number;
+      baselineConversionRate: number;
+      currentViews: number;
+      currentJoins: number;
+      currentConversionRate: number;
+      deltaViews: number;
+      deltaJoins: number;
+      deltaConversionRate: number;
+      state: "collecting" | "keep" | "hold" | "kill";
+    }>;
+  } | null;
 };
 
 export type ForgeOnboardingHealth = {

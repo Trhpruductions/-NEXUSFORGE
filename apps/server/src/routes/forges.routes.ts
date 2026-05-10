@@ -121,10 +121,21 @@ function toOnboardingScore(completedCount: number, totalCount: number) {
 const campaignOptimizationTag = "[Campaign Optimization Checklist]";
 const campaignSnapshotPrefix = "CAMPAIGN_SNAPSHOT:";
 const campaignPromotionTag = "[Campaign Winner Promotion Pack]";
+const promotionSnapshotPrefix = "PROMOTION_SNAPSHOT:";
 
 type CampaignSnapshot = {
   capturedAt: string;
   weakestSources: Array<{
+    source: string;
+    views: number;
+    joins: number;
+    conversionRate: number;
+  }>;
+};
+
+type PromotionSnapshot = {
+  capturedAt: string;
+  winningSources: Array<{
     source: string;
     views: number;
     joins: number;
@@ -146,6 +157,28 @@ function parseCampaignSnapshot(content: string): CampaignSnapshot | null {
   try {
     const parsed = JSON.parse(payload) as CampaignSnapshot;
     if (!parsed || !Array.isArray(parsed.weakestSources) || typeof parsed.capturedAt !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parsePromotionSnapshot(content: string): PromotionSnapshot | null {
+  const snapshotLine = content
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith(promotionSnapshotPrefix));
+
+  if (!snapshotLine) {
+    return null;
+  }
+
+  const payload = snapshotLine.slice(promotionSnapshotPrefix.length);
+  try {
+    const parsed = JSON.parse(payload) as PromotionSnapshot;
+    if (!parsed || !Array.isArray(parsed.winningSources) || typeof parsed.capturedAt !== "string") {
       return null;
     }
     return parsed;
@@ -544,7 +577,7 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
     return;
   }
 
-  const [forge, sourceStats, latestOptimizationSnapshot] = await Promise.all([
+  const [forge, sourceStats, latestOptimizationSnapshot, latestPromotionSnapshot] = await Promise.all([
     prisma.forge.findUnique({
       where: { id: req.params.id },
       select: {
@@ -565,6 +598,24 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
         type: "SYSTEM",
         content: {
           contains: campaignSnapshotPrefix,
+        },
+        channel: {
+          forgeId: req.params.id,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+        content: true,
+      },
+    }),
+    prisma.message.findFirst({
+      where: {
+        type: "SYSTEM",
+        content: {
+          contains: promotionSnapshotPrefix,
         },
         channel: {
           forgeId: req.params.id,
@@ -692,6 +743,83 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
       })()
     : null;
 
+  const promotionSnapshot = latestPromotionSnapshot ? parsePromotionSnapshot(latestPromotionSnapshot.content) : null;
+  const promotionLoop = promotionSnapshot
+    ? (() => {
+        const capturedAtDate = new Date(promotionSnapshot.capturedAt);
+        const expiresAt = new Date(capturedAtDate.getTime() + 1000 * 60 * 60 * 24);
+
+        const evaluations = promotionSnapshot.winningSources.map((baseline) => {
+          const current = sourceStats.find((entry) => entry.source === baseline.source);
+          const currentViews = current?.viewCount ?? baseline.views;
+          const currentJoins = current?.joinCount ?? baseline.joins;
+          const currentConversionRate = toPercent(currentJoins, Math.max(1, currentViews));
+          const deltaViews = Math.max(0, currentViews - baseline.views);
+          const deltaJoins = Math.max(0, currentJoins - baseline.joins);
+          const deltaConversionRate = currentConversionRate - baseline.conversionRate;
+
+          const state =
+            deltaViews < 15
+              ? "collecting"
+              : deltaConversionRate >= 2 || (deltaJoins >= 3 && currentConversionRate >= baseline.conversionRate)
+                ? "keep"
+                : deltaConversionRate <= -2 && deltaViews >= 20
+                  ? "kill"
+                  : "hold";
+
+          return {
+            source: baseline.source,
+            baselineViews: baseline.views,
+            baselineJoins: baseline.joins,
+            baselineConversionRate: baseline.conversionRate,
+            currentViews,
+            currentJoins,
+            currentConversionRate,
+            deltaViews,
+            deltaJoins,
+            deltaConversionRate,
+            state,
+          };
+        });
+
+        const keepCount = evaluations.filter((entry) => entry.state === "keep").length;
+        const holdCount = evaluations.filter((entry) => entry.state === "hold").length;
+        const killCount = evaluations.filter((entry) => entry.state === "kill").length;
+        const collectingCount = evaluations.filter((entry) => entry.state === "collecting").length;
+
+        const status =
+          collectingCount > 0 && Date.now() < expiresAt.getTime()
+            ? "collecting"
+            : killCount >= Math.ceil(evaluations.length / 2)
+              ? "needs-pruning"
+              : keepCount >= Math.ceil(evaluations.length / 2)
+                ? "profitable"
+                : "mixed";
+
+        const recommendation =
+          status === "collecting"
+            ? "Keep traffic flowing for the full 24h window before hard keep/kill decisions."
+            : status === "profitable"
+              ? "Double down on keep sources and replicate their top-performing variants across adjacent channels."
+              : status === "needs-pruning"
+                ? "Kill underperforming sources now and replace with fresh positioning before the next cycle."
+                : "Hold mixed sources for one more test cycle and refresh only the weakest creative angles.";
+
+        return {
+          capturedAt: promotionSnapshot.capturedAt,
+          expiresAt: expiresAt.toISOString(),
+          generatedAt: latestPromotionSnapshot?.createdAt,
+          status,
+          recommendation,
+          keepCount,
+          holdCount,
+          killCount,
+          collectingCount,
+          evaluations,
+        };
+      })()
+    : null;
+
   res.json({
     analytics: {
       summary: {
@@ -706,6 +834,7 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
       underperformingSource,
       sources: rankedSources,
       campaignLoop,
+      promotionLoop,
     },
   });
 });
@@ -1363,6 +1492,15 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
         ];
       }),
       "Run A/B timing tests over the next 24h and re-check Campaign Loop Verification.",
+      `${promotionSnapshotPrefix}${JSON.stringify({
+        capturedAt: new Date().toISOString(),
+        winningSources: winningSources.map((source) => ({
+          source: source.source,
+          views: source.viewCount,
+          joins: source.joinCount,
+          conversionRate: source.conversionRate,
+        })),
+      } satisfies PromotionSnapshot)}`,
     ].join("\n");
 
     await prisma.message.create({
