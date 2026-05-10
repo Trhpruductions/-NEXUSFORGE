@@ -200,6 +200,11 @@ export function AdminDashboard() {
           ? "text-yellow-200"
           : "text-emerald-200";
 
+  const generationCooldownSeconds = profileToolsStatusQuery.data?.cooldownRemainingMs
+    ? Math.ceil(profileToolsStatusQuery.data.cooldownRemainingMs / 1000)
+    : 0;
+  const generationBlockedByCooldown = generationCooldownSeconds > 0;
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
       <section className="nexus-panel rounded-2xl p-5">
@@ -371,9 +376,17 @@ export function AdminDashboard() {
             variant="ghost"
             className="h-10 border border-emerald-500/35 bg-emerald-950/25 text-emerald-100"
             onClick={() => generateSampleProfiles.mutate()}
-            disabled={generateSampleProfiles.isPending || profileToolsStatusQuery.data?.inProgress}
+            disabled={
+              generateSampleProfiles.isPending ||
+              profileToolsStatusQuery.data?.inProgress ||
+              generationBlockedByCooldown
+            }
           >
-            {generateSampleProfiles.isPending || profileToolsStatusQuery.data?.inProgress ? "Generating..." : "Generate Sample Profiles"}
+            {generateSampleProfiles.isPending || profileToolsStatusQuery.data?.inProgress
+              ? "Generating..."
+              : generationBlockedByCooldown
+                ? `Cooldown ${generationCooldownSeconds}s`
+                : "Generate Sample Profiles"}
           </Button>
           <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2">
             <select
