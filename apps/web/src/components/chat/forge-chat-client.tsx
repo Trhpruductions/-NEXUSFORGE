@@ -43,6 +43,8 @@ import {
   updateForgeInviteCode,
   updateFriendStatus,
   updateVoiceState,
+  runForgeOnboardingAction,
+  type ForgeOnboardingAction,
   type VoiceTokenResponse,
   type Channel,
   type BotApp,
@@ -270,6 +272,17 @@ export function ForgeChatClient() {
     queryFn: () => getForgeOnboardingHealth(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
     refetchInterval: 20000,
+  });
+
+  const onboardingActionMutation = useMutation({
+    mutationFn: ({ forgeId, action }: { forgeId: string; action: ForgeOnboardingAction }) =>
+      runForgeOnboardingAction(accessToken!, csrfToken!, forgeId, action),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] }),
+        queryClient.invalidateQueries({ queryKey: ["forge-onboarding-health", selectedForgeId, accessToken] }),
+      ]);
+    },
   });
 
   const messagesQuery = useQuery({
@@ -549,6 +562,12 @@ export function ForgeChatClient() {
 
   const bestSource = inviteAnalytics?.topSource;
   const weakSource = inviteAnalytics?.underperformingSource;
+  const onboardingActionByTaskId: Partial<Record<string, ForgeOnboardingAction>> = {
+    channels: "SEED_CORE_CHANNELS",
+    voice: "SEED_CORE_CHANNELS",
+    roles: "CREATE_MODERATOR_ROLE",
+    automation: "ENABLE_STARTER_AUTOMATION",
+  };
   const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
   const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
   const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
@@ -2028,10 +2047,35 @@ export function ForgeChatClient() {
                           <p className="text-slate-400">{task.value}/{task.target}</p>
                         </div>
                         <p className="mt-1 text-slate-400">{task.description}</p>
+                        {!task.completed && selectedForgeId && onboardingActionByTaskId[task.id] ? (
+                          <Button
+                            variant="ghost"
+                            className="mt-2 h-7 px-2 text-[11px]"
+                            onClick={() =>
+                              onboardingActionMutation.mutate({
+                                forgeId: selectedForgeId,
+                                action: onboardingActionByTaskId[task.id]!,
+                              })
+                            }
+                            disabled={onboardingActionMutation.isPending}
+                          >
+                            {onboardingActionMutation.isPending ? "Applying..." : "Auto-fix"}
+                          </Button>
+                        ) : null}
                       </div>
                     ))}
                   </div>
                   <p className="text-[11px] text-cyan-200">Next action: {onboardingHealth.nextAction}</p>
+                  {onboardingActionMutation.isError ? (
+                    <p className="text-[11px] text-rose-300">
+                      {axios.isAxiosError(onboardingActionMutation.error)
+                        ? ((onboardingActionMutation.error.response?.data as { error?: string } | undefined)?.error ?? onboardingActionMutation.error.message)
+                        : onboardingActionMutation.error instanceof Error
+                          ? onboardingActionMutation.error.message
+                          : "Unable to run onboarding action."}
+                    </p>
+                  ) : null}
+                  {onboardingActionMutation.isSuccess ? <p className="text-[11px] text-emerald-300">{onboardingActionMutation.data.message}</p> : null}
                 </div>
               ) : null}
               {selectedInviteQrCode ? (

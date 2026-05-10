@@ -33,6 +33,10 @@ const updateInviteCodeSchema = z.object({
   inviteCode: inviteCodeSchema,
 });
 
+const onboardingActionSchema = z.object({
+  action: z.enum(["SEED_CORE_CHANNELS", "CREATE_MODERATOR_ROLE", "ENABLE_STARTER_AUTOMATION"]),
+});
+
 export const forgesRouter = Router();
 
 const reservedInviteCodes = new Set([
@@ -719,6 +723,195 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       tasks,
       nextAction: tasks.find((task) => !task.completed)?.action ?? "Onboarding complete. Scale campaigns and retention loops.",
     },
+  });
+});
+
+forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
+  const parsed = onboardingActionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const forge = await prisma.forge.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, ownerId: true },
+  });
+
+  if (!forge) {
+    res.status(404).json({ error: "Forge not found" });
+    return;
+  }
+
+  if (forge.ownerId !== req.user!.id) {
+    res.status(403).json({ error: "Only forge owners can run onboarding actions" });
+    return;
+  }
+
+  if (parsed.data.action === "SEED_CORE_CHANNELS") {
+    const targets = [
+      { name: "general", type: "TEXT" as const },
+      { name: "announcements", type: "ANNOUNCEMENT" as const },
+      { name: "Squad Voice", type: "VOICE" as const },
+    ];
+
+    const existing = await prisma.channel.findMany({
+      where: { forgeId: forge.id },
+      select: { name: true, position: true },
+    });
+
+    const existingNames = new Set(existing.map((channel) => channel.name.trim().toLowerCase()));
+    const highestPosition = existing.length ? Math.max(...existing.map((channel) => channel.position)) : -1;
+
+    const data = targets
+      .filter((target) => !existingNames.has(target.name.toLowerCase()))
+      .map((target, index) => ({
+        forgeId: forge.id,
+        name: target.name,
+        type: target.type,
+        position: highestPosition + index + 1,
+      }));
+
+    if (data.length > 0) {
+      await prisma.channel.createMany({ data });
+    }
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      createdChannels: data.length,
+      message: data.length > 0 ? "Core channels seeded" : "Core channels already configured",
+    });
+    return;
+  }
+
+  if (parsed.data.action === "CREATE_MODERATOR_ROLE") {
+    const existingRole = await prisma.role.findFirst({
+      where: {
+        forgeId: forge.id,
+        name: {
+          equals: "Moderator",
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existingRole) {
+      const maxRolePosition = await prisma.role.aggregate({
+        where: { forgeId: forge.id },
+        _max: { position: true },
+      });
+
+      await prisma.role.create({
+        data: {
+          forgeId: forge.id,
+          name: "Moderator",
+          color: "#f59e0b",
+          permissions: {
+            manageChannels: true,
+            banUsers: true,
+            kickUsers: true,
+            manageRoles: false,
+            moderateChat: true,
+            streamAccess: true,
+          },
+          position: Math.max(1, (maxRolePosition._max.position ?? 0) - 1),
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      message: existingRole ? "Moderator role already exists" : "Moderator role created",
+    });
+    return;
+  }
+
+  const starterBotName = "NexusForge Ops Bot";
+  const starterCommandName = "ops-pulse";
+
+  let bot = await prisma.botApp.findFirst({
+    where: {
+      ownerId: req.user!.id,
+      name: {
+        equals: starterBotName,
+        mode: "insensitive",
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!bot) {
+    bot = await prisma.botApp.create({
+      data: {
+        ownerId: req.user!.id,
+        name: starterBotName,
+        description: "Auto-seeded operations assistant for launch readiness.",
+        inviteCode: `bot-${randomUUID().slice(0, 10)}`,
+        isPublic: false,
+        intents: ["moderation", "analytics", "automation"],
+      },
+      select: { id: true },
+    });
+  } else {
+    await prisma.botApp.update({
+      where: { id: bot.id },
+      data: {
+        isPublic: false,
+        intents: ["moderation", "analytics", "automation"],
+      },
+    });
+  }
+
+  const installation = await prisma.forgeBotInstallation.upsert({
+    where: {
+      forgeId_botId: {
+        forgeId: forge.id,
+        botId: bot.id,
+      },
+    },
+    update: {
+      enabled: true,
+      installedById: req.user!.id,
+    },
+    create: {
+      forgeId: forge.id,
+      botId: bot.id,
+      installedById: req.user!.id,
+      enabled: true,
+    },
+    select: { id: true },
+  });
+
+  const existingCommand = await prisma.botCommand.findFirst({
+    where: {
+      forgeId: forge.id,
+      name: starterCommandName,
+    },
+    select: { id: true },
+  });
+
+  if (!existingCommand) {
+    await prisma.botCommand.create({
+      data: {
+        forgeId: forge.id,
+        installationId: installation.id,
+        name: starterCommandName,
+        description: "Reports launch operations status for the forge.",
+        responseTemplate: "Ops pulse: {forge} is stable. Requested by {userName}.",
+        commandPreset: "UTILITY",
+        requiredPermission: "NONE",
+        enabled: true,
+      },
+    });
+  }
+
+  res.status(200).json({
+    ok: true,
+    action: parsed.data.action,
+    message: "Starter automation enabled",
   });
 });
 

@@ -126,6 +126,8 @@ export type ForgeOnboardingHealth = {
   nextAction: string;
 };
 
+export type ForgeOnboardingAction = "SEED_CORE_CHANNELS" | "CREATE_MODERATOR_ROLE" | "ENABLE_STARTER_AUTOMATION";
+
 export type PublicForgeInvite = {
   id: string;
   name: string;
@@ -635,6 +637,22 @@ export async function getForgeOnboardingHealth(accessToken: string, forgeId: str
   const response = await api.get<{ health: ForgeOnboardingHealth }>(`/api/forges/${forgeId}/onboarding-health`, {
     headers: authHeaders(accessToken),
   });
+  return response.data;
+}
+
+export async function runForgeOnboardingAction(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  action: ForgeOnboardingAction,
+) {
+  const response = await api.post<{ ok: boolean; action: ForgeOnboardingAction; message: string }>(
+    `/api/forges/${forgeId}/onboarding-actions`,
+    { action },
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
   return response.data;
 }
 
