@@ -28,10 +28,8 @@ const sampleActivityTemplates = [
   { type: "PREMIUM_UPGRADE", title: "Upgraded to Core+", description: "Enabled premium operations." },
 ] as const;
 
-let sampleProfileGenerationInProgress = false;
-let sampleProfileGenerationStartedAt: string | null = null;
-let sampleProfileGenerationLastCompletedAt: string | null = null;
 const SAMPLE_PROFILE_GENERATION_COOLDOWN_MS = 5 * 60 * 1000;
+const SAMPLE_PROFILE_GENERATION_STALE_MS = 30 * 60 * 1000;
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -57,28 +55,32 @@ async function logAdminProfileAction(actorId: string, title: string, description
   }
 }
 
-async function getLatestSampleGenerationEvent() {
-  return prisma.userActivity.findFirst({
+async function markStaleSampleGenerationJobsAsFailed() {
+  const staleThreshold = new Date(Date.now() - SAMPLE_PROFILE_GENERATION_STALE_MS);
+
+  await prisma.profileToolJob.updateMany({
     where: {
-      type: "CUSTOM",
-      AND: [
-        {
-          metadata: {
-            path: ["source"],
-            equals: "admin-profile-tool",
-          },
-        },
-        {
-          metadata: {
-            path: ["action"],
-            equals: "generate-sample-data",
-          },
-        },
-      ],
+      action: "GENERATE_SAMPLE_DATA",
+      status: "RUNNING",
+      startedAt: { lt: staleThreshold },
     },
-    orderBy: { createdAt: "desc" },
+    data: {
+      status: "FAILED",
+      completedAt: new Date(),
+      errorMessage: "Marked failed by watchdog after stale runtime window exceeded.",
+    },
+  });
+}
+
+async function getActiveSampleGenerationJob() {
+  return prisma.profileToolJob.findFirst({
+    where: {
+      action: "GENERATE_SAMPLE_DATA",
+      status: "RUNNING",
+    },
+    orderBy: { startedAt: "desc" },
     include: {
-      user: {
+      actor: {
         select: {
           id: true,
           username: true,
@@ -88,34 +90,33 @@ async function getLatestSampleGenerationEvent() {
   });
 }
 
-async function getLatestCompletedSampleGenerationEvent() {
-  return prisma.userActivity.findFirst({
+async function getLatestSampleGenerationJob() {
+  return prisma.profileToolJob.findFirst({
     where: {
-      type: "CUSTOM",
-      AND: [
-        {
-          metadata: {
-            path: ["source"],
-            equals: "admin-profile-tool",
-          },
-        },
-        {
-          metadata: {
-            path: ["action"],
-            equals: "generate-sample-data",
-          },
-        },
-        {
-          metadata: {
-            path: ["phase"],
-            equals: "completed",
-          },
-        },
-      ],
+      action: "GENERATE_SAMPLE_DATA",
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { startedAt: "desc" },
     include: {
-      user: {
+      actor: {
+        select: {
+          id: true,
+          username: true,
+        },
+      },
+    },
+  });
+}
+
+async function getLatestCompletedSampleGenerationJob() {
+  return prisma.profileToolJob.findFirst({
+    where: {
+      action: "GENERATE_SAMPLE_DATA",
+      status: "SUCCEEDED",
+      completedAt: { not: null },
+    },
+    orderBy: { completedAt: "desc" },
+    include: {
+      actor: {
         select: {
           id: true,
           username: true,
@@ -264,29 +265,51 @@ adminRouter.get("/users", async (_req, res) => {
 });
 
 adminRouter.get("/profile-tools/status", async (_req, res) => {
-  const [latestJob, latestCompletedJob] = await Promise.all([
-    getLatestSampleGenerationEvent(),
-    getLatestCompletedSampleGenerationEvent(),
+  await markStaleSampleGenerationJobsAsFailed();
+
+  const [activeJob, latestJob, latestCompletedJob] = await Promise.all([
+    getActiveSampleGenerationJob(),
+    getLatestSampleGenerationJob(),
+    getLatestCompletedSampleGenerationJob(),
   ]);
 
   const cooldownRemainingMs = latestCompletedJob
-    ? Math.max(0, SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.createdAt.getTime()))
+    ? Math.max(0, SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.completedAt!.getTime()))
     : 0;
 
   res.json({
-    inProgress: sampleProfileGenerationInProgress,
-    startedAt: sampleProfileGenerationStartedAt,
-    lastCompletedAt: sampleProfileGenerationLastCompletedAt,
+    inProgress: Boolean(activeJob),
+    startedAt: activeJob?.startedAt ?? null,
+    lastCompletedAt: latestCompletedJob?.completedAt ?? null,
     cooldownMs: SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
     cooldownRemainingMs,
     latestJob: latestJob
       ? {
           id: latestJob.id,
-          title: latestJob.title,
-          description: latestJob.description,
-          createdAt: latestJob.createdAt,
-          metadata: latestJob.metadata,
-          actor: latestJob.user,
+          title:
+            latestJob.status === "RUNNING"
+              ? "Sample profile generation in progress"
+              : latestJob.status === "FAILED"
+                ? "Sample profile generation failed"
+                : "Generated sample profile data",
+          description:
+            latestJob.status === "RUNNING"
+              ? "Background generation currently running."
+              : latestJob.status === "FAILED"
+                ? latestJob.errorMessage ?? "Generation run failed before completion."
+                : "Populated reputation, medal links, and activity samples.",
+          createdAt: latestJob.completedAt ?? latestJob.startedAt,
+          metadata: {
+            source: "profile-tool-job",
+            action: "generate-sample-data",
+            status: latestJob.status,
+            payload: latestJob.payload,
+            result: latestJob.result,
+            errorMessage: latestJob.errorMessage,
+            startedAt: latestJob.startedAt,
+            completedAt: latestJob.completedAt,
+          },
+          actor: latestJob.actor,
         }
       : null,
   });
@@ -336,10 +359,14 @@ adminRouter.post("/profile-tools/seed-medals", async (req, res) => {
 });
 
 adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
-  if (sampleProfileGenerationInProgress) {
+  await markStaleSampleGenerationJobsAsFailed();
+
+  const activeJob = await getActiveSampleGenerationJob();
+  if (activeJob) {
     res.status(409).json({
       error: "Sample profile generation already in progress",
-      startedAt: sampleProfileGenerationStartedAt,
+      startedAt: activeJob.startedAt,
+      jobId: activeJob.id,
     });
     return;
   }
@@ -365,11 +392,11 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
     return;
   }
 
-  const latestCompletedJob = await getLatestCompletedSampleGenerationEvent();
+  const latestCompletedJob = await getLatestCompletedSampleGenerationJob();
   if (latestCompletedJob) {
     const cooldownRemainingMs = Math.max(
       0,
-      SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.createdAt.getTime()),
+      SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.completedAt!.getTime()),
     );
 
     if (cooldownRemainingMs > 0) {
@@ -382,8 +409,20 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
     }
   }
 
-  sampleProfileGenerationInProgress = true;
-  sampleProfileGenerationStartedAt = new Date().toISOString();
+  const job = await prisma.profileToolJob.create({
+    data: {
+      action: "GENERATE_SAMPLE_DATA",
+      status: "RUNNING",
+      actorId: req.user!.id,
+      payload: {
+        userLimit,
+        activitiesPerUser,
+        minReputation,
+        maxReputation,
+        awardRandomMedals,
+      },
+    },
+  });
 
   await logAdminProfileAction(
     req.user!.id,
@@ -482,7 +521,19 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
       },
     );
 
-    sampleProfileGenerationLastCompletedAt = new Date().toISOString();
+    await prisma.profileToolJob.update({
+      where: { id: job.id },
+      data: {
+        status: "SUCCEEDED",
+        completedAt: new Date(),
+        result: {
+          usersProcessed: users.length,
+          reputationUpdates,
+          createdActivities,
+          totalUserMedalLinks: createdMedalLinks,
+        },
+      },
+    });
 
     res.json({
       usersProcessed: users.length,
@@ -493,6 +544,17 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
   } catch (error) {
     console.error("Generate sample profile data error:", error);
 
+    const errorMessage = error instanceof Error ? error.message : "Unknown generation failure";
+
+    await prisma.profileToolJob.update({
+      where: { id: job.id },
+      data: {
+        status: "FAILED",
+        completedAt: new Date(),
+        errorMessage: errorMessage.slice(0, 500),
+      },
+    });
+
     await logAdminProfileAction(
       req.user!.id,
       "Sample profile generation failed",
@@ -500,13 +562,11 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
       {
         action: "generate-sample-data",
         phase: "failed",
+        errorMessage,
       },
     );
 
     res.status(500).json({ error: "Failed to generate sample profile data" });
-  } finally {
-    sampleProfileGenerationInProgress = false;
-    sampleProfileGenerationStartedAt = null;
   }
 });
 

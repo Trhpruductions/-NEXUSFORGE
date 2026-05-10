@@ -92,6 +92,16 @@ enum ActivityType {
   CUSTOM
 }
 
+enum ProfileToolAction {
+  GENERATE_SAMPLE_DATA
+}
+
+enum ProfileToolJobStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id                 String         @id @default(uuid())
   username           String         @unique
@@ -130,6 +140,7 @@ model User {
   ownedShopItems     ShopItem[]
   medals             UserMedal[]
   activities         UserActivity[]
+  profileToolJobs    ProfileToolJob[]
   notifications      Notification[]
   pushSubscriptions  PushSubscription[]
   billingSubscriptions BillingSubscription[]
@@ -429,6 +440,24 @@ model UserActivity {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+model ProfileToolJob {
+  id           String               @id @default(uuid())
+  action       ProfileToolAction
+  status       ProfileToolJobStatus @default(RUNNING)
+  actorId      String
+  payload      Json?
+  result       Json?
+  errorMessage String?              @db.VarChar(500)
+  startedAt    DateTime             @default(now())
+  completedAt  DateTime?
+  updatedAt    DateTime             @updatedAt
+  actor        User                 @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([action, status, startedAt])
+  @@index([actorId, startedAt])
+  @@index([startedAt])
 }
 
 model ShopItem {
