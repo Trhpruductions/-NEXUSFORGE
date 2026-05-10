@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell } = require("electron");
 const path = require("node:path");
 
 const startUrl = process.env.NEXUSFORGE_DESKTOP_URL || "http://localhost:3000/app";
+const appIconPath = path.join(__dirname, "..", "web", "public", "brand", "nexusforge-main-logo.png");
 let mainWindow = null;
 
 // Hard stop duplicate preview instances: one live desktop preview at a time.
@@ -9,6 +10,10 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!hasSingleInstanceLock) {
   app.quit();
+}
+
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.nexusforge.desktop");
 }
 
 function createWindow() {
@@ -25,6 +30,7 @@ function createWindow() {
     height: 920,
     minWidth: 1100,
     minHeight: 760,
+    icon: appIconPath,
     backgroundColor: "#020617",
     title: "NexusForge Desktop",
     autoHideMenuBar: true,
