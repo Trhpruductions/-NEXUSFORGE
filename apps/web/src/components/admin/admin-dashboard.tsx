@@ -41,6 +41,7 @@ function extractAdminErrorNote(error: unknown, fallback: string) {
 export function AdminDashboard() {
   const { accessToken, csrfToken } = useAuthStore();
   const queryClient = useQueryClient();
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [reputationDelta, setReputationDelta] = useState<number>(25);
   const [actionNote, setActionNote] = useState<string>("");
@@ -183,6 +184,28 @@ export function AdminDashboard() {
     setAuditOffset(0);
   }, [auditActionFilter, auditActorFilter]);
 
+  useEffect(() => {
+    const latestCompletedAt = profileToolsStatusQuery.data?.lastCompletedAt;
+    const cooldownMs = profileToolsStatusQuery.data?.cooldownMs ?? 0;
+
+    if (!latestCompletedAt || cooldownMs <= 0) {
+      return;
+    }
+
+    const unlockAtMs = new Date(latestCompletedAt).getTime() + cooldownMs;
+    if (unlockAtMs <= Date.now()) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [profileToolsStatusQuery.data?.cooldownMs, profileToolsStatusQuery.data?.lastCompletedAt]);
+
   if (!accessToken || !csrfToken) {
     return (
       <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4 text-sm text-slate-300">
@@ -200,8 +223,14 @@ export function AdminDashboard() {
           ? "text-yellow-200"
           : "text-emerald-200";
 
-  const generationCooldownSeconds = profileToolsStatusQuery.data?.cooldownRemainingMs
-    ? Math.ceil(profileToolsStatusQuery.data.cooldownRemainingMs / 1000)
+  const latestCompletedAtMs = profileToolsStatusQuery.data?.lastCompletedAt
+    ? new Date(profileToolsStatusQuery.data.lastCompletedAt).getTime()
+    : null;
+  const generationCooldownSeconds = latestCompletedAtMs
+    ? Math.max(
+        0,
+        Math.ceil((latestCompletedAtMs + (profileToolsStatusQuery.data?.cooldownMs ?? 0) - nowMs) / 1000),
+      )
     : 0;
   const generationBlockedByCooldown = generationCooldownSeconds > 0;
 
