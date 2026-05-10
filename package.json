@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "dev:cleanup": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/cleanup-dev-ports.ps1",
     "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\"",
-    "preview:live": "concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev:full -w @nexusforge/desktop\"",
+    "preview:live": "npm run dev:cleanup && concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev:full -w @nexusforge/desktop\"",
     "dev:web": "npm run dev -w web",
     "dev:server": "npm run dev -w @nexusforge/server",
     "dev:desktop": "npm run dev -w @nexusforge/desktop",
