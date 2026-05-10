@@ -469,10 +469,18 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
 
   if (!job) {
     const runningJob = await getActiveSampleGenerationJob();
-    res.status(409).json({
-      error: "Sample profile generation already in progress",
-      startedAt: runningJob?.startedAt ?? null,
-      jobId: runningJob?.id ?? null,
+    if (runningJob) {
+      res.status(409).json({
+        error: "Sample profile generation already in progress",
+        startedAt: runningJob.startedAt,
+        jobId: runningJob.id,
+      });
+      return;
+    }
+
+    res.status(503).json({
+      error: "Could not acquire generation lock. Please retry.",
+      retryAfterSeconds: 1,
     });
     return;
   }
