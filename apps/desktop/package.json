@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "electron": "^42.0.1",
+    "png-to-ico": "^3.0.1",
     "wait-on": "^8.0.5"
   }
 }
