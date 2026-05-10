@@ -1,0 +1,2562 @@
+"use client";
+
+import axios from "axios";
+import QRCode from "qrcode";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  createBotCommand,
+  createBotApp,
+  executeBotCommand,
+  installBotToForge,
+  joinForgeFromSource,
+  listBotCatalog,
+  listMyBots,
+  setBotInstallationEnabled,
+  updateBotApp,
+  updateBotCommand,
+  consumeAdvancedModerationAI,
+  consumeCreatorCampaignSlot,
+  consumeEventTicketPass,
+  consumeForgeBoostPack,
+  createDmThread,
+  createForge,
+  createUploadPresign,
+  getBillingEntitlements,
+  getDmMessages,
+  getForge,
+  getForgeInviteAvailability,
+  getCorePlusTelemetry,
+  getMessages,
+  joinForge,
+  listDmThreads,
+  listForges,
+  listFriends,
+  postDmMessage,
+  postMessage,
+  requestVoiceToken,
+  searchUsers,
+  sendFriendRequest,
+  updateForgeInviteCode,
+  updateFriendStatus,
+  updateVoiceState,
+  type VoiceTokenResponse,
+  type Channel,
+  type BotApp,
+  type DmMessage,
+  type DmThread,
+  type Message,
+} from "@/lib/api";
+import { getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/store/auth-store";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
+
+const inviteSourcePresets = ["direct", "social", "stream", "partner", "campaign"] as const;
+
+const botCommandPresetCatalog = {
+  CUSTOM: {
+    label: "Custom",
+    name: "",
+    description: "Build your own command behavior.",
+    responseTemplate: "",
+    requiredPermission: "NONE",
+  },
+  MODERATION: {
+    label: "Moderation",
+    name: "raid-lock",
+    description: "Signals a moderation lockdown directive for the active forge.",
+    responseTemplate: "Moderation lock engaged by {userName} in #{channel} for {forge}. Args: {args}.",
+    requiredPermission: "moderateChat",
+  },
+  UTILITY: {
+    label: "Utility",
+    name: "status-pulse",
+    description: "Reports operational status for the active forge.",
+    responseTemplate: "Utility pulse from {bot}: {forge} is stable in #{channel}. Requested by {userName}. Args: {args}.",
+    requiredPermission: "NONE",
+  },
+  ECONOMY: {
+    label: "Economy",
+    name: "jackpot-sync",
+    description: "Broadcasts economy synchronization status for controlled operators.",
+    responseTemplate: "Economy sync authorized by {userName} for {forge}. Channel #{channel}. Payload: {args}.",
+    requiredPermission: "manageRoles",
+  },
+} as const;
+
+function formatTime(date: string): string {
+  return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function threadLabel(thread: DmThread, selfId: string): string {
+  if (thread.isGroup) return thread.name ?? "Group Chat";
+  const partner = thread.participants.find((entry) => entry.user.id !== selfId);
+  return partner?.user.username ?? "Direct Message";
+}
+
+function userInitials(username: string): string {
+  const parts = username.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "NF";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+type LiveMetricChipProps = {
+  label: string;
+  value: number;
+  tone: "cyan" | "emerald" | "indigo";
+  points?: number[];
+};
+
+type MetricSparklineProps = {
+  points: number[];
+  tone: "cyan" | "emerald" | "indigo";
+};
+
+function MetricSparkline({ points, tone }: MetricSparklineProps) {
+  const max = Math.max(1, ...points);
+  const toneClass =
+    tone === "emerald"
+      ? "bg-emerald-300/85"
+      : tone === "indigo"
+        ? "bg-indigo-300/85"
+        : "bg-cyan-300/85";
+
+  const heightClassFromPoint = (point: number): string => {
+    const heightPct = Math.max(18, Math.round((point / max) * 100));
+    if (heightPct <= 30) return "h-1";
+    if (heightPct <= 55) return "h-2";
+    if (heightPct <= 80) return "h-3";
+    return "h-4";
+  };
+
+  return (
+    <span className="inline-flex h-4 items-end gap-[2px]" aria-hidden="true">
+      {points.map((point, index) => (
+        <span key={`${index}-${point}`} className={`w-[2px] rounded-sm ${toneClass} ${heightClassFromPoint(point)}`} />
+      ))}
+    </span>
+  );
+}
+
+function LiveMetricChip({ label, value, tone, points }: LiveMetricChipProps) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-200"
+      : tone === "indigo"
+        ? "border-indigo-500/35 bg-indigo-950/30 text-indigo-100"
+        : "border-cyan-500/35 bg-cyan-950/30 text-cyan-100";
+
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 whitespace-nowrap ${toneClass}`}>
+      <motion.span
+        key={`${label}-${value}`}
+        initial={{ y: 8, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="font-semibold"
+      >
+        {value}
+      </motion.span>
+      <span>{label}</span>
+      {points?.length ? <MetricSparkline points={points} tone={tone} /> : null}
+    </span>
+  );
+}
+
+export function ForgeChatClient() {
+  const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { accessToken, csrfToken, user, hydrated, clearSession } = useAuthStore();
+
+  const [selectedForgeId, setSelectedForgeId] = useState<string | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [forgeName, setForgeName] = useState("");
+  const [forgeDescription, setForgeDescription] = useState("");
+  const [forgeIcon, setForgeIcon] = useState("");
+  const [forgeBanner, setForgeBanner] = useState("");
+  const [forgeCustomInviteCode, setForgeCustomInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [selectedForgeInviteCode, setSelectedForgeInviteCode] = useState("");
+  const [selectedInviteShareSource, setSelectedInviteShareSource] = useState<(typeof inviteSourcePresets)[number]>("direct");
+  const [selectedInviteQrCode, setSelectedInviteQrCode] = useState("");
+  const [botName, setBotName] = useState("");
+  const [botDescription, setBotDescription] = useState("");
+  const [botAvatar, setBotAvatar] = useState("");
+  const [botIntents, setBotIntents] = useState("moderation, automod, welcome");
+  const [botInviteCode, setBotInviteCode] = useState("");
+  const [botSearchQuery, setBotSearchQuery] = useState("");
+  const [botCommandName, setBotCommandName] = useState("");
+  const [botCommandDescription, setBotCommandDescription] = useState("");
+  const [botCommandResponse, setBotCommandResponse] = useState("");
+  const [botCommandPermission, setBotCommandPermission] = useState<"NONE" | "moderateChat" | "manageChannels" | "manageRoles" | "kickUsers" | "banUsers" | "streamAccess">("NONE");
+  const [botCommandPreset, setBotCommandPreset] = useState<"CUSTOM" | "MODERATION" | "UTILITY" | "ECONOMY">("CUSTOM");
+  const [botCommandInstallationId, setBotCommandInstallationId] = useState("");
+  const [botExecuteName, setBotExecuteName] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const [friendQuery, setFriendQuery] = useState("");
+  const [selectedDmThreadId, setSelectedDmThreadId] = useState<string | null>(null);
+  const [dmDraft, setDmDraft] = useState("");
+  const [dmUnreadByThread, setDmUnreadByThread] = useState<Record<string, number>>({});
+  const [dmPreviewByThread, setDmPreviewByThread] = useState<Record<string, string>>({});
+
+  const [selectedVoiceChannelId, setSelectedVoiceChannelId] = useState<string | null>(null);
+  const [voiceSession, setVoiceSession] = useState<(VoiceTokenResponse & { channelId: string }) | null>(null);
+  const [voiceState, setVoiceState] = useState({
+    muted: false,
+    deafened: false,
+    screenSharing: false,
+    noiseSuppression: true,
+    voiceActivity: true,
+  });
+
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [liveEventCount, setLiveEventCount] = useState(0);
+  const [voicePresenceByChannel, setVoicePresenceByChannel] = useState<Record<string, string[]>>({});
+  const [typingUsersByChannel, setTypingUsersByChannel] = useState<Record<string, string[]>>({});
+  const [typingUsersByThread, setTypingUsersByThread] = useState<Record<string, string[]>>({});
+  const [eventHistory, setEventHistory] = useState<number[]>(Array(14).fill(0));
+  const [requestHistory, setRequestHistory] = useState<number[]>(Array(14).fill(0));
+  const [dmHistory, setDmHistory] = useState<number[]>(Array(14).fill(0));
+  const [voiceHistory, setVoiceHistory] = useState<number[]>(Array(14).fill(0));
+  const typingTimeoutRef = useRef<number | null>(null);
+  const isTypingRef = useRef(false);
+  const dmTypingTimeoutRef = useRef<number | null>(null);
+  const isDmTypingRef = useRef(false);
+
+  const forgesQuery = useQuery({
+    queryKey: ["forges", accessToken],
+    queryFn: () => listForges(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const forgeDetailQuery = useQuery({
+    queryKey: ["forge", selectedForgeId, accessToken],
+    queryFn: () => getForge(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+  });
+
+  const messagesQuery = useQuery({
+    queryKey: ["messages", selectedChannelId, accessToken],
+    queryFn: () => getMessages(accessToken!, selectedChannelId!),
+    enabled: Boolean(accessToken && selectedChannelId),
+  });
+
+  const friendsQuery = useQuery({
+    queryKey: ["friends", accessToken],
+    queryFn: () => listFriends(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const dmThreadsQuery = useQuery({
+    queryKey: ["dm-threads", accessToken],
+    queryFn: () => listDmThreads(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const dmMessagesQuery = useQuery({
+    queryKey: ["dm-messages", selectedDmThreadId, accessToken],
+    queryFn: () => getDmMessages(accessToken!, selectedDmThreadId!),
+    enabled: Boolean(accessToken && selectedDmThreadId),
+  });
+
+  const corePlusTelemetryQuery = useQuery({
+    queryKey: ["core-plus-telemetry", accessToken],
+    queryFn: () => getCorePlusTelemetry(accessToken!),
+    enabled: Boolean(accessToken),
+    refetchInterval: 15000,
+  });
+
+  const billingQuery = useQuery({
+    queryKey: ["billing-entitlements", accessToken],
+    queryFn: () => getBillingEntitlements(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const userSearchQuery = useQuery({
+    queryKey: ["user-search", friendQuery, accessToken],
+    queryFn: () => searchUsers(accessToken!, friendQuery),
+    enabled: Boolean(accessToken && friendQuery.trim().length >= 2),
+  });
+
+  const myBotsQuery = useQuery({
+    queryKey: ["my-bots", accessToken],
+    queryFn: () => listMyBots(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const botCatalogQuery = useQuery({
+    queryKey: ["bot-catalog", botSearchQuery, accessToken],
+    queryFn: () => listBotCatalog(accessToken!, botSearchQuery.trim() || undefined),
+    enabled: Boolean(accessToken),
+  });
+
+  const createForgeInviteAvailabilityQuery = useQuery({
+    queryKey: ["forge-invite-availability", forgeCustomInviteCode.trim().toLowerCase()],
+    queryFn: () => getForgeInviteAvailability(forgeCustomInviteCode.trim().toLowerCase()),
+    enabled: forgeCustomInviteCode.trim().length >= 3,
+    staleTime: 10000,
+  });
+
+  const selectedForgeInviteAvailabilityQuery = useQuery({
+    queryKey: ["forge-invite-availability", selectedForgeInviteCode.trim().toLowerCase(), selectedForgeId],
+    queryFn: () => getForgeInviteAvailability(selectedForgeInviteCode.trim().toLowerCase(), selectedForgeId ?? undefined),
+    enabled: selectedForgeInviteCode.trim().length >= 3,
+    staleTime: 10000,
+  });
+
+  const hasBrandingKit = billingQuery.data?.entitlements.some((item) => item.featureCode === "TEAM_BRANDING_KIT" && item.quantity > 0) ?? false;
+  const forgeBrandingRequested = Boolean(forgeIcon.trim() || forgeBanner.trim());
+
+  const createForgeMutation = useMutation({
+    mutationFn: (payload: { name: string; description?: string; icon?: string; banner?: string; inviteCode?: string }) =>
+      createForge(accessToken!, csrfToken!, payload),
+    onSuccess: async (result) => {
+      setForgeName("");
+      setForgeDescription("");
+      setForgeIcon("");
+      setForgeBanner("");
+      setForgeCustomInviteCode("");
+      await queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      setSelectedForgeId(result.forge.id);
+      setSelectedForgeInviteCode(result.forge.inviteCode);
+      setSelectedInviteShareSource("direct");
+    },
+  });
+
+  const updateForgeInviteMutation = useMutation({
+    mutationFn: (payload: { forgeId: string; inviteCode: string }) =>
+      updateForgeInviteCode(accessToken!, csrfToken!, payload.forgeId, payload.inviteCode),
+    onSuccess: async (result) => {
+      setSelectedForgeInviteCode(result.forge.inviteCode);
+      await queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const createBotMutation = useMutation({
+    mutationFn: (payload: { name: string; description?: string; avatar?: string; intents?: string[] }) =>
+      createBotApp(accessToken!, csrfToken!, payload),
+    onSuccess: async (result) => {
+      setBotName("");
+      setBotDescription("");
+      setBotAvatar("");
+      setBotInviteCode(result.bot.inviteCode);
+      await queryClient.invalidateQueries({ queryKey: ["my-bots", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["bot-catalog", botSearchQuery, accessToken] });
+    },
+  });
+
+  const updateBotMutation = useMutation({
+    mutationFn: (payload: { botId: string; intents: string[] }) =>
+      updateBotApp(accessToken!, csrfToken!, payload.botId, { intents: payload.intents }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["my-bots", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["bot-catalog", botSearchQuery, accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const installBotMutation = useMutation({
+    mutationFn: (inviteCode: string) =>
+      installBotToForge(accessToken!, csrfToken!, {
+        forgeId: selectedForgeId!,
+        inviteCode,
+      }),
+    onSuccess: async () => {
+      setBotInviteCode("");
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const createBotCommandMutation = useMutation({
+    mutationFn: (payload: {
+      forgeId: string;
+      installationId: string;
+      name: string;
+      description?: string;
+      responseTemplate: string;
+      preset?: "CUSTOM" | "MODERATION" | "UTILITY" | "ECONOMY";
+      requiredPermission?: "NONE" | "moderateChat" | "manageChannels" | "manageRoles" | "kickUsers" | "banUsers" | "streamAccess";
+    }) => createBotCommand(accessToken!, csrfToken!, payload),
+    onSuccess: async () => {
+      setBotCommandPreset("CUSTOM");
+      setBotCommandName("");
+      setBotCommandDescription("");
+      setBotCommandResponse("");
+      setBotCommandPermission("NONE");
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const updateBotCommandMutation = useMutation({
+    mutationFn: (payload: { commandId: string; enabled: boolean }) =>
+      updateBotCommand(accessToken!, csrfToken!, payload.commandId, { enabled: payload.enabled }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const executeBotCommandMutation = useMutation({
+    mutationFn: (payload: { forgeId: string; name: string }) => executeBotCommand(accessToken!, csrfToken!, payload),
+  });
+
+  const toggleBotInstallationMutation = useMutation({
+    mutationFn: (payload: { installationId: string; enabled: boolean }) =>
+      setBotInstallationEnabled(accessToken!, csrfToken!, payload.installationId, payload.enabled),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+    },
+  });
+
+  const createForgeErrorMessage = axios.isAxiosError(createForgeMutation.error)
+    ? ((createForgeMutation.error.response?.data as { message?: string; error?: string } | undefined)?.message ??
+      createForgeMutation.error.response?.data?.error ??
+      createForgeMutation.error.message)
+    : createForgeMutation.error instanceof Error
+      ? createForgeMutation.error.message
+      : null;
+
+  const updateForgeInviteErrorMessage = axios.isAxiosError(updateForgeInviteMutation.error)
+    ? ((updateForgeInviteMutation.error.response?.data as { error?: string } | undefined)?.error ?? updateForgeInviteMutation.error.message)
+    : updateForgeInviteMutation.error instanceof Error
+      ? updateForgeInviteMutation.error.message
+      : null;
+
+  const createBotErrorMessage = axios.isAxiosError(createBotMutation.error)
+    ? ((createBotMutation.error.response?.data as { error?: string } | undefined)?.error ?? createBotMutation.error.message)
+    : createBotMutation.error instanceof Error
+      ? createBotMutation.error.message
+      : null;
+
+  const installBotErrorMessage = axios.isAxiosError(installBotMutation.error)
+    ? ((installBotMutation.error.response?.data as { error?: string } | undefined)?.error ?? installBotMutation.error.message)
+    : installBotMutation.error instanceof Error
+      ? installBotMutation.error.message
+      : null;
+
+  const createCommandErrorMessage = axios.isAxiosError(createBotCommandMutation.error)
+    ? ((createBotCommandMutation.error.response?.data as { error?: string } | undefined)?.error ?? createBotCommandMutation.error.message)
+    : createBotCommandMutation.error instanceof Error
+      ? createBotCommandMutation.error.message
+      : null;
+
+  const executeCommandMessage = executeBotCommandMutation.isSuccess
+    ? `${executeBotCommandMutation.data.output.botName}: ${executeBotCommandMutation.data.output.response}`
+    : axios.isAxiosError(executeBotCommandMutation.error)
+      ? ((executeBotCommandMutation.error.response?.data as { error?: string } | undefined)?.error ?? executeBotCommandMutation.error.message)
+      : executeBotCommandMutation.error instanceof Error
+        ? executeBotCommandMutation.error.message
+        : "";
+
+  const createForgeInviteStatus = !forgeCustomInviteCode.trim()
+    ? null
+    : createForgeInviteAvailabilityQuery.data?.available
+      ? { tone: "emerald", message: `/${createForgeInviteAvailabilityQuery.data.inviteCode} is available.` }
+      : createForgeInviteAvailabilityQuery.data?.reason === "reserved"
+        ? { tone: "amber", message: `/${createForgeInviteAvailabilityQuery.data.inviteCode} is reserved.` }
+        : createForgeInviteAvailabilityQuery.data
+          ? { tone: "rose", message: `/${createForgeInviteAvailabilityQuery.data.inviteCode} is already taken.` }
+          : null;
+
+  const selectedForgeInviteStatus = !selectedForgeInviteCode.trim()
+    ? null
+    : selectedForgeInviteAvailabilityQuery.data?.available
+      ? { tone: "emerald", message: `/${selectedForgeInviteAvailabilityQuery.data.inviteCode} is ready to use.` }
+      : selectedForgeInviteAvailabilityQuery.data?.reason === "reserved"
+        ? { tone: "amber", message: `/${selectedForgeInviteAvailabilityQuery.data.inviteCode} is reserved.` }
+        : selectedForgeInviteAvailabilityQuery.data
+          ? { tone: "rose", message: `/${selectedForgeInviteAvailabilityQuery.data.inviteCode} is already taken.` }
+          : null;
+
+  const canCreateForgeInvite = !forgeCustomInviteCode.trim() || createForgeInviteAvailabilityQuery.data?.available === true;
+  const canCreateForge = Boolean(forgeName.trim()) && (!forgeBrandingRequested || hasBrandingKit) && canCreateForgeInvite && !createForgeMutation.isPending;
+  const canUpdateForgeInvite =
+    Boolean(selectedForgeId && selectedForgeInviteCode.trim().length >= 3) &&
+    selectedForgeInviteAvailabilityQuery.data?.available === true &&
+    !updateForgeInviteMutation.isPending;
+  const selectedForgeInviteUrl = selectedForgeInviteCode.trim()
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${encodeURIComponent(selectedForgeInviteCode.trim().toLowerCase())}`
+    : "";
+  const selectedTaggedInviteUrl = selectedForgeInviteUrl
+    ? `${selectedForgeInviteUrl}?src=${encodeURIComponent(selectedInviteShareSource)}`
+    : "";
+  const inviteConversionRate =
+    (forgeDetailQuery.data?.forge.inviteViewCount ?? 0) > 0
+      ? Math.round(((forgeDetailQuery.data?.forge.inviteJoinCount ?? 0) / (forgeDetailQuery.data?.forge.inviteViewCount ?? 1)) * 100)
+      : 0;
+  const inviteSourceStats = useMemo(
+    () =>
+      (forgeDetailQuery.data?.forge.inviteSources ?? [])
+        .slice()
+        .sort((left, right) => (right.joinCount === left.joinCount ? right.viewCount - left.viewCount : right.joinCount - left.joinCount)),
+    [forgeDetailQuery.data?.forge.inviteSources],
+  );
+  const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
+  const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
+  const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
+  const hasForgeBoostPack = (forgeBoostEntitlement?.quantity ?? 0) > 0;
+  const hasEventTicketPass = (eventTicketEntitlement?.quantity ?? 0) > 0;
+  const hasCreatorCampaignSlot = (creatorCampaignEntitlement?.quantity ?? 0) > 0;
+  const hasAdvancedModerationAI = billingQuery.data?.entitlements.some((item) => item.featureCode === "ADVANCED_MODERATION_AI" && item.quantity > 0) ?? false;
+
+  const slashCommands = useMemo(() => {
+    return (forgeDetailQuery.data?.forge.botInstallations ?? [])
+      .filter((installation) => installation.enabled)
+      .flatMap((installation) =>
+        installation.commands
+          .filter((command) => command.enabled)
+          .map((command) => ({
+            ...command,
+            botName: installation.bot.name,
+          })),
+      )
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [forgeDetailQuery.data?.forge.botInstallations]);
+
+  const slashCommandSuggestions = useMemo(() => {
+    const trimmed = messageDraft.trimStart();
+    if (!trimmed.startsWith("/")) {
+      return [];
+    }
+
+    const query = trimmed.slice(1).toLowerCase();
+    return slashCommands.filter((command) => !query || command.name.toLowerCase().includes(query)).slice(0, 6);
+  }, [messageDraft, slashCommands]);
+
+  useEffect(() => {
+    setSelectedForgeInviteCode(forgeDetailQuery.data?.forge.inviteCode ?? "");
+  }, [forgeDetailQuery.data?.forge.inviteCode]);
+
+  useEffect(() => {
+    if (!selectedTaggedInviteUrl) {
+      setSelectedInviteQrCode("");
+      return;
+    }
+
+    void QRCode.toDataURL(selectedTaggedInviteUrl, {
+      margin: 1,
+      width: 220,
+      color: {
+        dark: "#e2f3ff",
+        light: "#00000000",
+      },
+    })
+      .then((dataUrl) => setSelectedInviteQrCode(dataUrl))
+      .catch(() => setSelectedInviteQrCode(""));
+  }, [selectedTaggedInviteUrl]);
+
+  const forgeBoostMutation = useMutation({
+    mutationFn: () => consumeForgeBoostPack(accessToken!, csrfToken!, 1),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", accessToken] });
+    },
+  });
+
+  const eventTicketMutation = useMutation({
+    mutationFn: () => consumeEventTicketPass(accessToken!, csrfToken!, 1),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", accessToken] });
+    },
+  });
+
+  const creatorCampaignMutation = useMutation({
+    mutationFn: () => consumeCreatorCampaignSlot(accessToken!, csrfToken!, 1),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", accessToken] });
+    },
+  });
+
+  const advancedModerationMutation = useMutation({
+    mutationFn: () => consumeAdvancedModerationAI(accessToken!, csrfToken!),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-ai-insights", accessToken] });
+    },
+  });
+
+  const creatorCampaignMessage = creatorCampaignMutation.isSuccess
+    ? `Creator campaign slot consumed. Remaining: ${creatorCampaignMutation.data.remaining}`
+    : axios.isAxiosError(creatorCampaignMutation.error)
+      ? ((creatorCampaignMutation.error.response?.data as { error?: string } | undefined)?.error ?? creatorCampaignMutation.error.message)
+      : creatorCampaignMutation.error instanceof Error
+        ? creatorCampaignMutation.error.message
+        : "";
+
+  const forgeBoostMessage = forgeBoostMutation.isSuccess
+    ? `Forge boost consumed. Remaining: ${forgeBoostMutation.data.remaining}`
+    : axios.isAxiosError(forgeBoostMutation.error)
+      ? ((forgeBoostMutation.error.response?.data as { error?: string } | undefined)?.error ?? forgeBoostMutation.error.message)
+      : forgeBoostMutation.error instanceof Error
+        ? forgeBoostMutation.error.message
+        : "";
+
+  const eventTicketMessage = eventTicketMutation.isSuccess
+    ? `Event ticket pass consumed. Remaining: ${eventTicketMutation.data.remaining}`
+    : axios.isAxiosError(eventTicketMutation.error)
+      ? ((eventTicketMutation.error.response?.data as { error?: string } | undefined)?.error ?? eventTicketMutation.error.message)
+      : eventTicketMutation.error instanceof Error
+        ? eventTicketMutation.error.message
+        : "";
+
+  const advancedModerationMessage = advancedModerationMutation.isSuccess
+    ? advancedModerationMutation.data.message
+    : axios.isAxiosError(advancedModerationMutation.error)
+      ? ((advancedModerationMutation.error.response?.data as { error?: string } | undefined)?.error ?? advancedModerationMutation.error.message)
+      : advancedModerationMutation.error instanceof Error
+        ? advancedModerationMutation.error.message
+        : "";
+
+  const joinForgeMutation = useMutation({
+    mutationFn: (code: string) => joinForgeFromSource(accessToken!, csrfToken!, { inviteCode: code, source: "direct" }),
+    onSuccess: async (result) => {
+      setInviteCode("");
+      await queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      setSelectedForgeId(result.forgeId);
+    },
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (payload: {
+      channelId: string;
+      content: string;
+      optimisticId: string;
+      attachments?: string[];
+    }) => postMessage(accessToken!, csrfToken!, payload),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["messages", payload.channelId, accessToken] });
+      const previous = queryClient.getQueryData<{ messages: Message[]; nextCursor: string | null }>([
+        "messages",
+        payload.channelId,
+        accessToken,
+      ]);
+
+      const optimisticMessage: Message = {
+        id: payload.optimisticId,
+        channelId: payload.channelId,
+        authorId: user?.id ?? "unknown",
+        content: payload.content,
+        attachments: payload.attachments,
+        edited: false,
+        createdAt: new Date().toISOString(),
+        optimistic: true,
+        optimisticId: payload.optimisticId,
+        author: user
+          ? {
+              id: user.id,
+              username: user.username,
+              avatar: user.avatar,
+              premium: user.premium,
+            }
+          : undefined,
+      };
+
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", payload.channelId, accessToken],
+        {
+          messages: [...(previous?.messages ?? []), optimisticMessage],
+          nextCursor: previous?.nextCursor ?? null,
+        },
+      );
+
+      return { previous };
+    },
+    onError: (_error, payload, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["messages", payload.channelId, accessToken], context.previous);
+      }
+    },
+    onSuccess: (data, payload) => {
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", payload.channelId, accessToken],
+        (current) => {
+          if (!current) return { messages: [data.message], nextCursor: null };
+          return {
+            ...current,
+            messages: current.messages.map((msg) =>
+              msg.id === payload.optimisticId ? { ...data.message, optimistic: false } : msg,
+            ),
+          };
+        },
+      );
+    },
+  });
+
+  const sendFriendRequestMutation = useMutation({
+    mutationFn: (receiverId: string) => sendFriendRequest(accessToken!, csrfToken!, receiverId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["friends", accessToken] });
+      setStatusMessage("Friend request sent.");
+    },
+  });
+
+  const acceptFriendMutation = useMutation({
+    mutationFn: (friendId: string) => updateFriendStatus(accessToken!, csrfToken!, friendId, "ACCEPTED"),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["friends", accessToken] });
+    },
+  });
+
+  const createDmThreadMutation = useMutation({
+    mutationFn: (targetUserId: string) => createDmThread(accessToken!, csrfToken!, targetUserId),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dm-threads", accessToken] });
+      setSelectedDmThreadId(result.thread.id);
+      setStatusMessage("DM thread ready.");
+    },
+  });
+
+  const sendDmMessageMutation = useMutation({
+    mutationFn: (payload: { threadId: string; content: string; attachments?: string[] }) =>
+      postDmMessage(accessToken!, csrfToken!, payload.threadId, {
+        content: payload.content,
+        attachments: payload.attachments,
+      }),
+    onSuccess: (result, payload) => {
+      queryClient.setQueryData<{ messages: DmMessage[] }>(
+        ["dm-messages", payload.threadId, accessToken],
+        (current) => {
+          const next = current?.messages ?? [];
+          return { messages: [...next, result.message] };
+        },
+      );
+    },
+  });
+
+  const voiceTokenMutation = useMutation({
+    mutationFn: (channelId: string) => requestVoiceToken(accessToken!, csrfToken!, channelId),
+    onSuccess: (data) => {
+      if (!selectedVoiceChannelId) return;
+      setVoiceSession({ ...data, channelId: selectedVoiceChannelId });
+      setStatusMessage("Voice session token issued.");
+    },
+  });
+
+  const voiceStateMutation = useMutation({
+    mutationFn: (payload: typeof voiceState & { channelId: string }) =>
+      updateVoiceState(accessToken!, csrfToken!, payload),
+  });
+
+  const textChannels = useMemo(
+    () =>
+      forgeDetailQuery.data?.forge.channels.filter(
+        (channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT",
+      ) ?? [],
+    [forgeDetailQuery.data],
+  );
+
+  const voiceChannels = useMemo(
+    () => forgeDetailQuery.data?.forge.channels.filter((channel) => channel.type === "VOICE" || channel.type === "STAGE") ?? [],
+    [forgeDetailQuery.data],
+  );
+
+  const acceptedFriends = useMemo(
+    () =>
+      (friendsQuery.data?.friends ?? []).filter((item) => item.status === "ACCEPTED"),
+    [friendsQuery.data],
+  );
+
+  const pendingIncoming = useMemo(
+    () =>
+      (friendsQuery.data?.friends ?? []).filter(
+        (item) => item.status === "PENDING" && item.receiverId === user?.id,
+      ),
+    [friendsQuery.data, user?.id],
+  );
+
+  const activeVoiceCount = useMemo(() => {
+    if (!selectedVoiceChannelId) return 0;
+    const ids = new Set(voicePresenceByChannel[selectedVoiceChannelId] ?? []);
+    if (voiceSession?.channelId === selectedVoiceChannelId && user?.id) {
+      ids.add(user.id);
+    }
+    return ids.size;
+  }, [selectedVoiceChannelId, user?.id, voicePresenceByChannel, voiceSession?.channelId]);
+
+  const tierDistributionLabel = useMemo(() => {
+    const distribution = corePlusTelemetryQuery.data?.telemetry.tierDistribution;
+    if (!distribution) return "CORE 0 | PLUS 0 | ELITE 0 | INF 0";
+    return `CORE ${distribution.CORE} | PLUS ${distribution.PLUS} | ELITE ${distribution.ELITE} | INF ${distribution.INFINITE}`;
+  }, [corePlusTelemetryQuery.data?.telemetry.tierDistribution]);
+
+  const activeTypingUsers = useMemo(() => {
+    if (!selectedChannelId) return [];
+    return typingUsersByChannel[selectedChannelId] ?? [];
+  }, [selectedChannelId, typingUsersByChannel]);
+
+  const activeDmTypingUsers = useMemo(() => {
+    if (!selectedDmThreadId) return [];
+    return typingUsersByThread[selectedDmThreadId] ?? [];
+  }, [selectedDmThreadId, typingUsersByThread]);
+
+  useEffect(() => {
+    const threads = dmThreadsQuery.data?.threads ?? [];
+    if (!threads.length) return;
+
+    setDmPreviewByThread((current) => {
+      const next = { ...current };
+      for (const thread of threads) {
+        if (next[thread.id]) continue;
+        const latest = thread.messages?.[0]?.content?.trim();
+        if (latest) {
+          next[thread.id] = latest;
+        }
+      }
+      return next;
+    });
+  }, [dmThreadsQuery.data?.threads]);
+
+  const connectionChipClass = socketConnected
+    ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-200"
+    : "border-rose-500/45 bg-rose-950/35 text-rose-200";
+
+  const sampleRef = useRef({
+    liveEventCount: 0,
+    pendingIncomingCount: 0,
+    dmThreadCount: 0,
+    activeVoiceCount: 0,
+  });
+
+  const pushHistory = (values: number[], next: number) => [...values.slice(-13), next];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setLiveEventCount(0);
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+      if (dmTypingTimeoutRef.current) {
+        window.clearTimeout(dmTypingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    sampleRef.current = {
+      liveEventCount,
+      pendingIncomingCount: pendingIncoming.length,
+      dmThreadCount: dmThreadsQuery.data?.threads.length ?? 0,
+      activeVoiceCount,
+    };
+  }, [activeVoiceCount, dmThreadsQuery.data?.threads.length, liveEventCount, pendingIncoming.length]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const snapshot = sampleRef.current;
+      setEventHistory((values) => pushHistory(values, snapshot.liveEventCount));
+      setRequestHistory((values) => pushHistory(values, snapshot.pendingIncomingCount));
+      setDmHistory((values) => pushHistory(values, snapshot.dmThreadCount));
+      setVoiceHistory((values) => pushHistory(values, snapshot.activeVoiceCount));
+    }, 3000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedForgeId && forgesQuery.data?.forges?.length) {
+      setSelectedForgeId(forgesQuery.data.forges[0].id);
+    }
+  }, [forgesQuery.data, selectedForgeId]);
+
+  useEffect(() => {
+    if (!selectedChannelId && textChannels.length) {
+      setSelectedChannelId(textChannels[0].id);
+    }
+  }, [selectedChannelId, textChannels]);
+
+  useEffect(() => {
+    if (!selectedVoiceChannelId && voiceChannels.length) {
+      setSelectedVoiceChannelId(voiceChannels[0].id);
+    }
+  }, [selectedVoiceChannelId, voiceChannels]);
+
+  useEffect(() => {
+    if (!selectedDmThreadId && dmThreadsQuery.data?.threads?.length) {
+      setSelectedDmThreadId(dmThreadsQuery.data.threads[0].id);
+    }
+  }, [dmThreadsQuery.data, selectedDmThreadId]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const socket = getSocket(accessToken);
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    setSocketConnected(socket.connected);
+
+    const incrementLiveEvents = () => setLiveEventCount((count) => count + 1);
+
+    const handleCreated = (payload: { message: Message; optimisticId?: string }) => {
+      incrementLiveEvents();
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => {
+          if (!current) return { messages: [payload.message], nextCursor: null };
+
+          if (payload.optimisticId) {
+            return {
+              ...current,
+              messages: current.messages.map((msg) =>
+                msg.id === payload.optimisticId ? payload.message : msg,
+              ),
+            };
+          }
+
+          const exists = current.messages.some((msg) => msg.id === payload.message.id);
+          if (exists) return current;
+          return {
+            ...current,
+            messages: [...current.messages, payload.message],
+          };
+        },
+      );
+    };
+
+    const handleUpdated = (payload: { message: Message }) => {
+      incrementLiveEvents();
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            messages: current.messages.map((msg) =>
+              msg.id === payload.message.id ? payload.message : msg,
+            ),
+          };
+        },
+      );
+    };
+
+    const handleDeleted = (payload: { messageId: string }) => {
+      incrementLiveEvents();
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            messages: current.messages.filter((msg) => msg.id !== payload.messageId),
+          };
+        },
+      );
+    };
+
+    const handleDmMessage = (payload: { threadId: string; message: DmMessage }) => {
+      incrementLiveEvents();
+      queryClient.setQueryData<{ messages: DmMessage[] }>(
+        ["dm-messages", payload.threadId, accessToken],
+        (current) => {
+          const messages = current?.messages ?? [];
+          const exists = messages.some((msg) => msg.id === payload.message.id);
+          if (exists) return current;
+          return { messages: [...messages, payload.message] };
+        },
+      );
+      setDmPreviewByThread((current) => ({
+        ...current,
+        [payload.threadId]: payload.message.content,
+      }));
+      if (payload.threadId !== selectedDmThreadId) {
+        setDmUnreadByThread((current) => ({
+          ...current,
+          [payload.threadId]: (current[payload.threadId] ?? 0) + 1,
+        }));
+      }
+      void queryClient.invalidateQueries({ queryKey: ["dm-threads", accessToken] });
+    };
+
+    const handleVoicePresence = (payload: {
+      channelId: string;
+      userId: string;
+      action: "joined" | "left";
+    }) => {
+      incrementLiveEvents();
+      setVoicePresenceByChannel((current) => {
+        const next = { ...current };
+        const existing = new Set(next[payload.channelId] ?? []);
+        if (payload.action === "joined") {
+          existing.add(payload.userId);
+        } else {
+          existing.delete(payload.userId);
+        }
+        next[payload.channelId] = Array.from(existing);
+        return next;
+      });
+    };
+
+    const handleVoiceState = (payload: { channelId: string; userId: string }) => {
+      incrementLiveEvents();
+      setVoicePresenceByChannel((current) => {
+        const next = { ...current };
+        const existing = new Set(next[payload.channelId] ?? []);
+        existing.add(payload.userId);
+        next[payload.channelId] = Array.from(existing);
+        return next;
+      });
+    };
+
+    const handleConnect = () => setSocketConnected(true);
+    const handleDisconnect = () => setSocketConnected(false);
+
+    const handleTypingStart = (payload: { channelId: string; userId: string; username: string }) => {
+      if (payload.userId === user?.id) return;
+      setTypingUsersByChannel((current) => {
+        const next = { ...current };
+        const existing = new Set(next[payload.channelId] ?? []);
+        existing.add(payload.username);
+        next[payload.channelId] = Array.from(existing);
+        return next;
+      });
+    };
+
+    const handleTypingStop = (payload: { channelId: string; userId: string }) => {
+      if (payload.userId === user?.id) return;
+      setTypingUsersByChannel((current) => {
+        const next = { ...current };
+        const existing = next[payload.channelId] ?? [];
+        next[payload.channelId] = existing.filter((name) => {
+          const onlineMembers = forgeDetailQuery.data?.forge.members ?? [];
+          const member = onlineMembers.find((entry) => entry.user.username === name);
+          return member?.user.id !== payload.userId;
+        });
+        return next;
+      });
+    };
+
+    const handleDmTypingStart = (payload: { threadId: string; userId: string; username: string }) => {
+      if (payload.userId === user?.id) return;
+      setTypingUsersByThread((current) => {
+        const next = { ...current };
+        const existing = new Set(next[payload.threadId] ?? []);
+        existing.add(payload.username);
+        next[payload.threadId] = Array.from(existing);
+        return next;
+      });
+    };
+
+    const handleDmTypingStop = (payload: { threadId: string; userId: string }) => {
+      if (payload.userId === user?.id) return;
+      setTypingUsersByThread((current) => {
+        const next = { ...current };
+        const existing = next[payload.threadId] ?? [];
+        next[payload.threadId] = existing.filter((name) => {
+          const thread = dmThreadsQuery.data?.threads.find((entry) => entry.id === payload.threadId);
+          const participant = thread?.participants.find((entry) => entry.user.username === name);
+          return participant?.user.id !== payload.userId;
+        });
+        return next;
+      });
+    };
+
+    socket.on("message:created", handleCreated);
+    socket.on("message:updated", handleUpdated);
+    socket.on("message:deleted", handleDeleted);
+    socket.on("dm:message", handleDmMessage);
+    socket.on("voice:presence", handleVoicePresence);
+    socket.on("voice:state", handleVoiceState);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("typing:start", handleTypingStart);
+    socket.on("typing:stop", handleTypingStop);
+    socket.on("dm:typing:start", handleDmTypingStart);
+    socket.on("dm:typing:stop", handleDmTypingStop);
+
+    return () => {
+      socket.off("message:created", handleCreated);
+      socket.off("message:updated", handleUpdated);
+      socket.off("message:deleted", handleDeleted);
+      socket.off("dm:message", handleDmMessage);
+      socket.off("voice:presence", handleVoicePresence);
+      socket.off("voice:state", handleVoiceState);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("typing:start", handleTypingStart);
+      socket.off("typing:stop", handleTypingStop);
+      socket.off("dm:typing:start", handleDmTypingStart);
+      socket.off("dm:typing:stop", handleDmTypingStop);
+    };
+  }, [accessToken, dmThreadsQuery.data?.threads, forgeDetailQuery.data?.forge.members, queryClient, selectedChannelId, selectedDmThreadId, user?.id]);
+
+  useEffect(() => {
+    if (!accessToken || !selectedChannelId) return;
+    const socket = getSocket(accessToken);
+    socket.emit("channel:join", selectedChannelId);
+    return () => {
+      socket.emit("channel:leave", selectedChannelId);
+    };
+  }, [accessToken, selectedChannelId]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const threadIds = dmThreadsQuery.data?.threads.map((thread) => thread.id) ?? [];
+    if (!threadIds.length) return;
+
+    const socket = getSocket(accessToken);
+    for (const threadId of threadIds) {
+      socket.emit("dm:join", threadId);
+    }
+
+    return () => {
+      for (const threadId of threadIds) {
+        socket.emit("dm:leave", threadId);
+      }
+    };
+  }, [accessToken, dmThreadsQuery.data?.threads]);
+
+  useEffect(() => {
+    if (!selectedDmThreadId) return;
+    setDmUnreadByThread((current) => ({
+      ...current,
+      [selectedDmThreadId]: 0,
+    }));
+  }, [selectedDmThreadId]);
+
+  const uploadFiles = async (files: File[]): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+
+    for (const file of files) {
+      const presign = await createUploadPresign(accessToken!, csrfToken!, {
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        size: file.size,
+      });
+
+      const putResponse = await fetch(presign.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+
+      if (!putResponse.ok) {
+        throw new Error(`Upload failed for ${file.name}`);
+      }
+
+      uploadedUrls.push(presign.fileUrl);
+    }
+
+    return uploadedUrls;
+  };
+
+  const onSendChannelMessage = async () => {
+    if (!selectedChannelId || !messageDraft.trim()) return;
+
+    const optimisticId = `tmp-${crypto.randomUUID()}`;
+    const content = messageDraft.trim();
+    const filesToUpload = [...pendingFiles];
+
+    if (accessToken) {
+      const socket = getSocket(accessToken);
+      socket.emit("typing:stop", selectedChannelId);
+    }
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    setMessageDraft("");
+    setPendingFiles([]);
+
+    try {
+      const attachments = filesToUpload.length ? await uploadFiles(filesToUpload) : undefined;
+      await sendMessageMutation.mutateAsync({
+        channelId: selectedChannelId,
+        content,
+        attachments,
+        optimisticId,
+      });
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Failed to send message.");
+    }
+  };
+
+  const onSendDmMessage = async () => {
+    if (!selectedDmThreadId || !dmDraft.trim()) return;
+
+    const content = dmDraft.trim();
+    if (accessToken) {
+      const socket = getSocket(accessToken);
+      socket.emit("dm:typing:stop", selectedDmThreadId);
+    }
+    isDmTypingRef.current = false;
+    if (dmTypingTimeoutRef.current) {
+      window.clearTimeout(dmTypingTimeoutRef.current);
+      dmTypingTimeoutRef.current = null;
+    }
+    setDmDraft("");
+
+    try {
+      await sendDmMessageMutation.mutateAsync({
+        threadId: selectedDmThreadId,
+        content,
+      });
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Failed to send DM.");
+    }
+  };
+
+  const onJoinVoice = async () => {
+    if (!selectedVoiceChannelId) return;
+
+    try {
+      await voiceTokenMutation.mutateAsync(selectedVoiceChannelId);
+      const socket = getSocket(accessToken!);
+      socket.emit("voice:join", selectedVoiceChannelId);
+      if (user?.id) {
+        setVoicePresenceByChannel((current) => {
+          const existing = new Set(current[selectedVoiceChannelId] ?? []);
+          existing.add(user.id);
+          return {
+            ...current,
+            [selectedVoiceChannelId]: Array.from(existing),
+          };
+        });
+      }
+      setStatusMessage("Joined voice signaling room.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Voice join failed.");
+    }
+  };
+
+  const onLeaveVoice = () => {
+    if (!selectedVoiceChannelId) return;
+    const socket = getSocket(accessToken!);
+    socket.emit("voice:leave", selectedVoiceChannelId);
+    if (user?.id) {
+      setVoicePresenceByChannel((current) => {
+        const existing = new Set(current[selectedVoiceChannelId] ?? []);
+        existing.delete(user.id);
+        return {
+          ...current,
+          [selectedVoiceChannelId]: Array.from(existing),
+        };
+      });
+    }
+    setVoiceSession(null);
+    setStatusMessage("Left voice channel.");
+  };
+
+  const onToggleVoiceFlag = async (flag: keyof typeof voiceState) => {
+    if (!selectedVoiceChannelId) return;
+
+    const nextState = {
+      ...voiceState,
+      [flag]: !voiceState[flag],
+    };
+
+    setVoiceState(nextState);
+
+    try {
+      await voiceStateMutation.mutateAsync({
+        channelId: selectedVoiceChannelId,
+        ...nextState,
+      });
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Voice state update failed.");
+    }
+  };
+
+  const onMessageDraftChange = (value: string) => {
+    setMessageDraft(value);
+
+    if (!accessToken || !selectedChannelId) return;
+
+    const socket = getSocket(accessToken);
+    const hasContent = value.trim().length > 0;
+
+    if (!hasContent) {
+      if (isTypingRef.current) {
+        socket.emit("typing:stop", selectedChannelId);
+        isTypingRef.current = false;
+      }
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (!isTypingRef.current) {
+      socket.emit("typing:start", selectedChannelId);
+      isTypingRef.current = true;
+    }
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      socket.emit("typing:stop", selectedChannelId);
+      isTypingRef.current = false;
+      typingTimeoutRef.current = null;
+    }, 1800);
+  };
+
+  const applyCommandPreset = (preset: "CUSTOM" | "MODERATION" | "UTILITY" | "ECONOMY") => {
+    setBotCommandPreset(preset);
+    const config = botCommandPresetCatalog[preset];
+    setBotCommandName(config.name);
+    setBotCommandDescription(config.description);
+    setBotCommandResponse(config.responseTemplate);
+    setBotCommandPermission(config.requiredPermission);
+  };
+
+  const insertSlashCommand = (name: string) => {
+    onMessageDraftChange(`/${name} `);
+  };
+
+  const copyInviteUrl = async () => {
+    if (!selectedTaggedInviteUrl) {
+      setStatusMessage("No invite URL available to copy.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(selectedTaggedInviteUrl);
+      setStatusMessage("Invite URL copied to clipboard.");
+    } catch {
+      setStatusMessage("Clipboard copy failed on this device.");
+    }
+  };
+
+  const onDmDraftChange = (value: string) => {
+    setDmDraft(value);
+
+    if (!accessToken || !selectedDmThreadId) return;
+
+    const socket = getSocket(accessToken);
+    const hasContent = value.trim().length > 0;
+
+    if (!hasContent) {
+      if (isDmTypingRef.current) {
+        socket.emit("dm:typing:stop", selectedDmThreadId);
+        isDmTypingRef.current = false;
+      }
+      if (dmTypingTimeoutRef.current) {
+        window.clearTimeout(dmTypingTimeoutRef.current);
+        dmTypingTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (!isDmTypingRef.current) {
+      socket.emit("dm:typing:start", selectedDmThreadId);
+      isDmTypingRef.current = true;
+    }
+
+    if (dmTypingTimeoutRef.current) {
+      window.clearTimeout(dmTypingTimeoutRef.current);
+    }
+
+    dmTypingTimeoutRef.current = window.setTimeout(() => {
+      socket.emit("dm:typing:stop", selectedDmThreadId);
+      isDmTypingRef.current = false;
+      dmTypingTimeoutRef.current = null;
+    }, 1800);
+  };
+
+  const dockLinkClass = (href: string) => {
+    const isActive = pathname === href;
+    return `mobile-action-chip ${isActive ? "active" : ""}`;
+  };
+
+  const handleLogout = () => {
+    clearSession();
+    void useAuthStore.persist.clearStorage();
+    queryClient.clear();
+    setSelectedForgeId(null);
+    setSelectedChannelId(null);
+    setSelectedDmThreadId(null);
+    setSelectedVoiceChannelId(null);
+    setVoiceSession(null);
+    router.push("/login");
+  };
+
+  if (!hydrated) {
+    return (
+      <div className="rounded-2xl border border-cyan-500/40 bg-cyan-950/35 p-4 text-cyan-100">
+        Restoring secure session...
+      </div>
+    );
+  }
+
+  if (!accessToken || !csrfToken || !user) {
+    return (
+      <div className="grid gap-3 rounded-2xl border border-amber-500/40 bg-amber-950/40 p-4 text-amber-200">
+        <p>Sign in first to access your NexusForge command center.</p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/login?redirect=%2Fapp"
+            className="inline-flex h-9 items-center rounded-lg border border-amber-400/45 bg-amber-400 px-3 text-xs font-semibold text-slate-950 hover:bg-amber-300"
+          >
+            Login
+          </Link>
+          <Link
+            href="/register?redirect=%2Fapp"
+            className="inline-flex h-9 items-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
+          >
+            Create account
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative space-y-3 overflow-hidden rounded-3xl pb-24 xl:space-y-4 xl:pb-0">
+      <div className="command-halo pointer-events-none absolute inset-x-0 top-0 h-80" />
+
+      <div className="nexus-panel-strong relative flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-3">
+          <motion.img
+            src="/brand/nexusforge-main-logo.png"
+            alt="NexusForge"
+            className="logo-throb h-14 w-14 rounded-xl border border-amber-500/40 bg-black/85 object-contain p-1 shadow-[0_8px_20px_rgba(251,146,60,0.22)] ring-1 ring-cyan-400/25"
+            animate={{ scale: [1, 1.04, 1] }}
+            transition={{ repeat: Infinity, duration: 3.4, ease: "easeInOut" }}
+          />
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Command Center</p>
+
+        <div className="nexus-panel relative rounded-2xl border border-fuchsia-500/20 px-4 py-3">
+          <div className="pointer-events-none absolute left-3 top-3 h-20 w-20 rounded-full bg-fuchsia-500/10 blur-2xl" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-fuchsia-200">Premium Operations</p>
+              <p className="text-sm text-slate-300">Consume premium creator inventory and moderation intelligence directly from the command center.</p>
+            </div>
+            <Link
+              href="/pricing"
+              className="rounded-lg border border-fuchsia-500/45 bg-fuchsia-950/30 px-2.5 py-1 text-xs text-fuchsia-100 hover:border-fuchsia-300"
+            >
+              Upgrade Inventory
+            </Link>
+          </div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <div className="glass-cut rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Forge Boost Pack</p>
+                  <p className="mt-1 text-sm text-slate-200">Inject temporary growth pressure and spotlight momentum into your active forge.</p>
+                </div>
+                <span className="rounded-full border border-cyan-500/35 bg-cyan-950/30 px-2 py-0.5 text-xs text-cyan-100">
+                  {forgeBoostEntitlement?.quantity ?? 0} ready
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => forgeBoostMutation.mutate()}
+                  disabled={!accessToken || !csrfToken || !hasForgeBoostPack || forgeBoostMutation.isPending || !selectedForgeId}
+                >
+                  {forgeBoostMutation.isPending ? "Applying..." : "Apply Forge Boost"}
+                </Button>
+                {!hasForgeBoostPack ? (
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300">
+                    Buy Boost Packs
+                  </Link>
+                ) : null}
+              </div>
+              <p className="mt-2 text-xs text-slate-400">{selectedForgeId ? "Boost applies to your selected forge operations." : "Select a forge before applying a boost pack."}</p>
+              {forgeBoostMessage ? <p className="mt-2 text-xs text-cyan-100">{forgeBoostMessage}</p> : null}
+            </div>
+
+            <div className="glass-cut rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Event Ticket Pass</p>
+                  <p className="mt-1 text-sm text-slate-200">Allocate premium event access inventory for gated tournaments and drops.</p>
+                </div>
+                <span className="rounded-full border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-100">
+                  {eventTicketEntitlement?.quantity ?? 0} ready
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => eventTicketMutation.mutate()}
+                  disabled={!accessToken || !csrfToken || !hasEventTicketPass || eventTicketMutation.isPending}
+                >
+                  {eventTicketMutation.isPending ? "Allocating..." : "Allocate Event Pass"}
+                </Button>
+                {!hasEventTicketPass ? (
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300">
+                    Buy Event Passes
+                  </Link>
+                ) : null}
+              </div>
+              {eventTicketMessage ? <p className="mt-2 text-xs text-amber-100">{eventTicketMessage}</p> : null}
+            </div>
+
+            <div className="glass-cut rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Creator Campaign Slot</p>
+                  <p className="mt-1 text-sm text-slate-200">Launch a featured promotion rail for your current community push.</p>
+                </div>
+                <span className="rounded-full border border-fuchsia-500/35 bg-fuchsia-950/30 px-2 py-0.5 text-xs text-fuchsia-100">
+                  {creatorCampaignEntitlement?.quantity ?? 0} ready
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => creatorCampaignMutation.mutate()}
+                  disabled={!accessToken || !csrfToken || !hasCreatorCampaignSlot || creatorCampaignMutation.isPending}
+                >
+                  {creatorCampaignMutation.isPending ? "Allocating..." : "Launch Campaign Slot"}
+                </Button>
+                {!hasCreatorCampaignSlot ? (
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-fuchsia-500/35 bg-fuchsia-950/25 px-4 text-sm font-semibold text-fuchsia-100 hover:border-fuchsia-300">
+                    Buy Campaign Slots
+                  </Link>
+                ) : null}
+              </div>
+              {creatorCampaignMessage ? <p className="mt-2 text-xs text-fuchsia-100">{creatorCampaignMessage}</p> : null}
+            </div>
+
+            <div className="glass-cut rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Advanced Moderation AI</p>
+                  <p className="mt-1 text-sm text-slate-200">Provision raid detection and behavior intelligence for the active forge.</p>
+                </div>
+                <span className="rounded-full border border-emerald-500/35 bg-emerald-950/30 px-2 py-0.5 text-xs text-emerald-100">
+                  {hasAdvancedModerationAI ? "Active" : "Locked"}
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => advancedModerationMutation.mutate()}
+                  disabled={!accessToken || !csrfToken || hasAdvancedModerationAI || advancedModerationMutation.isPending || !selectedForgeId}
+                >
+                  {advancedModerationMutation.isPending ? "Provisioning..." : "Activate AI Shield"}
+                </Button>
+                {!hasAdvancedModerationAI ? (
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300">
+                    Unlock Moderation AI
+                  </Link>
+                ) : null}
+              </div>
+              <p className="mt-2 text-xs text-slate-400">{selectedForgeId ? "Activation applies to your currently selected forge workflow." : "Select a forge before provisioning moderation AI."}</p>
+              {advancedModerationMessage ? <p className="mt-2 text-xs text-emerald-100">{advancedModerationMessage}</p> : null}
+            </div>
+          </div>
+        </div>
+            <p className="text-sm text-slate-200">{selectedForgeId ? "Forge operations synchronized" : "Select a Forge to begin"}</p>
+            <div className="mt-1 flex items-center gap-2 text-[11px]">
+              <span className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100">
+                {user?.premium ? `Core+ ${user.premiumTier ?? "CORE"}` : "Core+ NONE"}
+              </span>
+              <span className="rounded-full border border-cyan-500/35 bg-cyan-950/30 px-2 py-0.5 text-cyan-100">
+                Boost {user?.corePlusBoostLevel ?? 0}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1 text-[11px]">
+          <div className="flex items-center gap-2 rounded-full border border-slate-600/80 bg-slate-900/75 px-2 py-1 text-slate-100">
+            {user.avatar ? (
+              <img src={user.avatar} alt={`${user.username} avatar`} className="h-7 w-7 rounded-full border border-cyan-500/40 object-cover" />
+            ) : (
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/35 bg-cyan-950/35 text-[10px] font-semibold text-cyan-100">
+                {userInitials(user.username)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="max-w-[120px] truncate text-xs font-semibold text-slate-100">{user.username}</p>
+              <p className="max-w-[150px] truncate text-[10px] uppercase tracking-[0.16em] text-slate-400">{user.status}</p>
+            </div>
+          </div>
+          <Link
+            href="/core-plus"
+            className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100 hover:border-amber-300"
+          >
+            Core+
+          </Link>
+          <Link
+            href="/pricing"
+            className="rounded-full border border-fuchsia-500/45 bg-fuchsia-950/35 px-2 py-0.5 text-fuchsia-100 hover:border-fuchsia-300"
+          >
+            Pricing
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="rounded-full border border-rose-500/45 bg-rose-950/35 px-2 py-0.5 text-rose-100 hover:border-rose-300"
+          >
+            Logout
+          </button>
+          <span className={`rounded-full border px-2 py-0.5 ${connectionChipClass}`}>
+            {socketConnected ? "Realtime Online" : "Realtime Reconnecting"}
+          </span>
+          <LiveMetricChip label="events/min" value={liveEventCount} tone="emerald" points={eventHistory} />
+          <LiveMetricChip label="requests" value={pendingIncoming.length} tone="cyan" points={requestHistory} />
+          <LiveMetricChip label="DM threads" value={dmThreadsQuery.data?.threads.length ?? 0} tone="indigo" points={dmHistory} />
+          <LiveMetricChip label="voice live" value={activeVoiceCount} tone="cyan" points={voiceHistory} />
+        </div>
+      </div>
+
+      <div className="nexus-panel relative rounded-2xl border border-amber-500/25 px-4 py-3">
+        <div className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-full bg-amber-500/15 blur-2xl" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Core+ Telemetry</p>
+            <p className="text-sm text-slate-300">Live premium membership pressure across NexusForge.</p>
+          </div>
+          <Link
+            href="/core-plus"
+            className="rounded-lg border border-amber-500/45 bg-amber-950/30 px-2.5 py-1 text-xs text-amber-100 hover:border-amber-300"
+          >
+            Open Core+
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
+          <div className="glass-cut rounded-xl px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Active Members</p>
+            <p className="text-lg font-semibold text-amber-100">{corePlusTelemetryQuery.data?.telemetry.activeMembers ?? 0}</p>
+          </div>
+          <div className="glass-cut rounded-xl px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Upgrades Today</p>
+            <p className="text-lg font-semibold text-cyan-100">{corePlusTelemetryQuery.data?.telemetry.upgradesToday ?? 0}</p>
+          </div>
+          <div className="glass-cut rounded-xl px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Avg Boost</p>
+            <p className="text-lg font-semibold text-emerald-100">{corePlusTelemetryQuery.data?.telemetry.avgBoostLevel ?? 0}</p>
+          </div>
+          <div className="glass-cut rounded-xl px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Peak Boost</p>
+            <p className="text-lg font-semibold text-indigo-100">{corePlusTelemetryQuery.data?.telemetry.highestBoostLevel ?? 0}</p>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">{tierDistributionLabel}</p>
+      </div>
+
+      <div className={`grid min-h-[84vh] grid-cols-1 gap-2 xl:gap-3 ${isCompactLayout ? "xl:grid-cols-[220px_240px_minmax(0,1fr)_300px]" : "xl:grid-cols-[280px_280px_minmax(0,1fr)_360px]"}`}>
+      <motion.aside
+        initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.36, delay: 0.08, ease: "easeOut" }}
+        className="nexus-panel order-2 max-h-[72vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
+      >
+        <div className="mb-4 flex flex-wrap gap-2 text-xs">
+          <Link href="/notifications" className="nexus-pill rounded-lg px-2 py-1 hover:border-cyan-300/70">
+            Signals
+          </Link>
+          <Link href="/admin" className="rounded-lg border border-amber-500/40 bg-amber-950/20 px-2 py-1 text-amber-100 hover:border-amber-300">
+            Admin
+          </Link>
+          <Link href="/settings" className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-2 py-1 text-cyan-100 hover:border-cyan-300">
+            Settings
+          </Link>
+          <button
+            onClick={() => setIsCompactLayout((prev) => !prev)}
+            className="rounded-lg border border-slate-600/80 bg-slate-900/70 px-2 py-1 text-slate-100 hover:border-cyan-500/60"
+          >
+            {isCompactLayout ? "Expanded" : "Compact"}
+          </button>
+        </div>
+        <h2 className="command-section-title mb-3">Your Forges</h2>
+        <div className="space-y-2">
+          {forgesQuery.data?.forges.map((forge) => (
+            <button
+              key={forge.id}
+              onClick={() => {
+                setSelectedForgeId(forge.id);
+                setSelectedChannelId(null);
+                setSelectedVoiceChannelId(null);
+              }}
+              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                selectedForgeId === forge.id
+                  ? "border-cyan-400 bg-cyan-950/40 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
+                  : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/60"
+              }`}
+            >
+              <p>{forge.name}</p>
+              <p className="text-xs text-slate-400">Invite: {forge.inviteCode}</p>
+            </button>
+          ))}
+        </div>
+
+        <form
+          className="mt-4 grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!canCreateForge || !forgeName.trim()) {
+              return;
+            }
+
+            createForgeMutation.mutate({
+              name: forgeName.trim(),
+              description: forgeDescription.trim() || undefined,
+              icon: forgeIcon.trim() || undefined,
+              banner: forgeBanner.trim() || undefined,
+              inviteCode: forgeCustomInviteCode.trim() || undefined,
+            });
+          }}
+        >
+          <Input
+            label="Create Forge"
+            value={forgeName}
+            onChange={(event) => setForgeName(event.target.value)}
+            placeholder="Forge name"
+          />
+          <Input
+            label="Description"
+            value={forgeDescription}
+            onChange={(event) => setForgeDescription(event.target.value)}
+            placeholder="What is this forge about?"
+          />
+          <Input
+            label="Icon URL"
+            value={forgeIcon}
+            onChange={(event) => setForgeIcon(event.target.value)}
+            placeholder="Premium branding"
+          />
+          <Input
+            label="Banner URL"
+            value={forgeBanner}
+            onChange={(event) => setForgeBanner(event.target.value)}
+            placeholder="Premium branding"
+          />
+          <Input
+            label="Custom Invite Link"
+            value={forgeCustomInviteCode}
+            onChange={(event) => setForgeCustomInviteCode(event.target.value.toLowerCase())}
+            placeholder="my-forge"
+          />
+          {forgeCustomInviteCode.trim().length > 0 ? (
+            <p
+              className={`text-xs ${
+                createForgeInviteStatus?.tone === "emerald"
+                  ? "text-emerald-300"
+                  : createForgeInviteStatus?.tone === "amber"
+                    ? "text-amber-300"
+                    : createForgeInviteStatus?.tone === "rose"
+                      ? "text-rose-300"
+                      : "text-slate-400"
+              }`}
+            >
+              {createForgeInviteAvailabilityQuery.isLoading ? "Checking invite availability..." : createForgeInviteStatus?.message ?? "Invite links need 3-32 letters, numbers, or hyphens."}
+            </p>
+          ) : null}
+          {forgeBrandingRequested && !hasBrandingKit ? (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-950/15 p-3 text-xs text-amber-100">
+              <p className="font-semibold uppercase tracking-[0.18em] text-amber-200">Premium forge branding</p>
+              <p className="mt-2">Custom forge icon and banner creation require the Team Branding Kit entitlement.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/pricing" className="inline-flex h-9 items-center rounded-lg border border-amber-400/45 bg-amber-400 px-3 text-xs font-semibold text-slate-950 hover:bg-amber-300">
+                  Unlock Branding Kit
+                </Link>
+                <Link href="/core-plus" className="inline-flex h-9 items-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300">
+                  Review Billing
+                </Link>
+              </div>
+            </div>
+          ) : null}
+          <Button type="submit" disabled={!canCreateForge}>
+            {createForgeMutation.isPending ? "Creating..." : "Create"}
+          </Button>
+          {createForgeErrorMessage ? <p className="text-xs text-amber-300">{createForgeErrorMessage}</p> : null}
+        </form>
+
+        <div className="mt-4 grid gap-2">
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-3">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200">Selected Forge Invite Link</p>
+            <div className="mt-2 grid gap-2">
+              <Input
+                label="Server Invite"
+                value={selectedForgeInviteCode}
+                onChange={(event) => setSelectedForgeInviteCode(event.target.value.toLowerCase())}
+                placeholder="custom-server-link"
+              />
+              {selectedForgeInviteUrl ? (
+                <div className="rounded-lg border border-slate-700/80 bg-slate-900/70 px-3 py-2">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Full Invite URL</p>
+                  <p className="mt-1 break-all text-xs text-cyan-100">{selectedForgeInviteUrl}</p>
+                </div>
+              ) : null}
+              {selectedForgeInviteUrl ? (
+                <div className="grid gap-2 rounded-lg border border-cyan-500/15 bg-slate-950/50 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200">Share Source</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tagged link updates analytics</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {inviteSourcePresets.map((source) => {
+                      const isActive = selectedInviteShareSource === source;
+                      return (
+                        <button
+                          key={source}
+                          onClick={() => setSelectedInviteShareSource(source)}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition ${
+                            isActive
+                              ? "border-cyan-300/60 bg-cyan-400/15 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.2)]"
+                              : "border-slate-700 bg-slate-900/80 text-slate-400 hover:border-cyan-500/40 hover:text-cyan-100"
+                          }`}
+                        >
+                          {source}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="rounded-md border border-slate-700/80 bg-slate-950/70 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tagged Share URL</p>
+                    <p className="mt-1 break-all text-xs text-cyan-100">{selectedTaggedInviteUrl}</p>
+                  </div>
+                </div>
+              ) : null}
+              {selectedForgeInviteCode.trim().length > 0 ? (
+                <p
+                  className={`text-xs ${
+                    selectedForgeInviteStatus?.tone === "emerald"
+                      ? "text-emerald-300"
+                      : selectedForgeInviteStatus?.tone === "amber"
+                        ? "text-amber-300"
+                        : selectedForgeInviteStatus?.tone === "rose"
+                          ? "text-rose-300"
+                          : "text-slate-400"
+                  }`}
+                >
+                  {selectedForgeInviteAvailabilityQuery.isLoading ? "Checking invite availability..." : selectedForgeInviteStatus?.message ?? "Invite links need 3-32 letters, numbers, or hyphens."}
+                </p>
+              ) : null}
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  selectedForgeId &&
+                  selectedForgeInviteCode.trim() &&
+                  updateForgeInviteMutation.mutate({ forgeId: selectedForgeId, inviteCode: selectedForgeInviteCode.trim() })
+                }
+                disabled={!canUpdateForgeInvite}
+              >
+                {updateForgeInviteMutation.isPending ? "Saving..." : "Save Invite Link"}
+              </Button>
+              <Button variant="ghost" onClick={() => void copyInviteUrl()} disabled={!selectedForgeInviteUrl}>
+                Copy Tagged URL
+              </Button>
+              {selectedForgeInviteCode.trim() ? (
+                <Link
+                  href={`/invite/${encodeURIComponent(selectedForgeInviteCode.trim().toLowerCase())}`}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
+                >
+                  Open Invite Page
+                </Link>
+              ) : null}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Views</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-100">{forgeDetailQuery.data?.forge.inviteViewCount ?? 0}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Last view {forgeDetailQuery.data?.forge.inviteLastViewedAt ? new Date(forgeDetailQuery.data.forge.inviteLastViewedAt).toLocaleString() : "not yet"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Joins</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-100">{forgeDetailQuery.data?.forge.inviteJoinCount ?? 0}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Last join {forgeDetailQuery.data?.forge.inviteLastJoinedAt ? new Date(forgeDetailQuery.data.forge.inviteLastJoinedAt).toLocaleString() : "not yet"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 rounded-xl border border-slate-700/80 bg-slate-950/60 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Invite Conversion</p>
+                <p className="text-sm font-semibold text-slate-100">{inviteConversionRate}% join rate</p>
+                <p className="text-[11px] text-slate-400">{forgeDetailQuery.data?.forge.inviteJoinCount ?? 0} joins from {forgeDetailQuery.data?.forge.inviteViewCount ?? 0} views.</p>
+              </div>
+              {inviteSourceStats.length ? (
+                <div className="grid gap-2 rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">Source Breakdown</p>
+                  <div className="grid gap-1">
+                    {inviteSourceStats.slice(0, 5).map((sourceStat) => {
+                      const sourceRate = sourceStat.viewCount > 0 ? Math.round((sourceStat.joinCount / sourceStat.viewCount) * 100) : 0;
+                      return (
+                        <div key={sourceStat.id} className="flex items-center justify-between rounded-md border border-slate-700/70 bg-slate-950/70 px-2.5 py-1.5 text-[11px]">
+                          <span className="uppercase tracking-[0.15em] text-slate-300">{sourceStat.source}</span>
+                          <span className="text-slate-400">{sourceStat.viewCount} views · {sourceStat.joinCount} joins · {sourceRate}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {selectedInviteQrCode ? (
+                <div className="grid gap-2 rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">QR Preview</p>
+                  <p className="text-[11px] text-slate-400">Scan this to open the tagged invite link on another device.</p>
+                  <div className="flex items-center justify-start rounded-lg border border-slate-700/80 bg-slate-950/80 p-3">
+                    <img src={selectedInviteQrCode} alt="Invite QR code" className="h-44 w-44 rounded-md bg-white p-2" />
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-[11px] text-slate-400">Free custom links use letters, numbers, and hyphens.</p>
+              {updateForgeInviteErrorMessage ? <p className="text-xs text-rose-300">{updateForgeInviteErrorMessage}</p> : null}
+            </div>
+          </div>
+          <Input
+            label="Join by invite"
+            value={inviteCode}
+            onChange={(event) => setInviteCode(event.target.value)}
+            placeholder="Invite code"
+          />
+          <Button
+            variant="ghost"
+            onClick={() => inviteCode.trim() && joinForgeMutation.mutate(inviteCode.trim())}
+            disabled={joinForgeMutation.isPending}
+          >
+            {joinForgeMutation.isPending ? "Joining..." : "Join Forge"}
+          </Button>
+        </div>
+
+        <div className="mt-4 grid gap-2 rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-200">Bot Studio</p>
+          <Input
+            label="Bot Name"
+            value={botName}
+            onChange={(event) => setBotName(event.target.value)}
+            placeholder="Example: Raid Shield"
+          />
+          <Input
+            label="Bot Description"
+            value={botDescription}
+            onChange={(event) => setBotDescription(event.target.value)}
+            placeholder="What this bot automates"
+          />
+          <Input
+            label="Bot Avatar URL"
+            value={botAvatar}
+            onChange={(event) => setBotAvatar(event.target.value)}
+            placeholder="https://..."
+          />
+          <Input
+            label="Bot Intents (comma separated)"
+            value={botIntents}
+            onChange={(event) => setBotIntents(event.target.value)}
+            placeholder="moderation, welcome, analytics"
+          />
+          <Button
+            onClick={() =>
+              botName.trim() &&
+              createBotMutation.mutate({
+                name: botName.trim(),
+                description: botDescription.trim() || undefined,
+                avatar: botAvatar.trim() || undefined,
+                intents: botIntents
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+              })
+            }
+            disabled={createBotMutation.isPending || !botName.trim()}
+          >
+            {createBotMutation.isPending ? "Creating bot..." : "Create Bot App"}
+          </Button>
+          {createBotErrorMessage ? <p className="text-xs text-rose-300">{createBotErrorMessage}</p> : null}
+          {createBotMutation.data?.bot ? (
+            <p className="text-xs text-emerald-200">Bot invite code: {createBotMutation.data.bot.inviteCode}</p>
+          ) : null}
+
+          <Input
+            label="Install Bot by Invite Code"
+            value={botInviteCode}
+            onChange={(event) => setBotInviteCode(event.target.value)}
+            placeholder="bot-xxxxxxxxxx"
+          />
+          <Button
+            variant="ghost"
+            onClick={() => selectedForgeId && botInviteCode.trim() && installBotMutation.mutate(botInviteCode.trim())}
+            disabled={!selectedForgeId || installBotMutation.isPending || !botInviteCode.trim()}
+          >
+            {installBotMutation.isPending ? "Installing..." : "Install Bot to Selected Forge"}
+          </Button>
+          {installBotErrorMessage ? <p className="text-xs text-rose-300">{installBotErrorMessage}</p> : null}
+        </div>
+
+        <div className="mt-4 grid gap-2 rounded-xl border border-slate-700/80 bg-slate-900/70 p-3">
+          <Input
+            label="Search Public Bot Catalog"
+            value={botSearchQuery}
+            onChange={(event) => setBotSearchQuery(event.target.value)}
+            placeholder="Search by name"
+          />
+          <div className="max-h-44 overflow-y-auto space-y-1">
+            {botCatalogQuery.data?.bots.map((bot: BotApp) => (
+              <button
+                key={bot.id}
+                onClick={() => setBotInviteCode(bot.inviteCode)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-2 py-2 text-left text-xs text-slate-200 hover:border-indigo-400/60"
+              >
+                <p className="font-semibold text-slate-100">{bot.name}</p>
+                <p className="truncate text-slate-400">{bot.description ?? "No description"}</p>
+                <p className="mt-1 text-indigo-200">Invite: {bot.inviteCode}</p>
+                {bot.intents?.length ? <p className="mt-1 text-[11px] text-slate-500">Intents: {bot.intents.join(", ")}</p> : null}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400">Your bots: {myBotsQuery.data?.bots.length ?? 0} · Installed in forge: {forgeDetailQuery.data?.forge.botInstallations.length ?? 0}</p>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {forgeDetailQuery.data?.forge.botInstallations.map((installation) => (
+              <div key={installation.id} className="rounded-lg border border-slate-700 bg-slate-950/70 px-2 py-2 text-xs text-slate-200">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-slate-100">{installation.bot.name}</p>
+                    <p className="text-slate-400">{installation.enabled ? "Enabled" : "Disabled"}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="h-8 px-2 text-[11px]"
+                    onClick={() =>
+                      toggleBotInstallationMutation.mutate({
+                        installationId: installation.id,
+                        enabled: !installation.enabled,
+                      })
+                    }
+                    disabled={toggleBotInstallationMutation.isPending}
+                  >
+                    {installation.enabled ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+                <div className="mt-2 space-y-1">
+                  {installation.commands.map((command) => (
+                    <div key={command.id} className="flex items-center justify-between rounded border border-slate-700/70 bg-slate-900/60 px-2 py-1 text-[11px]">
+                      <span>
+                        /{command.name} {command.enabled ? "(on)" : "(off)"} · {command.commandPreset} · {command.requiredPermission}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        className="h-7 px-2 text-[10px]"
+                        onClick={() => updateBotCommandMutation.mutate({ commandId: command.id, enabled: !command.enabled })}
+                        disabled={updateBotCommandMutation.isPending}
+                      >
+                        {command.enabled ? "Disable" : "Enable"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {myBotsQuery.data?.bots.map((bot) => (
+              <div key={bot.id} className="rounded-lg border border-indigo-500/20 bg-indigo-950/10 px-2 py-2 text-xs text-slate-200">
+                <p className="font-semibold text-slate-100">{bot.name}</p>
+                <p className="text-slate-400">Intents: {bot.intents?.join(", ") || "none"}</p>
+                <Button
+                  variant="ghost"
+                  className="mt-1 h-8 px-2 text-[11px]"
+                  onClick={() =>
+                    updateBotMutation.mutate({
+                      botId: bot.id,
+                      intents: botIntents
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  disabled={updateBotMutation.isPending}
+                >
+                  {updateBotMutation.isPending ? "Updating..." : "Apply Current Intents"}
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-indigo-500/25 bg-indigo-950/10 p-3 text-xs text-slate-200">
+            <p className="font-semibold text-indigo-100">Bot Command Registry</p>
+            <div className="mt-2 grid gap-2">
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Command Preset</span>
+                <select
+                  value={botCommandPreset}
+                  onChange={(event) => applyCommandPreset(event.target.value as "CUSTOM" | "MODERATION" | "UTILITY" | "ECONOMY")}
+                  className="h-9 rounded-lg border border-slate-700 bg-slate-900/70 px-2 text-xs text-slate-100"
+                >
+                  <option value="CUSTOM">Custom</option>
+                  <option value="MODERATION">Moderation</option>
+                  <option value="UTILITY">Utility</option>
+                  <option value="ECONOMY">Economy</option>
+                </select>
+              </label>
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Target Installation</span>
+                <select
+                  value={botCommandInstallationId}
+                  onChange={(event) => setBotCommandInstallationId(event.target.value)}
+                  className="h-9 rounded-lg border border-slate-700 bg-slate-900/70 px-2 text-xs text-slate-100"
+                >
+                  <option value="">Select installed bot</option>
+                  {forgeDetailQuery.data?.forge.botInstallations.map((installation) => (
+                    <option key={installation.id} value={installation.id}>
+                      {installation.bot.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Input label="Command Name" value={botCommandName} onChange={(event) => setBotCommandName(event.target.value)} placeholder="raid-status" />
+              <Input label="Command Description" value={botCommandDescription} onChange={(event) => setBotCommandDescription(event.target.value)} placeholder="Command purpose" />
+              <Input label="Command Response" value={botCommandResponse} onChange={(event) => setBotCommandResponse(event.target.value)} placeholder="Bot response output" />
+              <p className="rounded border border-indigo-500/20 bg-indigo-950/20 px-2 py-1 text-[11px] text-indigo-100">
+                Variables: {'{user}'}, {'{userName}'}, {'{forge}'}, {'{channel}'}, {'{args}'}, {'{command}'}, {'{bot}'}
+              </p>
+              <label className="grid gap-1">
+                <span className="text-[11px] text-slate-400">Required Permission</span>
+                <select
+                  value={botCommandPermission}
+                  onChange={(event) =>
+                    setBotCommandPermission(
+                      event.target.value as "NONE" | "moderateChat" | "manageChannels" | "manageRoles" | "kickUsers" | "banUsers" | "streamAccess",
+                    )
+                  }
+                  className="h-9 rounded-lg border border-slate-700 bg-slate-900/70 px-2 text-xs text-slate-100"
+                >
+                  <option value="NONE">NONE</option>
+                  <option value="moderateChat">moderateChat</option>
+                  <option value="manageChannels">manageChannels</option>
+                  <option value="manageRoles">manageRoles</option>
+                  <option value="kickUsers">kickUsers</option>
+                  <option value="banUsers">banUsers</option>
+                  <option value="streamAccess">streamAccess</option>
+                </select>
+              </label>
+              <Button
+                onClick={() =>
+                  selectedForgeId &&
+                  botCommandInstallationId &&
+                  botCommandName.trim() &&
+                  botCommandResponse.trim() &&
+                  createBotCommandMutation.mutate({
+                    forgeId: selectedForgeId,
+                    installationId: botCommandInstallationId,
+                    name: botCommandName.trim(),
+                    description: botCommandDescription.trim() || undefined,
+                    responseTemplate: botCommandResponse.trim(),
+                    preset: botCommandPreset,
+                    requiredPermission: botCommandPermission,
+                  })
+                }
+                disabled={createBotCommandMutation.isPending || !selectedForgeId || !botCommandInstallationId || !botCommandName.trim() || !botCommandResponse.trim()}
+              >
+                {createBotCommandMutation.isPending ? "Registering..." : "Register Bot Command"}
+              </Button>
+              {createCommandErrorMessage ? <p className="text-rose-300">{createCommandErrorMessage}</p> : null}
+
+              <Input label="Test Execute Command" value={botExecuteName} onChange={(event) => setBotExecuteName(event.target.value)} placeholder="raid-status" />
+              <Button
+                variant="ghost"
+                onClick={() => selectedForgeId && botExecuteName.trim() && executeBotCommandMutation.mutate({ forgeId: selectedForgeId, name: botExecuteName.trim() })}
+                disabled={executeBotCommandMutation.isPending || !selectedForgeId || !botExecuteName.trim()}
+              >
+                {executeBotCommandMutation.isPending ? "Executing..." : "Execute Command"}
+              </Button>
+              {executeCommandMessage ? <p className="text-emerald-200">{executeCommandMessage}</p> : null}
+            </div>
+          </div>
+        </div>
+      </motion.aside>
+
+      <motion.aside
+        initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.36, delay: 0.16, ease: "easeOut" }}
+        className="nexus-panel order-3 max-h-[72vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
+      >
+        <h2 className="command-section-title mb-3">Channels</h2>
+
+        <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Text</p>
+        <div className="mb-4 space-y-1">
+          {textChannels.map((channel: Channel) => (
+            <button
+              key={channel.id}
+              onClick={() => setSelectedChannelId(channel.id)}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                selectedChannelId === channel.id
+                  ? "border border-cyan-500/40 bg-cyan-950/45 text-cyan-100"
+                  : "text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              # {channel.name}
+            </button>
+          ))}
+        </div>
+
+        <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Voice</p>
+        <div className="space-y-1">
+          {voiceChannels.map((channel: Channel) => (
+            <button
+              key={channel.id}
+              onClick={() => setSelectedVoiceChannelId(channel.id)}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                selectedVoiceChannelId === channel.id
+                  ? "border border-emerald-500/40 bg-emerald-950/45 text-emerald-100"
+                  : "text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              {channel.type === "STAGE" ? "(stage)" : "(voice)"} {channel.name}
+            </button>
+          ))}
+        </div>
+      </motion.aside>
+
+      <motion.main
+        initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.36, delay: 0.24, ease: "easeOut" }}
+        className="nexus-panel-strong order-1 rounded-2xl p-4 xl:order-none"
+      >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-100">Forge Chat + Uploads</h2>
+          <div className="inline-flex items-center gap-2 text-[11px] text-slate-300">
+            <span className="cyber-dot" />
+            <span>{selectedChannelId ? "Live channel selected" : "No channel selected"}</span>
+            <span className="rounded-full border border-slate-600/80 px-2 py-0.5">{messagesQuery.data?.messages.length ?? 0} msgs</span>
+          </div>
+        </div>
+        <div className="mb-3 h-[46vh] overflow-y-auto rounded-xl border border-slate-700/80 bg-slate-950/72 p-3 shadow-[inset_0_1px_0_rgba(148,163,184,0.08)] sm:h-[52vh] xl:h-[60vh]">
+          <div className="grid gap-2">
+            {messagesQuery.data?.messages.map((message) => (
+              <article
+                key={message.id}
+                className={`relative overflow-hidden rounded-lg border px-3 py-2 ${
+                  message.optimistic
+                    ? "border-dashed border-cyan-600/60 bg-cyan-950/20"
+                    : "border-slate-700/80 bg-slate-900/85"
+                }`}
+              >
+                <div className={`absolute inset-y-0 left-0 w-1 ${message.optimistic ? "bg-cyan-400/70" : message.authorId === user.id ? "bg-emerald-400/65" : "bg-indigo-400/60"}`} />
+                <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                  <span className="inline-flex items-center gap-2">
+                    <span className={`inline-block h-2 w-2 rounded-full ${message.botId ? "bg-fuchsia-400/80" : "bg-cyan-400/80"}`} />
+                    {message.botName ?? message.author?.username ?? "Unknown"}
+                    {message.botId ? (
+                      <span className="rounded-full border border-fuchsia-500/40 bg-fuchsia-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-200">
+                        Bot
+                      </span>
+                    ) : null}
+                  </span>
+                  <span>{formatTime(message.createdAt)}</span>
+                </div>
+                <p className="text-sm text-slate-100">{message.content}</p>
+                {message.attachments?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {message.attachments.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md border border-cyan-600/40 bg-cyan-950/40 px-2 py-1 text-cyan-200 hover:bg-cyan-900/50"
+                      >
+                        Attachment
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+            {!messagesQuery.data?.messages.length && (
+              <p className="text-sm text-slate-500">No messages yet. Start the channel.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/80 bg-slate-950/92 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
+          <div className="mb-2 flex items-center gap-2 text-xs text-slate-300">
+            <label className="cursor-pointer rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-1 hover:border-cyan-500/70">
+              Attach Files
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  setPendingFiles(files);
+                }}
+              />
+            </label>
+            {pendingFiles.length ? <span>{pendingFiles.length} file(s) queued</span> : null}
+          </div>
+
+          <div className="mb-2 min-h-5 text-xs text-cyan-200">
+            {activeTypingUsers.length ? (
+              <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
+                <motion.span
+                  initial={{ opacity: 0.4 }}
+                  animate={{ opacity: [0.35, 1, 0.35] }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                  className="inline-flex gap-1"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                </motion.span>
+                {activeTypingUsers.join(", ")} typing...
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                value={messageDraft}
+                onChange={(event) => onMessageDraftChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Tab" && slashCommandSuggestions.length) {
+                    event.preventDefault();
+                    insertSlashCommand(slashCommandSuggestions[0].name);
+                    return;
+                  }
+
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void onSendChannelMessage();
+                  }
+                }}
+                placeholder={selectedChannelId ? "Type a message or / for bot commands..." : "Select a channel to chat"}
+                className="h-11 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-cyan-500"
+              />
+              {slashCommandSuggestions.length ? (
+                <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-xl border border-indigo-500/25 bg-slate-950/96 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
+                  <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-indigo-200">Slash Commands</p>
+                  <div className="space-y-1">
+                    {slashCommandSuggestions.map((command) => (
+                      <button
+                        key={command.id}
+                        type="button"
+                        onClick={() => insertSlashCommand(command.name)}
+                        className="flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/75 px-3 py-2 text-left text-xs text-slate-200 hover:border-cyan-500/50"
+                      >
+                        <span className="min-w-0">
+                          <span className="font-semibold text-cyan-100">/{command.name}</span>
+                          <span className="ml-2 text-slate-400">{command.description ?? `${command.botName} command`}</span>
+                        </span>
+                        <span className="ml-3 shrink-0 rounded-full border border-indigo-500/30 bg-indigo-950/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-indigo-100">
+                          {command.botName}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">Press Tab to accept the top command.</p>
+                </div>
+              ) : null}
+            </div>
+            <Button
+              onClick={() => void onSendChannelMessage()}
+              disabled={sendMessageMutation.isPending || !selectedChannelId || !messageDraft.trim()}
+            >
+              Send
+            </Button>
+          </div>
+        </div>
+      </motion.main>
+
+      <motion.aside
+        initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        transition={{ duration: 0.36, delay: 0.32, ease: "easeOut" }}
+        className="nexus-panel order-4 max-h-[76vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
+      >
+        <h2 className="command-section-title mb-3">Social + Voice</h2>
+
+        <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Voice Controls</p>
+          <div className="mb-2 flex gap-2">
+            <Button onClick={() => void onJoinVoice()} disabled={!selectedVoiceChannelId || voiceTokenMutation.isPending}>
+              Join Voice
+            </Button>
+            <Button variant="ghost" onClick={onLeaveVoice} disabled={!selectedVoiceChannelId}>
+              Leave
+            </Button>
+          </div>
+          <VoiceRoomPanel
+            session={voiceSession}
+            voiceState={voiceState}
+            onToggleVoiceFlag={onToggleVoiceFlag}
+            onLeave={onLeaveVoice}
+            statusMessage={statusMessage}
+          />
+        </div>
+
+        <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Find Players</p>
+          <input
+            value={friendQuery}
+            onChange={(event) => setFriendQuery(event.target.value)}
+            placeholder="Search users"
+            className="mb-2 h-10 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-slate-100"
+          />
+          <div className="max-h-24 space-y-1 overflow-y-auto">
+            {userSearchQuery.data?.users.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between rounded border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-xs text-slate-200">
+                <span>{entry.username}</span>
+                <Button
+                  className="h-7 px-2 text-xs"
+                  onClick={() => sendFriendRequestMutation.mutate(entry.id)}
+                  disabled={sendFriendRequestMutation.isPending || entry.id === user.id}
+                >
+                  Add
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Pending Requests</p>
+          <div className="max-h-24 space-y-1 overflow-y-auto">
+            {pendingIncoming.map((friend) => {
+              const requester = friend.sender;
+              return (
+                <div key={friend.id} className="flex items-center justify-between rounded border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-xs text-slate-200">
+                  <span>{requester.username}</span>
+                  <Button className="h-7 px-2 text-xs" onClick={() => acceptFriendMutation.mutate(friend.id)}>
+                    Accept
+                  </Button>
+                </div>
+              );
+            })}
+            {!pendingIncoming.length ? <p className="text-xs text-slate-500">No pending requests.</p> : null}
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">DM Threads</p>
+          <div className="max-h-24 space-y-1 overflow-y-auto">
+            {dmThreadsQuery.data?.threads.map((thread) => (
+              <button
+                key={thread.id}
+                onClick={() => setSelectedDmThreadId(thread.id)}
+                className={`w-full rounded border px-2 py-1 text-left text-xs transition ${
+                  selectedDmThreadId === thread.id
+                    ? "border-cyan-500/50 bg-cyan-950/55 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
+                    : "border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-cyan-500/40"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedDmThreadId === thread.id ? "bg-cyan-300" : "bg-slate-500"}`} />
+                      <span className="truncate">{threadLabel(thread, user.id)}</span>
+                    </span>
+                    <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                      {dmPreviewByThread[thread.id] || "No messages yet"}
+                    </p>
+                  </div>
+                  {(dmUnreadByThread[thread.id] ?? 0) > 0 ? (
+                    <span className="rounded-full border border-cyan-500/45 bg-cyan-950/45 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                      {dmUnreadByThread[thread.id]}
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <p className="mt-3 mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Start DM</p>
+          <div className="max-h-20 space-y-1 overflow-y-auto">
+            {acceptedFriends.map((friend) => {
+              const peer = friend.senderId === user.id ? friend.receiver : friend.sender;
+              return (
+                <button
+                  key={friend.id}
+                  className="w-full rounded border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-left text-xs text-slate-200 hover:border-cyan-500/40"
+                  onClick={() => createDmThreadMutation.mutate(peer.id)}
+                >
+                  {peer.username}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
+          <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">DM Chat</p>
+          <div className="mb-2 max-h-28 space-y-1 overflow-y-auto rounded border border-slate-700 bg-slate-900/70 p-2">
+            {dmMessagesQuery.data?.messages.map((message) => (
+              <div key={message.id} className="rounded-md border border-slate-700/70 bg-slate-900/65 px-2 py-1 text-xs text-slate-200">
+                <span className="mr-1 text-cyan-300">{message.author.username}:</span>
+                {message.content}
+              </div>
+            ))}
+            {!dmMessagesQuery.data?.messages.length ? <p className="text-xs text-slate-500">Select a DM thread.</p> : null}
+          </div>
+          <div className="mb-2 min-h-5 text-xs text-cyan-200">
+            {activeDmTypingUsers.length ? (
+              <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
+                <motion.span
+                  initial={{ opacity: 0.4 }}
+                  animate={{ opacity: [0.35, 1, 0.35] }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                  className="inline-flex gap-1"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                </motion.span>
+                {activeDmTypingUsers.join(", ")} typing...
+              </span>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={dmDraft}
+              onChange={(event) => onDmDraftChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void onSendDmMessage();
+                }
+              }}
+              placeholder="Message"
+              className="h-9 flex-1 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100"
+            />
+            <Button className="h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>
+              Send
+            </Button>
+          </div>
+        </div>
+
+        {statusMessage ? <p className="mt-3 text-xs text-cyan-300">{statusMessage}</p> : null}
+      </motion.aside>
+      </div>
+
+      <div className="mobile-action-dock xl:hidden">
+        <Link href="/app" className={dockLinkClass("/app")}>Command</Link>
+        <Link href="/core-plus" className={dockLinkClass("/core-plus")}>Core+</Link>
+        <Link href="/notifications" className={dockLinkClass("/notifications")}>Signals</Link>
+        <Link href="/settings" className={dockLinkClass("/settings")}>Settings</Link>
+        <button
+          onClick={() => setIsCompactLayout((prev) => !prev)}
+          className={`mobile-action-chip ${isCompactLayout ? "active" : ""}`}
+        >
+          {isCompactLayout ? "Expanded" : "Compact"}
+        </button>
+      </div>
+    </div>
+  );
+}

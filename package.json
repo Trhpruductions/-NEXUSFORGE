@@ -1,0 +1,27 @@
+{
+  "name": "nexusforge",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\"",
+    "preview:live": "concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev:full -w @nexusforge/desktop\"",
+    "dev:web": "npm run dev -w web",
+    "dev:server": "npm run dev -w @nexusforge/server",
+    "dev:desktop": "npm run dev -w @nexusforge/desktop",
+    "desktop:open": "npm run dev -w @nexusforge/desktop",
+    "desktop:full": "concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev -w @nexusforge/desktop\"",
+    "build": "npm run build -w web && npm run build -w @nexusforge/server",
+    "lint": "npm run lint -w web"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

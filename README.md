@@ -1,0 +1,190 @@
+# NexusForge
+
+NexusForge is a futuristic communication platform foundation for gamers, creators, and online communities.
+
+## Stack
+
+- Frontend: Next.js, React, TypeScript, Tailwind CSS, Framer Motion, Zustand, Socket.IO client
+- Backend: Node.js, Express, Socket.IO, Prisma ORM, PostgreSQL, Redis, JWT auth
+- Planned media layer: WebRTC + LiveKit/mediasoup + FFmpeg integration
+- Storage targets: AWS S3 or Cloudflare R2
+
+## Monorepo Apps
+
+- `apps/web`: Next.js frontend with landing page, app shell mock layout, and auth pages
+- `apps/server`: Express API with auth, forge, messaging, and realtime routes
+
+## Shared Packages
+
+- `packages/ui`: shared UI primitives placeholder
+- `packages/types`: shared types package
+- `packages/config`: shared config placeholder
+
+## Implemented Auth Endpoints
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/auth/verify-email?token=...`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password`
+- `GET /api/health`
+
+## Implemented Forge Endpoints
+
+- `GET /api/forges`
+- `POST /api/forges`
+- `POST /api/forges/join`
+- `GET /api/forges/:id`
+
+## Implemented Message Endpoints
+
+- `GET /api/messages/:channelId`
+- `POST /api/messages`
+- `PATCH /api/messages/:id`
+- `DELETE /api/messages/:id`
+- `POST /api/messages/:id/reactions`
+
+## Implemented Friends + DM Endpoints
+
+- `GET /api/friends`
+- `POST /api/friends/request`
+- `PATCH /api/friends/:id`
+- `DELETE /api/friends/:id`
+- `GET /api/dms/threads`
+- `POST /api/dms/threads`
+- `POST /api/dms/groups`
+- `GET /api/dms/threads/:threadId/messages`
+- `POST /api/dms/threads/:threadId/messages`
+
+## Implemented Voice Endpoints
+
+- `POST /api/voice/token`
+- `POST /api/voice/state`
+
+## Implemented Upload + Search Endpoints
+
+- `POST /api/uploads/presign`
+- `GET /api/search/messages?q=...`
+- `GET /api/search/users?q=...`
+- `GET /api/search/forges?q=...`
+
+## Implemented Billing Endpoints
+
+- `GET /api/billing/entitlements`
+- `POST /api/billing/checkout/session`
+- `POST /api/billing/portal/session`
+- `POST /api/billing/features/advanced-moderation-ai/consume`
+- `POST /api/billing/features/creator-campaign-slot/consume`
+- `POST /api/billing/webhook` (Stripe webhook)
+- `GET /api/admin/revenue`
+
+## Data Models
+
+Prisma schema includes:
+
+- `User`
+- `RefreshToken`
+- `Forge`
+- `ForgeMember`
+- `Channel`
+- `Message`
+- `MessageReaction`
+- `Thread`
+- `Role`
+- `MemberRole`
+- `Friend`
+- `DirectMessageThread`
+- `DirectMessageParticipant`
+- `Medal`
+- `UserMedal`
+- `ShopItem`
+- `DirectMessage`
+- `BillingSubscription`
+- `PaymentTransaction`
+- `FeatureEntitlement`
+
+## Security Hardenings
+
+- Helmet headers
+- Global + auth + message rate limiting
+- Password hashing via bcryptjs
+- Payload validation via zod
+- XSS sanitization for message content
+- Anti-spam duplicate/cooldown guard for chat messages
+- CSRF double-submit protection (`nf_csrf` cookie + `x-csrf-token` header)
+- Presigned object uploads for AWS S3 or Cloudflare R2
+- LiveKit token minting for voice channel sessions
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy environment files:
+
+```bash
+copy apps\server\.env.example apps\server\.env
+copy apps\web\.env.example apps\web\.env.local
+```
+
+3. Set `DATABASE_URL` and JWT secrets in `apps/server/.env`.
+
+4. Configure Stripe billing keys and price IDs in `apps/server/.env`:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_CORE_MONTHLY`
+- `STRIPE_PRICE_CORE_YEARLY`
+- `STRIPE_PRICE_PLUS_MONTHLY`
+- `STRIPE_PRICE_PLUS_YEARLY`
+- `STRIPE_PRICE_ELITE_MONTHLY`
+- `STRIPE_PRICE_ELITE_YEARLY`
+- `STRIPE_PRICE_INFINITE_MONTHLY`
+- `STRIPE_PRICE_INFINITE_YEARLY`
+- `STRIPE_PRICE_FORGE_BOOST_PACK`
+- `STRIPE_PRICE_CREATOR_CAMPAIGN_SLOT`
+- `STRIPE_PRICE_EVENT_TICKET_PASS`
+- `STRIPE_PRICE_TEAM_BRANDING_KIT`
+- `STRIPE_PRICE_ADVANCED_MODERATION_AI`
+
+Set `APP_WEB_URL` to your deployed frontend base URL.
+
+5. Run migrations for the expanded schema:
+
+```bash
+npm run prisma:migrate -w @nexusforge/server
+```
+
+6. Generate Prisma client:
+
+```bash
+npm run prisma:generate -w @nexusforge/server
+```
+
+7. Start both frontend and backend:
+
+```bash
+npm run dev
+```
+
+- Web: `http://localhost:3000`
+- API: `http://localhost:4000`
+
+8. Launch the desktop shell (Electron):
+
+```bash
+npm run desktop:open
+```
+
+- Desktop shell target: `http://localhost:3000/app`
+- To run web + server + desktop together from one command, use:
+
+```bash
+npm run desktop:full
+```

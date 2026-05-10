@@ -1,0 +1,506 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ONLINE
+  IDLE
+  DND
+  OFFLINE
+}
+
+enum ChannelType {
+  TEXT
+  VOICE
+  ANNOUNCEMENT
+  STAGE
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum PremiumTier {
+  NONE
+  CORE
+  PLUS
+  ELITE
+  INFINITE
+}
+
+enum NotificationType {
+  MENTION
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  DM
+  SYSTEM
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum BillingProvider {
+  STRIPE
+}
+
+enum BillingStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum PaidFeatureCode {
+  CORE_PLUS
+  FORGE_BOOST_PACK
+  CREATOR_CAMPAIGN_SLOT
+  EVENT_TICKET_PASS
+  TEAM_BRANDING_KIT
+  ADVANCED_MODERATION_AI
+}
+
+model User {
+  id                 String         @id @default(uuid())
+  username           String         @unique
+  email              String         @unique
+  password           String
+  avatar             String?
+  banner             String?
+  bio                String?        @db.VarChar(512)
+  status             UserStatus     @default(OFFLINE)
+  premium            Boolean        @default(false)
+  premiumTier        PremiumTier    @default(NONE)
+  corePlusActivatedAt DateTime?
+  corePlusBoostLevel Int            @default(0)
+  corePlusStreakDays Int            @default(0)
+  clanTag            String?        @db.VarChar(12)
+  isAdmin            Boolean        @default(false)
+  currentActivity    String?
+  activityDetails    String?
+  lastSeenAt         DateTime?
+  emailVerified      Boolean        @default(false)
+  emailVerifyToken   String?        @unique
+  emailVerifyExpires DateTime?
+  resetToken         String?        @unique
+  resetTokenExpires  DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  refreshTokens      RefreshToken[]
+  memberships        ForgeMember[]
+  messages           Message[]
+  directMessages     DirectMessage[]
+  dmMemberships      DirectMessageParticipant[]
+  sentFriendRequests Friend[]       @relation("FriendSender")
+  recvFriendRequests Friend[]       @relation("FriendReceiver")
+  ownedForges        Forge[]        @relation("ForgeOwner")
+  ownedShopItems     ShopItem[]
+  medals             UserMedal[]
+  notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
+  billingSubscriptions BillingSubscription[]
+  paymentTransactions PaymentTransaction[]
+  featureEntitlements FeatureEntitlement[]
+  botApps             BotApp[]
+  botInstallations    ForgeBotInstallation[] @relation("BotInstaller")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Forge {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  icon        String?
+  banner      String?
+  ownerId     String
+  inviteCode  String          @unique
+  inviteViewCount Int         @default(0)
+  inviteJoinCount Int         @default(0)
+  inviteLastViewedAt DateTime?
+  inviteLastJoinedAt DateTime?
+  owner       User            @relation("ForgeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  channels    Channel[]
+  members     ForgeMember[]
+  roles       Role[]
+  botInstallations ForgeBotInstallation[]
+  botCommands BotCommand[]
+  inviteSources InviteSourceStat[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model InviteSourceStat {
+  id               String   @id @default(uuid())
+  forgeId          String
+  source           String
+  viewCount        Int      @default(0)
+  joinCount        Int      @default(0)
+  lastViewedAt     DateTime?
+  lastJoinedAt     DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  forge            Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+
+  @@unique([forgeId, source])
+  @@index([forgeId, viewCount])
+}
+
+model BotApp {
+  id            String   @id @default(uuid())
+  ownerId       String
+  name          String
+  description   String?
+  avatar        String?
+  inviteCode    String   @unique
+  isPublic      Boolean  @default(true)
+  intents       String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  installations ForgeBotInstallation[]
+
+  @@index([ownerId, createdAt])
+  @@index([isPublic, createdAt])
+}
+
+model ForgeBotInstallation {
+  id            String   @id @default(uuid())
+  forgeId       String
+  botId         String
+  installedById String
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  forge         Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  bot           BotApp   @relation(fields: [botId], references: [id], onDelete: Cascade)
+  installedBy   User     @relation("BotInstaller", fields: [installedById], references: [id], onDelete: Cascade)
+  commands      BotCommand[]
+
+  @@unique([forgeId, botId])
+  @@index([installedById, createdAt])
+}
+
+model BotCommand {
+  id                 String               @id @default(uuid())
+  forgeId            String
+  installationId     String
+  name               String
+  description        String?
+  responseTemplate   String
+  commandPreset      String               @default("CUSTOM")
+  requiredPermission String               @default("NONE")
+  enabled            Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  forge              Forge                @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  installation       ForgeBotInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+
+  @@unique([forgeId, name])
+  @@index([installationId, enabled])
+}
+
+model ForgeMember {
+  id        String   @id @default(uuid())
+  userId    String
+  forgeId   String
+  nickname  String?
+  joinedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  forge     Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  roleLinks MemberRole[]
+
+  @@unique([userId, forgeId])
+}
+
+model Channel {
+  id                  String                @id @default(uuid())
+  forgeId             String
+  name                String
+  topic               String?
+  type                ChannelType           @default(TEXT)
+  position            Int                   @default(0)
+  permissionOverrides Json?
+  forge               Forge                 @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  messages            Message[]
+  threads             Thread[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([forgeId, position])
+}
+
+model Message {
+  id           String       @id @default(uuid())
+  channelId    String
+  authorId     String?
+  botId        String?
+  botName      String?
+  botAvatar    String?
+  content      String       @db.Text
+  attachments  Json?
+  edited       Boolean      @default(false)
+  type         MessageType  @default(TEXT)
+  replyToId    String?
+  threadId     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  channel      Channel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author       User?        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions    MessageReaction[]
+  thread       Thread?      @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReplies")
+  startedThread Thread?     @relation("ThreadStarter")
+
+  @@index([channelId, botId])
+
+  @@index([channelId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Thread {
+  id             String    @id @default(uuid())
+  channelId      String
+  title          String
+  starterPostId  String    @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  starterMessage Message   @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: Cascade)
+  messages       Message[]
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  forgeId     String
+  name        String
+  color       String
+  permissions Json
+  position    Int          @default(0)
+  forge       Forge        @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  members     MemberRole[]
+
+  @@index([forgeId, position])
+}
+
+model MemberRole {
+  id            String      @id @default(uuid())
+  forgeMemberId String
+  roleId        String
+  forgeMember   ForgeMember @relation(fields: [forgeMemberId], references: [id], onDelete: Cascade)
+  role          Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([forgeMemberId, roleId])
+}
+
+model Friend {
+  id         String           @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  sender     User             @relation("FriendSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User             @relation("FriendReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
+
+model DirectMessageThread {
+  id           String                      @id @default(uuid())
+  isGroup      Boolean                     @default(false)
+  name         String?
+  participants DirectMessageParticipant[]
+  messages     DirectMessage[]
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+}
+
+model DirectMessageParticipant {
+  id        String              @id @default(uuid())
+  threadId  String
+  userId    String
+  joinedAt  DateTime            @default(now())
+  thread    DirectMessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+}
+
+model DirectMessage {
+  id          String              @id @default(uuid())
+  threadId    String
+  authorId    String
+  content     String              @db.Text
+  attachments Json?
+  edited      Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  thread      DirectMessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model Medal {
+  id          String      @id @default(uuid())
+  key         String      @unique
+  name        String
+  description String?
+  icon        String?
+  users       UserMedal[]
+}
+
+model UserMedal {
+  id        String   @id @default(uuid())
+  userId    String
+  medalId   String
+  grantedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medal     Medal    @relation(fields: [medalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, medalId])
+}
+
+model ShopItem {
+  id          String   @id @default(uuid())
+  ownerId     String
+  sku         String   @unique
+  name        String
+  description String?
+  priceCents  Int
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}
+
+model PushSubscription {
+  id          String   @id @default(uuid())
+  userId      String
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  deviceName  String?
+  platform    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BillingSubscription {
+  id                    String          @id @default(uuid())
+  userId                String
+  provider              BillingProvider @default(STRIPE)
+  providerCustomerId    String
+  providerSubscriptionId String         @unique
+  providerPriceId       String?
+  tier                  PremiumTier
+  interval              BillingInterval
+  status                BillingStatus
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean         @default(false)
+  metadata              Json?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([providerCustomerId])
+}
+
+model PaymentTransaction {
+  id               String          @id @default(uuid())
+  userId           String
+  provider         BillingProvider @default(STRIPE)
+  providerEventId  String?         @unique
+  providerPaymentId String?
+  amountCents      Int
+  currency         String          @default("usd")
+  status           PaymentStatus
+  featureCode      PaidFeatureCode
+  tier             PremiumTier?
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([featureCode, createdAt])
+}
+
+model FeatureEntitlement {
+  id           String          @id @default(uuid())
+  userId       String
+  featureCode  PaidFeatureCode
+  source       BillingProvider @default(STRIPE)
+  active       Boolean         @default(true)
+  quantity     Int             @default(1)
+  expiresAt    DateTime?
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, featureCode])
+  @@index([userId, active, expiresAt])
+}

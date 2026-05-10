@@ -1,0 +1,14 @@
+{
+  "name": "@nexusforge/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "wait-on http://localhost:3000 && electron .",
+    "dev:full": "wait-on http://localhost:3000 http://localhost:4000 && electron ."
+  },
+  "devDependencies": {
+    "electron": "^42.0.1",
+    "wait-on": "^8.0.5"
+  }
+}
