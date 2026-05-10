@@ -61,6 +61,53 @@ export type InviteSourceStat = {
   lastJoinedAt?: string | null;
 };
 
+export type ForgeInviteAnalytics = {
+  summary: {
+    views: number;
+    joins: number;
+    conversionRate: number;
+    qualityScore: number;
+    inviteLastViewedAt?: string | null;
+    inviteLastJoinedAt?: string | null;
+  };
+  topSource: {
+    id: string;
+    source: string;
+    viewCount: number;
+    joinCount: number;
+    sourceConversionRate: number;
+    viewShare: number;
+    joinShare: number;
+    score: number;
+    lastViewedAt?: string | null;
+    lastJoinedAt?: string | null;
+  } | null;
+  underperformingSource: {
+    id: string;
+    source: string;
+    viewCount: number;
+    joinCount: number;
+    sourceConversionRate: number;
+    viewShare: number;
+    joinShare: number;
+    score: number;
+    lastViewedAt?: string | null;
+    lastJoinedAt?: string | null;
+  } | null;
+  sources: Array<{
+    id: string;
+    source: string;
+    viewCount: number;
+    joinCount: number;
+    sourceConversionRate: number;
+    viewShare: number;
+    joinShare: number;
+    score: number;
+    lastViewedAt?: string | null;
+    lastJoinedAt?: string | null;
+  }>;
+};
+
 export type PublicForgeInvite = {
   id: string;
   name: string;
@@ -539,6 +586,13 @@ export async function getForge(accessToken: string, forgeId: string) {
       }>;
     };
   }>(`/api/forges/${forgeId}`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getForgeInviteAnalytics(accessToken: string, forgeId: string) {
+  const response = await api.get<{ analytics: ForgeInviteAnalytics }>(`/api/forges/${forgeId}/invite-analytics`, {
     headers: authHeaders(accessToken),
   });
   return response.data;

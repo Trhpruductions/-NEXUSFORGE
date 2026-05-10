@@ -26,6 +26,7 @@ import {
   getBillingEntitlements,
   getDmMessages,
   getForge,
+  getForgeInviteAnalytics,
   getForgeInviteAvailability,
   getCorePlusTelemetry,
   getMessages,
@@ -246,6 +247,13 @@ export function ForgeChatClient() {
     queryKey: ["forge", selectedForgeId, accessToken],
     queryFn: () => getForge(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
+  });
+
+  const inviteAnalyticsQuery = useQuery({
+    queryKey: ["forge-invite-analytics", selectedForgeId, accessToken],
+    queryFn: () => getForgeInviteAnalytics(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+    refetchInterval: 20000,
   });
 
   const messagesQuery = useQuery({
@@ -504,6 +512,18 @@ export function ForgeChatClient() {
         .sort((left, right) => (right.joinCount === left.joinCount ? right.viewCount - left.viewCount : right.joinCount - left.joinCount)),
     [forgeDetailQuery.data?.forge.inviteSources],
   );
+
+  const inviteAnalytics = inviteAnalyticsQuery.data?.analytics;
+
+  const qualityScoreTone = useMemo(() => {
+    const score = inviteAnalytics?.summary.qualityScore ?? 0;
+    if (score >= 75) return "text-emerald-300";
+    if (score >= 45) return "text-amber-300";
+    return "text-rose-300";
+  }, [inviteAnalytics?.summary.qualityScore]);
+
+  const bestSource = inviteAnalytics?.topSource;
+  const weakSource = inviteAnalytics?.underperformingSource;
   const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
   const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
   const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
@@ -1904,6 +1924,33 @@ export function ForgeChatClient() {
                       );
                     })}
                   </div>
+                </div>
+              ) : null}
+              {inviteAnalytics ? (
+                <div className="grid gap-2 rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200">Invite Growth Intelligence</p>
+                    <p className={`text-sm font-semibold ${qualityScoreTone}`}>Quality {inviteAnalytics.summary.qualityScore}</p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-700/80 bg-slate-950/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Best Source</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-100">{bestSource?.source ?? "N/A"}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {bestSource ? `${bestSource.joinCount} joins from ${bestSource.viewCount} views (${bestSource.sourceConversionRate}%)` : "No source data yet"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/80 bg-slate-950/70 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Weakest Source</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">{weakSource?.source ?? "N/A"}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        {weakSource ? `${weakSource.joinCount} joins from ${weakSource.viewCount} views (${weakSource.sourceConversionRate}%)` : "Insufficient volume"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Target: push every active source above {Math.max(12, Math.min(40, inviteAnalytics.summary.conversionRate + 5))}% conversion to compound joins.
+                  </p>
                 </div>
               ) : null}
               {selectedInviteQrCode ? (

@@ -57,6 +57,22 @@ function normalizeInviteSource(source?: string) {
   return source?.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48) || "direct";
 }
 
+function toPercent(numerator: number, denominator: number) {
+  if (denominator <= 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+}
+
+function sourceRecencyBoost(lastJoinedAt?: Date | null, lastViewedAt?: Date | null) {
+  const reference = lastJoinedAt ?? lastViewedAt;
+  if (!reference) return 0;
+
+  const hoursSince = Math.max(0, (Date.now() - reference.getTime()) / (1000 * 60 * 60));
+  if (hoursSince <= 24) return 12;
+  if (hoursSince <= 72) return 8;
+  if (hoursSince <= 24 * 7) return 4;
+  return 1;
+}
+
 function isInviteCodeTakenError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -443,6 +459,113 @@ forgesRouter.post("/join", async (req, res) => {
   }
 
   res.status(200).json({ forgeId: forge.id, inviteCode: forge.inviteCode });
+});
+
+forgesRouter.get("/:id/invite-analytics", async (req, res) => {
+  const membership = await prisma.forgeMember.findUnique({
+    where: {
+      userId_forgeId: {
+        userId: req.user!.id,
+        forgeId: req.params.id,
+      },
+    },
+  });
+
+  if (!membership) {
+    res.status(403).json({ error: "You are not a member of this Forge" });
+    return;
+  }
+
+  const [forge, sourceStats] = await Promise.all([
+    prisma.forge.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        inviteViewCount: true,
+        inviteJoinCount: true,
+        inviteLastViewedAt: true,
+        inviteLastJoinedAt: true,
+      },
+    }),
+    prisma.inviteSourceStat.findMany({
+      where: { forgeId: req.params.id },
+      orderBy: [{ joinCount: "desc" }, { viewCount: "desc" }],
+      take: 12,
+    }),
+  ]);
+
+  if (!forge) {
+    res.status(404).json({ error: "Forge not found" });
+    return;
+  }
+
+  const totalViews = forge.inviteViewCount;
+  const totalJoins = forge.inviteJoinCount;
+  const conversionRate = toPercent(totalJoins, totalViews);
+
+  const rankedSources = sourceStats
+    .map((stat) => {
+      const sourceConversionRate = toPercent(stat.joinCount, stat.viewCount);
+      const viewShare = toPercent(stat.viewCount, Math.max(1, totalViews));
+      const joinShare = toPercent(stat.joinCount, Math.max(1, totalJoins));
+      const recencyBoost = sourceRecencyBoost(stat.lastJoinedAt, stat.lastViewedAt);
+
+      const score = Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(sourceConversionRate * 0.55 + joinShare * 0.3 + viewShare * 0.1 + recencyBoost),
+        ),
+      );
+
+      return {
+        id: stat.id,
+        source: stat.source,
+        viewCount: stat.viewCount,
+        joinCount: stat.joinCount,
+        sourceConversionRate,
+        viewShare,
+        joinShare,
+        score,
+        lastViewedAt: stat.lastViewedAt,
+        lastJoinedAt: stat.lastJoinedAt,
+      };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  const topSource = rankedSources[0] ?? null;
+  const underperformingSource = rankedSources
+    .filter((source) => source.viewCount >= 10)
+    .sort((left, right) => left.sourceConversionRate - right.sourceConversionRate)[0] ?? null;
+
+  const qualityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        conversionRate * 1.6 +
+          Math.min(totalViews, 500) / 20 +
+          Math.min(totalJoins, 250) / 5 +
+          (topSource?.score ?? 0) * 0.15,
+      ),
+    ),
+  );
+
+  res.json({
+    analytics: {
+      summary: {
+        views: totalViews,
+        joins: totalJoins,
+        conversionRate,
+        qualityScore,
+        inviteLastViewedAt: forge.inviteLastViewedAt,
+        inviteLastJoinedAt: forge.inviteLastJoinedAt,
+      },
+      topSource,
+      underperformingSource,
+      sources: rankedSources,
+    },
+  });
 });
 
 forgesRouter.get("/:id", async (req, res) => {
