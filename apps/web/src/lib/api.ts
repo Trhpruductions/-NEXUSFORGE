@@ -511,7 +511,14 @@ export async function listForges(accessToken: string) {
 export async function createForge(
   accessToken: string,
   csrfToken: string,
-  payload: { name: string; description?: string; icon?: string; banner?: string; inviteCode?: string },
+  payload: {
+    name: string;
+    description?: string;
+    icon?: string;
+    banner?: string;
+    inviteCode?: string;
+    template?: "GAMING" | "CREATOR" | "ESPORTS" | "STUDY";
+  },
 ) {
   const response = await api.post<{ forge: Forge }>("/api/forges", payload, {
     headers: authHeaders(accessToken, csrfToken),

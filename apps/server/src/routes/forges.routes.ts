@@ -13,12 +13,15 @@ const inviteCodeSchema = z
   .max(32)
   .regex(/^[a-z0-9-]+$/i, "Invite link can only contain letters, numbers, and hyphens.");
 
+const forgeTemplateSchema = z.enum(["GAMING", "CREATOR", "ESPORTS", "STUDY"]);
+
 const createForgeSchema = z.object({
   name: z.string().min(2).max(80),
   description: z.string().max(300).optional(),
   icon: z.string().url().optional(),
   banner: z.string().url().optional(),
   inviteCode: inviteCodeSchema.optional(),
+  template: forgeTemplateSchema.optional(),
 });
 
 const joinForgeSchema = z.object({
@@ -48,6 +51,29 @@ const reservedInviteCodes = new Set([
   "settings",
   "support",
 ]);
+
+const forgeTemplateChannels: Record<z.infer<typeof forgeTemplateSchema>, Array<{ name: string; type: "TEXT" | "ANNOUNCEMENT" | "VOICE" | "STAGE" }>> = {
+  GAMING: [
+    { name: "general", type: "TEXT" },
+    { name: "announcements", type: "ANNOUNCEMENT" },
+    { name: "Squad Voice", type: "VOICE" },
+  ],
+  CREATOR: [
+    { name: "creator-lounge", type: "TEXT" },
+    { name: "content-drops", type: "ANNOUNCEMENT" },
+    { name: "Live Studio", type: "VOICE" },
+  ],
+  ESPORTS: [
+    { name: "team-comms", type: "TEXT" },
+    { name: "match-updates", type: "ANNOUNCEMENT" },
+    { name: "Scrim Voice", type: "VOICE" },
+  ],
+  STUDY: [
+    { name: "focus-room", type: "TEXT" },
+    { name: "resources", type: "ANNOUNCEMENT" },
+    { name: "Study Voice", type: "VOICE" },
+  ],
+};
 
 function normalizeInviteCode(inviteCode: string) {
   return inviteCode.trim().toLowerCase();
@@ -244,6 +270,7 @@ forgesRouter.post("/", async (req, res) => {
   }
 
   const inviteCode = normalizeInviteCode(parsed.data.inviteCode ?? randomUUID().slice(0, 8));
+  const selectedTemplate = parsed.data.template ?? "GAMING";
   const availability = await getInviteAvailability(inviteCode);
 
   if (!availability.available) {
@@ -300,26 +327,12 @@ forgesRouter.post("/", async (req, res) => {
       });
 
       await tx.channel.createMany({
-        data: [
-          {
-            forgeId: created.id,
-            name: "general",
-            type: "TEXT",
-            position: 0,
-          },
-          {
-            forgeId: created.id,
-            name: "announcements",
-            type: "ANNOUNCEMENT",
-            position: 1,
-          },
-          {
-            forgeId: created.id,
-            name: "Squad Voice",
-            type: "VOICE",
-            position: 2,
-          },
-        ],
+        data: forgeTemplateChannels[selectedTemplate].map((channel, index) => ({
+          forgeId: created.id,
+          name: channel.name,
+          type: channel.type,
+          position: index,
+        })),
       });
 
       return created;

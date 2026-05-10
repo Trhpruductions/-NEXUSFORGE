@@ -59,6 +59,13 @@ import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 
 const inviteSourcePresets = ["direct", "social", "stream", "partner", "campaign"] as const;
 
+const forgeTemplateOptions = [
+  { id: "GAMING", label: "Gaming", description: "General, announcements, and squad voice." },
+  { id: "CREATOR", label: "Creator", description: "Creator lounge, drops, and live studio voice." },
+  { id: "ESPORTS", label: "Esports", description: "Team comms, match updates, and scrim voice." },
+  { id: "STUDY", label: "Study", description: "Focus room, resources, and study voice." },
+] as const;
+
 const botCommandPresetCatalog = {
   CUSTOM: {
     label: "Custom",
@@ -183,6 +190,7 @@ export function ForgeChatClient() {
   const [messageDraft, setMessageDraft] = useState("");
   const [forgeName, setForgeName] = useState("");
   const [forgeDescription, setForgeDescription] = useState("");
+  const [forgeTemplate, setForgeTemplate] = useState<(typeof forgeTemplateOptions)[number]["id"]>("GAMING");
   const [forgeIcon, setForgeIcon] = useState("");
   const [forgeBanner, setForgeBanner] = useState("");
   const [forgeCustomInviteCode, setForgeCustomInviteCode] = useState("");
@@ -329,11 +337,19 @@ export function ForgeChatClient() {
   const forgeBrandingRequested = Boolean(forgeIcon.trim() || forgeBanner.trim());
 
   const createForgeMutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string; icon?: string; banner?: string; inviteCode?: string }) =>
+    mutationFn: (payload: {
+      name: string;
+      description?: string;
+      icon?: string;
+      banner?: string;
+      inviteCode?: string;
+      template?: "GAMING" | "CREATOR" | "ESPORTS" | "STUDY";
+    }) =>
       createForge(accessToken!, csrfToken!, payload),
     onSuccess: async (result) => {
       setForgeName("");
       setForgeDescription("");
+      setForgeTemplate("GAMING");
       setForgeIcon("");
       setForgeBanner("");
       setForgeCustomInviteCode("");
@@ -1735,12 +1751,36 @@ export function ForgeChatClient() {
             createForgeMutation.mutate({
               name: forgeName.trim(),
               description: forgeDescription.trim() || undefined,
+              template: forgeTemplate,
               icon: forgeIcon.trim() || undefined,
               banner: forgeBanner.trim() || undefined,
               inviteCode: forgeCustomInviteCode.trim() || undefined,
             });
           }}
         >
+          <div className="rounded-xl border border-slate-700/80 bg-slate-950/50 p-2.5">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Launch Template</p>
+            <div className="mt-2 grid gap-1.5">
+              {forgeTemplateOptions.map((template) => {
+                const active = forgeTemplate === template.id;
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setForgeTemplate(template.id)}
+                    className={`rounded-lg border px-2.5 py-2 text-left transition ${
+                      active
+                        ? "border-cyan-400/60 bg-cyan-950/35 text-cyan-100"
+                        : "border-slate-700/80 bg-slate-900/75 text-slate-300 hover:border-cyan-500/45"
+                    }`}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]">{template.label}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">{template.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <Input
             label="Create Forge"
             value={forgeName}
