@@ -296,7 +296,15 @@ export type AdminAiInsights = {
     pendingFriends: number;
     unreadNotifications: number;
     premiumUsers: number;
+    riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    incidentLikelihoodPct: number;
     automationActions: string[];
+    recommendedPlaybooks: Array<{
+      title: string;
+      detail: string;
+      priority: "immediate" | "today" | "monitor";
+    }>;
+    bottlenecks: string[];
   };
 };
 

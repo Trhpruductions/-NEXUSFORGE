@@ -184,6 +184,57 @@ adminRouter.get("/ai-insights", requirePaidFeature("ADVANCED_MODERATION_AI"), as
     Math.round(recentMessages / 20 + recentAccounts * 2 + pendingFriends * 4 + unreadNotifications * 1.5),
   );
 
+  const riskLevel =
+    pressureScore >= 85
+      ? "CRITICAL"
+      : pressureScore >= 65
+        ? "HIGH"
+        : pressureScore >= 40
+          ? "MEDIUM"
+          : "LOW";
+
+  const incidentLikelihoodPct = Math.min(
+    99,
+    Math.round(
+      pressureScore * 0.55 +
+        Math.min(30, recentAccounts * 0.9) +
+        Math.min(20, pendingFriends * 0.35),
+    ),
+  );
+
+  const bottlenecks = [
+    pendingFriends > 40 ? "Friend request backlog suggests possible social spam burst." : null,
+    recentAccounts > 25 ? "New account velocity is elevated and should trigger stricter verification." : null,
+    unreadNotifications > 120 ? "Notification queue pressure is high; triage channel alerts first." : null,
+  ].filter((item): item is string => Boolean(item));
+
+  const recommendedPlaybooks = [
+    {
+      title: "Harden Join Pipeline",
+      detail:
+        recentAccounts > 20
+          ? "Enable newcomer verification burst mode and gate high-risk joins for manual review."
+          : "Keep current verification flow and monitor join velocity every 15 minutes.",
+      priority: recentAccounts > 20 ? "immediate" : "monitor",
+    },
+    {
+      title: "Contain Social Spam",
+      detail:
+        pendingFriends > 30
+          ? "Throttle friend-request fanout and queue suspicious social graph clusters for moderator audit."
+          : "Friend request flow appears stable; no additional throttling required.",
+      priority: pendingFriends > 30 ? "today" : "monitor",
+    },
+    {
+      title: "Message Surge Guard",
+      detail:
+        recentMessages > 2500
+          ? "Raise anti-raid thresholds and auto-slow channels with burst traffic signatures."
+          : "Message volume is manageable; maintain baseline anti-raid policy.",
+      priority: recentMessages > 2500 ? "immediate" : "monitor",
+    },
+  ];
+
   const automationActions = [
     pressureScore > 70 ? "Escalate raid-shield thresholds" : "Traffic stable",
     recentAccounts > 20 ? "Enable newcomer verification burst mode" : "New user flow normal",
@@ -198,7 +249,11 @@ adminRouter.get("/ai-insights", requirePaidFeature("ADVANCED_MODERATION_AI"), as
       pendingFriends,
       unreadNotifications,
       premiumUsers,
+      riskLevel,
+      incidentLikelihoodPct,
       automationActions,
+      recommendedPlaybooks,
+      bottlenecks,
     },
   });
 });

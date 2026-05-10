@@ -75,6 +75,15 @@ export function AdminDashboard() {
     );
   }
 
+  const riskToneClass =
+    aiInsightsQuery.data?.insights.riskLevel === "CRITICAL"
+      ? "text-rose-200"
+      : aiInsightsQuery.data?.insights.riskLevel === "HIGH"
+        ? "text-amber-200"
+        : aiInsightsQuery.data?.insights.riskLevel === "MEDIUM"
+          ? "text-yellow-200"
+          : "text-emerald-200";
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
       <section className="nexus-panel rounded-2xl p-5">
@@ -168,6 +177,18 @@ export function AdminDashboard() {
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">New Accounts 7d</p>
               <p className="mt-2 text-3xl font-semibold text-emerald-100">{aiInsightsQuery.data?.insights.recentAccounts ?? 0}</p>
             </div>
+            <div className="glass-cut rounded-xl p-4 text-slate-200 md:col-span-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Risk Level</p>
+                  <p className={`mt-2 text-2xl font-semibold ${riskToneClass}`}>{aiInsightsQuery.data?.insights.riskLevel ?? "LOW"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Incident Likelihood</p>
+                  <p className="mt-2 text-2xl font-semibold text-cyan-100">{aiInsightsQuery.data?.insights.incidentLikelihoodPct ?? 0}%</p>
+                </div>
+              </div>
+            </div>
             <div className="md:col-span-3 rounded-xl border border-slate-700/80 bg-slate-900/80 p-4 text-sm text-slate-200">
               <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Automation Actions</p>
               <div className="grid gap-2 md:grid-cols-3">
@@ -178,6 +199,30 @@ export function AdminDashboard() {
                 ))}
               </div>
             </div>
+            <div className="md:col-span-3 rounded-xl border border-slate-700/80 bg-slate-900/80 p-4 text-sm text-slate-200">
+              <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Recommended Playbooks</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                {(aiInsightsQuery.data?.insights.recommendedPlaybooks ?? []).map((playbook) => (
+                  <div key={playbook.title} className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100">{playbook.title}</p>
+                    <p className="mt-1 text-[11px] text-slate-300">{playbook.detail}</p>
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-500">Priority: {playbook.priority}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {(aiInsightsQuery.data?.insights.bottlenecks.length ?? 0) > 0 ? (
+              <div className="md:col-span-3 rounded-xl border border-amber-500/35 bg-amber-950/20 p-4 text-sm text-amber-100">
+                <p className="mb-2 text-xs uppercase tracking-[0.16em] text-amber-200">Detected Bottlenecks</p>
+                <div className="grid gap-2">
+                  {aiInsightsQuery.data?.insights.bottlenecks.map((item) => (
+                    <div key={item} className="rounded-lg border border-amber-400/30 bg-amber-950/25 px-3 py-2 text-[12px]">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </section>
