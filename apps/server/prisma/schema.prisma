@@ -446,6 +446,7 @@ model ProfileToolJob {
   id           String               @id @default(uuid())
   action       ProfileToolAction
   status       ProfileToolJobStatus @default(RUNNING)
+  runLock      String?              @unique @db.VarChar(64)
   actorId      String
   payload      Json?
   result       Json?

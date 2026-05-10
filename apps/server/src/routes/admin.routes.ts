@@ -66,6 +66,7 @@ async function markStaleSampleGenerationJobsAsFailed() {
     },
     data: {
       status: "FAILED",
+      runLock: null,
       completedAt: new Date(),
       errorMessage: "Marked failed by watchdog after stale runtime window exceeded.",
     },
@@ -155,6 +156,7 @@ async function createSampleGenerationJobIfAvailable(
           data: {
             action: "GENERATE_SAMPLE_DATA",
             status: "RUNNING",
+            runLock: "GENERATE_SAMPLE_DATA",
             actorId,
             payload,
           },
@@ -574,6 +576,7 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
       where: { id: job.id },
       data: {
         status: "SUCCEEDED",
+        runLock: null,
         completedAt: new Date(),
         result: {
           usersProcessed: users.length,
@@ -599,6 +602,7 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
       where: { id: job.id },
       data: {
         status: "FAILED",
+        runLock: null,
         completedAt: new Date(),
         errorMessage: errorMessage.slice(0, 500),
       },
