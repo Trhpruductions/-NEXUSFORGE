@@ -122,11 +122,17 @@ export type ForgeOnboardingHealth = {
     value: number;
     target: number;
     action: string;
+    recommendedAction: ForgeOnboardingAction | null;
   }>;
   nextAction: string;
 };
 
-export type ForgeOnboardingAction = "SEED_CORE_CHANNELS" | "CREATE_MODERATOR_ROLE" | "ENABLE_STARTER_AUTOMATION";
+export type ForgeOnboardingAction =
+  | "SEED_CORE_CHANNELS"
+  | "CREATE_MODERATOR_ROLE"
+  | "ENABLE_STARTER_AUTOMATION"
+  | "LAUNCH_SHARE_CAMPAIGNS"
+  | "PUBLISH_MEMBER_RECRUITMENT_POST";
 
 export type PublicForgeInvite = {
   id: string;

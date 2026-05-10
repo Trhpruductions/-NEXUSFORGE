@@ -33,8 +33,16 @@ const updateInviteCodeSchema = z.object({
   inviteCode: inviteCodeSchema,
 });
 
+const onboardingActionTypeSchema = z.enum([
+  "SEED_CORE_CHANNELS",
+  "CREATE_MODERATOR_ROLE",
+  "ENABLE_STARTER_AUTOMATION",
+  "LAUNCH_SHARE_CAMPAIGNS",
+  "PUBLISH_MEMBER_RECRUITMENT_POST",
+]);
+
 const onboardingActionSchema = z.object({
-  action: z.enum(["SEED_CORE_CHANNELS", "CREATE_MODERATOR_ROLE", "ENABLE_STARTER_AUTOMATION"]),
+  action: onboardingActionTypeSchema,
 });
 
 export const forgesRouter = Router();
@@ -367,7 +375,7 @@ forgesRouter.patch("/:id/invite", async (req, res) => {
 
   const forge = await prisma.forge.findUnique({
     where: { id: req.params.id },
-    select: { id: true, ownerId: true },
+    select: { id: true, ownerId: true, inviteCode: true },
   });
 
   if (!forge) {
@@ -653,6 +661,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.channels.length,
       target: 3,
       action: "Add channels for key conversations.",
+      recommendedAction: "SEED_CORE_CHANNELS" as const,
     },
     {
       id: "voice",
@@ -662,6 +671,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: hasVoiceSurface ? 1 : 0,
       target: 1,
       action: "Create a voice channel for real-time sessions.",
+      recommendedAction: "SEED_CORE_CHANNELS" as const,
     },
     {
       id: "invite",
@@ -671,6 +681,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.inviteCode ? 1 : 0,
       target: 1,
       action: "Claim a custom invite slug in forge controls.",
+      recommendedAction: null,
     },
     {
       id: "traffic",
@@ -680,6 +691,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.inviteViewCount,
       target: 25,
       action: "Share your tagged invite and collect first 25 views.",
+      recommendedAction: "LAUNCH_SHARE_CAMPAIGNS" as const,
     },
     {
       id: "members",
@@ -689,6 +701,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.members.length,
       target: 5,
       action: "Invite trusted members to seed activity.",
+      recommendedAction: "PUBLISH_MEMBER_RECRUITMENT_POST" as const,
     },
     {
       id: "roles",
@@ -698,6 +711,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.roles.length,
       target: 2,
       action: "Add a moderator or operator role.",
+      recommendedAction: "CREATE_MODERATOR_ROLE" as const,
     },
     {
       id: "automation",
@@ -707,6 +721,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       value: forge.botInstallations.length,
       target: 1,
       action: "Install a bot from Bot Studio and enable it.",
+      recommendedAction: "ENABLE_STARTER_AUTOMATION" as const,
     },
   ];
 
@@ -735,7 +750,7 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
 
   const forge = await prisma.forge.findUnique({
     where: { id: req.params.id },
-    select: { id: true, ownerId: true },
+    select: { id: true, ownerId: true, inviteCode: true },
   });
 
   if (!forge) {
@@ -825,6 +840,176 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       ok: true,
       action: parsed.data.action,
       message: existingRole ? "Moderator role already exists" : "Moderator role created",
+    });
+    return;
+  }
+
+  if (parsed.data.action === "LAUNCH_SHARE_CAMPAIGNS") {
+    const channels = await prisma.channel.findMany({
+      where: { forgeId: forge.id },
+      select: { id: true, name: true, type: true, position: true },
+      orderBy: { position: "asc" },
+    });
+
+    let announcementsChannel = channels.find((channel) => channel.type === "ANNOUNCEMENT");
+
+    if (!announcementsChannel) {
+      const nextPosition = channels.length ? Math.max(...channels.map((channel) => channel.position)) + 1 : 0;
+      announcementsChannel = await prisma.channel.create({
+        data: {
+          forgeId: forge.id,
+          name: "announcements",
+          type: "ANNOUNCEMENT",
+          position: nextPosition,
+        },
+        select: { id: true, name: true, type: true, position: true },
+      });
+    }
+
+    const campaignTemplateTag = "[Growth Launch Blueprint]";
+    const existingCampaignPost = await prisma.message.findFirst({
+      where: {
+        channelId: announcementsChannel.id,
+        content: {
+          contains: campaignTemplateTag,
+        },
+      },
+      select: { id: true },
+    });
+
+    const relativeInvitePath = `/invite/${encodeURIComponent(forge.inviteCode)}`;
+    const campaignSources = ["social", "stream", "partner", "campaign"];
+    const campaignBody = [
+      campaignTemplateTag,
+      "Run this outbound sequence now:",
+      `- Core invite: ${relativeInvitePath}`,
+      ...campaignSources.map((source) => `- ${source}: ${relativeInvitePath}?src=${source}`),
+      "Post all four links in their matching channels and track conversion in Invite Growth Intelligence.",
+    ].join("\n");
+
+    if (!existingCampaignPost) {
+      await prisma.message.create({
+        data: {
+          channelId: announcementsChannel.id,
+          content: campaignBody,
+          type: "SYSTEM",
+        },
+      });
+    }
+
+    for (const source of ["direct", ...campaignSources]) {
+      await prisma.inviteSourceStat.upsert({
+        where: {
+          forgeId_source: {
+            forgeId: forge.id,
+            source,
+          },
+        },
+        update: {},
+        create: {
+          forgeId: forge.id,
+          source,
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      message: existingCampaignPost ? "Campaign blueprint already published" : "Campaign blueprint published",
+    });
+    return;
+  }
+
+  if (parsed.data.action === "PUBLISH_MEMBER_RECRUITMENT_POST") {
+    const channels = await prisma.channel.findMany({
+      where: { forgeId: forge.id },
+      select: { id: true, name: true, type: true, position: true },
+      orderBy: { position: "asc" },
+    });
+
+    let introductionsChannel = channels.find(
+      (channel) => channel.type === "TEXT" && channel.name.trim().toLowerCase() === "introductions",
+    );
+
+    if (!introductionsChannel) {
+      const nextPosition = channels.length ? Math.max(...channels.map((channel) => channel.position)) + 1 : 0;
+      introductionsChannel = await prisma.channel.create({
+        data: {
+          forgeId: forge.id,
+          name: "introductions",
+          type: "TEXT",
+          position: nextPosition,
+        },
+        select: { id: true, name: true, type: true, position: true },
+      });
+    }
+
+    const role = await prisma.role.findFirst({
+      where: {
+        forgeId: forge.id,
+        name: {
+          equals: "Founding Member",
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!role) {
+      const maxRolePosition = await prisma.role.aggregate({
+        where: { forgeId: forge.id },
+        _max: { position: true },
+      });
+
+      await prisma.role.create({
+        data: {
+          forgeId: forge.id,
+          name: "Founding Member",
+          color: "#22d3ee",
+          permissions: {
+            manageChannels: false,
+            banUsers: false,
+            kickUsers: false,
+            manageRoles: false,
+            moderateChat: false,
+            streamAccess: true,
+          },
+          position: Math.max(1, (maxRolePosition._max.position ?? 0) - 2),
+        },
+      });
+    }
+
+    const recruitmentTag = "[Founding Member Roll Call]";
+    const existingRecruitmentPost = await prisma.message.findFirst({
+      where: {
+        channelId: introductionsChannel.id,
+        content: {
+          contains: recruitmentTag,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!existingRecruitmentPost) {
+      await prisma.message.create({
+        data: {
+          channelId: introductionsChannel.id,
+          content: [
+            recruitmentTag,
+            "Welcome to launch week.",
+            "Drop your intro, your timezone, and one thing you want from this forge.",
+            "First members get the Founding Member role.",
+          ].join("\n"),
+          type: "SYSTEM",
+        },
+      });
+    }
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      message: existingRecruitmentPost ? "Recruitment post already published" : "Recruitment post published",
     });
     return;
   }

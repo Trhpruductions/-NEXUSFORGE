@@ -562,12 +562,6 @@ export function ForgeChatClient() {
 
   const bestSource = inviteAnalytics?.topSource;
   const weakSource = inviteAnalytics?.underperformingSource;
-  const onboardingActionByTaskId: Partial<Record<string, ForgeOnboardingAction>> = {
-    channels: "SEED_CORE_CHANNELS",
-    voice: "SEED_CORE_CHANNELS",
-    roles: "CREATE_MODERATOR_ROLE",
-    automation: "ENABLE_STARTER_AUTOMATION",
-  };
   const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
   const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
   const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
@@ -2031,39 +2025,43 @@ export function ForgeChatClient() {
                     {onboardingHealth.summary.completedCount}/{onboardingHealth.summary.totalCount} milestones complete.
                   </p>
                   <div className="grid gap-1.5">
-                    {onboardingHealth.tasks.slice(0, 5).map((task) => (
-                      <div
-                        key={task.id}
-                        className={`rounded-lg border px-2.5 py-2 text-[11px] ${
-                          task.completed
-                            ? "border-emerald-500/35 bg-emerald-950/20"
-                            : "border-slate-700/75 bg-slate-950/75"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={`font-semibold uppercase tracking-[0.14em] ${task.completed ? "text-emerald-200" : "text-slate-200"}`}>
-                            {task.completed ? "Complete" : "Pending"} · {task.label}
-                          </p>
-                          <p className="text-slate-400">{task.value}/{task.target}</p>
+                    {onboardingHealth.tasks.slice(0, 5).map((task) => {
+                      const recommendedAction = task.recommendedAction;
+
+                      return (
+                        <div
+                          key={task.id}
+                          className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+                            task.completed
+                              ? "border-emerald-500/35 bg-emerald-950/20"
+                              : "border-slate-700/75 bg-slate-950/75"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`font-semibold uppercase tracking-[0.14em] ${task.completed ? "text-emerald-200" : "text-slate-200"}`}>
+                              {task.completed ? "Complete" : "Pending"} · {task.label}
+                            </p>
+                            <p className="text-slate-400">{task.value}/{task.target}</p>
+                          </div>
+                          <p className="mt-1 text-slate-400">{task.description}</p>
+                          {!task.completed && selectedForgeId && recommendedAction ? (
+                            <Button
+                              variant="ghost"
+                              className="mt-2 h-7 px-2 text-[11px]"
+                              onClick={() =>
+                                onboardingActionMutation.mutate({
+                                  forgeId: selectedForgeId,
+                                  action: recommendedAction,
+                                })
+                              }
+                              disabled={onboardingActionMutation.isPending}
+                            >
+                              {onboardingActionMutation.isPending ? "Applying..." : "Auto-fix"}
+                            </Button>
+                          ) : null}
                         </div>
-                        <p className="mt-1 text-slate-400">{task.description}</p>
-                        {!task.completed && selectedForgeId && onboardingActionByTaskId[task.id] ? (
-                          <Button
-                            variant="ghost"
-                            className="mt-2 h-7 px-2 text-[11px]"
-                            onClick={() =>
-                              onboardingActionMutation.mutate({
-                                forgeId: selectedForgeId,
-                                action: onboardingActionByTaskId[task.id]!,
-                              })
-                            }
-                            disabled={onboardingActionMutation.isPending}
-                          >
-                            {onboardingActionMutation.isPending ? "Applying..." : "Auto-fix"}
-                          </Button>
-                        ) : null}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <p className="text-[11px] text-cyan-200">Next action: {onboardingHealth.nextAction}</p>
                   {onboardingActionMutation.isError ? (
