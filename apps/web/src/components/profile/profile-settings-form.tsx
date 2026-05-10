@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createPortalSession, getBillingEntitlements, savePushSubscription, updateMe } from "@/lib/api";
+import { createPortalSession, getBillingEntitlements, getPublicProfile, savePushSubscription, updateMe } from "@/lib/api";
 import { ProfileMetadata } from "@/components/profile/profile-metadata";
 import Link from "next/link";
 
@@ -45,6 +45,13 @@ export function ProfileSettingsForm() {
     queryKey: ["billing-entitlements", accessToken],
     queryFn: () => getBillingEntitlements(accessToken!),
     enabled: Boolean(accessToken),
+  });
+
+  const rankQuery = useQuery({
+    queryKey: ["profile-ranks", accessToken, user?.id],
+    queryFn: () => getPublicProfile(accessToken!, user!.id),
+    enabled: Boolean(accessToken && user?.id),
+    staleTime: 30000,
   });
 
   const hasBrandingKit = billingQuery.data?.entitlements.some((item) => item.featureCode === "TEAM_BRANDING_KIT" && item.quantity > 0) ?? false;
@@ -161,7 +168,13 @@ export function ProfileSettingsForm() {
 
   return (
     <>
-      <ProfileMetadata user={user} />
+      <ProfileMetadata
+        user={{
+          ...user,
+          appRank: rankQuery.data?.appRank,
+          boostRank: rankQuery.data?.boostRank,
+        }}
+      />
       <div className="nexus-panel grid gap-4 rounded-2xl p-5">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-950/15 px-3 py-2 text-xs">
         <span className="font-semibold uppercase tracking-[0.18em] text-amber-200">Core+ Status</span>

@@ -2042,9 +2042,11 @@ export function ForgeChatClient() {
           <Link href="/notifications" className="nexus-pill rounded-lg px-2 py-1 hover:border-cyan-300/70">
             Signals
           </Link>
-          <Link href="/admin" className="rounded-lg border border-amber-500/40 bg-amber-950/20 px-2 py-1 text-amber-100 hover:border-amber-300">
-            Admin
-          </Link>
+          {user?.isAdmin ? (
+            <Link href="/admin" className="rounded-lg border border-amber-500/40 bg-amber-950/20 px-2 py-1 text-amber-100 hover:border-amber-300">
+              Admin
+            </Link>
+          ) : null}
           <Link href="/settings" className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-2 py-1 text-cyan-100 hover:border-cyan-300">
             Settings
           </Link>

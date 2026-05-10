@@ -17,10 +17,13 @@ export type User = {
   corePlusStreakDays?: number;
   createdAt: string;
   emailVerified?: boolean;
+  appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
   isAdmin?: boolean;
   currentActivity?: string | null;
   activityDetails?: string | null;
   lastSeenAt?: string | null;
+  appRank?: number;
+  boostRank?: number;
 };
 
 export type Channel = {
@@ -1208,6 +1211,8 @@ export type PublicProfile = User & {
   forgesOwned: number;
   forgesMember: number;
   medals: Medal[];
+  appRank: number;
+  boostRank: number;
 };
 
 export type LeaderboardEntry = {

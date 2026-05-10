@@ -45,7 +45,7 @@ export function ProfileMetadata({ user }: { user: User }) {
         <p className="mt-1 text-sm text-slate-400">{user.email}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Join Date</p>
           <p className="mt-1 text-sm font-medium text-slate-200">
@@ -78,6 +78,22 @@ export function ProfileMetadata({ user }: { user: User }) {
           <p className={`mt-1 text-sm font-medium ${user.corePlusBoostLevel && user.corePlusBoostLevel > 0 ? "text-green-300" : "text-slate-400"}`}>{getBoostLevel()}</p>
           {user.corePlusStreakDays && user.corePlusStreakDays > 0 && <p className="text-xs text-slate-500">Streak: {user.corePlusStreakDays} days</p>}
         </div>
+
+        {typeof user.appRank === "number" ? (
+          <div className="flex flex-col">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">App Rank</p>
+            <p className="mt-1 text-sm font-semibold text-amber-300">#{user.appRank}</p>
+            <p className="text-xs text-slate-500">Global reputation standing</p>
+          </div>
+        ) : null}
+
+        {typeof user.boostRank === "number" ? (
+          <div className="flex flex-col">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Boost Rank</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-300">#{user.boostRank}</p>
+            <p className="text-xs text-slate-500">Core+ boost leaderboard</p>
+          </div>
+        ) : null}
       </div>
 
       {user.clanTag && (

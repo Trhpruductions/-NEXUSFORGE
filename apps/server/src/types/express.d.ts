@@ -5,6 +5,7 @@ declare global {
         id: string;
         username: string;
         email: string;
+        appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
       };
     }
   }

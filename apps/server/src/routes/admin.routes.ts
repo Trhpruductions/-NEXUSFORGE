@@ -19,6 +19,30 @@ export const adminRouter = Router();
 adminRouter.use(requireAuth);
 adminRouter.use(requireAdmin);
 
+type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
+
+const privilegedRoles = new Set<AppRole>(["ADMIN", "EXEC", "OWNER"]);
+const roleRank: Record<AppRole, number> = {
+  USER: 0,
+  MODERATOR: 1,
+  ADMIN: 2,
+  EXEC: 3,
+  OWNER: 4,
+};
+
+function resolveEffectiveRole(role: AppRole | null | undefined, isAdmin: boolean): AppRole {
+  if (role) return role;
+  return isAdmin ? "ADMIN" : "USER";
+}
+
+function hasAdminAccess(role: AppRole | null | undefined, isAdmin: boolean): boolean {
+  return isAdmin || (role ? privilegedRoles.has(role) : false);
+}
+
+const setRoleSchema = z.object({
+  role: z.enum(["USER", "MODERATOR", "ADMIN", "EXEC", "OWNER"]),
+});
+
 const sampleMedalCatalog = [
   { key: "founding-member", name: "Founding Member", description: "Early supporter of NexusForge.", icon: "🏛" },
   { key: "forge-commander", name: "Forge Commander", description: "Leads high-signal communities.", icon: "🛡" },
@@ -300,23 +324,43 @@ adminRouter.get("/revenue", async (_req, res) => {
   });
 });
 
-adminRouter.get("/users", async (_req, res) => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      avatar: true,
-      status: true,
-      premium: true,
-      isAdmin: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+adminRouter.get("/users", async (req, res) => {
+  const [actor, users] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        appRole: true,
+        isAdmin: true,
+      },
+    }),
+    prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatar: true,
+        status: true,
+        premium: true,
+        appRole: true,
+        isAdmin: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+  ]);
 
-  res.json({ users });
+  const actorRole = resolveEffectiveRole(actor?.appRole as AppRole | null, actor?.isAdmin ?? false);
+
+  res.json({
+    actorRole,
+    canManageHighRoles: actorRole === "OWNER",
+    users: users.map((user) => ({
+      ...user,
+      appRole: resolveEffectiveRole(user.appRole as AppRole | null, user.isAdmin),
+      isAdmin: hasAdminAccess(user.appRole as AppRole | null, user.isAdmin),
+    })),
+  });
 });
 
 adminRouter.get("/profile-tools/status", async (_req, res) => {
@@ -839,15 +883,54 @@ adminRouter.get("/profile-tools/audit", async (req, res) => {
 });
 
 adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  const [actor, user] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        isAdmin: true,
+        appRole: true,
+      },
+    }),
+    prisma.user.findUnique({ where: { id: req.params.id } }),
+  ]);
+
+  if (!actor) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
   }
 
-  if (user.isAdmin) {
-    const adminCount = await prisma.user.count({ where: { isAdmin: true } });
-    if (adminCount <= 1) {
+  const actorRole = resolveEffectiveRole(actor.appRole as AppRole | null, actor.isAdmin);
+  const targetRole = resolveEffectiveRole(user.appRole as AppRole | null, user.isAdmin);
+
+  if (!hasAdminAccess(actorRole, actor.isAdmin)) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  if (targetRole === "OWNER" || targetRole === "EXEC") {
+    res.status(403).json({ error: "Cannot modify protected higher-up roles" });
+    return;
+  }
+
+  const nextRole: AppRole = hasAdminAccess(targetRole, user.isAdmin) ? "USER" : "ADMIN";
+
+  if (nextRole === "USER") {
+    const privilegedCount = await prisma.user.count({
+      where: {
+        OR: [
+          { isAdmin: true },
+          { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } },
+        ],
+      },
+    });
+
+    if (privilegedCount <= 1) {
       res.status(400).json({ error: "Cannot revoke the final admin account" });
       return;
     }
@@ -855,15 +938,138 @@ adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
 
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { isAdmin: !user.isAdmin },
+    data: {
+      appRole: nextRole,
+      isAdmin: privilegedRoles.has(nextRole),
+    },
     select: {
       id: true,
       username: true,
+      appRole: true,
       isAdmin: true,
     },
   });
 
-  res.json({ user: updated });
+  res.json({
+    user: {
+      ...updated,
+      appRole: resolveEffectiveRole(updated.appRole as AppRole | null, updated.isAdmin),
+      isAdmin: hasAdminAccess(updated.appRole as AppRole | null, updated.isAdmin),
+    },
+  });
+});
+
+adminRouter.post("/users/:id/set-role", async (req, res) => {
+  const parsed = setRoleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        isAdmin: true,
+        appRole: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        username: true,
+        isAdmin: true,
+        appRole: true,
+      },
+    }),
+  ]);
+
+  if (!actor) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const actorRole = resolveEffectiveRole(actor.appRole as AppRole | null, actor.isAdmin);
+  const targetRole = resolveEffectiveRole(target.appRole as AppRole | null, target.isAdmin);
+  const nextRole = parsed.data.role;
+
+  if (!hasAdminAccess(actorRole, actor.isAdmin)) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  if (roleRank[nextRole] > roleRank[actorRole]) {
+    res.status(403).json({ error: "Cannot assign a role above your own" });
+    return;
+  }
+
+  if ((nextRole === "EXEC" || nextRole === "OWNER") && actorRole !== "OWNER") {
+    res.status(403).json({ error: "Only OWNER can assign EXEC or OWNER roles" });
+    return;
+  }
+
+  if (actor.id !== target.id && roleRank[targetRole] >= roleRank[actorRole]) {
+    res.status(403).json({ error: "Cannot modify users with equal or higher role" });
+    return;
+  }
+
+  if (nextRole !== targetRole && !privilegedRoles.has(nextRole) && privilegedRoles.has(targetRole)) {
+    const privilegedCount = await prisma.user.count({
+      where: {
+        OR: [
+          { isAdmin: true },
+          { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } },
+        ],
+      },
+    });
+
+    if (privilegedCount <= 1) {
+      res.status(400).json({ error: "Cannot revoke the final admin account" });
+      return;
+    }
+  }
+
+  if (actor.id === target.id && targetRole === "OWNER" && nextRole !== "OWNER") {
+    const ownerCount = await prisma.user.count({
+      where: {
+        appRole: "OWNER",
+      },
+    });
+
+    if (ownerCount <= 1) {
+      res.status(400).json({ error: "Cannot demote the final owner account" });
+      return;
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      appRole: nextRole,
+      isAdmin: privilegedRoles.has(nextRole),
+    },
+    select: {
+      id: true,
+      username: true,
+      appRole: true,
+      isAdmin: true,
+    },
+  });
+
+  res.json({
+    user: {
+      ...updated,
+      appRole: resolveEffectiveRole(updated.appRole as AppRole | null, updated.isAdmin),
+      isAdmin: hasAdminAccess(updated.appRole as AppRole | null, updated.isAdmin),
+    },
+  });
 });
 
 adminRouter.get("/ai-insights", requirePaidFeature("ADVANCED_MODERATION_AI"), async (_req, res) => {

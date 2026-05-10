@@ -7,6 +7,7 @@ import { requireAuth } from "../middleware/auth.js";
 export const profilesRouter = Router();
 const userIdParamSchema = z.string().uuid();
 const medalKeyParamSchema = z.string().min(1).max(64);
+const privilegedRoles = new Set(["ADMIN", "EXEC", "OWNER"]);
 
 // Search users by username or tag
 profilesRouter.get("/users/search", requireAuth, async (req, res) => {
@@ -124,10 +125,39 @@ profilesRouter.get("/users/:userId", requireAuth, async (req, res) => {
       where: { userId: validatedUserId.data },
     });
 
+    const [appRankHigherCount, boostRankHigherCount] = await Promise.all([
+      prisma.user.count({
+        where: {
+          reputation: {
+            gt: user.reputation,
+          },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          OR: [
+            {
+              corePlusBoostLevel: {
+                gt: user.corePlusBoostLevel ?? 0,
+              },
+            },
+            {
+              corePlusBoostLevel: user.corePlusBoostLevel ?? 0,
+              corePlusStreakDays: {
+                gt: user.corePlusStreakDays ?? 0,
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
     res.json({
       ...user,
       forgesOwned,
       forgesMember,
+      appRank: appRankHigherCount + 1,
+      boostRank: boostRankHigherCount + 1,
     });
   } catch (error) {
     console.error("Get profile error:", error);
@@ -376,10 +406,10 @@ profilesRouter.post("/users/:userId/medals/:medalKey", requireAuth, async (req, 
     // Check if user is admin
     const currentUser = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { isAdmin: true },
+      select: { isAdmin: true, appRole: true },
     });
 
-    if (!currentUser?.isAdmin) {
+    if (!currentUser || (!currentUser.isAdmin && !privilegedRoles.has(currentUser.appRole))) {
       res.status(403).json({ error: "Admin only" });
       return;
     }

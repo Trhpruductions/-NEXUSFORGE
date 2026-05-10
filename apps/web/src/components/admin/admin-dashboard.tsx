@@ -9,6 +9,8 @@ import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGeneratio
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
+
 function formatUsd(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 }
@@ -45,6 +47,7 @@ export function AdminDashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [reputationDelta, setReputationDelta] = useState<number>(25);
   const [actionNote, setActionNote] = useState<string>("");
+  const [roleDraftByUser, setRoleDraftByUser] = useState<Record<string, AppRole>>({});
   const [auditActionFilter, setAuditActionFilter] = useState<"all" | "seed-medals" | "generate-sample-data" | "adjust-reputation">("all");
   const [auditActorFilter, setAuditActorFilter] = useState<string>("all");
   const [auditOffset, setAuditOffset] = useState<number>(0);
@@ -65,7 +68,11 @@ export function AdminDashboard() {
   const usersQuery = useQuery({
     queryKey: ["admin-users", accessToken],
     queryFn: async () => {
-      const response = await api.get<{ users: Array<{ id: string; username: string; email: string; isAdmin: boolean; premium: boolean; status: string }> }>(
+      const response = await api.get<{
+        actorRole: AppRole;
+        canManageHighRoles: boolean;
+        users: Array<{ id: string; username: string; email: string; appRole: AppRole; isAdmin: boolean; premium: boolean; status: string }>;
+      }>(
         "/api/admin/users",
         { headers: authHeaders(accessToken, csrfToken) },
       );
@@ -108,7 +115,7 @@ export function AdminDashboard() {
 
   const toggleAdmin = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await api.post<{ user: { id: string; username: string; isAdmin: boolean } }>(
+      const response = await api.post<{ user: { id: string; username: string; appRole: AppRole; isAdmin: boolean } }>(
         `/api/admin/users/${userId}/toggle-admin`,
         {},
         { headers: authHeaders(accessToken, csrfToken) },
@@ -118,6 +125,25 @@ export function AdminDashboard() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
       await queryClient.invalidateQueries({ queryKey: ["admin-summary", accessToken] });
+    },
+  });
+
+  const setUserRole = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
+      const response = await api.post<{ user: { id: string; username: string; appRole: AppRole; isAdmin: boolean } }>(
+        `/api/admin/users/${userId}/set-role`,
+        { role },
+        { headers: authHeaders(accessToken, csrfToken) },
+      );
+      return response.data;
+    },
+    onSuccess: async (data) => {
+      setActionNote(`Role updated: ${data.user.username} is now ${data.user.appRole}.`);
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-summary", accessToken] });
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to update user role."));
     },
   });
 
@@ -191,6 +217,22 @@ export function AdminDashboard() {
       setSelectedUserId(usersQuery.data.users[0]!.id);
     }
   }, [selectedUserId, usersQuery.data?.users]);
+
+  useEffect(() => {
+    if (!usersQuery.data?.users?.length) {
+      return;
+    }
+
+    setRoleDraftByUser((previous) => {
+      const next: Record<string, AppRole> = { ...previous };
+      for (const entry of usersQuery.data.users) {
+        if (!next[entry.id]) {
+          next[entry.id] = entry.appRole;
+        }
+      }
+      return next;
+    });
+  }, [usersQuery.data?.users]);
 
   useEffect(() => {
     setAuditOffset(0);
@@ -287,12 +329,49 @@ export function AdminDashboard() {
           {usersQuery.data?.users.map((entry) => (
             <div key={entry.id} className="flex items-center justify-between rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-sm text-slate-200 shadow-[inset_0_1px_0_rgba(148,163,184,0.08)]">
               <div>
-                <p>{entry.username}</p>
+                <p className="flex items-center gap-2">
+                  <span>{entry.username}</span>
+                  <span className="rounded-full border border-cyan-500/35 bg-cyan-950/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-cyan-100">
+                    {entry.appRole}
+                  </span>
+                </p>
                 <p className="text-xs text-slate-400">{entry.email}</p>
               </div>
-              <Button variant="ghost" className="h-9 px-3 text-xs" onClick={() => toggleAdmin.mutate(entry.id)}>
-                {entry.isAdmin ? "Revoke Admin" : "Make Admin"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <select
+                  value={roleDraftByUser[entry.id] ?? entry.appRole}
+                  onChange={(event) =>
+                    setRoleDraftByUser((previous) => ({
+                      ...previous,
+                      [entry.id]: event.target.value as AppRole,
+                    }))
+                  }
+                  className="h-9 rounded-lg border border-slate-600/80 bg-slate-950/80 px-2 text-xs text-slate-100"
+                  aria-label={`Select role for ${entry.username}`}
+                >
+                  <option value="USER">USER</option>
+                  <option value="MODERATOR">MODERATOR</option>
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="EXEC" disabled={!usersQuery.data?.canManageHighRoles}>EXEC</option>
+                  <option value="OWNER" disabled={!usersQuery.data?.canManageHighRoles}>OWNER</option>
+                </select>
+                <Button
+                  variant="ghost"
+                  className="h-9 px-3 text-xs"
+                  onClick={() =>
+                    setUserRole.mutate({
+                      userId: entry.id,
+                      role: roleDraftByUser[entry.id] ?? entry.appRole,
+                    })
+                  }
+                  disabled={setUserRole.isPending}
+                >
+                  Apply Role
+                </Button>
+                <Button variant="ghost" className="h-9 px-3 text-xs" onClick={() => toggleAdmin.mutate(entry.id)}>
+                  {entry.isAdmin ? "Quick Demote" : "Quick Promote"}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

@@ -55,6 +55,12 @@ const REFRESH_COOKIE_NAME = "nf_refresh";
 
 export const authRouter = Router();
 
+const privilegedRoles = new Set(["ADMIN", "EXEC", "OWNER"]);
+
+function hasAdminAccess(role: string | null | undefined, isAdmin: boolean): boolean {
+  return isAdmin || (role ? privilegedRoles.has(role) : false);
+}
+
 function refreshCookieOptions() {
   return {
     httpOnly: true,
@@ -75,11 +81,12 @@ function csrfCookieOptions() {
   };
 }
 
-async function issueTokens(user: { id: string; username: string; email: string }) {
+async function issueTokens(user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" }) {
   const accessToken = signAccessToken({
     sub: user.id,
     username: user.username,
     email: user.email,
+    appRole: user.appRole,
   });
 
   const refreshToken = randomToken();
@@ -137,6 +144,7 @@ authRouter.post("/register", async (req, res) => {
       corePlusActivatedAt: true,
       corePlusBoostLevel: true,
       corePlusStreakDays: true,
+      appRole: true,
       createdAt: true,
       emailVerified: true,
       isAdmin: true,
@@ -151,7 +159,10 @@ authRouter.post("/register", async (req, res) => {
   res.status(201).json({
     accessToken: tokens.accessToken,
     csrfToken,
-    user,
+    user: {
+      ...user,
+      isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
+    },
     verification: {
       message: "Email verification token generated for integration",
       token: emailVerifyToken,
@@ -201,9 +212,10 @@ authRouter.post("/login", async (req, res) => {
       corePlusActivatedAt: user.corePlusActivatedAt,
       corePlusBoostLevel: user.corePlusBoostLevel,
       corePlusStreakDays: user.corePlusStreakDays,
+      appRole: user.appRole,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
-      isAdmin: user.isAdmin,
+      isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   })
 });
@@ -277,6 +289,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       lastSeenAt: true,
       createdAt: true,
       emailVerified: true,
+      appRole: true,
       isAdmin: true,
     },
   });
@@ -286,7 +299,12 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     return;
   }
 
-  res.json({ user });
+  res.json({
+    user: {
+      ...user,
+      isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
+    },
+  });
 });
 
 authRouter.patch("/me", requireAuth, async (req, res) => {
@@ -355,11 +373,17 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
       lastSeenAt: true,
       createdAt: true,
       emailVerified: true,
+      appRole: true,
       isAdmin: true,
     },
   });
 
-  res.json({ user: updated });
+  res.json({
+    user: {
+      ...updated,
+      isAdmin: hasAdminAccess(updated.appRole, updated.isAdmin),
+    },
+  });
 });
 
 authRouter.get("/verify-email", async (req, res) => {
@@ -546,11 +570,17 @@ authRouter.post("/core-plus/activate", requireAuth, async (req, res) => {
       lastSeenAt: true,
       createdAt: true,
       emailVerified: true,
+      appRole: true,
       isAdmin: true,
     },
   });
 
-  res.status(200).json({ user: updated });
+  res.status(200).json({
+    user: {
+      ...updated,
+      isAdmin: hasAdminAccess(updated.appRole, updated.isAdmin),
+    },
+  });
 });
 
 authRouter.get("/core-plus/telemetry", requireAuth, async (_req, res) => {

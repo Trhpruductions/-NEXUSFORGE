@@ -118,7 +118,15 @@ export default function PublicProfilePage() {
                 <div className="text-sm text-slate-400">Reputation</div>
               </div>
               <div className="bg-slate-900 p-4 rounded">
-                <div className="text-emerald-400 font-semibold">{medals.length}</div>
+                <div className="text-amber-300 font-semibold">#{profile.appRank}</div>
+                <div className="text-sm text-slate-400">App Rank</div>
+              </div>
+              <div className="bg-slate-900 p-4 rounded">
+                <div className="text-emerald-300 font-semibold">#{profile.boostRank}</div>
+                <div className="text-sm text-slate-400">Boost Rank</div>
+              </div>
+              <div className="bg-slate-900 p-4 rounded">
+                <div className="text-violet-300 font-semibold">{medals.length}</div>
                 <div className="text-sm text-slate-400">Medals</div>
               </div>
               <div className="bg-slate-900 p-4 rounded">

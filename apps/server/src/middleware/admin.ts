@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 
+const privilegedRoles = new Set(["ADMIN", "EXEC", "OWNER"]);
+
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!req.user) {
     res.status(401).json({ error: "Unauthorized" });
@@ -9,10 +11,10 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    select: { isAdmin: true },
+    select: { isAdmin: true, appRole: true },
   });
 
-  if (!user?.isAdmin) {
+  if (!user || (!user.isAdmin && !privilegedRoles.has(user.appRole))) {
     res.status(403).json({ error: "Admin access required" });
     return;
   }

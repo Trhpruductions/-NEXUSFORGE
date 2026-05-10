@@ -40,6 +40,14 @@ enum PremiumTier {
   INFINITE
 }
 
+enum AppRole {
+  USER
+  MODERATOR
+  ADMIN
+  EXEC
+  OWNER
+}
+
 enum NotificationType {
   MENTION
   FRIEND_REQUEST
@@ -117,6 +125,7 @@ model User {
   corePlusBoostLevel Int            @default(0)
   corePlusStreakDays Int            @default(0)
   clanTag            String?        @db.VarChar(12)
+  appRole            AppRole        @default(USER)
   isAdmin            Boolean        @default(false)
   reputation         Int            @default(0)
   currentActivity    String?

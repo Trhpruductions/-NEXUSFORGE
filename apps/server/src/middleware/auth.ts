@@ -16,6 +16,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       id: payload.sub,
       username: payload.username,
       email: payload.email,
+      appRole: payload.appRole,
     };
     next();
   } catch {

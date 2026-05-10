@@ -6,6 +6,7 @@ export type AccessTokenPayload = {
   sub: string;
   username: string;
   email: string;
+  appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
 };
 
 export function signAccessToken(payload: AccessTokenPayload): string {
