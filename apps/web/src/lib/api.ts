@@ -132,7 +132,8 @@ export type ForgeOnboardingAction =
   | "CREATE_MODERATOR_ROLE"
   | "ENABLE_STARTER_AUTOMATION"
   | "LAUNCH_SHARE_CAMPAIGNS"
-  | "PUBLISH_MEMBER_RECRUITMENT_POST";
+  | "PUBLISH_MEMBER_RECRUITMENT_POST"
+  | "OPTIMIZE_CAMPAIGNS";
 
 export type PublicForgeInvite = {
   id: string;

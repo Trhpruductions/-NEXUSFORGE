@@ -39,6 +39,7 @@ const onboardingActionTypeSchema = z.enum([
   "ENABLE_STARTER_AUTOMATION",
   "LAUNCH_SHARE_CAMPAIGNS",
   "PUBLISH_MEMBER_RECRUITMENT_POST",
+  "OPTIMIZE_CAMPAIGNS",
 ]);
 
 const onboardingActionSchema = z.object({
@@ -619,6 +620,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       id: true,
       inviteCode: true,
       inviteViewCount: true,
+      inviteJoinCount: true,
       channels: {
         select: {
           type: true,
@@ -651,6 +653,7 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
   }
 
   const hasVoiceSurface = forge.channels.some((channel) => channel.type === "VOICE" || channel.type === "STAGE");
+  const inviteConversionRate = toPercent(forge.inviteJoinCount, Math.max(1, forge.inviteViewCount));
 
   const tasks = [
     {
@@ -692,6 +695,16 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       target: 25,
       action: "Share your tagged invite and collect first 25 views.",
       recommendedAction: "LAUNCH_SHARE_CAMPAIGNS" as const,
+    },
+    {
+      id: "campaign-loop",
+      label: "Conversion loop",
+      description: "Optimize weak channels after traffic starts to lift join conversion.",
+      completed: forge.inviteViewCount < 25 || inviteConversionRate >= 12,
+      value: inviteConversionRate,
+      target: 12,
+      action: "Run source-level optimization on campaign performance.",
+      recommendedAction: forge.inviteViewCount >= 25 ? ("OPTIMIZE_CAMPAIGNS" as const) : null,
     },
     {
       id: "members",
@@ -1010,6 +1023,110 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       ok: true,
       action: parsed.data.action,
       message: existingRecruitmentPost ? "Recruitment post already published" : "Recruitment post published",
+    });
+    return;
+  }
+
+  if (parsed.data.action === "OPTIMIZE_CAMPAIGNS") {
+    const channels = await prisma.channel.findMany({
+      where: { forgeId: forge.id },
+      select: { id: true, name: true, type: true, position: true },
+      orderBy: { position: "asc" },
+    });
+
+    let announcementsChannel = channels.find((channel) => channel.type === "ANNOUNCEMENT");
+
+    if (!announcementsChannel) {
+      const nextPosition = channels.length ? Math.max(...channels.map((channel) => channel.position)) + 1 : 0;
+      announcementsChannel = await prisma.channel.create({
+        data: {
+          forgeId: forge.id,
+          name: "announcements",
+          type: "ANNOUNCEMENT",
+          position: nextPosition,
+        },
+        select: { id: true, name: true, type: true, position: true },
+      });
+    }
+
+    const sourceStats = await prisma.inviteSourceStat.findMany({
+      where: {
+        forgeId: forge.id,
+        viewCount: {
+          gte: 5,
+        },
+      },
+      orderBy: [{ joinCount: "asc" }, { viewCount: "desc" }],
+      take: 6,
+    });
+
+    if (sourceStats.length === 0) {
+      res.status(200).json({
+        ok: true,
+        action: parsed.data.action,
+        message: "Insufficient source volume for optimization yet",
+      });
+      return;
+    }
+
+    const weakestSources = sourceStats
+      .map((source) => ({
+        source: source.source,
+        views: source.viewCount,
+        joins: source.joinCount,
+        conversionRate: toPercent(source.joinCount, source.viewCount),
+      }))
+      .sort((left, right) => left.conversionRate - right.conversionRate)
+      .slice(0, 3);
+
+    const optimizationTag = "[Campaign Optimization Checklist]";
+    const recentOptimizationPost = await prisma.message.findFirst({
+      where: {
+        channelId: announcementsChannel.id,
+        content: {
+          contains: optimizationTag,
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 1000 * 60 * 60),
+        },
+      },
+      select: { id: true },
+    });
+
+    if (recentOptimizationPost) {
+      res.status(200).json({
+        ok: true,
+        action: parsed.data.action,
+        message: "Optimization checklist already published recently",
+      });
+      return;
+    }
+
+    const optimizationBody = [
+      optimizationTag,
+      "Prioritize these sources now:",
+      ...weakestSources.map(
+        (source, index) =>
+          `${index + 1}. ${source.source} -> ${source.joins} joins / ${source.views} views (${source.conversionRate}%).`,
+      ),
+      "Actions:",
+      "- Refresh creative for each weak source.",
+      "- Repost with a stronger call-to-action and urgency.",
+      "- Compare conversion again after the next 25 views.",
+    ].join("\n");
+
+    await prisma.message.create({
+      data: {
+        channelId: announcementsChannel.id,
+        content: optimizationBody,
+        type: "SYSTEM",
+      },
+    });
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      message: "Optimization checklist published",
     });
     return;
   }
