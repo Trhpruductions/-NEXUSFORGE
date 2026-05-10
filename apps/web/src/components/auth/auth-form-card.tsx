@@ -19,9 +19,20 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
       className="nexus-panel-strong grid w-full max-w-4xl overflow-hidden rounded-3xl lg:grid-cols-[1fr_320px]"
     >
       <div className="p-5 sm:p-7">
-        <div className="mb-6 grid gap-1">
-          <p className="nexus-eyebrow text-cyan-300">NexusForge Identity</p>
-          <h1 className="nexus-title text-slate-50">{title}</h1>
+        <div className="mb-6 grid gap-4">
+          <div className="flex items-center gap-3">
+            <div className="ember-frame holo-frame orbital-logo h-14 w-14 overflow-hidden rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-1.5">
+              <img
+                src="/brand/nexusforge-main-logo.png"
+                alt="NexusForge main logo"
+                className="image-pan h-full w-full rounded-xl object-cover"
+              />
+            </div>
+            <div>
+              <p className="nexus-eyebrow text-cyan-300">NexusForge Identity</p>
+              <h1 className="nexus-title text-slate-50">{title}</h1>
+            </div>
+          </div>
           <p className="nexus-subtitle text-slate-400">{subtitle}</p>
         </div>
         <div>{children}</div>

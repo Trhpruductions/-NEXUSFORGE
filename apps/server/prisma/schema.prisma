@@ -81,6 +81,17 @@ enum PaidFeatureCode {
   ADVANCED_MODERATION_AI
 }
 
+enum ActivityType {
+  JOINED_FORGE
+  CREATED_FORGE
+  MESSAGE_SENT
+  FRIEND_ADDED
+  MEDAL_EARNED
+  LEVEL_UP
+  PREMIUM_UPGRADE
+  CUSTOM
+}
+
 model User {
   id                 String         @id @default(uuid())
   username           String         @unique
@@ -97,6 +108,7 @@ model User {
   corePlusStreakDays Int            @default(0)
   clanTag            String?        @db.VarChar(12)
   isAdmin            Boolean        @default(false)
+  reputation         Int            @default(0)
   currentActivity    String?
   activityDetails    String?
   lastSeenAt         DateTime?
@@ -117,6 +129,7 @@ model User {
   ownedForges        Forge[]        @relation("ForgeOwner")
   ownedShopItems     ShopItem[]
   medals             UserMedal[]
+  activities         UserActivity[]
   notifications      Notification[]
   pushSubscriptions  PushSubscription[]
   billingSubscriptions BillingSubscription[]
@@ -402,6 +415,20 @@ model UserMedal {
   medal     Medal    @relation(fields: [medalId], references: [id], onDelete: Cascade)
 
   @@unique([userId, medalId])
+}
+
+model UserActivity {
+  id          String       @id @default(uuid())
+  userId      String
+  type        ActivityType
+  title       String
+  description String?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 model ShopItem {

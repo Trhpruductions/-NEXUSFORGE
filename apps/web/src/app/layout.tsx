@@ -15,8 +15,18 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("http://localhost:3000"),
   title: "NexusForge",
   description: "Futuristic communication platform for gaming communities",
+  icons: {
+    icon: "/brand/nexusforge-main-logo.png",
+    apple: "/brand/nexusforge-main-logo.png",
+  },
+  openGraph: {
+    title: "NexusForge",
+    description: "Futuristic communication platform for gaming communities",
+    images: ["/brand/nexusforge-main-logo.png"],
+  },
 };
 
 export default function RootLayout({

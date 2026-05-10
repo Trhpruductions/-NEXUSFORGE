@@ -1,7 +1,97 @@
 import Link from "next/link";
 import { NexusforgeBrandShowcase } from "@/components/brand/nexusforge-brand-showcase";
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
+import { PoweredByFooter } from "@/components/layout/powered-by-footer";
 import { AppShell } from "@/components/layout/app-shell";
+
+const accessGroups = [
+  {
+    title: "Public Routes",
+    description: "Pages anyone can open before signing in.",
+    items: [
+      { label: "Home", href: "/", detail: "Product overview and launch entry" },
+      { label: "Login", href: "/login", detail: "Restore an existing session" },
+      { label: "Create account", href: "/register", detail: "Open a new NexusForge account" },
+      { label: "Reset password", href: "/forgot-password", detail: "Generate a recovery token" },
+      { label: "Pricing", href: "/pricing", detail: "View Core+ and paid access tiers" },
+      { label: "Invite join", href: "/invite/demo", detail: "Join through a forge invite code" },
+    ],
+  },
+  {
+    title: "Signed-In Routes",
+    description: "Pages that open after authentication.",
+    items: [
+      { label: "Command center", href: "/app", detail: "Forges, chat, DMs, voice, and live ops" },
+      { label: "User search", href: "/search", detail: "Find players by username, tag, and reputation" },
+      { label: "Leaderboards", href: "/leaderboards", detail: "Track reputation, streak, and medal rankings" },
+      { label: "Notifications", href: "/notifications", detail: "Unread alerts and message activity" },
+      { label: "Settings", href: "/settings", detail: "Profile and account preferences" },
+      { label: "Core+", href: "/core-plus", detail: "Premium membership and billing workspace" },
+      { label: "Invite join", href: "/invite/demo", detail: "Accept a forge invite while signed in" },
+    ],
+  },
+  {
+    title: "In-App Modules",
+    description: "Surfaces available inside the command center.",
+    items: [
+      { label: "Public profiles", href: "/search", detail: "Open user pages with medals, activity, and account stats" },
+      { label: "Forges", href: "/app", detail: "Community workspaces and server selection" },
+      { label: "Channels", href: "/app", detail: "Text channels and message feeds" },
+      { label: "Direct messages", href: "/app", detail: "Private conversations and threads" },
+      { label: "Voice rooms", href: "/app", detail: "Live audio channels and stage access" },
+      { label: "Friend network", href: "/app", detail: "Add, request, and manage friends" },
+      { label: "Search, uploads, bots", href: "/app", detail: "Content discovery, file uploads, and bot tools" },
+    ],
+  },
+  {
+    title: "Privileged Tools",
+    description: "Specialized surfaces for power users and admins.",
+    items: [
+      { label: "Premium checkout", href: "/pricing", detail: "Tier upgrades and paid feature packages" },
+      { label: "Admin dashboard", href: "/admin", detail: "Moderation, revenue, and AI insight controls" },
+      { label: "Account settings", href: "/settings", detail: "Identity, presence, and notifications" },
+    ],
+  },
+];
+
+const developmentLog = [
+  {
+    title: "Authentication flow",
+    status: "Built",
+    detail: "Login, register, and password reset pages are live and wired to session restore.",
+    testTarget: "/login",
+  },
+  {
+    title: "Forge command center",
+    status: "Built",
+    detail: "The /app shell includes forges, channels, DMs, voice rooms, and live operations panels.",
+    testTarget: "/app",
+  },
+  {
+    title: "Invite join flow",
+    status: "Built",
+    detail: "Public invite pages show forge details and can join directly when signed in.",
+    testTarget: "/invite/demo",
+  },
+  {
+    title: "Notifications and settings",
+    status: "Built",
+    detail: "Users can inspect alerts and update profile/presence settings from dedicated routes.",
+    testTarget: "/notifications",
+  },
+  {
+    title: "Premium and admin surfaces",
+    status: "Built",
+    detail: "Core+, pricing, checkout, and admin controls are present for premium and privileged users.",
+    testTarget: "/pricing",
+  },
+  {
+    title: "Desktop shell",
+    status: "Built",
+    detail: "Electron startup is isolated for local testing and the desktop health banner exposes maintenance actions.",
+    testTarget: "npm run desktop:open",
+  },
+];
 
 export default function Home() {
   return (
@@ -123,8 +213,95 @@ export default function Home() {
           </div>
           <AppShell />
         </section>
+        <section className="nexus-panel rounded-3xl p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Accessible Surfaces</p>
+              <h2 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-3xl">
+                Everything a user can reach.
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-300">
+                This is the live map of public pages, signed-in routes, in-app modules, and privileged tools that the product exposes.
+              </p>
+            </div>
+            <Link
+              href="/app"
+              className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+            >
+              Open Command Center
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-3">
+            {accessGroups.map((group) => (
+              <article key={group.title} className="glass-cut rounded-2xl p-4">
+                <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">{group.title}</p>
+                <p className="mt-1 text-sm text-slate-300">{group.description}</p>
+                <div className="mt-4 grid gap-2">
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 transition hover:border-cyan-500/60 hover:bg-cyan-950/20"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-100">{item.label}</p>
+                        <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Open</span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400">{item.detail}</p>
+                    </Link>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="nexus-panel rounded-3xl p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">TRH Development Log</p>
+              <h2 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-3xl">
+                What is built right now.
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-300">
+                This is the working inventory of completed surfaces so you can test directly from the current app.
+              </p>
+            </div>
+            <Link
+              href="/app"
+              className="inline-flex h-11 items-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300"
+            >
+              Test Command Center
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {developmentLog.map((entry) => (
+              <article key={entry.title} className="glass-cut rounded-2xl p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-50">{entry.title}</h3>
+                  <span className="rounded-full border border-emerald-500/35 bg-emerald-950/30 px-2 py-0.5 text-[11px] uppercase tracking-[0.18em] text-emerald-100">
+                    {entry.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-300">{entry.detail}</p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                  <span>Test target</span>
+                  {entry.testTarget.startsWith("/") ? (
+                    <Link href={entry.testTarget} className="text-cyan-300 hover:text-cyan-200">
+                      {entry.testTarget}
+                    </Link>
+                  ) : (
+                    <span className="text-slate-300">{entry.testTarget}</span>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
         <NexusforgeBrandShowcase />
         <PricingAndPayments />
+        <PoweredByFooter />
       </main>
     </div>
   );

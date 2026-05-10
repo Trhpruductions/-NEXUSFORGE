@@ -22,6 +22,7 @@ import { searchRouter } from "./routes/search.routes.js";
 import { uploadsRouter } from "./routes/uploads.routes.js";
 import { voiceRouter } from "./routes/voice.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
+import { profilesRouter } from "./routes/profiles.routes.js";
 import { billingRouter, billingWebhookHandler } from "./routes/billing.routes.js";
 
 const app = express();
@@ -70,6 +71,7 @@ app.use("/api/search", searchRouter);
 app.use("/api/voice", voiceRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/bots", botsRouter);
+app.use("/api/profiles", profilesRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
 

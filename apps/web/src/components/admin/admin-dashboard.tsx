@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
-import { getAdminAiInsights, getAdminRevenue } from "@/lib/api";
+import { adminAdjustReputation, adminGenerateSampleProfiles, adminSeedMedals, getAdminAiInsights, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -14,6 +15,13 @@ function formatUsd(cents: number): string {
 export function AdminDashboard() {
   const { accessToken, csrfToken } = useAuthStore();
   const queryClient = useQueryClient();
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [reputationDelta, setReputationDelta] = useState<number>(25);
+  const [actionNote, setActionNote] = useState<string>("");
+  const [auditActionFilter, setAuditActionFilter] = useState<"all" | "seed-medals" | "generate-sample-data" | "adjust-reputation">("all");
+  const [auditActorFilter, setAuditActorFilter] = useState<string>("all");
+  const [auditOffset, setAuditOffset] = useState<number>(0);
+  const auditPageSize = 30;
 
   const summaryQuery = useQuery({
     queryKey: ["admin-summary", accessToken],
@@ -52,6 +60,25 @@ export function AdminDashboard() {
     retry: false,
   });
 
+  const profileAuditQuery = useQuery({
+    queryKey: ["admin-profile-audit", accessToken, auditActionFilter, auditActorFilter, auditOffset],
+    queryFn: () =>
+      getAdminProfileAudit(accessToken!, csrfToken!, {
+        limit: auditPageSize,
+        offset: auditOffset,
+        action: auditActionFilter === "all" ? undefined : auditActionFilter,
+        actorId: auditActorFilter === "all" ? undefined : auditActorFilter,
+      }),
+    enabled: Boolean(accessToken && csrfToken),
+  });
+
+  const profileToolsStatusQuery = useQuery({
+    queryKey: ["admin-profile-tools-status", accessToken],
+    queryFn: () => getAdminProfileToolsStatus(accessToken!, csrfToken!),
+    enabled: Boolean(accessToken && csrfToken),
+    refetchInterval: 5000,
+  });
+
   const toggleAdmin = useMutation({
     mutationFn: async (userId: string) => {
       const response = await api.post<{ user: { id: string; username: string; isAdmin: boolean } }>(
@@ -66,6 +93,59 @@ export function AdminDashboard() {
       await queryClient.invalidateQueries({ queryKey: ["admin-summary", accessToken] });
     },
   });
+
+  const seedMedals = useMutation({
+    mutationFn: async () => adminSeedMedals(accessToken!, csrfToken!),
+    onSuccess: (data) => {
+      setActionNote(`Medal catalog synced: ${data.created} created, ${data.updated} updated.`);
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+    },
+  });
+
+  const generateSampleProfiles = useMutation({
+    mutationFn: async () =>
+      adminGenerateSampleProfiles(accessToken!, csrfToken!, {
+        userLimit: 30,
+        activitiesPerUser: 6,
+        minReputation: 120,
+        maxReputation: 1300,
+        awardRandomMedals: true,
+      }),
+    onSuccess: (data) => {
+      setActionNote(
+        `Sample data generated for ${data.usersProcessed} users with ${data.createdActivities} activities.`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+    },
+  });
+
+  const adjustReputation = useMutation({
+    mutationFn: async () =>
+      adminAdjustReputation(accessToken!, csrfToken!, {
+        userId: selectedUserId,
+        delta: reputationDelta,
+        reason: "Admin dashboard profile balancing",
+      }),
+    onSuccess: (data) => {
+      setActionNote(`Reputation updated: ${data.user.username} is now ${data.user.reputation}.`);
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+    },
+  });
+
+  useEffect(() => {
+    if (!selectedUserId && usersQuery.data?.users?.length) {
+      setSelectedUserId(usersQuery.data.users[0]!.id);
+    }
+  }, [selectedUserId, usersQuery.data?.users]);
+
+  useEffect(() => {
+    setAuditOffset(0);
+  }, [auditActionFilter, auditActorFilter]);
 
   if (!accessToken || !csrfToken) {
     return (
@@ -225,6 +305,154 @@ export function AdminDashboard() {
             ) : null}
           </div>
         )}
+      </section>
+
+      <section className="nexus-panel rounded-2xl p-5 lg:col-span-2">
+        <h2 className="mb-4 text-xs uppercase tracking-[0.24em] text-cyan-300">Profile Data Operations</h2>
+        <div className="mb-3 rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-xs text-slate-300">
+          Generation status: {profileToolsStatusQuery.data?.inProgress ? "Running" : "Idle"}
+          {profileToolsStatusQuery.data?.startedAt ? ` • Started ${new Date(profileToolsStatusQuery.data.startedAt).toLocaleTimeString()}` : ""}
+          {profileToolsStatusQuery.data?.lastCompletedAt ? ` • Last completed ${new Date(profileToolsStatusQuery.data.lastCompletedAt).toLocaleTimeString()}` : ""}
+          {profileToolsStatusQuery.data && !profileToolsStatusQuery.data.inProgress && profileToolsStatusQuery.data.cooldownRemainingMs > 0
+            ? ` • Cooldown ${Math.ceil(profileToolsStatusQuery.data.cooldownRemainingMs / 1000)}s`
+            : ""}
+        </div>
+        {profileToolsStatusQuery.data?.latestJob ? (
+          <div className="mb-3 rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-xs text-slate-300">
+            Last job: {profileToolsStatusQuery.data.latestJob.title} by {profileToolsStatusQuery.data.latestJob.actor.username} at {new Date(profileToolsStatusQuery.data.latestJob.createdAt).toLocaleString()}
+          </div>
+        ) : null}
+        <div className="grid gap-3 md:grid-cols-3">
+          <Button
+            variant="ghost"
+            className="h-10 border border-cyan-500/35 bg-cyan-950/25 text-cyan-100"
+            onClick={() => seedMedals.mutate()}
+            disabled={seedMedals.isPending}
+          >
+            {seedMedals.isPending ? "Seeding..." : "Seed Medal Catalog"}
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-10 border border-emerald-500/35 bg-emerald-950/25 text-emerald-100"
+            onClick={() => generateSampleProfiles.mutate()}
+            disabled={generateSampleProfiles.isPending || profileToolsStatusQuery.data?.inProgress}
+          >
+            {generateSampleProfiles.isPending || profileToolsStatusQuery.data?.inProgress ? "Generating..." : "Generate Sample Profiles"}
+          </Button>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2">
+            <select
+              aria-label="Select user for reputation adjustment"
+              title="Select user for reputation adjustment"
+              className="h-8 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+              value={selectedUserId}
+              onChange={(event) => setSelectedUserId(event.target.value)}
+            >
+              {(usersQuery.data?.users ?? []).map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.username}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              aria-label="Reputation delta"
+              title="Reputation delta"
+              placeholder="Delta"
+              className="h-8 w-20 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+              value={reputationDelta}
+              onChange={(event) => setReputationDelta(Number(event.target.value) || 0)}
+            />
+            <Button
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => adjustReputation.mutate()}
+              disabled={adjustReputation.isPending || !selectedUserId}
+            >
+              Apply
+            </Button>
+          </div>
+        </div>
+        {actionNote ? <p className="mt-3 text-xs text-cyan-200">{actionNote}</p> : null}
+      </section>
+
+      <section className="nexus-panel rounded-2xl p-5 lg:col-span-2">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Profile Tools Audit Log</h2>
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs"
+            onClick={() => profileAuditQuery.refetch()}
+            disabled={profileAuditQuery.isFetching}
+          >
+            {profileAuditQuery.isFetching ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+        <div className="mb-3 grid gap-2 md:grid-cols-2">
+          <select
+            aria-label="Filter audit by action"
+            title="Filter audit by action"
+            className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+            value={auditActionFilter}
+            onChange={(event) => setAuditActionFilter(event.target.value as "all" | "seed-medals" | "generate-sample-data" | "adjust-reputation")}
+          >
+            <option value="all">All actions</option>
+            <option value="seed-medals">Seed medals</option>
+            <option value="generate-sample-data">Generate sample data</option>
+            <option value="adjust-reputation">Adjust reputation</option>
+          </select>
+          <select
+            aria-label="Filter audit by actor"
+            title="Filter audit by actor"
+            className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+            value={auditActorFilter}
+            onChange={(event) => setAuditActorFilter(event.target.value)}
+          >
+            <option value="all">All actors</option>
+            {(usersQuery.data?.users ?? []).map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.username}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-2">
+          {(profileAuditQuery.data?.logs ?? []).map((entry) => (
+            <article key={entry.id} className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-200">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-cyan-100">{entry.title}</p>
+                <p className="text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
+              </div>
+              {entry.description ? <p className="mt-1 text-slate-300">{entry.description}</p> : null}
+              <p className="mt-2 text-slate-500">Actor: {entry.actor.username}</p>
+            </article>
+          ))}
+          {profileAuditQuery.data && profileAuditQuery.data.logs.length === 0 ? (
+            <p className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">No profile-tool audit events yet.</p>
+          ) : null}
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-400">
+          <p>
+            Showing {Math.min((profileAuditQuery.data?.offset ?? 0) + (profileAuditQuery.data?.logs.length ?? 0), profileAuditQuery.data?.total ?? 0)} of {profileAuditQuery.data?.total ?? 0}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => setAuditOffset((prev) => Math.max(0, prev - auditPageSize))}
+              disabled={auditOffset === 0 || profileAuditQuery.isFetching}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => setAuditOffset((prev) => prev + auditPageSize)}
+              disabled={profileAuditQuery.isFetching || (profileAuditQuery.data ? profileAuditQuery.data.offset + profileAuditQuery.data.logs.length >= profileAuditQuery.data.total : true)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       </section>
     </div>
   );

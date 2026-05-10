@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createPortalSession, getBillingEntitlements, savePushSubscription, updateMe } from "@/lib/api";
+import { ProfileMetadata } from "@/components/profile/profile-metadata";
 import Link from "next/link";
 
 const WEB_PUSH_PUBLIC_KEY = process.env.NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY?.trim() ?? "";
@@ -159,7 +160,9 @@ export function ProfileSettingsForm() {
   }
 
   return (
-    <div className="nexus-panel grid gap-4 rounded-2xl p-5">
+    <>
+      <ProfileMetadata user={user} />
+      <div className="nexus-panel grid gap-4 rounded-2xl p-5">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-950/15 px-3 py-2 text-xs">
         <span className="font-semibold uppercase tracking-[0.18em] text-amber-200">Core+ Status</span>
         <span className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100">
@@ -259,6 +262,7 @@ export function ProfileSettingsForm() {
       {pushState ? <p className="text-xs text-cyan-300">{pushState}</p> : null}
       {saveErrorMessage ? <p className="text-xs text-amber-300">{saveErrorMessage}</p> : null}
       {billingPortalMutation.error ? <p className="text-xs text-amber-300">Billing portal is unavailable until an active Stripe customer record exists.</p> : null}
-    </div>
+      </div>
+    </>
   );
 }

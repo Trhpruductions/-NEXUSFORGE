@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import {
   Compass,
-  Gamepad2,
   Home,
   Plus,
   Settings,
@@ -26,9 +25,9 @@ export function AppShell() {
           <button
             aria-label="User profile"
             title="User profile"
-            className="grid h-14 place-items-center rounded-xl bg-cyan-400 text-slate-950"
+            className="grid h-14 place-items-center overflow-hidden rounded-xl border border-cyan-500/35 bg-slate-950/85 p-1.5"
           >
-            <Gamepad2 size={24} />
+            <img src="/brand/nexusforge-main-logo.png" alt="NexusForge logo" className="h-full w-full rounded-lg object-cover" />
           </button>
           <div className="grid content-start gap-3">
             {[Home, Users, Compass].map((Icon, index) => (

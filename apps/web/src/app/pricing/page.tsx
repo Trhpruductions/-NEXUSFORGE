@@ -1,4 +1,5 @@
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
+import { PoweredByFooter } from "@/components/layout/powered-by-footer";
 
 export default async function PricingPage({
   searchParams,
@@ -13,6 +14,7 @@ export default async function PricingPage({
       <main className="mx-auto w-full max-w-[1300px]">
         <PricingAndPayments checkoutState={resolved.checkout} />
       </main>
+      <PoweredByFooter />
     </div>
   );
 }

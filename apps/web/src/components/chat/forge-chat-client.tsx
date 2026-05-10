@@ -138,6 +138,11 @@ type DesktopStartupHealth = {
   message: string;
   sessionDataPath: string;
   lastMaintenanceAction: string;
+  maintenanceHistory: Array<{
+    action: string;
+    message: string;
+    timestamp: string;
+  }>;
   timestamp: string;
 };
 
@@ -736,6 +741,7 @@ export function ForgeChatClient() {
               message: "Desktop health bridge unavailable.",
               sessionDataPath: "unknown",
               lastMaintenanceAction: "unavailable",
+              maintenanceHistory: [],
               timestamp: new Date().toISOString(),
             });
           }
@@ -1560,36 +1566,94 @@ export function ForgeChatClient() {
 
   if (!hydrated) {
     return (
-      <div className="rounded-2xl border border-cyan-500/40 bg-cyan-950/35 p-4 text-cyan-100">
-        Restoring secure session...
+      <div className="flex min-h-[72vh] items-center justify-center px-2 py-8">
+        <div className="grid w-full max-w-4xl gap-4 rounded-3xl border border-cyan-500/30 bg-slate-950/70 p-5 text-cyan-100 shadow-[0_24px_80px_rgba(8,15,30,0.45)] backdrop-blur sm:p-8 lg:grid-cols-[1.25fr_0.95fr]">
+          <div className="space-y-4">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-cyan-300">Secure Session</p>
+            <h2 className="font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
+              Restoring your command center.
+            </h2>
+            <p className="max-w-xl text-sm text-slate-300 sm:text-base">
+              We&apos;re checking your session and preparing the live workspace. If this takes longer than expected, sign in again to reload the latest state.
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+              <span className="rounded-full border border-cyan-500/35 bg-cyan-950/35 px-3 py-1">Auth sync</span>
+              <span className="rounded-full border border-slate-600 bg-slate-900/75 px-3 py-1">Permissions check</span>
+              <span className="rounded-full border border-emerald-500/35 bg-emerald-950/30 px-3 py-1">Workspace warm-up</span>
+            </div>
+          </div>
+          <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.18),transparent_42%),radial-gradient(circle_at_80%_70%,rgba(245,158,11,0.16),transparent_40%)]" />
+            <div className="relative space-y-3">
+              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/80 p-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Live Fabric</p>
+                <p className="mt-1 text-sm text-slate-200">Command sync, moderation lanes, and premium surfaces are standing by.</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Realtime</div>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Moderation</div>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Core+</div>
+              </div>
+              <p className="text-xs text-slate-400">If the session is valid, the command center will load automatically.</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!accessToken || !csrfToken || !user) {
     return (
-      <div className="grid gap-3 rounded-2xl border border-amber-500/40 bg-amber-950/40 p-4 text-amber-200">
-        <p>Sign in first to access your NexusForge command center.</p>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/login?redirect=%2Fapp"
-            className="inline-flex h-9 items-center rounded-lg border border-amber-400/45 bg-amber-400 px-3 text-xs font-semibold text-slate-950 hover:bg-amber-300"
-          >
-            Login
-          </Link>
-          <Link
-            href="/register?redirect=%2Fapp"
-            className="inline-flex h-9 items-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
-          >
-            Create account
-          </Link>
+      <div className="flex min-h-[72vh] items-center justify-center px-2 py-8">
+        <div className="grid w-full max-w-5xl gap-4 rounded-3xl border border-amber-500/30 bg-slate-950/75 p-5 shadow-[0_28px_90px_rgba(8,15,30,0.5)] backdrop-blur sm:p-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-4">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Command Center Locked</p>
+            <h2 className="font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
+              Sign in to continue.
+            </h2>
+            <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
+              Your forge dashboard, moderation tools, and premium telemetry are ready once your session is restored.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/login?redirect=%2Fapp"
+                className="inline-flex h-11 items-center rounded-xl border border-amber-400/45 bg-amber-400 px-4 text-sm font-semibold text-slate-950 hover:bg-amber-300"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register?redirect=%2Fapp"
+                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+              >
+                Create account
+              </Link>
+            </div>
+          </div>
+          <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_36%),radial-gradient(circle_at_85%_75%,rgba(34,211,238,0.16),transparent_38%)]" />
+            <div className="relative space-y-3">
+              <div className="rounded-2xl border border-amber-500/20 bg-slate-950/80 p-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">What you get</p>
+                <div className="mt-2 grid gap-2 text-sm text-slate-200">
+                  <p>• Realtime guild spaces</p>
+                  <p>• AI moderation lanes</p>
+                  <p>• Premium campaign controls</p>
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Live chat</div>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Voice ops</div>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Core+</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative space-y-3 overflow-hidden rounded-3xl pb-24 xl:space-y-4 xl:pb-0">
+    <div className="relative flex min-h-[calc(100svh-3rem)] flex-col space-y-3 overflow-hidden rounded-3xl pb-24 xl:space-y-4 xl:pb-0">
       <div className="command-halo pointer-events-none absolute inset-x-0 top-0 h-80" />
 
       <div className="nexus-panel-strong relative flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
@@ -1807,6 +1871,22 @@ export function ForgeChatClient() {
               <p>Last Action: {desktopStartupHealth.lastMaintenanceAction}</p>
               <p>Timestamp: {new Date(desktopStartupHealth.timestamp).toLocaleString()}</p>
               <p className="break-all">Session Path: {desktopStartupHealth.sessionDataPath}</p>
+              {desktopStartupHealth.maintenanceHistory.length ? (
+                <div className="rounded-md border border-slate-700/70 bg-slate-950/80 p-2">
+                  <p className="uppercase tracking-[0.16em] text-slate-500">Recent Actions</p>
+                  <div className="mt-2 grid gap-1.5">
+                    {desktopStartupHealth.maintenanceHistory.map((entry) => (
+                      <div key={`${entry.action}-${entry.timestamp}`} className="rounded-md border border-slate-700/60 bg-slate-900/80 px-2 py-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-slate-100">{entry.action}</p>
+                          <p className="text-slate-500">{new Date(entry.timestamp).toLocaleTimeString()}</p>
+                        </div>
+                        <p className="mt-0.5 text-slate-400">{entry.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-1 flex flex-wrap gap-2">
                 <button
                   type="button"

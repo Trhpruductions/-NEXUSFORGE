@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
@@ -8,6 +10,120 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAuth);
 adminRouter.use(requireAdmin);
+
+const sampleMedalCatalog = [
+  { key: "founding-member", name: "Founding Member", description: "Early supporter of NexusForge.", icon: "🏛" },
+  { key: "forge-commander", name: "Forge Commander", description: "Leads high-signal communities.", icon: "🛡" },
+  { key: "signal-booster", name: "Signal Booster", description: "Maintains a strong Core+ streak.", icon: "⚡" },
+  { key: "legendary-builder", name: "Legendary Builder", description: "Built and scaled a thriving forge.", icon: "🏗" },
+  { key: "community-pillar", name: "Community Pillar", description: "Recognized for consistent impact.", icon: "🏅" },
+] as const;
+
+const sampleActivityTemplates = [
+  { type: "JOINED_FORGE", title: "Joined a new forge", description: "Connected with a new community node." },
+  { type: "CREATED_FORGE", title: "Created a forge", description: "Started a new operational workspace." },
+  { type: "MESSAGE_SENT", title: "Published a high-signal message", description: "Contributed to active discussions." },
+  { type: "FRIEND_ADDED", title: "Expanded social graph", description: "Added a trusted ally." },
+  { type: "LEVEL_UP", title: "Advanced profile level", description: "Unlocked new progression tier." },
+  { type: "PREMIUM_UPGRADE", title: "Upgraded to Core+", description: "Enabled premium operations." },
+] as const;
+
+let sampleProfileGenerationInProgress = false;
+let sampleProfileGenerationStartedAt: string | null = null;
+let sampleProfileGenerationLastCompletedAt: string | null = null;
+const SAMPLE_PROFILE_GENERATION_COOLDOWN_MS = 5 * 60 * 1000;
+
+function randomInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+async function logAdminProfileAction(actorId: string, title: string, description: string, metadata: Record<string, unknown>) {
+  try {
+    await prisma.userActivity.create({
+      data: {
+        userId: actorId,
+        type: "CUSTOM",
+        title,
+        description,
+        metadata: {
+          source: "admin-profile-tool",
+          actorId,
+          ...metadata,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Admin profile audit log failed:", error);
+  }
+}
+
+async function getLatestSampleGenerationEvent() {
+  return prisma.userActivity.findFirst({
+    where: {
+      type: "CUSTOM",
+      AND: [
+        {
+          metadata: {
+            path: ["source"],
+            equals: "admin-profile-tool",
+          },
+        },
+        {
+          metadata: {
+            path: ["action"],
+            equals: "generate-sample-data",
+          },
+        },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+        },
+      },
+    },
+  });
+}
+
+async function getLatestCompletedSampleGenerationEvent() {
+  return prisma.userActivity.findFirst({
+    where: {
+      type: "CUSTOM",
+      AND: [
+        {
+          metadata: {
+            path: ["source"],
+            equals: "admin-profile-tool",
+          },
+        },
+        {
+          metadata: {
+            path: ["action"],
+            equals: "generate-sample-data",
+          },
+        },
+        {
+          metadata: {
+            path: ["phase"],
+            equals: "completed",
+          },
+        },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+        },
+      },
+    },
+  });
+}
 
 adminRouter.get("/summary", async (_req, res) => {
   const [users, forges, messages, notifications, pendingFriends] = await Promise.all([
@@ -147,11 +263,411 @@ adminRouter.get("/users", async (_req, res) => {
   res.json({ users });
 });
 
+adminRouter.get("/profile-tools/status", async (_req, res) => {
+  const [latestJob, latestCompletedJob] = await Promise.all([
+    getLatestSampleGenerationEvent(),
+    getLatestCompletedSampleGenerationEvent(),
+  ]);
+
+  const cooldownRemainingMs = latestCompletedJob
+    ? Math.max(0, SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.createdAt.getTime()))
+    : 0;
+
+  res.json({
+    inProgress: sampleProfileGenerationInProgress,
+    startedAt: sampleProfileGenerationStartedAt,
+    lastCompletedAt: sampleProfileGenerationLastCompletedAt,
+    cooldownMs: SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
+    cooldownRemainingMs,
+    latestJob: latestJob
+      ? {
+          id: latestJob.id,
+          title: latestJob.title,
+          description: latestJob.description,
+          createdAt: latestJob.createdAt,
+          metadata: latestJob.metadata,
+          actor: latestJob.user,
+        }
+      : null,
+  });
+});
+
+adminRouter.post("/profile-tools/seed-medals", async (req, res) => {
+  const results = await Promise.all(
+    sampleMedalCatalog.map(async (medal) => {
+      const existing = await prisma.medal.findUnique({ where: { key: medal.key } });
+      const saved = await prisma.medal.upsert({
+        where: { key: medal.key },
+        update: {
+          name: medal.name,
+          description: medal.description,
+          icon: medal.icon,
+        },
+        create: {
+          key: medal.key,
+          name: medal.name,
+          description: medal.description,
+          icon: medal.icon,
+        },
+      });
+
+      return {
+        key: saved.key,
+        created: !existing,
+      };
+    }),
+  );
+
+  const created = results.filter((entry) => entry.created).length;
+  const updated = results.filter((entry) => !entry.created).length;
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Seeded medal catalog",
+    "Synchronized profile medal definitions.",
+    {
+      action: "seed-medals",
+      created,
+      updated,
+    },
+  );
+
+  res.json({ medals: results, created, updated });
+});
+
+adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
+  if (sampleProfileGenerationInProgress) {
+    res.status(409).json({
+      error: "Sample profile generation already in progress",
+      startedAt: sampleProfileGenerationStartedAt,
+    });
+    return;
+  }
+
+  const schema = z.object({
+    userLimit: z.coerce.number().int().min(1).max(100).default(25),
+    activitiesPerUser: z.coerce.number().int().min(1).max(20).default(5),
+    minReputation: z.coerce.number().int().min(0).max(500000).default(50),
+    maxReputation: z.coerce.number().int().min(1).max(500000).default(900),
+    awardRandomMedals: z.coerce.boolean().default(true),
+  });
+
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const { userLimit, activitiesPerUser, minReputation, maxReputation, awardRandomMedals } = parsed.data;
+
+  if (minReputation > maxReputation) {
+    res.status(400).json({ error: "minReputation cannot exceed maxReputation" });
+    return;
+  }
+
+  const latestCompletedJob = await getLatestCompletedSampleGenerationEvent();
+  if (latestCompletedJob) {
+    const cooldownRemainingMs = Math.max(
+      0,
+      SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.createdAt.getTime()),
+    );
+
+    if (cooldownRemainingMs > 0) {
+      res.status(429).json({
+        error: "Sample profile generation is cooling down",
+        retryAfterMs: cooldownRemainingMs,
+        retryAfterSeconds: Math.ceil(cooldownRemainingMs / 1000),
+      });
+      return;
+    }
+  }
+
+  sampleProfileGenerationInProgress = true;
+  sampleProfileGenerationStartedAt = new Date().toISOString();
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Started sample profile generation",
+    "Beginning profile sample data generation run.",
+    {
+      action: "generate-sample-data",
+      phase: "started",
+      userLimit,
+      activitiesPerUser,
+      minReputation,
+      maxReputation,
+      awardRandomMedals,
+    },
+  );
+
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, username: true },
+      orderBy: { createdAt: "desc" },
+      take: userLimit,
+    });
+
+    const medals = awardRandomMedals
+      ? await prisma.medal.findMany({
+          select: { id: true },
+        })
+      : [];
+
+    let reputationUpdates = 0;
+    let createdActivities = 0;
+    let createdMedalLinks = 0;
+
+    for (const user of users) {
+      const targetReputation = randomInt(minReputation, maxReputation);
+
+      const activitiesPayload = Array.from({ length: activitiesPerUser }).map(() => {
+        const template = sampleActivityTemplates[randomInt(0, sampleActivityTemplates.length - 1)];
+        const offsetMinutes = randomInt(0, 60 * 24 * 21);
+        return {
+          userId: user.id,
+          type: template.type,
+          title: template.title,
+          description: template.description,
+          createdAt: new Date(Date.now() - offsetMinutes * 60 * 1000),
+        };
+      });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: user.id },
+          data: { reputation: targetReputation },
+        });
+
+        await tx.userActivity.createMany({
+          data: activitiesPayload,
+        });
+
+        if (awardRandomMedals && medals.length > 0) {
+          const grantCount = randomInt(0, Math.min(3, medals.length));
+          const selectedMedalIds = new Set<string>();
+          for (let idx = 0; idx < grantCount; idx += 1) {
+            const medal = medals[randomInt(0, medals.length - 1)];
+            if (medal) selectedMedalIds.add(medal.id);
+          }
+
+          if (selectedMedalIds.size > 0) {
+            const result = await tx.userMedal.createMany({
+              data: Array.from(selectedMedalIds).map((medalId) => ({
+                userId: user.id,
+                medalId,
+              })),
+              skipDuplicates: true,
+            });
+
+            createdMedalLinks += result.count;
+          }
+        }
+      });
+
+      reputationUpdates += 1;
+      createdActivities += activitiesPayload.length;
+    }
+
+    await logAdminProfileAction(
+      req.user!.id,
+      "Generated sample profile data",
+      "Populated reputation, medal links, and activity samples.",
+      {
+        action: "generate-sample-data",
+        phase: "completed",
+        usersProcessed: users.length,
+        reputationUpdates,
+        createdActivities,
+        createdMedalLinks,
+      },
+    );
+
+    sampleProfileGenerationLastCompletedAt = new Date().toISOString();
+
+    res.json({
+      usersProcessed: users.length,
+      reputationUpdates,
+      createdActivities,
+      totalUserMedalLinks: createdMedalLinks,
+    });
+  } catch (error) {
+    console.error("Generate sample profile data error:", error);
+
+    await logAdminProfileAction(
+      req.user!.id,
+      "Sample profile generation failed",
+      "Generation run failed before completion.",
+      {
+        action: "generate-sample-data",
+        phase: "failed",
+      },
+    );
+
+    res.status(500).json({ error: "Failed to generate sample profile data" });
+  } finally {
+    sampleProfileGenerationInProgress = false;
+    sampleProfileGenerationStartedAt = null;
+  }
+});
+
+adminRouter.post("/profile-tools/reputation", async (req, res) => {
+  const schema = z.object({
+    userId: z.string().uuid(),
+    delta: z.coerce.number().int().min(-5000).max(5000),
+    reason: z.string().min(1).max(160).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const { userId, delta, reason } = parsed.data;
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true },
+  });
+
+  if (!targetUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      reputation: { increment: delta },
+    },
+    select: {
+      id: true,
+      username: true,
+      reputation: true,
+    },
+  });
+
+  await prisma.userActivity.create({
+    data: {
+      userId,
+      type: "CUSTOM",
+      title: `Reputation ${delta >= 0 ? "boost" : "adjustment"}`,
+      description: reason ?? `Admin adjusted reputation by ${delta}.`,
+      metadata: {
+        delta,
+        reason: reason ?? null,
+        source: "admin-profile-tool",
+      },
+    },
+  });
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Adjusted user reputation",
+    reason ?? `Adjusted ${updatedUser.username} reputation by ${delta}.`,
+    {
+      action: "adjust-reputation",
+      targetUserId: userId,
+      targetUsername: targetUser.username,
+      delta,
+    },
+  );
+
+  res.json({ user: updatedUser });
+});
+
+adminRouter.get("/profile-tools/audit", async (req, res) => {
+  const schema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
+    action: z.enum(["seed-medals", "generate-sample-data", "adjust-reputation"]).optional(),
+    actorId: z.string().uuid().optional(),
+  });
+
+  const parsed = schema.safeParse({
+    limit: req.query.limit ?? "25",
+    offset: req.query.offset ?? "0",
+    action: req.query.action,
+    actorId: req.query.actorId,
+  });
+
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+    return;
+  }
+
+  const whereClause: Prisma.UserActivityWhereInput = {
+    type: "CUSTOM",
+    metadata: {
+      path: ["source"],
+      equals: "admin-profile-tool",
+    },
+  };
+
+  if (parsed.data.action || parsed.data.actorId) {
+    whereClause.AND = [];
+
+    if (parsed.data.action) {
+      whereClause.AND.push({
+        metadata: {
+          path: ["action"],
+          equals: parsed.data.action,
+        },
+      });
+    }
+
+    if (parsed.data.actorId) {
+      whereClause.AND.push({
+        userId: parsed.data.actorId,
+      });
+    }
+  }
+
+  const logs = await prisma.userActivity.findMany({
+    where: whereClause,
+    orderBy: { createdAt: "desc" },
+    take: parsed.data.limit,
+    skip: parsed.data.offset,
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+        },
+      },
+    },
+  });
+
+  const total = await prisma.userActivity.count({ where: whereClause });
+
+  res.json({
+    total,
+    limit: parsed.data.limit,
+    offset: parsed.data.offset,
+    logs: logs.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      description: entry.description,
+      metadata: entry.metadata,
+      createdAt: entry.createdAt,
+      actor: entry.user,
+    })),
+  });
+});
+
 adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (user.isAdmin) {
+    const adminCount = await prisma.user.count({ where: { isAdmin: true } });
+    if (adminCount <= 1) {
+      res.status(400).json({ error: "Cannot revoke the final admin account" });
+      return;
+    }
   }
 
   const updated = await prisma.user.update({

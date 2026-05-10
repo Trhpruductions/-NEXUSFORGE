@@ -138,6 +138,8 @@ authRouter.post("/register", async (req, res) => {
       corePlusBoostLevel: true,
       corePlusStreakDays: true,
       createdAt: true,
+      emailVerified: true,
+      isAdmin: true,
     },
   });
 
@@ -201,8 +203,9 @@ authRouter.post("/login", async (req, res) => {
       corePlusStreakDays: user.corePlusStreakDays,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
+      isAdmin: user.isAdmin,
     },
-  });
+  })
 });
 
 authRouter.post("/refresh", async (req, res) => {

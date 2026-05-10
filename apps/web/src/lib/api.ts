@@ -382,6 +382,63 @@ export type AdminAiInsights = {
   };
 };
 
+export type AdminSeedMedalsResponse = {
+  medals: Array<{ key: string; created: boolean }>;
+  created: number;
+  updated: number;
+};
+
+export type AdminGenerateSampleProfilesResponse = {
+  usersProcessed: number;
+  reputationUpdates: number;
+  createdActivities: number;
+  totalUserMedalLinks: number;
+};
+
+export type AdminReputationAdjustResponse = {
+  user: {
+    id: string;
+    username: string;
+    reputation: number;
+  };
+};
+
+export type AdminProfileAuditResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  logs: Array<{
+    id: string;
+    title: string;
+    description?: string | null;
+    metadata?: Record<string, unknown> | null;
+    createdAt: string;
+    actor: {
+      id: string;
+      username: string;
+    };
+  }>;
+};
+
+export type AdminProfileToolsStatus = {
+  inProgress: boolean;
+  startedAt: string | null;
+  lastCompletedAt: string | null;
+  cooldownMs: number;
+  cooldownRemainingMs: number;
+  latestJob: {
+    id: string;
+    title: string;
+    description?: string | null;
+    createdAt: string;
+    metadata?: Record<string, unknown> | null;
+    actor: {
+      id: string;
+      username: string;
+    };
+  } | null;
+};
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -986,6 +1043,92 @@ export async function getAdminAiInsights(accessToken: string, csrfToken: string)
   return response.data;
 }
 
+export async function adminSeedMedals(accessToken: string, csrfToken: string) {
+  const response = await api.post<AdminSeedMedalsResponse>(
+    "/api/admin/profile-tools/seed-medals",
+    {},
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function adminGenerateSampleProfiles(
+  accessToken: string,
+  csrfToken: string,
+  payload?: {
+    userLimit?: number;
+    activitiesPerUser?: number;
+    minReputation?: number;
+    maxReputation?: number;
+    awardRandomMedals?: boolean;
+  },
+) {
+  const response = await api.post<AdminGenerateSampleProfilesResponse>(
+    "/api/admin/profile-tools/generate-sample-data",
+    payload ?? {},
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function adminAdjustReputation(
+  accessToken: string,
+  csrfToken: string,
+  payload: {
+    userId: string;
+    delta: number;
+    reason?: string;
+  },
+) {
+  const response = await api.post<AdminReputationAdjustResponse>(
+    "/api/admin/profile-tools/reputation",
+    payload,
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function getAdminProfileAudit(
+  accessToken: string,
+  csrfToken: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+    action?: "seed-medals" | "generate-sample-data" | "adjust-reputation";
+    actorId?: string;
+  },
+) {
+  const response = await api.get<AdminProfileAuditResponse>(
+    "/api/admin/profile-tools/audit",
+    {
+      params: {
+        limit: options?.limit ?? 25,
+        offset: options?.offset ?? 0,
+        action: options?.action,
+        actorId: options?.actorId,
+      },
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function getAdminProfileToolsStatus(accessToken: string, csrfToken: string) {
+  const response = await api.get<AdminProfileToolsStatus>(
+    "/api/admin/profile-tools/status",
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
 export async function updateVoiceState(
   accessToken: string,
   csrfToken: string,
@@ -1001,5 +1144,125 @@ export async function updateVoiceState(
   const response = await api.post<{ ok: true }>("/api/voice/state", payload, {
     headers: authHeaders(accessToken, csrfToken),
   });
+  return response.data;
+}
+
+// Profile & User Systems API
+export type Medal = {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  grantedAt?: string;
+};
+
+export type UserActivity = {
+  id: string;
+  type: "JOINED_FORGE" | "CREATED_FORGE" | "MESSAGE_SENT" | "FRIEND_ADDED" | "MEDAL_EARNED" | "LEVEL_UP" | "PREMIUM_UPGRADE" | "CUSTOM";
+  title: string;
+  description?: string | null;
+  metadata?: Record<string, any>;
+  createdAt: string;
+};
+
+export type PublicProfile = User & {
+  reputation: number;
+  forgesOwned: number;
+  forgesMember: number;
+  medals: Medal[];
+};
+
+export type LeaderboardEntry = {
+  id: string;
+  username: string;
+  avatar?: string | null;
+  clanTag?: string | null;
+  premium: boolean;
+  premiumTier?: string;
+  reputation?: number;
+  corePlusBoostLevel?: number;
+  corePlusStreakDays?: number;
+  medalCount?: number;
+  createdAt: string;
+};
+
+export async function searchProfiles(accessToken: string, query: string, limit = 20, offset = 0) {
+  const response = await api.get<{
+    users: Array<{
+      id: string;
+      username: string;
+      avatar?: string | null;
+      clanTag?: string | null;
+      premium: boolean;
+      premiumTier: string;
+      reputation: number;
+      createdAt: string;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }>("/api/profiles/users/search", {
+    params: { q: query, limit, offset },
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getPublicProfile(accessToken: string, userId: string) {
+  const response = await api.get<PublicProfile>(`/api/profiles/users/${userId}`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getLeaderboard(accessToken: string, type: "reputation" | "streaks" | "medals", limit = 20, offset = 0) {
+  const response = await api.get<{
+    leaderboard: LeaderboardEntry[];
+    type: string;
+    total: number;
+    limit: number;
+    offset: number;
+  }>(`/api/profiles/leaderboards/${type}`, {
+    params: { limit, offset },
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getUserActivity(accessToken: string, userId: string, limit = 20, offset = 0) {
+  const response = await api.get<{
+    activities: UserActivity[];
+    total: number;
+    limit: number;
+    offset: number;
+  }>(`/api/profiles/users/${userId}/activity`, {
+    params: { limit, offset },
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getUserMedals(accessToken: string, userId: string) {
+  const response = await api.get<{
+    medals: Medal[];
+    total: number;
+  }>(`/api/profiles/users/${userId}/medals`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function grantMedal(accessToken: string, csrfToken: string, userId: string, medalKey: string) {
+  const response = await api.post<{
+    message: string;
+    medal: Medal;
+  }>(
+    `/api/profiles/users/${userId}/medals/${medalKey}`,
+    {},
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
   return response.data;
 }

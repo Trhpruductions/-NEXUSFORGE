@@ -15,9 +15,18 @@ let startupHealth = {
   message: "Desktop startup health is not active.",
   sessionDataPath: app.getPath("sessionData"),
   lastMaintenanceAction: "none",
+  maintenanceHistory: [],
   timestamp: new Date().toISOString(),
 };
 let isolatedSessionPath = null;
+
+function appendMaintenanceHistory(entry) {
+  const nextHistory = [entry, ...(startupHealth.maintenanceHistory ?? [])].slice(0, 8);
+  startupHealth = {
+    ...startupHealth,
+    maintenanceHistory: nextHistory,
+  };
+}
 
 if (startUrl.includes("localhost")) {
   isolatedSessionPath = path.join(app.getPath("temp"), "nexusforge-desktop-dev-session");
@@ -38,6 +47,7 @@ async function prepareDevSessionStorage() {
       message: "Desktop is using a non-local origin. No dev storage reset needed.",
       sessionDataPath: app.getPath("sessionData"),
       lastMaintenanceAction: startupHealth.lastMaintenanceAction,
+      maintenanceHistory: startupHealth.maintenanceHistory,
       timestamp: new Date().toISOString(),
     };
     return;
@@ -51,6 +61,7 @@ async function prepareDevSessionStorage() {
     message: `Resetting Chromium dev storage for ${origin}`,
     sessionDataPath: app.getPath("sessionData"),
     lastMaintenanceAction: startupHealth.lastMaintenanceAction,
+    maintenanceHistory: startupHealth.maintenanceHistory,
     timestamp: new Date().toISOString(),
   };
 
@@ -67,6 +78,7 @@ async function prepareDevSessionStorage() {
       message: "Desktop dev storage reset completed before launch.",
       sessionDataPath: app.getPath("sessionData"),
       lastMaintenanceAction: startupHealth.lastMaintenanceAction,
+      maintenanceHistory: startupHealth.maintenanceHistory,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
@@ -78,6 +90,7 @@ async function prepareDevSessionStorage() {
       message: "Desktop launched with storage reset warning. Review Electron console for details.",
       sessionDataPath: app.getPath("sessionData"),
       lastMaintenanceAction: startupHealth.lastMaintenanceAction,
+      maintenanceHistory: startupHealth.maintenanceHistory,
       timestamp: new Date().toISOString(),
     };
   }
@@ -209,6 +222,7 @@ app.whenReady().then(async () => {
   startupHealth = {
     ...startupHealth,
     lastMaintenanceAction: "startup",
+    maintenanceHistory: startupHealth.maintenanceHistory,
     timestamp: new Date().toISOString(),
   };
 
@@ -216,6 +230,12 @@ app.whenReady().then(async () => {
   ipcMain.handle("nexusforge-desktop:run-maintenance", async () => {
     resetDevQuotaDatabase();
     await prepareDevSessionStorage();
+
+    appendMaintenanceHistory({
+      action: "run-maintenance",
+      message: "Manual cleanup completed.",
+      timestamp: new Date().toISOString(),
+    });
 
     startupHealth = {
       ...startupHealth,
@@ -241,12 +261,24 @@ app.whenReady().then(async () => {
       timestamp: new Date().toISOString(),
     };
 
+    appendMaintenanceHistory({
+      action: "reload-window",
+      message: "Window reloaded from diagnostics.",
+      timestamp: new Date().toISOString(),
+    });
+
     return startupHealth;
   });
   ipcMain.handle("nexusforge-desktop:restart-clean-session", async () => {
     resetDevQuotaDatabase();
     resetIsolatedDevSession();
     await prepareDevSessionStorage();
+
+    appendMaintenanceHistory({
+      action: "restart-clean-session",
+      message: "Isolated session rebuilt and app relaunched.",
+      timestamp: new Date().toISOString(),
+    });
 
     startupHealth = {
       ...startupHealth,

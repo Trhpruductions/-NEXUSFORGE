@@ -4,8 +4,8 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "wait-on tcp:3000 && electron .",
-    "dev:full": "wait-on tcp:3000 tcp:4000 && electron ."
+    "dev": "set \"NEXUSFORGE_DESKTOP_PROFILE_DIR=%CD%\\apps\\desktop\\.electron-profile\" && set \"NEXUSFORGE_DESKTOP_CACHE_DIR=%CD%\\apps\\desktop\\.electron-cache\" && wait-on tcp:3000 && electron --user-data-dir=%NEXUSFORGE_DESKTOP_PROFILE_DIR% --disk-cache-dir=%NEXUSFORGE_DESKTOP_CACHE_DIR% --disable-gpu-shader-disk-cache .",
+    "dev:full": "set \"NEXUSFORGE_DESKTOP_PROFILE_DIR=%CD%\\apps\\desktop\\.electron-profile\" && set \"NEXUSFORGE_DESKTOP_CACHE_DIR=%CD%\\apps\\desktop\\.electron-cache\" && wait-on tcp:3000 tcp:4000 && electron --user-data-dir=%NEXUSFORGE_DESKTOP_PROFILE_DIR% --disk-cache-dir=%NEXUSFORGE_DESKTOP_CACHE_DIR% --disable-gpu-shader-disk-cache ."
   },
   "devDependencies": {
     "electron": "^42.0.1",
