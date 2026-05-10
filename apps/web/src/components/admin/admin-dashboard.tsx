@@ -233,6 +233,15 @@ export function AdminDashboard() {
       )
     : 0;
   const generationBlockedByCooldown = generationCooldownSeconds > 0;
+  const latestJobStatus = profileToolsStatusQuery.data?.latestJob?.metadata?.status;
+  const latestJobResult = profileToolsStatusQuery.data?.latestJob?.metadata?.result;
+  const latestJobError = profileToolsStatusQuery.data?.latestJob?.metadata?.errorMessage;
+  const latestJobStatusToneClass =
+    latestJobStatus === "FAILED"
+      ? "border-rose-500/35 bg-rose-950/30 text-rose-100"
+      : latestJobStatus === "RUNNING"
+        ? "border-amber-500/35 bg-amber-950/30 text-amber-100"
+        : "border-emerald-500/35 bg-emerald-950/30 text-emerald-100";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
@@ -388,8 +397,39 @@ export function AdminDashboard() {
             : ""}
         </div>
         {profileToolsStatusQuery.data?.latestJob ? (
-          <div className="mb-3 rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-xs text-slate-300">
-            Last job: {profileToolsStatusQuery.data.latestJob.title} by {profileToolsStatusQuery.data.latestJob.actor.username} at {new Date(profileToolsStatusQuery.data.latestJob.createdAt).toLocaleString()}
+          <div className="mb-3 rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-300">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p>
+                Last job: {profileToolsStatusQuery.data.latestJob.title} by {profileToolsStatusQuery.data.latestJob.actor.username} at {new Date(profileToolsStatusQuery.data.latestJob.createdAt).toLocaleString()}
+              </p>
+              <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${latestJobStatusToneClass}`}>
+                {latestJobStatus ?? "UNKNOWN"}
+              </span>
+            </div>
+            {profileToolsStatusQuery.data.latestJob.description ? (
+              <p className="mt-2 text-slate-400">{profileToolsStatusQuery.data.latestJob.description}</p>
+            ) : null}
+            {latestJobResult ? (
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  Users: {latestJobResult.usersProcessed ?? 0}
+                </div>
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  Reputation updates: {latestJobResult.reputationUpdates ?? 0}
+                </div>
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  Activities: {latestJobResult.createdActivities ?? 0}
+                </div>
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  Medal links: {latestJobResult.totalUserMedalLinks ?? 0}
+                </div>
+              </div>
+            ) : null}
+            {latestJobError ? (
+              <div className="mt-3 rounded-lg border border-rose-500/35 bg-rose-950/20 px-3 py-2 text-rose-100">
+                Last failure: {latestJobError}
+              </div>
+            ) : null}
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-3">

@@ -431,7 +431,27 @@ export type AdminProfileToolsStatus = {
     title: string;
     description?: string | null;
     createdAt: string;
-    metadata?: Record<string, unknown> | null;
+    metadata?: {
+      source?: string;
+      action?: string;
+      status?: "RUNNING" | "SUCCEEDED" | "FAILED";
+      payload?: {
+        userLimit?: number;
+        activitiesPerUser?: number;
+        minReputation?: number;
+        maxReputation?: number;
+        awardRandomMedals?: boolean;
+      };
+      result?: {
+        usersProcessed?: number;
+        reputationUpdates?: number;
+        createdActivities?: number;
+        totalUserMedalLinks?: number;
+      };
+      errorMessage?: string | null;
+      startedAt?: string;
+      completedAt?: string | null;
+    } | null;
     actor: {
       id: string;
       username: string;
