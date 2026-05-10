@@ -714,29 +714,39 @@ export function ForgeChatClient() {
 
     let active = true;
 
-    void bridge
-      .getStartupHealth()
-      .then((health) => {
-        if (active) {
-          setDesktopStartupHealth(health);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setDesktopStartupHealth({
-            mode: "desktop-dev",
-            storageResetAttempted: true,
-            storageResetSuccess: false,
-            message: "Desktop health bridge unavailable.",
-            sessionDataPath: "unknown",
-            lastMaintenanceAction: "unavailable",
-            timestamp: new Date().toISOString(),
-          });
-        }
-      });
+    const refreshHealth = () => {
+      if (typeof bridge.getStartupHealth !== "function") {
+        return;
+      }
+
+      void bridge
+        .getStartupHealth()
+        .then((health) => {
+          if (active) {
+            setDesktopStartupHealth(health);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setDesktopStartupHealth({
+              mode: "desktop-dev",
+              storageResetAttempted: true,
+              storageResetSuccess: false,
+              message: "Desktop health bridge unavailable.",
+              sessionDataPath: "unknown",
+              lastMaintenanceAction: "unavailable",
+              timestamp: new Date().toISOString(),
+            });
+          }
+        });
+    };
+
+    refreshHealth();
+    const intervalId = window.setInterval(refreshHealth, 30000);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 
