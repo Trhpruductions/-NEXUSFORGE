@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
-import { adminAdjustReputation, adminGenerateSampleProfiles, adminSeedMedals, getAdminAiInsights, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue } from "@/lib/api";
+import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, getAdminAiInsights, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -171,6 +171,18 @@ export function AdminDashboard() {
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to adjust user reputation."));
+    },
+  });
+
+  const resetGenerationLock = useMutation({
+    mutationFn: async () => adminResetGenerationLock(accessToken!, csrfToken!),
+    onSuccess: (data) => {
+      setActionNote(data.message);
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to reset generation lock."));
     },
   });
 
@@ -487,6 +499,24 @@ export function AdminDashboard() {
               disabled={adjustReputation.isPending || !selectedUserId}
             >
               Apply
+            </Button>
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-rose-500/25 bg-rose-950/10 p-3 text-xs text-slate-300">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold uppercase tracking-[0.16em] text-rose-100">Advanced Recovery</p>
+              <p className="mt-1 text-slate-400">
+                Force-clear a stuck sample generation lock if a run is wedged and the watchdog window is too slow.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              className="h-9 border border-rose-500/35 bg-rose-950/25 px-3 text-xs text-rose-100"
+              onClick={() => resetGenerationLock.mutate()}
+              disabled={resetGenerationLock.isPending}
+            >
+              {resetGenerationLock.isPending ? "Resetting..." : "Force Reset Lock"}
             </Button>
           </div>
         </div>

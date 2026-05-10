@@ -403,6 +403,12 @@ export type AdminReputationAdjustResponse = {
   };
 };
 
+export type AdminResetGenerationLockResponse = {
+  recovered: boolean;
+  message: string;
+  jobId?: string;
+};
+
 export type AdminProfileAuditResponse = {
   total: number;
   limit: number;
@@ -1107,6 +1113,17 @@ export async function adminAdjustReputation(
   const response = await api.post<AdminReputationAdjustResponse>(
     "/api/admin/profile-tools/reputation",
     payload,
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function adminResetGenerationLock(accessToken: string, csrfToken: string) {
+  const response = await api.post<AdminResetGenerationLockResponse>(
+    "/api/admin/profile-tools/reset-generation-lock",
+    {},
     {
       headers: authHeaders(accessToken, csrfToken),
     },

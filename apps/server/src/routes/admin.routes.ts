@@ -415,6 +415,58 @@ adminRouter.post("/profile-tools/seed-medals", async (req, res) => {
   res.json({ medals: results, created, updated });
 });
 
+adminRouter.post("/profile-tools/reset-generation-lock", async (req, res) => {
+  await markStaleSampleGenerationJobsAsFailed();
+
+  const activeJob = await getActiveSampleGenerationJob();
+  if (!activeJob) {
+    await logAdminProfileAction(
+      req.user!.id,
+      "Checked generation lock recovery",
+      "Manual recovery requested, but no active generation job was found.",
+      {
+        action: "reset-generation-lock",
+        recovered: false,
+      },
+    );
+
+    res.json({
+      recovered: false,
+      message: "No active generation job was found.",
+    });
+    return;
+  }
+
+  await prisma.profileToolJob.update({
+    where: { id: activeJob.id },
+    data: {
+      status: "FAILED",
+      runLock: null,
+      completedAt: new Date(),
+      errorMessage: `Manually reset by admin ${req.user!.username}.`,
+    },
+  });
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Reset generation lock",
+    `Force-reset sample generation job started by ${activeJob.actor.username}.`,
+    {
+      action: "reset-generation-lock",
+      recovered: true,
+      targetJobId: activeJob.id,
+      targetActorId: activeJob.actor.id,
+      targetActorUsername: activeJob.actor.username,
+    },
+  );
+
+  res.json({
+    recovered: true,
+    message: `Generation lock reset for job ${activeJob.id}.`,
+    jobId: activeJob.id,
+  });
+});
+
 adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
   await markStaleSampleGenerationJobsAsFailed();
 
