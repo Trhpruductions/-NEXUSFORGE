@@ -131,6 +131,14 @@ type MetricSparklineProps = {
   tone: "cyan" | "emerald" | "indigo";
 };
 
+type DesktopStartupHealth = {
+  mode: "web" | "desktop-dev";
+  storageResetAttempted: boolean;
+  storageResetSuccess: boolean;
+  message: string;
+  timestamp: string;
+};
+
 function MetricSparkline({ points, tone }: MetricSparklineProps) {
   const max = Math.max(1, ...points);
   const toneClass =
@@ -233,6 +241,7 @@ export function ForgeChatClient() {
   });
 
   const [statusMessage, setStatusMessage] = useState<string>("");
+  const [desktopStartupHealth, setDesktopStartupHealth] = useState<DesktopStartupHealth | null>(null);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [liveEventCount, setLiveEventCount] = useState(0);
@@ -683,6 +692,44 @@ export function ForgeChatClient() {
       : creatorCampaignMutation.error instanceof Error
         ? creatorCampaignMutation.error.message
         : "";
+
+  useEffect(() => {
+    type DesktopBridge = {
+      runtime?: string;
+      getStartupHealth?: () => Promise<DesktopStartupHealth>;
+    };
+
+    const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
+    if (!bridge || bridge.runtime !== "electron" || typeof bridge.getStartupHealth !== "function") {
+      setDesktopStartupHealth(null);
+      return;
+    }
+
+    let active = true;
+
+    void bridge
+      .getStartupHealth()
+      .then((health) => {
+        if (active) {
+          setDesktopStartupHealth(health);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDesktopStartupHealth({
+            mode: "desktop-dev",
+            storageResetAttempted: true,
+            storageResetSuccess: false,
+            message: "Desktop health bridge unavailable.",
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const forgeBoostMessage = forgeBoostMutation.isSuccess
     ? `Forge boost consumed. Remaining: ${forgeBoostMutation.data.remaining}`
@@ -1711,6 +1758,21 @@ export function ForgeChatClient() {
           <LiveMetricChip label="voice live" value={activeVoiceCount} tone="cyan" points={voiceHistory} />
         </div>
       </div>
+
+      {desktopStartupHealth ? (
+        <div
+          className={`rounded-xl border px-3 py-2 text-xs ${
+            desktopStartupHealth.storageResetSuccess
+              ? "border-emerald-500/35 bg-emerald-950/20 text-emerald-100"
+              : "border-amber-500/35 bg-amber-950/25 text-amber-100"
+          }`}
+        >
+          <p className="uppercase tracking-[0.16em]">
+            Desktop Startup Health · {desktopStartupHealth.storageResetSuccess ? "Stable" : "Warning"}
+          </p>
+          <p className="mt-1 text-[11px] text-slate-200">{desktopStartupHealth.message}</p>
+        </div>
+      ) : null}
 
       <div className="nexus-panel relative rounded-2xl border border-amber-500/25 px-4 py-3">
         <div className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-full bg-amber-500/15 blur-2xl" />
