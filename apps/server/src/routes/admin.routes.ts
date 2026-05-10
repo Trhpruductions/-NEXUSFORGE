@@ -450,6 +450,7 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
     );
 
     if (cooldownRemainingMs > 0) {
+      res.setHeader("Retry-After", String(Math.max(1, Math.ceil(cooldownRemainingMs / 1000))));
       res.status(429).json({
         error: "Sample profile generation is cooling down",
         retryAfterMs: cooldownRemainingMs,
@@ -478,6 +479,7 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
       return;
     }
 
+    res.setHeader("Retry-After", "1");
     res.status(503).json({
       error: "Could not acquire generation lock. Please retry.",
       retryAfterSeconds: 1,
