@@ -40,6 +40,7 @@ const onboardingActionTypeSchema = z.enum([
   "LAUNCH_SHARE_CAMPAIGNS",
   "PUBLISH_MEMBER_RECRUITMENT_POST",
   "OPTIMIZE_CAMPAIGNS",
+  "PROMOTE_WINNING_CAMPAIGNS",
 ]);
 
 const onboardingActionSchema = z.object({
@@ -119,6 +120,7 @@ function toOnboardingScore(completedCount: number, totalCount: number) {
 
 const campaignOptimizationTag = "[Campaign Optimization Checklist]";
 const campaignSnapshotPrefix = "CAMPAIGN_SNAPSHOT:";
+const campaignPromotionTag = "[Campaign Winner Promotion Pack]";
 
 type CampaignSnapshot = {
   capturedAt: string;
@@ -753,6 +755,12 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
           id: true,
         },
       },
+      inviteSources: {
+        select: {
+          viewCount: true,
+          joinCount: true,
+        },
+      },
     },
   });
 
@@ -763,6 +771,9 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
 
   const hasVoiceSurface = forge.channels.some((channel) => channel.type === "VOICE" || channel.type === "STAGE");
   const inviteConversionRate = toPercent(forge.inviteJoinCount, Math.max(1, forge.inviteViewCount));
+  const winningSourceCount = forge.inviteSources.filter(
+    (source) => source.viewCount >= 15 && toPercent(source.joinCount, source.viewCount) >= 12,
+  ).length;
 
   const tasks = [
     {
@@ -814,6 +825,17 @@ forgesRouter.get("/:id/onboarding-health", async (req, res) => {
       target: 12,
       action: "Run source-level optimization on campaign performance.",
       recommendedAction: forge.inviteViewCount >= 25 ? ("OPTIMIZE_CAMPAIGNS" as const) : null,
+    },
+    {
+      id: "scale-winners",
+      label: "Scale winners",
+      description: "Promote top converting sources with reusable repost variants.",
+      completed: forge.inviteViewCount < 40 || winningSourceCount >= 2,
+      value: winningSourceCount,
+      target: 2,
+      action: "Generate a winner promotion pack and deploy to outbound channels.",
+      recommendedAction:
+        forge.inviteViewCount >= 40 && winningSourceCount >= 1 ? ("PROMOTE_WINNING_CAMPAIGNS" as const) : null,
     },
     {
       id: "members",
@@ -1242,6 +1264,125 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       action: parsed.data.action,
       message: "Optimization checklist published",
     });
+    return;
+  }
+
+  if (parsed.data.action === "PROMOTE_WINNING_CAMPAIGNS") {
+    const channels = await prisma.channel.findMany({
+      where: { forgeId: forge.id },
+      select: { id: true, name: true, type: true, position: true },
+      orderBy: { position: "asc" },
+    });
+
+    let announcementsChannel = channels.find((channel) => channel.type === "ANNOUNCEMENT");
+
+    if (!announcementsChannel) {
+      const nextPosition = channels.length ? Math.max(...channels.map((channel) => channel.position)) + 1 : 0;
+      announcementsChannel = await prisma.channel.create({
+        data: {
+          forgeId: forge.id,
+          name: "announcements",
+          type: "ANNOUNCEMENT",
+          position: nextPosition,
+        },
+        select: { id: true, name: true, type: true, position: true },
+      });
+    }
+
+    const winners = await prisma.inviteSourceStat.findMany({
+      where: {
+        forgeId: forge.id,
+        viewCount: {
+          gte: 10,
+        },
+      },
+      orderBy: [{ joinCount: "desc" }, { viewCount: "desc" }],
+      take: 8,
+    });
+
+    const winningSources = winners
+      .map((source) => ({
+        source: source.source,
+        viewCount: source.viewCount,
+        joinCount: source.joinCount,
+        conversionRate: toPercent(source.joinCount, source.viewCount),
+      }))
+      .filter((source) => source.conversionRate >= 12)
+      .sort((left, right) =>
+        right.conversionRate === left.conversionRate
+          ? right.joinCount - left.joinCount
+          : right.conversionRate - left.conversionRate,
+      )
+      .slice(0, 3);
+
+    if (winningSources.length === 0) {
+      res.status(200).json({
+        ok: true,
+        action: parsed.data.action,
+        message: "No winning sources yet. Improve conversion before scaling.",
+      });
+      return;
+    }
+
+    const recentPromotionPost = await prisma.message.findFirst({
+      where: {
+        channelId: announcementsChannel.id,
+        content: {
+          contains: campaignPromotionTag,
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 1000 * 60 * 60),
+        },
+      },
+      select: { id: true },
+    });
+
+    if (recentPromotionPost) {
+      res.status(200).json({
+        ok: true,
+        action: parsed.data.action,
+        message: "Winner promotion pack already published recently",
+      });
+      return;
+    }
+
+    const promotionBody = [
+      campaignPromotionTag,
+      "Deploy this scale pack to multiply top conversion channels:",
+      ...winningSources.map(
+        (source, index) =>
+          `${index + 1}. ${source.source} -> ${source.joinCount} joins / ${source.viewCount} views (${source.conversionRate}%).`,
+      ),
+      "Promotion variants:",
+      ...winningSources.flatMap((source) => {
+        const taggedLink = `/invite/${encodeURIComponent(forge.inviteCode)}?src=${encodeURIComponent(source.source)}`;
+        return [
+          `- ${source.source} / Variant A (Urgency): Claim your spot now -> ${taggedLink}`,
+          `- ${source.source} / Variant B (Outcome): Join to unlock live wins -> ${taggedLink}`,
+          `- ${source.source} / Variant C (Social Proof): Top creators are already inside -> ${taggedLink}`,
+        ];
+      }),
+      "Run A/B timing tests over the next 24h and re-check Campaign Loop Verification.",
+    ].join("\n");
+
+    await prisma.message.create({
+      data: {
+        channelId: announcementsChannel.id,
+        content: promotionBody,
+        type: "SYSTEM",
+      },
+    });
+
+    res.status(200).json({
+      ok: true,
+      action: parsed.data.action,
+      message: "Winner promotion pack published",
+    });
+    return;
+  }
+
+  if (parsed.data.action !== "ENABLE_STARTER_AUTOMATION") {
+    res.status(400).json({ error: "Unsupported onboarding action" });
     return;
   }
 

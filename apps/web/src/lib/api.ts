@@ -155,7 +155,8 @@ export type ForgeOnboardingAction =
   | "ENABLE_STARTER_AUTOMATION"
   | "LAUNCH_SHARE_CAMPAIGNS"
   | "PUBLISH_MEMBER_RECRUITMENT_POST"
-  | "OPTIMIZE_CAMPAIGNS";
+  | "OPTIMIZE_CAMPAIGNS"
+  | "PROMOTE_WINNING_CAMPAIGNS";
 
 export type PublicForgeInvite = {
   id: string;
