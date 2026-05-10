@@ -13,6 +13,8 @@ let startupHealth = {
   storageResetAttempted: false,
   storageResetSuccess: false,
   message: "Desktop startup health is not active.",
+  sessionDataPath: app.getPath("sessionData"),
+  lastMaintenanceAction: "none",
   timestamp: new Date().toISOString(),
 };
 
@@ -33,6 +35,8 @@ async function prepareDevSessionStorage() {
       storageResetAttempted: false,
       storageResetSuccess: true,
       message: "Desktop is using a non-local origin. No dev storage reset needed.",
+      sessionDataPath: app.getPath("sessionData"),
+      lastMaintenanceAction: startupHealth.lastMaintenanceAction,
       timestamp: new Date().toISOString(),
     };
     return;
@@ -44,6 +48,8 @@ async function prepareDevSessionStorage() {
     storageResetAttempted: true,
     storageResetSuccess: false,
     message: `Resetting Chromium dev storage for ${origin}`,
+    sessionDataPath: app.getPath("sessionData"),
+    lastMaintenanceAction: startupHealth.lastMaintenanceAction,
     timestamp: new Date().toISOString(),
   };
 
@@ -58,6 +64,8 @@ async function prepareDevSessionStorage() {
       storageResetAttempted: true,
       storageResetSuccess: true,
       message: "Desktop dev storage reset completed before launch.",
+      sessionDataPath: app.getPath("sessionData"),
+      lastMaintenanceAction: startupHealth.lastMaintenanceAction,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
@@ -67,6 +75,8 @@ async function prepareDevSessionStorage() {
       storageResetAttempted: true,
       storageResetSuccess: false,
       message: "Desktop launched with storage reset warning. Review Electron console for details.",
+      sessionDataPath: app.getPath("sessionData"),
+      lastMaintenanceAction: startupHealth.lastMaintenanceAction,
       timestamp: new Date().toISOString(),
     };
   }
@@ -181,7 +191,43 @@ app.whenReady().then(async () => {
   resetDevQuotaDatabase();
   await prepareDevSessionStorage();
 
+  startupHealth = {
+    ...startupHealth,
+    lastMaintenanceAction: "startup",
+    timestamp: new Date().toISOString(),
+  };
+
   ipcMain.handle("nexusforge-desktop:get-startup-health", () => startupHealth);
+  ipcMain.handle("nexusforge-desktop:run-maintenance", async () => {
+    resetDevQuotaDatabase();
+    await prepareDevSessionStorage();
+
+    startupHealth = {
+      ...startupHealth,
+      lastMaintenanceAction: "manual-maintenance",
+      timestamp: new Date().toISOString(),
+    };
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      await mainWindow.webContents.loadURL(startUrl);
+    }
+
+    return startupHealth;
+  });
+  ipcMain.handle("nexusforge-desktop:reload-window", async () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.reloadIgnoringCache();
+      mainWindow.focus();
+    }
+
+    startupHealth = {
+      ...startupHealth,
+      lastMaintenanceAction: "reload-window",
+      timestamp: new Date().toISOString(),
+    };
+
+    return startupHealth;
+  });
 
   createWindow();
 
@@ -200,4 +246,6 @@ app.on("window-all-closed", () => {
 
 app.on("will-quit", () => {
   ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
+  ipcMain.removeHandler("nexusforge-desktop:run-maintenance");
+  ipcMain.removeHandler("nexusforge-desktop:reload-window");
 });

@@ -136,6 +136,8 @@ type DesktopStartupHealth = {
   storageResetAttempted: boolean;
   storageResetSuccess: boolean;
   message: string;
+  sessionDataPath: string;
+  lastMaintenanceAction: string;
   timestamp: string;
 };
 
@@ -242,6 +244,9 @@ export function ForgeChatClient() {
 
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [desktopStartupHealth, setDesktopStartupHealth] = useState<DesktopStartupHealth | null>(null);
+  const [desktopDiagnosticsOpen, setDesktopDiagnosticsOpen] = useState(false);
+  const [desktopDiagnosticsPending, setDesktopDiagnosticsPending] = useState(false);
+  const [desktopDiagnosticsMessage, setDesktopDiagnosticsMessage] = useState("");
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [liveEventCount, setLiveEventCount] = useState(0);
@@ -697,6 +702,8 @@ export function ForgeChatClient() {
     type DesktopBridge = {
       runtime?: string;
       getStartupHealth?: () => Promise<DesktopStartupHealth>;
+      runMaintenance?: () => Promise<DesktopStartupHealth>;
+      reloadWindow?: () => Promise<DesktopStartupHealth>;
     };
 
     const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
@@ -721,6 +728,8 @@ export function ForgeChatClient() {
             storageResetAttempted: true,
             storageResetSuccess: false,
             message: "Desktop health bridge unavailable.",
+            sessionDataPath: "unknown",
+            lastMaintenanceAction: "unavailable",
             timestamp: new Date().toISOString(),
           });
         }
@@ -1771,6 +1780,95 @@ export function ForgeChatClient() {
             Desktop Startup Health · {desktopStartupHealth.storageResetSuccess ? "Stable" : "Warning"}
           </p>
           <p className="mt-1 text-[11px] text-slate-200">{desktopStartupHealth.message}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDesktopDiagnosticsOpen((current) => !current)}
+              className="rounded-md border border-slate-500/60 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:border-cyan-400/70"
+            >
+              {desktopDiagnosticsOpen ? "Hide Diagnostics" : "Open Diagnostics"}
+            </button>
+          </div>
+          {desktopDiagnosticsOpen ? (
+            <div className="mt-2 grid gap-2 rounded-lg border border-slate-700/80 bg-slate-950/70 p-2.5 text-[11px] text-slate-300">
+              <p>Mode: {desktopStartupHealth.mode}</p>
+              <p>Storage Reset: {desktopStartupHealth.storageResetAttempted ? (desktopStartupHealth.storageResetSuccess ? "success" : "warning") : "not-required"}</p>
+              <p>Last Action: {desktopStartupHealth.lastMaintenanceAction}</p>
+              <p>Timestamp: {new Date(desktopStartupHealth.timestamp).toLocaleString()}</p>
+              <p className="break-all">Session Path: {desktopStartupHealth.sessionDataPath}</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={desktopDiagnosticsPending}
+                  onClick={async () => {
+                    const bridge = (
+                      window as {
+                        nexusforgeDesktop?: {
+                          runMaintenance?: () => Promise<DesktopStartupHealth>;
+                        };
+                      }
+                    ).nexusforgeDesktop;
+
+                    if (!bridge?.runMaintenance) {
+                      setDesktopDiagnosticsMessage("Maintenance bridge is unavailable.");
+                      return;
+                    }
+
+                    setDesktopDiagnosticsPending(true);
+                    setDesktopDiagnosticsMessage("");
+
+                    try {
+                      const next = await bridge.runMaintenance();
+                      setDesktopStartupHealth(next);
+                      setDesktopDiagnosticsMessage("Maintenance completed and desktop reloaded.");
+                    } catch {
+                      setDesktopDiagnosticsMessage("Maintenance action failed.");
+                    } finally {
+                      setDesktopDiagnosticsPending(false);
+                    }
+                  }}
+                  className="rounded-md border border-cyan-500/45 bg-cyan-950/25 px-2 py-1 text-[11px] text-cyan-100 hover:border-cyan-300 disabled:opacity-60"
+                >
+                  {desktopDiagnosticsPending ? "Running..." : "Run Cleanup + Reload"}
+                </button>
+                <button
+                  type="button"
+                  disabled={desktopDiagnosticsPending}
+                  onClick={async () => {
+                    const bridge = (
+                      window as {
+                        nexusforgeDesktop?: {
+                          reloadWindow?: () => Promise<DesktopStartupHealth>;
+                        };
+                      }
+                    ).nexusforgeDesktop;
+
+                    if (!bridge?.reloadWindow) {
+                      setDesktopDiagnosticsMessage("Reload bridge is unavailable.");
+                      return;
+                    }
+
+                    setDesktopDiagnosticsPending(true);
+                    setDesktopDiagnosticsMessage("");
+
+                    try {
+                      const next = await bridge.reloadWindow();
+                      setDesktopStartupHealth(next);
+                      setDesktopDiagnosticsMessage("Desktop window reloaded.");
+                    } catch {
+                      setDesktopDiagnosticsMessage("Reload action failed.");
+                    } finally {
+                      setDesktopDiagnosticsPending(false);
+                    }
+                  }}
+                  className="rounded-md border border-amber-500/45 bg-amber-950/25 px-2 py-1 text-[11px] text-amber-100 hover:border-amber-300 disabled:opacity-60"
+                >
+                  Reload Window
+                </button>
+              </div>
+              {desktopDiagnosticsMessage ? <p className="text-cyan-200">{desktopDiagnosticsMessage}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
