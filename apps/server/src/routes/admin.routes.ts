@@ -126,6 +126,52 @@ async function getLatestCompletedSampleGenerationJob() {
   });
 }
 
+async function createSampleGenerationJobIfAvailable(
+  actorId: string,
+  payload: {
+    userLimit: number;
+    activitiesPerUser: number;
+    minReputation: number;
+    maxReputation: number;
+    awardRandomMedals: boolean;
+  },
+) {
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const activeJob = await tx.profileToolJob.findFirst({
+          where: {
+            action: "GENERATE_SAMPLE_DATA",
+            status: "RUNNING",
+          },
+          select: { id: true },
+        });
+
+        if (activeJob) {
+          return null;
+        }
+
+        return tx.profileToolJob.create({
+          data: {
+            action: "GENERATE_SAMPLE_DATA",
+            status: "RUNNING",
+            actorId,
+            payload,
+          },
+        });
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return null;
+    }
+    throw error;
+  }
+}
+
 adminRouter.get("/summary", async (_req, res) => {
   const [users, forges, messages, notifications, pendingFriends] = await Promise.all([
     prisma.user.count(),
@@ -409,20 +455,23 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
     }
   }
 
-  const job = await prisma.profileToolJob.create({
-    data: {
-      action: "GENERATE_SAMPLE_DATA",
-      status: "RUNNING",
-      actorId: req.user!.id,
-      payload: {
-        userLimit,
-        activitiesPerUser,
-        minReputation,
-        maxReputation,
-        awardRandomMedals,
-      },
-    },
+  const job = await createSampleGenerationJobIfAvailable(req.user!.id, {
+    userLimit,
+    activitiesPerUser,
+    minReputation,
+    maxReputation,
+    awardRandomMedals,
   });
+
+  if (!job) {
+    const runningJob = await getActiveSampleGenerationJob();
+    res.status(409).json({
+      error: "Sample profile generation already in progress",
+      startedAt: runningJob?.startedAt ?? null,
+      jobId: runningJob?.id ?? null,
+    });
+    return;
+  }
 
   await logAdminProfileAction(
     req.user!.id,
