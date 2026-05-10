@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, session } = require("electron");
 const path = require("node:path");
 
 const startUrl = process.env.NEXUSFORGE_DESKTOP_URL || "http://localhost:3000/app";
@@ -7,6 +7,23 @@ const appIconPath =
     ? path.join(__dirname, "assets", "app-icon.ico")
     : path.join(__dirname, "..", "web", "public", "brand", "nexusforge-main-logo.png");
 let mainWindow = null;
+
+async function prepareDevSessionStorage() {
+  if (!startUrl.includes("localhost")) {
+    return;
+  }
+
+  const origin = new URL(startUrl).origin;
+
+  try {
+    await session.defaultSession.clearStorageData({
+      origin,
+      storages: ["serviceworkers", "cachestorage", "indexdb"],
+    });
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to clear dev session storage:", error);
+  }
+}
 
 // Hard stop duplicate preview instances: one live desktop preview at a time.
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -88,7 +105,8 @@ app.on("second-instance", () => {
   createWindow();
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await prepareDevSessionStorage();
   createWindow();
 
   app.on("activate", () => {
