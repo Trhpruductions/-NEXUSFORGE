@@ -28,9 +28,17 @@ export function AppProviders({ children }: AppProvidersProps) {
   );
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
+    if (!window.isSecureContext) return;
 
-    void navigator.serviceWorker.register("/sw.js");
+    void navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "InvalidStateError") {
+        return;
+      }
+
+      console.error("Service worker registration failed", error);
+    });
   }, []);
 
   useEffect(() => {
