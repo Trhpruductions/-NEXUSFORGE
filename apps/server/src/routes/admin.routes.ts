@@ -167,8 +167,10 @@ async function createSampleGenerationJobIfAvailable(
       },
     );
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
-      return null;
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2034" || error.code === "P2002") {
+        return null;
+      }
     }
     throw error;
   }
