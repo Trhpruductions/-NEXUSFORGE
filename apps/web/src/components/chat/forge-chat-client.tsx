@@ -704,6 +704,7 @@ export function ForgeChatClient() {
       getStartupHealth?: () => Promise<DesktopStartupHealth>;
       runMaintenance?: () => Promise<DesktopStartupHealth>;
       reloadWindow?: () => Promise<DesktopStartupHealth>;
+      restartCleanSession?: () => Promise<DesktopStartupHealth>;
     };
 
     const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
@@ -1874,6 +1875,39 @@ export function ForgeChatClient() {
                   className="rounded-md border border-amber-500/45 bg-amber-950/25 px-2 py-1 text-[11px] text-amber-100 hover:border-amber-300 disabled:opacity-60"
                 >
                   Reload Window
+                </button>
+                <button
+                  type="button"
+                  disabled={desktopDiagnosticsPending}
+                  onClick={async () => {
+                    const bridge = (
+                      window as {
+                        nexusforgeDesktop?: {
+                          restartCleanSession?: () => Promise<DesktopStartupHealth>;
+                        };
+                      }
+                    ).nexusforgeDesktop;
+
+                    if (!bridge?.restartCleanSession) {
+                      setDesktopDiagnosticsMessage("Clean restart bridge is unavailable.");
+                      return;
+                    }
+
+                    setDesktopDiagnosticsPending(true);
+                    setDesktopDiagnosticsMessage("Restarting clean session...");
+
+                    try {
+                      const next = await bridge.restartCleanSession();
+                      setDesktopStartupHealth(next);
+                    } catch {
+                      setDesktopDiagnosticsMessage("Clean restart failed.");
+                    } finally {
+                      setDesktopDiagnosticsPending(false);
+                    }
+                  }}
+                  className="rounded-md border border-rose-500/45 bg-rose-950/25 px-2 py-1 text-[11px] text-rose-100 hover:border-rose-300 disabled:opacity-60"
+                >
+                  Restart Clean Session
                 </button>
               </div>
               {desktopDiagnosticsMessage ? <p className="text-cyan-200">{desktopDiagnosticsMessage}</p> : null}

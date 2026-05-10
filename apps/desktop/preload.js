@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("nexusforgeDesktop", {
   getStartupHealth: () => ipcRenderer.invoke("nexusforge-desktop:get-startup-health"),
   runMaintenance: () => ipcRenderer.invoke("nexusforge-desktop:run-maintenance"),
   reloadWindow: () => ipcRenderer.invoke("nexusforge-desktop:reload-window"),
+  restartCleanSession: () => ipcRenderer.invoke("nexusforge-desktop:restart-clean-session"),
 });

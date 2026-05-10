@@ -17,9 +17,10 @@ let startupHealth = {
   lastMaintenanceAction: "none",
   timestamp: new Date().toISOString(),
 };
+let isolatedSessionPath = null;
 
 if (startUrl.includes("localhost")) {
-  const isolatedSessionPath = path.join(app.getPath("temp"), "nexusforge-desktop-dev-session");
+  isolatedSessionPath = path.join(app.getPath("temp"), "nexusforge-desktop-dev-session");
   try {
     fs.mkdirSync(isolatedSessionPath, { recursive: true });
     app.setPath("sessionData", isolatedSessionPath);
@@ -104,6 +105,20 @@ function resetDevQuotaDatabase() {
     } catch (error) {
       console.warn(`[NexusForge Desktop] Unable to remove ${artifact}:`, error);
     }
+  }
+}
+
+function resetIsolatedDevSession() {
+  if (!isolatedSessionPath) {
+    return;
+  }
+
+  try {
+    fs.rmSync(isolatedSessionPath, { recursive: true, force: true });
+    fs.mkdirSync(isolatedSessionPath, { recursive: true });
+    app.setPath("sessionData", isolatedSessionPath);
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to reset isolated dev session:", error);
   }
 }
 
@@ -228,6 +243,24 @@ app.whenReady().then(async () => {
 
     return startupHealth;
   });
+  ipcMain.handle("nexusforge-desktop:restart-clean-session", async () => {
+    resetDevQuotaDatabase();
+    resetIsolatedDevSession();
+    await prepareDevSessionStorage();
+
+    startupHealth = {
+      ...startupHealth,
+      lastMaintenanceAction: "restart-clean-session",
+      timestamp: new Date().toISOString(),
+    };
+
+    setTimeout(() => {
+      app.relaunch();
+      app.exit(0);
+    }, 150);
+
+    return startupHealth;
+  });
 
   createWindow();
 
@@ -248,4 +281,5 @@ app.on("will-quit", () => {
   ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
   ipcMain.removeHandler("nexusforge-desktop:run-maintenance");
   ipcMain.removeHandler("nexusforge-desktop:reload-window");
+  ipcMain.removeHandler("nexusforge-desktop:restart-clean-session");
 });
