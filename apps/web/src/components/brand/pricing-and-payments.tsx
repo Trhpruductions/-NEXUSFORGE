@@ -1,8 +1,9 @@
 "use client";
 
+import axios from "axios";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createCheckoutSession, type PaidFeatureCode } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
@@ -172,10 +173,25 @@ const checkoutPreviewCopy: Record<PaidFeatureCode, { label: string; detail: stri
   },
 };
 
+const founderWindowEndsAt = new Date("2026-06-30T23:59:59Z");
+
+function formatCountdown(msRemaining: number): string {
+  if (msRemaining <= 0) return "Ended";
+  const totalSeconds = Math.floor(msRemaining / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${days}d ${hours}h ${minutes}m`;
+}
+
 export function PricingAndPayments({ checkoutState }: { checkoutState?: string }) {
   const { accessToken, csrfToken } = useAuthStore();
   const [interval, setInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [pendingCheckout, setPendingCheckout] = useState<{ featureCode: PaidFeatureCode; tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" } | null>(null);
+  const [countdownNow, setCountdownNow] = useState(Date.now());
+  const [projectedMembers, setProjectedMembers] = useState(250);
+  const [projectedAdoptionPct, setProjectedAdoptionPct] = useState(8);
+  const [estimatedArpu, setEstimatedArpu] = useState(11.99);
 
   const checkoutMutation = useMutation({
     mutationFn: (payload: {
@@ -214,6 +230,33 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
   const checkoutPreview = pendingCheckout ? checkoutPreviewCopy[pendingCheckout.featureCode] : null;
   const pendingTierName = pendingCheckout?.tier ? tierCards.find((tier) => tier.id === pendingCheckout.tier)?.name : null;
   const pendingBillingLabel = pendingCheckout?.featureCode === "CORE_PLUS" ? interval : "One-time";
+  const checkoutErrorMessage = axios.isAxiosError(checkoutMutation.error)
+    ? ((checkoutMutation.error.response?.data as { error?: string } | undefined)?.error ?? checkoutMutation.error.message)
+    : checkoutMutation.error instanceof Error
+      ? checkoutMutation.error.message
+      : null;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCountdownNow(Date.now());
+    }, 30000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const founderCountdown = formatCountdown(founderWindowEndsAt.getTime() - countdownNow);
+
+  const projectedRevenue = useMemo(() => {
+    const activePaidMembers = Math.round(projectedMembers * (projectedAdoptionPct / 100));
+    const monthly = Math.round(activePaidMembers * estimatedArpu);
+    return {
+      activePaidMembers,
+      monthly,
+      annual: monthly * 12,
+    };
+  }, [estimatedArpu, projectedAdoptionPct, projectedMembers]);
 
   return (
     <section className="grid gap-4">
@@ -289,6 +332,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <p className="mt-1 text-sm text-slate-300">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
             </p>
+            <div className="mt-3 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-950/30 px-3 py-1 text-xs font-semibold text-amber-100">
+              Founder pricing countdown: {founderCountdown}
+            </div>
           </div>
           <div className="rounded-2xl border border-slate-700/70 bg-slate-950/50 p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Why users upgrade</p>
@@ -469,6 +515,64 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 Manage Billing
               </Link>
             </div>
+            <div className="mt-4 grid gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/10 p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">Growth Revenue Estimator</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <label className="text-[11px] text-slate-300">
+                  Members
+                  <input
+                    type="range"
+                    min={100}
+                    max={10000}
+                    step={50}
+                    value={projectedMembers}
+                    onChange={(event) => setProjectedMembers(Number(event.target.value))}
+                    className="mt-1 w-full"
+                  />
+                  <span className="mt-1 block text-slate-400">{projectedMembers.toLocaleString()}</span>
+                </label>
+                <label className="text-[11px] text-slate-300">
+                  Paid adoption
+                  <input
+                    type="range"
+                    min={2}
+                    max={40}
+                    step={1}
+                    value={projectedAdoptionPct}
+                    onChange={(event) => setProjectedAdoptionPct(Number(event.target.value))}
+                    className="mt-1 w-full"
+                  />
+                  <span className="mt-1 block text-slate-400">{projectedAdoptionPct}%</span>
+                </label>
+                <label className="text-[11px] text-slate-300">
+                  Avg paid ARPU
+                  <input
+                    type="range"
+                    min={5}
+                    max={45}
+                    step={1}
+                    value={estimatedArpu}
+                    onChange={(event) => setEstimatedArpu(Number(event.target.value))}
+                    className="mt-1 w-full"
+                  />
+                  <span className="mt-1 block text-slate-400">${estimatedArpu.toFixed(2)}</span>
+                </label>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Paid Members</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-100">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected MRR</p>
+                  <p className="mt-1 text-sm font-semibold text-emerald-200">${projectedRevenue.monthly.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected ARR</p>
+                  <p className="mt-1 text-sm font-semibold text-cyan-200">${projectedRevenue.annual.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="rounded-2xl border border-cyan-500/25 bg-cyan-950/15 p-4 text-sm text-slate-200">
             <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Checkout Confidence</p>
@@ -488,7 +592,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </div>
           ))}
         </div>
-        {checkoutMutation.error ? <p className="mt-2 text-xs text-red-300">Checkout failed. Verify billing configuration and retry.</p> : null}
+        {checkoutMutation.error ? <p className="mt-2 text-xs text-red-300">Checkout failed: {checkoutErrorMessage}</p> : null}
       </motion.article>
     </section>
   );
