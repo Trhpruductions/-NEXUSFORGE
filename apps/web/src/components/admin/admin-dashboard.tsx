@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
 import { adminAdjustReputation, adminGenerateSampleProfiles, adminSeedMedals, getAdminAiInsights, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue } from "@/lib/api";
@@ -10,6 +11,31 @@ import Link from "next/link";
 
 function formatUsd(cents: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
+}
+
+function extractAdminErrorNote(error: unknown, fallback: string) {
+  if (!isAxiosError(error)) {
+    return fallback;
+  }
+
+  const status = error.response?.status;
+  const payload = error.response?.data as
+    | { error?: string; retryAfterSeconds?: number; retryAfterMs?: number }
+    | undefined;
+
+  if (status === 429 && payload?.retryAfterSeconds) {
+    return `${payload.error ?? "Action is cooling down."} Retry in ${payload.retryAfterSeconds}s.`;
+  }
+
+  if (status === 503 && payload?.retryAfterSeconds) {
+    return `${payload.error ?? "Temporary contention detected."} Retry in ${payload.retryAfterSeconds}s.`;
+  }
+
+  if (status === 409) {
+    return payload?.error ?? "Another generation run is already active.";
+  }
+
+  return payload?.error ?? fallback;
 }
 
 export function AdminDashboard() {
@@ -102,6 +128,9 @@ export function AdminDashboard() {
       void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
       void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
     },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to seed medal catalog."));
+    },
   });
 
   const generateSampleProfiles = useMutation({
@@ -121,6 +150,10 @@ export function AdminDashboard() {
       void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
       void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
     },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to generate sample profiles."));
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+    },
   });
 
   const adjustReputation = useMutation({
@@ -134,6 +167,9 @@ export function AdminDashboard() {
       setActionNote(`Reputation updated: ${data.user.username} is now ${data.user.reputation}.`);
       void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
       void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to adjust user reputation."));
     },
   });
 
