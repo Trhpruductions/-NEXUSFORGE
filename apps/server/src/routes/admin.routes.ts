@@ -2,6 +2,14 @@ import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import {
+  buildSampleGenerationConflictResponse,
+  buildSampleGenerationCooldownResponse,
+  getSampleGenerationCooldownRemainingMs,
+  getSampleGenerationStaleThreshold,
+  SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
+  SAMPLE_PROFILE_GENERATION_STALE_MS,
+} from "../lib/profile-tool-generation.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
@@ -28,9 +36,6 @@ const sampleActivityTemplates = [
   { type: "PREMIUM_UPGRADE", title: "Upgraded to Core+", description: "Enabled premium operations." },
 ] as const;
 
-const SAMPLE_PROFILE_GENERATION_COOLDOWN_MS = 5 * 60 * 1000;
-const SAMPLE_PROFILE_GENERATION_STALE_MS = 30 * 60 * 1000;
-
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -56,7 +61,7 @@ async function logAdminProfileAction(actorId: string, title: string, description
 }
 
 async function markStaleSampleGenerationJobsAsFailed() {
-  const staleThreshold = new Date(Date.now() - SAMPLE_PROFILE_GENERATION_STALE_MS);
+  const staleThreshold = getSampleGenerationStaleThreshold(Date.now(), SAMPLE_PROFILE_GENERATION_STALE_MS);
 
   await prisma.profileToolJob.updateMany({
     where: {
@@ -323,9 +328,11 @@ adminRouter.get("/profile-tools/status", async (_req, res) => {
     getLatestCompletedSampleGenerationJob(),
   ]);
 
-  const cooldownRemainingMs = latestCompletedJob
-    ? Math.max(0, SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.completedAt!.getTime()))
-    : 0;
+  const cooldownRemainingMs = getSampleGenerationCooldownRemainingMs(
+    latestCompletedJob?.completedAt ?? null,
+    Date.now(),
+    SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
+  );
 
   res.json({
     inProgress: Boolean(activeJob),
@@ -444,18 +451,18 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
 
   const latestCompletedJob = await getLatestCompletedSampleGenerationJob();
   if (latestCompletedJob) {
-    const cooldownRemainingMs = Math.max(
-      0,
-      SAMPLE_PROFILE_GENERATION_COOLDOWN_MS - (Date.now() - latestCompletedJob.completedAt!.getTime()),
+    const cooldownRemainingMs = getSampleGenerationCooldownRemainingMs(
+      latestCompletedJob.completedAt!,
+      Date.now(),
+      SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
     );
 
     if (cooldownRemainingMs > 0) {
-      res.setHeader("Retry-After", String(Math.max(1, Math.ceil(cooldownRemainingMs / 1000))));
-      res.status(429).json({
-        error: "Sample profile generation is cooling down",
-        retryAfterMs: cooldownRemainingMs,
-        retryAfterSeconds: Math.ceil(cooldownRemainingMs / 1000),
-      });
+      const response = buildSampleGenerationCooldownResponse(cooldownRemainingMs);
+      for (const [key, value] of Object.entries(response.headers)) {
+        res.setHeader(key, value);
+      }
+      res.status(response.status).json(response.body);
       return;
     }
   }
@@ -470,20 +477,19 @@ adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
 
   if (!job) {
     const runningJob = await getActiveSampleGenerationJob();
-    if (runningJob) {
-      res.status(409).json({
-        error: "Sample profile generation already in progress",
-        startedAt: runningJob.startedAt,
-        jobId: runningJob.id,
-      });
-      return;
-    }
+    const response = buildSampleGenerationConflictResponse(
+      runningJob
+        ? {
+            id: runningJob.id,
+            startedAt: runningJob.startedAt,
+          }
+        : null,
+    );
 
-    res.setHeader("Retry-After", "1");
-    res.status(503).json({
-      error: "Could not acquire generation lock. Please retry.",
-      retryAfterSeconds: 1,
-    });
+    for (const [key, value] of Object.entries(response.headers)) {
+      res.setHeader(key, value);
+    }
+    res.status(response.status).json(response.body);
     return;
   }
 
