@@ -106,6 +106,28 @@ export type ForgeInviteAnalytics = {
     lastViewedAt?: string | null;
     lastJoinedAt?: string | null;
   }>;
+  campaignLoop: {
+    capturedAt: string;
+    generatedAt?: string | null;
+    status: "collecting" | "improving" | "needs-attention";
+    recommendation: string;
+    improvedCount: number;
+    stalledCount: number;
+    collectingCount: number;
+    evaluations: Array<{
+      source: string;
+      baselineViews: number;
+      baselineJoins: number;
+      baselineConversionRate: number;
+      currentViews: number;
+      currentJoins: number;
+      currentConversionRate: number;
+      deltaViews: number;
+      deltaJoins: number;
+      deltaConversionRate: number;
+      state: "collecting" | "improved" | "stalled";
+    }>;
+  } | null;
 };
 
 export type ForgeOnboardingHealth = {

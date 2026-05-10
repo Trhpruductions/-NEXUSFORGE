@@ -117,6 +117,41 @@ function toOnboardingScore(completedCount: number, totalCount: number) {
   return Math.round((completedCount / totalCount) * 100);
 }
 
+const campaignOptimizationTag = "[Campaign Optimization Checklist]";
+const campaignSnapshotPrefix = "CAMPAIGN_SNAPSHOT:";
+
+type CampaignSnapshot = {
+  capturedAt: string;
+  weakestSources: Array<{
+    source: string;
+    views: number;
+    joins: number;
+    conversionRate: number;
+  }>;
+};
+
+function parseCampaignSnapshot(content: string): CampaignSnapshot | null {
+  const snapshotLine = content
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith(campaignSnapshotPrefix));
+
+  if (!snapshotLine) {
+    return null;
+  }
+
+  const payload = snapshotLine.slice(campaignSnapshotPrefix.length);
+  try {
+    const parsed = JSON.parse(payload) as CampaignSnapshot;
+    if (!parsed || !Array.isArray(parsed.weakestSources) || typeof parsed.capturedAt !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function isInviteCodeTakenError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -507,7 +542,7 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
     return;
   }
 
-  const [forge, sourceStats] = await Promise.all([
+  const [forge, sourceStats, latestOptimizationSnapshot] = await Promise.all([
     prisma.forge.findUnique({
       where: { id: req.params.id },
       select: {
@@ -522,6 +557,24 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
       where: { forgeId: req.params.id },
       orderBy: [{ joinCount: "desc" }, { viewCount: "desc" }],
       take: 12,
+    }),
+    prisma.message.findFirst({
+      where: {
+        type: "SYSTEM",
+        content: {
+          contains: campaignSnapshotPrefix,
+        },
+        channel: {
+          forgeId: req.params.id,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        createdAt: true,
+        content: true,
+      },
     }),
   ]);
 
@@ -582,6 +635,61 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
     ),
   );
 
+  const snapshot = latestOptimizationSnapshot ? parseCampaignSnapshot(latestOptimizationSnapshot.content) : null;
+  const campaignLoop = snapshot
+    ? (() => {
+        const evaluations = snapshot.weakestSources.map((baseline) => {
+          const current = sourceStats.find((entry) => entry.source === baseline.source);
+          const currentViews = current?.viewCount ?? baseline.views;
+          const currentJoins = current?.joinCount ?? baseline.joins;
+          const currentConversionRate = toPercent(currentJoins, Math.max(1, currentViews));
+          const deltaViews = Math.max(0, currentViews - baseline.views);
+          const deltaJoins = Math.max(0, currentJoins - baseline.joins);
+          const deltaConversionRate = currentConversionRate - baseline.conversionRate;
+
+          const state = deltaViews < 10 ? "collecting" : deltaConversionRate >= 3 ? "improved" : "stalled";
+
+          return {
+            source: baseline.source,
+            baselineViews: baseline.views,
+            baselineJoins: baseline.joins,
+            baselineConversionRate: baseline.conversionRate,
+            currentViews,
+            currentJoins,
+            currentConversionRate,
+            deltaViews,
+            deltaJoins,
+            deltaConversionRate,
+            state,
+          };
+        });
+
+        const improvedCount = evaluations.filter((entry) => entry.state === "improved").length;
+        const stalledCount = evaluations.filter((entry) => entry.state === "stalled").length;
+        const collectingCount = evaluations.filter((entry) => entry.state === "collecting").length;
+
+        const status = collectingCount > 0 ? "collecting" : improvedCount >= Math.ceil(evaluations.length / 2) ? "improving" : "needs-attention";
+
+        const recommendation =
+          status === "collecting"
+            ? "Collect at least 10 new views per tracked source before declaring winners."
+            : status === "improving"
+              ? "Promote improving creatives and replicate across adjacent channels."
+              : "Rewrite weak source copy and retest with urgency-driven CTAs in the next 24h.";
+
+        return {
+          capturedAt: snapshot.capturedAt,
+          generatedAt: latestOptimizationSnapshot?.createdAt,
+          status,
+          recommendation,
+          improvedCount,
+          stalledCount,
+          collectingCount,
+          evaluations,
+        };
+      })()
+    : null;
+
   res.json({
     analytics: {
       summary: {
@@ -595,6 +703,7 @@ forgesRouter.get("/:id/invite-analytics", async (req, res) => {
       topSource,
       underperformingSource,
       sources: rankedSources,
+      campaignLoop,
     },
   });
 });
@@ -1079,12 +1188,11 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       .sort((left, right) => left.conversionRate - right.conversionRate)
       .slice(0, 3);
 
-    const optimizationTag = "[Campaign Optimization Checklist]";
     const recentOptimizationPost = await prisma.message.findFirst({
       where: {
         channelId: announcementsChannel.id,
         content: {
-          contains: optimizationTag,
+          contains: campaignOptimizationTag,
         },
         createdAt: {
           gte: new Date(Date.now() - 1000 * 60 * 60),
@@ -1102,8 +1210,13 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       return;
     }
 
+    const snapshotPayload: CampaignSnapshot = {
+      capturedAt: new Date().toISOString(),
+      weakestSources,
+    };
+
     const optimizationBody = [
-      optimizationTag,
+      campaignOptimizationTag,
       "Prioritize these sources now:",
       ...weakestSources.map(
         (source, index) =>
@@ -1113,6 +1226,7 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
       "- Refresh creative for each weak source.",
       "- Repost with a stronger call-to-action and urgency.",
       "- Compare conversion again after the next 25 views.",
+      `${campaignSnapshotPrefix}${JSON.stringify(snapshotPayload)}`,
     ].join("\n");
 
     await prisma.message.create({

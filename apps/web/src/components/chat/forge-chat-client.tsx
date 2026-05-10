@@ -280,6 +280,7 @@ export function ForgeChatClient() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] }),
+        queryClient.invalidateQueries({ queryKey: ["forge-invite-analytics", selectedForgeId, accessToken] }),
         queryClient.invalidateQueries({ queryKey: ["forge-onboarding-health", selectedForgeId, accessToken] }),
       ]);
     },
@@ -562,6 +563,19 @@ export function ForgeChatClient() {
 
   const bestSource = inviteAnalytics?.topSource;
   const weakSource = inviteAnalytics?.underperformingSource;
+  const campaignLoop = inviteAnalytics?.campaignLoop;
+  const campaignLoopTone =
+    campaignLoop?.status === "improving"
+      ? "text-emerald-300"
+      : campaignLoop?.status === "collecting"
+        ? "text-amber-300"
+        : "text-rose-300";
+  const campaignLoopLabel =
+    campaignLoop?.status === "improving"
+      ? "Improving"
+      : campaignLoop?.status === "collecting"
+        ? "Collecting Data"
+        : "Needs Attention";
   const forgeBoostEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "FORGE_BOOST_PACK");
   const eventTicketEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "EVENT_TICKET_PASS");
   const creatorCampaignEntitlement = billingQuery.data?.entitlements.find((item) => item.featureCode === "CREATOR_CAMPAIGN_SLOT");
@@ -2013,6 +2027,53 @@ export function ForgeChatClient() {
                   <p className="text-[11px] text-slate-400">
                     Target: push every active source above {Math.max(12, Math.min(40, inviteAnalytics.summary.conversionRate + 5))}% conversion to compound joins.
                   </p>
+                </div>
+              ) : null}
+              {campaignLoop ? (
+                <div className="grid gap-2 rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">Campaign Loop Verification</p>
+                    <p className={`text-sm font-semibold ${campaignLoopTone}`}>{campaignLoopLabel}</p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Improved</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-200">{campaignLoop.improvedCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Collecting</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-200">{campaignLoop.collectingCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Stalled</p>
+                      <p className="mt-1 text-sm font-semibold text-rose-200">{campaignLoop.stalledCount}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    {campaignLoop.evaluations.slice(0, 3).map((entry) => (
+                      <div key={entry.source} className="rounded-lg border border-slate-700/75 bg-slate-950/75 px-2.5 py-2 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold uppercase tracking-[0.14em] text-slate-200">{entry.source}</p>
+                          <p
+                            className={
+                              entry.state === "improved"
+                                ? "text-emerald-300"
+                                : entry.state === "collecting"
+                                  ? "text-amber-300"
+                                  : "text-rose-300"
+                            }
+                          >
+                            {entry.state === "improved" ? "Improved" : entry.state === "collecting" ? "Collecting" : "Stalled"}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-slate-400">
+                          Delta: +{entry.deltaViews} views, +{entry.deltaJoins} joins, {entry.deltaConversionRate >= 0 ? "+" : ""}
+                          {entry.deltaConversionRate}% conversion
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-cyan-200">Recommendation: {campaignLoop.recommendation}</p>
                 </div>
               ) : null}
               {onboardingHealth ? (
