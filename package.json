@@ -4,13 +4,29 @@
   "description": "",
   "scripts": {
     "dev:cleanup": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/cleanup-dev-ports.ps1",
-    "dev": "npm run dev:cleanup && concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\"",
-    "preview:live": "npm run dev:cleanup && concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev:full -w @nexusforge/desktop\"",
+    "dev": "npm run dev:cleanup && npx concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\"",
+    "preview:live": "npm run dev:cleanup && npx concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev:full -w @nexusforge/desktop\"",
     "dev:web": "npm run dev -w web",
     "dev:server": "npm run dev -w @nexusforge/server",
     "dev:desktop": "npm run dev -w @nexusforge/desktop",
+    "beta:web": "npm run dev -w web -- --port 3100",
+    "beta:api": "npm run dev -w @nexusforge/server",
+    "beta:start": "npm run dev:cleanup && npx concurrently \"npm run beta:web\" \"npm run beta:api\"",
+    "beta:share": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-beta-share.ps1",
+    "beta:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/stop-beta-share.ps1",
+    "beta:tunnel:web": "npx --yes cloudflared tunnel --url http://localhost:3100",
+    "beta:tunnel:api": "npx --yes cloudflared tunnel --url http://localhost:4000",
     "desktop:open": "npm run dev -w @nexusforge/desktop",
-    "desktop:full": "npm run dev:cleanup && concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev -w @nexusforge/desktop\"",
+    "desktop:full": "npm run dev:cleanup && npx concurrently \"npm run dev -w web\" \"npm run dev -w @nexusforge/server\" \"npm run dev -w @nexusforge/desktop\"",
+    "desktop:installer": "npm run package:win -w @nexusforge/desktop",
+    "desktop:open:installed": "powershell -NoProfile -Command \"$exe = Join-Path $env:LOCALAPPDATA 'Programs\\NexusForge Desktop\\NexusForge Desktop.exe'; if (Test-Path $exe) { Start-Process $exe } else { Write-Error 'Installed NexusForge Desktop executable not found. Run desktop:installer first.' }\"",
+    "desktop:open:unpacked": "powershell -NoProfile -Command \"$exe = Resolve-Path 'apps\\desktop\\release\\win-unpacked\\NexusForge Desktop.exe' -ErrorAction SilentlyContinue; if ($exe) { Start-Process $exe.Path } else { Write-Error 'Unpacked executable not found. Run desktop:installer first.' }\"",
+    "desktop:share": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1",
+    "desktop:share:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump patch",
+    "desktop:share:none": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none",
+    "desktop:share:force": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump patch -ForceUpdate",
+    "desktop:share:minor": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump minor",
+    "desktop:share:major": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump major",
     "build": "npm run build -w web && npm run build -w @nexusforge/server",
     "lint": "npm run lint -w web"
   },
@@ -23,7 +39,9 @@
     "packages/*"
   ],
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "7zip-bin": "^5.2.0",
+    "concurrently": "^9.2.1",
+    "enhanced-resolve": "^5.21.2"
   },
   "dependencies": {
     "date-fns": "^4.1.0"

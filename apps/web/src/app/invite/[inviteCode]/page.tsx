@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getPublicForgeInvite, joinForge } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function InvitePage() {
   const params = useParams<{ inviteCode: string }>();
@@ -37,30 +39,35 @@ export default function InvitePage() {
       : null;
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-10 sm:px-8">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(249,115,22,0.16),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.98))]" />
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/70 p-6 backdrop-blur sm:p-8">
-          <p className="text-[11px] uppercase tracking-[0.26em] text-cyan-300">Forge Invite</p>
-          <h1 className="mt-3 font-[family-name:var(--font-orbitron)] text-3xl text-slate-50 sm:text-5xl">
-            Join this NexusForge server.
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
-            Public invite links now resolve to real landing pages. Review the forge, then join directly if you are signed in.
-          </p>
-        </div>
+    <ExperienceShell
+      eyebrow="Forge Invite"
+      title="Join this NexusForge server"
+      subtitle="Review the server details, then join instantly if you are signed in."
+      metrics={[
+        { label: "Invite Code", value: inviteCode || "N/A", tone: "cyan" },
+        { label: "Status", value: inviteQuery.isLoading ? "Loading" : inviteQuery.data ? "Valid" : "Unavailable", tone: inviteQuery.data ? "emerald" : "amber" },
+      ]}
+      actions={[
+        { label: "Open App", href: "/app", tone: "ghost" },
+        { label: "Open Search", href: "/search", tone: "primary" },
+      ]}
+      maxWidthClassName="max-w-5xl"
+    >
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-slate-700/70 bg-slate-950/72 p-6 backdrop-blur">
+          <div className="nexus-panel rounded-3xl p-6">
             {inviteQuery.isLoading ? (
               <p className="text-sm text-slate-300">Loading forge invite...</p>
             ) : inviteQuery.data ? (
               <>
                 <div className="flex items-start gap-4">
                   {inviteQuery.data.forge.icon ? (
-                    <img
+                    <Image
                       src={inviteQuery.data.forge.icon}
                       alt={`${inviteQuery.data.forge.name} icon`}
+                      width={80}
+                      height={80}
+                      unoptimized
                       className="h-20 w-20 rounded-2xl border border-cyan-500/35 object-cover"
                     />
                   ) : (
@@ -70,7 +77,7 @@ export default function InvitePage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">/{inviteQuery.data.forge.inviteCode}</p>
-                    <h2 className="mt-2 text-2xl font-semibold text-slate-50">{inviteQuery.data.forge.name}</h2>
+                    <h2 className="mt-2 break-words text-xl font-semibold text-slate-50 sm:text-2xl">{inviteQuery.data.forge.name}</h2>
                     <p className="mt-2 text-sm text-slate-300">
                       {inviteQuery.data.forge.description ?? "No public description has been added for this forge yet."}
                     </p>
@@ -78,14 +85,17 @@ export default function InvitePage() {
                 </div>
 
                 {inviteQuery.data.forge.banner ? (
-                  <img
+                  <Image
                     src={inviteQuery.data.forge.banner}
                     alt={`${inviteQuery.data.forge.name} banner`}
+                    width={1200}
+                    height={352}
+                    unoptimized
                     className="mt-5 h-44 w-full rounded-2xl border border-slate-700/80 object-cover"
                   />
                 ) : null}
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-3">
                   <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Owner</p>
                     <p className="mt-2 text-sm font-semibold text-slate-100">{inviteQuery.data.forge.owner.username}</p>
@@ -102,7 +112,7 @@ export default function InvitePage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2">
                   <div className="rounded-2xl border border-cyan-500/20 bg-cyan-950/20 p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Invite Views</p>
                     <p className="mt-2 text-sm font-semibold text-slate-100">{inviteQuery.data.forge.inviteViewCount}</p>
@@ -124,7 +134,7 @@ export default function InvitePage() {
             )}
           </div>
 
-          <div className="rounded-3xl border border-amber-500/20 bg-slate-950/72 p-6 backdrop-blur">
+          <div className="nexus-panel rounded-3xl p-6">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Join Flow</p>
             <div className="mt-4 space-y-3 text-sm text-slate-300">
               <p>
@@ -169,7 +179,6 @@ export default function InvitePage() {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+    </ExperienceShell>
   );
 }

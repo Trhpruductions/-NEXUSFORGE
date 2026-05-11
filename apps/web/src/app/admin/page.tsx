@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -25,28 +26,39 @@ export default function AdminPage() {
 
   if (!hydrated || !user?.isAdmin) {
     return (
-      <div className="nexus-shell px-4 py-6 sm:px-8">
-        <div className="nexus-shell-inner max-w-7xl space-y-4">
-          <div className="nexus-hero">
-            <p className="nexus-eyebrow text-red-400">Access Denied</p>
-            <h1 className="nexus-title mt-2 text-slate-50">Admin Only</h1>
-            <p className="nexus-subtitle mt-2 text-slate-400">You do not have permission to access this section.</p>
-          </div>
-        </div>
-      </div>
+      <ExperienceShell
+        eyebrow="Access Denied"
+        title="Admin Only"
+        subtitle="You do not have permission to access moderation and governance controls."
+        metrics={[
+          { label: "Access", value: "Restricted", tone: "amber" },
+          { label: "Required Role", value: "ADMIN", tone: "slate" },
+        ]}
+        actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]}
+        maxWidthClassName="max-w-7xl"
+      >
+        <div className="nexus-panel rounded-2xl p-4 text-sm text-slate-300">Your current account lacks admin privileges.</div>
+      </ExperienceShell>
     );
   }
 
   return (
-    <div className="nexus-shell px-4 py-6 sm:px-8">
-      <div className="nexus-shell-inner max-w-7xl space-y-4">
-        <div className="nexus-hero">
-          <p className="nexus-eyebrow text-cyan-300">Moderation Console</p>
-          <h1 className="nexus-title mt-2 text-slate-50">Admin Dashboard</h1>
-          <p className="nexus-subtitle mt-2 text-slate-400">Monitor growth, manage user permissions, and keep the community stable.</p>
-        </div>
-        <AdminDashboard />
-      </div>
-    </div>
+    <ExperienceShell
+      eyebrow="Moderation Console"
+      title="Admin Dashboard"
+      subtitle="Monitor growth, manage permissions, and enforce launch governance from one hardened control surface."
+      metrics={[
+        { label: "Governance", value: "Live", tone: "emerald" },
+        { label: "Launch Mode", value: "Runtime Controlled", tone: "cyan" },
+        { label: "Risk Monitoring", value: "Active", tone: "amber" },
+      ]}
+      actions={[
+        { label: "Open Command Center", href: "/app", tone: "ghost" },
+        { label: "Review Notifications", href: "/notifications", tone: "primary" },
+      ]}
+      maxWidthClassName="max-w-7xl"
+    >
+      <AdminDashboard />
+    </ExperienceShell>
   );
 }

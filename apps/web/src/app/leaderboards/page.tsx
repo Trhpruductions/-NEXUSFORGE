@@ -6,6 +6,7 @@ import { getLeaderboard, LeaderboardEntry } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function LeaderboardsPage() {
   const { user: currentUser, accessToken } = useAuthStore();
@@ -52,92 +53,90 @@ export default function LeaderboardsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-16">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">Leaderboards</h1>
+    <ExperienceShell
+      eyebrow="Rankings"
+      title="Leaderboards"
+      subtitle="Track global reputation, streak momentum, and medal dominance in one competitive command feed."
+      metrics={[
+        { label: "Category", value: activeTab.toUpperCase(), tone: "cyan" },
+        { label: "Players", value: `${leaderboard.length}`, tone: "emerald" },
+        { label: "Feed", value: loading ? "Syncing" : "Live", tone: "amber" },
+      ]}
+      actions={[
+        { label: "Search Users", href: "/search", tone: "ghost" },
+        { label: "App", href: "/app", tone: "primary" },
+      ]}
+      maxWidthClassName="max-w-4xl"
+    >
+      {/* Tab bar */}
+      <div className="flex gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/60 p-1">
+        {(["reputation", "streaks", "medals"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition ${
+              activeTab === tab
+                ? "bg-cyan-950/60 text-cyan-200 shadow-[inset_0_1px_0_rgba(34,211,238,0.12)]"
+                : "text-slate-400 hover:text-slate-300"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="flex gap-4 mb-8 border-b border-slate-700">
-          {(["reputation", "streaks", "medals"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-semibold transition capitalize ${
-                activeTab === tab
-                  ? "text-cyan-400 border-b-2 border-cyan-400"
-                  : "text-slate-400 hover:text-slate-300"
-              }`}
+      {/* Content */}
+      {loading ? (
+        <div className="rounded-2xl border border-slate-700/70 bg-slate-900/60 p-5 text-center text-sm text-slate-400">Loading leaderboard...</div>
+      ) : (
+        <div className="space-y-2">
+          {!leaderboard.length ? (
+            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 text-center">
+              <p className="text-sm text-slate-400">No entries yet for this category</p>
+            </div>
+          ) : null}
+          {leaderboard.map((entry, index) => (
+            <Link
+              key={entry.id}
+              href={`/profiles/${entry.id}`}
+              className="nexus-list-row nexus-interactive-card"
             >
-              {tab}
-            </button>
+              {/* Rank */}
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold ${getMedalColor(entry.premiumTier)}`}>
+                {index + 1}
+              </div>
+
+              {/* Avatar */}
+              {entry.avatar ? (
+                <Image src={entry.avatar} alt={entry.username} width={40} height={40} className="h-10 w-10 rounded-xl object-cover" />
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-slate-300">
+                  {entry.username[0]?.toUpperCase()}
+                </div>
+              )}
+
+              <div className="nexus-list-main">
+                <p className="truncate text-sm font-semibold text-slate-100">{entry.username}</p>
+                {entry.clanTag ? <p className="text-xs text-cyan-400">[{entry.clanTag}]</p> : null}
+              </div>
+
+              <div className="nexus-list-end">
+                {activeTab === "reputation" ? <span className="text-lg font-bold text-cyan-300">{entry.reputation ?? 0}</span> : null}
+                {activeTab === "streaks" ? (
+                  <div>
+                    <span className="text-lg font-bold text-emerald-300">{entry.corePlusBoostLevel ?? 0}</span>
+                    <p className="text-[10px] text-slate-500">{entry.corePlusStreakDays ?? 0}d</p>
+                  </div>
+                ) : null}
+                {activeTab === "medals" ? <span className="text-lg font-bold text-yellow-300">{entry.medalCount ?? 0}</span> : null}
+                {entry.premium ? (
+                  <span className="mt-1 block rounded-full border border-amber-500/25 bg-amber-950/25 px-1.5 py-0.5 text-[10px] text-amber-400">{entry.premiumTier}</span>
+                ) : null}
+              </div>
+            </Link>
           ))}
         </div>
-
-        {/* Leaderboard List */}
-        {loading ? (
-          <div className="text-center text-slate-400">Loading...</div>
-        ) : (
-          <div className="space-y-3">
-            {leaderboard.map((entry, index) => (
-              <Link
-                key={entry.id}
-                href={`/profiles/${entry.id}`}
-                className="block bg-slate-900 p-4 rounded hover:bg-slate-800 transition border border-slate-800 hover:border-cyan-600"
-              >
-                <div className="flex items-center gap-4">
-                  {/* Rank Badge */}
-                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getMedalColor(entry.premiumTier)} flex items-center justify-center font-bold text-lg`}>
-                    {index + 1}
-                  </div>
-
-                  {/* User Info */}
-                  {entry.avatar ? (
-                    <Image
-                      src={entry.avatar}
-                      alt={entry.username}
-                      width={48}
-                      height={48}
-                      className="rounded-lg"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center">
-                      <span className="font-bold text-cyan-400">{entry.username[0]}</span>
-                    </div>
-                  )}
-
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-lg">{entry.username}</span>
-                      {entry.clanTag && <span className="text-cyan-400">[{entry.clanTag}]</span>}
-                      {entry.premium && (
-                        <span className="text-xs bg-amber-900 text-amber-300 px-2 py-1 rounded">
-                          {entry.premiumTier}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Score */}
-                  <div className="text-right">
-                    {activeTab === "reputation" && (
-                      <div className="text-2xl font-bold text-cyan-400">{entry.reputation || 0}</div>
-                    )}
-                    {activeTab === "streaks" && (
-                      <div>
-                        <div className="text-lg font-bold text-emerald-400">{entry.corePlusBoostLevel || 0}</div>
-                        <div className="text-xs text-slate-400">{entry.corePlusStreakDays || 0} days</div>
-                      </div>
-                    )}
-                    {activeTab === "medals" && (
-                      <div className="text-2xl font-bold text-yellow-400">{entry.medalCount || 0}</div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </main>
+      )}
+    </ExperienceShell>
   );
 }

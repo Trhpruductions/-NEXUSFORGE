@@ -1,16 +1,27 @@
+import { Suspense } from "react";
 import { ProfileSettingsForm } from "@/components/profile/profile-settings-form";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function SettingsPage() {
   return (
-    <div className="nexus-shell px-4 py-6 sm:px-8">
-      <div className="nexus-shell-inner max-w-5xl space-y-4">
-        <div className="nexus-hero">
-          <p className="nexus-eyebrow text-cyan-300">Account Control</p>
-          <h1 className="nexus-title mt-2 text-slate-50">Profile and Presence Settings</h1>
-          <p className="nexus-subtitle mt-2 text-slate-400">Update your identity, rich presence, and notification permissions.</p>
-        </div>
-        <ProfileSettingsForm />
-      </div>
-    </div>
+    <ExperienceShell
+      eyebrow="Account Control"
+      title="Profile and Presence Settings"
+      subtitle="Tune your identity, presence, and billing-linked perks with a clear app-grade control surface."
+      metrics={[
+        { label: "Identity", value: "Customizable", tone: "cyan" },
+        { label: "Presence", value: "Real-time", tone: "emerald" },
+        { label: "Billing Sync", value: "Integrated", tone: "amber" },
+      ]}
+      actions={[
+        { label: "Back to App", href: "/app", tone: "ghost" },
+        { label: "View Pricing", href: "/pricing", tone: "primary" },
+      ]}
+      maxWidthClassName="max-w-6xl"
+    >
+        <Suspense fallback={<div className="nexus-panel rounded-2xl p-4 text-sm text-slate-400">Loading settings workspace...</div>}>
+          <ProfileSettingsForm />
+        </Suspense>
+    </ExperienceShell>
   );
 }

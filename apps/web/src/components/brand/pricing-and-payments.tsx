@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -362,6 +363,35 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           <div className="rounded-full border border-emerald-500/35 bg-emerald-950/25 px-3 py-1 text-emerald-100">
             {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <article className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Boost Tier Badges</p>
+            <p className="mt-1 text-xs text-slate-400">Starter Core, Plus Command, Elite Creator, and Infinite League visual ladder.</p>
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
+              <Image
+                src="/brand/boost-tier-badges.png"
+                alt="NexusForge boost tier badges"
+                width={1200}
+                height={1200}
+                className="h-auto w-full object-cover"
+              />
+            </div>
+          </article>
+          <article className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Boost Pack Emblem</p>
+            <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
+              <Image
+                src="/brand/boost-pack-icon.png"
+                alt="NexusForge boost pack icon"
+                width={1200}
+                height={1200}
+                className="h-auto w-full object-cover"
+              />
+            </div>
+          </article>
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-4">

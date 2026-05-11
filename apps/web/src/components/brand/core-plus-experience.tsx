@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createCheckoutSession, createPortalSession, getBillingEntitlements } from "@/lib/api";
@@ -320,12 +321,14 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.08 }}
           className="nexus-panel rounded-3xl p-4"
         >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Core+ Card Preview</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Tier Badges</p>
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <img
-              src="/brand/core-plus-card.png"
-              alt="NexusForge Core+ card"
-              className="image-pan h-56 w-full rounded-2xl object-cover"
+            <Image
+              src="/brand/boost-tier-badges.png"
+              alt="NexusForge boost tier badges"
+              width={640}
+              height={640}
+              className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
         </motion.article>
@@ -336,12 +339,14 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.16 }}
           className="nexus-panel rounded-3xl p-4"
         >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Tier Ladder</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Pack Emblem</p>
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <img
-              src="/brand/boost-levels-card.png"
-              alt="NexusForge boost levels"
-              className="image-pan h-56 w-full rounded-2xl object-cover"
+            <Image
+              src="/brand/boost-pack-icon.png"
+              alt="NexusForge boost pack icon"
+              width={640}
+              height={640}
+              className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
         </motion.article>

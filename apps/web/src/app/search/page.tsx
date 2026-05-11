@@ -7,6 +7,7 @@ import { searchProfiles, User } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 function SearchContent() {
   type SearchProfileUser = Pick<User, "id" | "username" | "avatar" | "premium" | "createdAt"> & {
@@ -26,6 +27,10 @@ function SearchContent() {
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
+    setSearchQuery(query);
+  }, [query]);
+
+  useEffect(() => {
     if (!currentUser || !accessToken) {
       router.push("/login");
       return;
@@ -34,11 +39,16 @@ function SearchContent() {
 
   useEffect(() => {
     const performSearch = async () => {
-      if (!searchQuery.trim() || !accessToken) return;
+      if (!searchQuery.trim() || !accessToken) {
+        setResults([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
-          const data = await searchProfiles(accessToken, searchQuery, 50, 0);
+        const data = await searchProfiles(accessToken, searchQuery, 50, 0);
         setResults(data.users);
         setTotal(data.total);
       } catch (err) {
@@ -58,96 +68,91 @@ function SearchContent() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-16">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Search Users</h1>
-
-        {/* Search Input */}
-        <div className="mb-8">
+    <ExperienceShell
+      eyebrow="Discovery"
+      title="Search Users"
+      maxWidthClassName="max-w-4xl"
+    >
+      <div className="space-y-4">
+        {/* Search input */}
+        <div className="relative">
+          <svg className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.197 5.197a7.5 7.5 0 0 0 10.606 10.606Z" />
+          </svg>
           <input
             type="text"
             value={searchQuery}
             onChange={handleSearch}
             placeholder="Search by username or clan tag..."
-            className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+            className="w-full rounded-2xl border border-slate-700/80 bg-slate-900/70 py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 shadow-[inset_0_1px_0_rgba(148,163,184,0.06)] transition focus:border-cyan-500/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
           />
         </div>
 
-        {/* Results */}
-        {loading && (
-          <div className="text-center text-slate-400">Searching...</div>
-        )}
+        {/* Loading */}
+        {loading ? (
+          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/60 p-5 text-center text-sm text-slate-400">Searching...</div>
+        ) : null}
 
-        {!loading && searchQuery && results.length === 0 && (
-          <div className="text-center text-slate-400">No users found</div>
-        )}
-
-        {!loading && results.length > 0 && (
-          <>
-            <div className="mb-4 text-sm text-slate-400">
-              Found {total} user{total !== 1 ? "s" : ""}
-            </div>
-
-            <div className="space-y-3">
-              {results.map((user) => (
-                <Link
-                  key={user.id}
-                  href={`/profiles/${user.id}`}
-                  className="block bg-slate-900 p-4 rounded hover:bg-slate-800 transition border border-slate-800 hover:border-cyan-600"
-                >
-                  <div className="flex items-center gap-4">
-                    {user.avatar ? (
-                      <Image
-                        src={user.avatar}
-                        alt={user.username}
-                        width={48}
-                        height={48}
-                        className="rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center">
-                        <span className="font-bold text-cyan-400">{user.username[0]}</span>
-                      </div>
-                    )}
-
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-lg">{user.username}</span>
-                        {user.clanTag && <span className="text-cyan-400">[{user.clanTag}]</span>}
-                        {user.premium && (
-                          <span className="text-xs bg-amber-900 text-amber-300 px-2 py-1 rounded">
-                            {user.premiumTier}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm text-slate-400 mt-1">
-                        Reputation: <span className="text-cyan-400">{user.reputation}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-sm text-slate-500">View Profile →</div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
-
-        {!loading && !searchQuery && (
-          <div className="text-center text-slate-400">
-            Start typing to search for users
+        {/* Empty state */}
+        {!loading && searchQuery && results.length === 0 ? (
+          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/60 p-8 text-center">
+            <p className="text-sm font-medium text-slate-300">No results for &ldquo;{searchQuery}&rdquo;</p>
+            <p className="mt-1 text-xs text-slate-500">Try a different username or clan tag</p>
           </div>
-        )}
+        ) : null}
+
+        {/* Prompt */}
+        {!loading && !searchQuery ? (
+          <div className="rounded-2xl border border-slate-700/50 bg-slate-900/40 p-8 text-center">
+            <p className="text-sm text-slate-400">Start typing to discover players</p>
+          </div>
+        ) : null}
+
+        {/* Results */}
+        {!loading && results.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">{total} result{total !== 1 ? "s" : ""}</p>
+            {results.map((user) => (
+              <Link
+                key={user.id}
+                href={`/profiles/${user.id}`}
+                className="nexus-list-row nexus-interactive-card"
+              >
+                {user.avatar ? (
+                  <Image
+                    src={user.avatar}
+                    alt={user.username}
+                    width={44}
+                    height={44}
+                    className="rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-base font-bold text-slate-300">
+                    {user.username[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="nexus-list-main">
+                  <p className="truncate text-sm font-semibold text-slate-100">{user.username}</p>
+                  {user.clanTag ? <p className="truncate text-xs text-cyan-400">[{user.clanTag}]</p> : null}
+                </div>
+                <div className="nexus-list-end">
+                  {user.premium ? (
+                    <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300">{user.premiumTier}</span>
+                  ) : null}
+                  <p className="mt-1 text-xs text-slate-500">{user.reputation} rep</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </div>
-    </main>
+    </ExperienceShell>
   );
 }
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-slate-400">Loading...</div></div>}>
+    <Suspense fallback={<div className="nexus-shell flex items-center justify-center text-slate-400">Loading...</div>}>
       <SearchContent />
     </Suspense>
   );

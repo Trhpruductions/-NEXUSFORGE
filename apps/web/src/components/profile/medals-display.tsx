@@ -10,7 +10,7 @@ type MedalsDisplayProps = {
 export function MedalsDisplay({ medals, compact = false }: MedalsDisplayProps) {
   if (medals.length === 0) {
     return (
-      <div className="text-center py-8 text-slate-400">
+      <div className="nexus-panel rounded-2xl border border-slate-700/70 py-8 text-center text-slate-400">
         No medals earned yet
       </div>
     );
@@ -21,15 +21,15 @@ export function MedalsDisplay({ medals, compact = false }: MedalsDisplayProps) {
       {medals.map((medal) => (
         <div
           key={medal.id}
-          className="bg-slate-900 p-4 rounded text-center hover:bg-slate-800 transition border border-slate-800 hover:border-yellow-500 group cursor-help"
+          className="nexus-metric-card nexus-interactive-card group cursor-help rounded-2xl border border-slate-700/70 p-4 text-center"
           title={medal.description || medal.name}
         >
           {medal.icon && (
-            <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+            <div className="mb-2 text-4xl transition-transform duration-300 group-hover:scale-110">
               {medal.icon}
             </div>
           )}
-          <div className="font-semibold text-cyan-400 text-sm group-hover:text-yellow-300 transition">
+          <div className="text-sm font-semibold text-cyan-300 transition group-hover:text-amber-200">
             {medal.name}
           </div>
           {medal.description && (

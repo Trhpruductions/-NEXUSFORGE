@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
-
-const privilegedRoles = new Set(["ADMIN", "EXEC", "OWNER"]);
+import { hasAdminAccess } from "../lib/app-roles.js";
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!req.user) {
@@ -14,7 +13,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
     select: { isAdmin: true, appRole: true },
   });
 
-  if (!user || (!user.isAdmin && !privilegedRoles.has(user.appRole))) {
+  if (!user || !hasAdminAccess(user.appRole, user.isAdmin)) {
     res.status(403).json({ error: "Admin access required" });
     return;
   }

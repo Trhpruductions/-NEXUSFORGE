@@ -1,8 +1,9 @@
 "use client";
 
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,21 +26,50 @@ type ProfileFormState = {
   activityDetails: string;
 };
 
+type ProfileUserSnapshot = {
+  username?: string | null;
+  avatar?: string | null;
+  banner?: string | null;
+  bio?: string | null;
+  clanTag?: string | null;
+  status?: PresenceStatus;
+  currentActivity?: string | null;
+  activityDetails?: string | null;
+};
+
+function buildProfileFormState(user?: ProfileUserSnapshot | null): ProfileFormState {
+  return {
+    username: user?.username ?? "",
+    avatar: user?.avatar ?? "",
+    banner: user?.banner ?? "",
+    bio: user?.bio ?? "",
+    clanTag: user?.clanTag ?? "",
+    status: user?.status ?? "OFFLINE",
+    currentActivity: user?.currentActivity ?? "",
+    activityDetails: user?.activityDetails ?? "",
+  };
+}
+
 export function ProfileSettingsForm() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const { accessToken, csrfToken, user } = useAuthStore();
-  const [form, setForm] = useState<ProfileFormState>({
-    username: "",
-    avatar: "",
-    banner: "",
-    bio: "",
-    clanTag: "",
-    status: "OFFLINE",
-    currentActivity: "",
-    activityDetails: "",
-  });
+  const [draft, setDraft] = useState<Partial<ProfileFormState>>({});
   const [pushState, setPushState] = useState("idle");
   const [savingPush, setSavingPush] = useState(false);
+
+  const form = {
+    ...buildProfileFormState(user),
+    ...draft,
+  } satisfies ProfileFormState;
+  const intent = searchParams.get("intent") ?? undefined;
+
+  const updateDraft = <Key extends keyof ProfileFormState>(key: Key, value: ProfileFormState[Key]) => {
+    setDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
 
   const billingQuery = useQuery({
     queryKey: ["billing-entitlements", accessToken],
@@ -58,20 +88,6 @@ export function ProfileSettingsForm() {
   const cosmeticFieldsFilled = Boolean(form.avatar.trim() || form.banner.trim());
   const cosmeticUpsellVisible = cosmeticFieldsFilled && !hasBrandingKit;
 
-  useEffect(() => {
-    if (!user) return;
-    setForm({
-      username: user.username ?? "",
-      avatar: user.avatar ?? "",
-      banner: user.banner ?? "",
-      bio: user.bio ?? "",
-      clanTag: user.clanTag ?? "",
-      status: user.status,
-      currentActivity: user.currentActivity ?? "",
-      activityDetails: user.activityDetails ?? "",
-    });
-  }, [user]);
-
   const saveMutation = useMutation({
     mutationFn: () =>
       updateMe(accessToken!, csrfToken!, {
@@ -86,6 +102,7 @@ export function ProfileSettingsForm() {
       }),
     onSuccess: async (result) => {
       useAuthStore.setState((state) => ({ ...state, user: result.user }));
+      setDraft({});
       await queryClient.invalidateQueries({ queryKey: ["notifications", accessToken] });
     },
   });
@@ -175,7 +192,21 @@ export function ProfileSettingsForm() {
           boostRank: rankQuery.data?.boostRank,
         }}
       />
-      <div className="nexus-panel grid gap-4 rounded-2xl p-5">
+      {intent === "create-forge" ? (
+        <div className="mb-4 rounded-2xl border border-cyan-500/35 bg-cyan-950/20 p-4 text-sm text-cyan-100">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Quick Start Intent</p>
+          <p className="mt-2">Create Forge was selected from the home command panel. Continue to the command center forge tools to launch your new community workspace.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/app" className="inline-flex h-10 items-center rounded-xl border border-cyan-500/45 bg-cyan-950/35 px-4 text-xs font-semibold text-cyan-100 hover:border-cyan-300">
+              Open Command Center
+            </Link>
+            <Link href="/search?q=community" className="inline-flex h-10 items-center rounded-xl border border-slate-600/80 bg-slate-900/70 px-4 text-xs font-semibold text-slate-100 hover:border-cyan-500/45">
+              Explore Existing Communities
+            </Link>
+          </div>
+        </div>
+      ) : null}
+        <div className="nexus-display-panel grid gap-4 rounded-[28px] p-5 sm:p-6">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-950/15 px-3 py-2 text-xs">
         <span className="font-semibold uppercase tracking-[0.18em] text-amber-200">Core+ Status</span>
         <span className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100">
@@ -216,17 +247,17 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <Input label="Username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-        <Input label="Clan Tag" value={form.clanTag} onChange={(e) => setForm({ ...form, clanTag: e.target.value })} />
-        <Input label="Avatar URL" value={form.avatar} onChange={(e) => setForm({ ...form, avatar: e.target.value })} />
-        <Input label="Banner URL" value={form.banner} onChange={(e) => setForm({ ...form, banner: e.target.value })} />
-        <Input label="Current Activity" value={form.currentActivity} onChange={(e) => setForm({ ...form, currentActivity: e.target.value })} />
-        <Input label="Activity Details" value={form.activityDetails} onChange={(e) => setForm({ ...form, activityDetails: e.target.value })} />
+        <Input label="Username" value={form.username} onChange={(e) => updateDraft("username", e.target.value)} />
+        <Input label="Clan Tag" value={form.clanTag} onChange={(e) => updateDraft("clanTag", e.target.value)} />
+        <Input label="Avatar URL" value={form.avatar} onChange={(e) => updateDraft("avatar", e.target.value)} />
+        <Input label="Banner URL" value={form.banner} onChange={(e) => updateDraft("banner", e.target.value)} />
+        <Input label="Current Activity" value={form.currentActivity} onChange={(e) => updateDraft("currentActivity", e.target.value)} />
+        <Input label="Activity Details" value={form.activityDetails} onChange={(e) => updateDraft("activityDetails", e.target.value)} />
         <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
           <span className="font-medium tracking-wide text-slate-200">Bio</span>
           <textarea
             value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            onChange={(e) => updateDraft("bio", e.target.value)}
             className="min-h-28 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-slate-100 outline-none focus:border-cyan-400"
             placeholder="Tell the community about you"
           />
@@ -235,7 +266,7 @@ export function ProfileSettingsForm() {
           <span className="font-medium tracking-wide text-slate-200">Presence</span>
           <select
             value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as PresenceStatus })}
+            onChange={(e) => updateDraft("status", e.target.value as PresenceStatus)}
             aria-label="Select presence status"
             title="Select presence status"
             className="h-11 rounded-xl border border-slate-700 bg-slate-900/70 px-3 text-slate-100 outline-none focus:border-cyan-400"
@@ -247,6 +278,11 @@ export function ProfileSettingsForm() {
           </select>
         </label>
       </div>
+
+        <div className="nexus-signal-rail rounded-2xl px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Profile Workspace</p>
+          <p className="mt-1 text-sm text-slate-300">Edit identity and presence details below. Changes apply immediately after save.</p>
+        </div>
 
       {cosmeticUpsellVisible ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-950/15 p-4 text-sm text-amber-100">
@@ -263,7 +299,7 @@ export function ProfileSettingsForm() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 border-t border-slate-700/70 pt-2">
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? "Saving..." : "Save Profile"}
         </Button>

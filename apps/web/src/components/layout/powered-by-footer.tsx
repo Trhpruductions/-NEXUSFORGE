@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 export function PoweredByFooter() {
   return (
     <footer className="border-t border-slate-700/50 bg-slate-950/80 py-8">
@@ -7,9 +9,11 @@ export function PoweredByFooter() {
         <div className="flex flex-col items-center gap-6">
           {/* TRH Development Branding */}
           <div className="flex items-center justify-center">
-            <img 
-              src="/brand/trh-powered-by.png" 
-              alt="Powered by TRH Development" 
+            <Image
+              src="/brand/trh-powered-by.png"
+              alt="Powered by TRH Development"
+              width={640}
+              height={256}
               className="h-24 w-auto sm:h-32"
             />
           </div>

@@ -1,5 +1,6 @@
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
 import { PoweredByFooter } from "@/components/layout/powered-by-footer";
+import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default async function PricingPage({
   searchParams,
@@ -9,12 +10,25 @@ export default async function PricingPage({
   const resolved = (await searchParams) ?? {};
 
   return (
-    <div className="relative min-h-screen overflow-x-clip px-4 py-8 sm:px-8 lg:px-10">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_6%,rgba(168,85,247,0.14),transparent_36%),radial-gradient(circle_at_84%_86%,rgba(34,211,238,0.1),transparent_38%),linear-gradient(170deg,#050b16_0%,#070f1c_52%,#0a1725_100%)]" />
-      <main className="mx-auto w-full max-w-[1300px]">
+    <ExperienceShell
+      eyebrow="Monetization"
+      title="Pricing, Payments, and Upgrade Flows"
+      subtitle="Tiered subscriptions and add-ons built to feel premium, clear, and conversion-ready."
+      metrics={[
+        { label: "Checkout", value: "Secure Redirect", tone: "emerald" },
+        { label: "Tier Ladder", value: "Core to Infinite", tone: "cyan" },
+        { label: "Upgrade Momentum", value: "Optimized", tone: "amber" },
+      ]}
+      actions={[
+        { label: "Open Core+", href: "/core-plus", tone: "ghost" },
+        { label: "Open App", href: "/app", tone: "primary" },
+      ]}
+      maxWidthClassName="max-w-[1300px]"
+    >
+      <main className="mx-auto w-full">
         <PricingAndPayments checkoutState={resolved.checkout} />
       </main>
       <PoweredByFooter />
-    </div>
+    </ExperienceShell>
   );
 }

@@ -1,0 +1,12 @@
+
+> nexusforge@1.0.0 beta:api
+> npm run dev -w @nexusforge/server
+
+
+> @nexusforge/server@1.0.0 dev
+> npx --yes tsx watch src/index.ts
+
+◇ injected env (23) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from apps\server\.env // tip: ⌁ auth for agents [www.vestauth.com]
+◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+NexusForge API running on http://localhost:4000

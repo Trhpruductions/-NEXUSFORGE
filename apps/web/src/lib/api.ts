@@ -468,6 +468,16 @@ export type AdminProfileToolsStatus = {
   } | null;
 };
 
+export type LaunchModeState = {
+  desktopOnly: boolean;
+  updatedAt: string;
+  updatedBy: {
+    id: string;
+    username: string;
+  } | null;
+  source: "env" | "runtime";
+};
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -1162,6 +1172,27 @@ export async function getAdminProfileAudit(
 export async function getAdminProfileToolsStatus(accessToken: string, csrfToken: string) {
   const response = await api.get<AdminProfileToolsStatus>(
     "/api/admin/profile-tools/status",
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function getAdminLaunchMode(accessToken: string, csrfToken: string) {
+  const response = await api.get<LaunchModeState>(
+    "/api/admin/launch-mode",
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function setAdminLaunchMode(accessToken: string, csrfToken: string, desktopOnly: boolean) {
+  const response = await api.post<LaunchModeState>(
+    "/api/admin/launch-mode",
+    { desktopOnly },
     {
       headers: authHeaders(accessToken, csrfToken),
     },

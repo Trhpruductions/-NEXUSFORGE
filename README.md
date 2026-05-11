@@ -133,6 +133,20 @@ copy apps\server\.env.example apps\server\.env
 copy apps\web\.env.example apps\web\.env.local
 ```
 
+Desktop-only launch mode defaults from `apps/web/.env.local`:
+
+```bash
+NEXUSFORGE_DESKTOP_ONLY=true
+```
+
+When you are ready to launch browser/mobile access, set:
+
+```bash
+NEXUSFORGE_DESKTOP_ONLY=false
+```
+
+The admin launch-control toggle can override this at runtime through the API and is now persisted in the database. The env value is used as the initial fallback/default.
+
 3. Set `DATABASE_URL` and JWT secrets in `apps/server/.env`.
 
 4. Configure Stripe billing keys and price IDs in `apps/server/.env`:
@@ -183,8 +197,29 @@ npm run desktop:open
 ```
 
 - Desktop shell target: `http://localhost:3000/app`
+- Desktop requests are auto-tagged with `NexusForgeDesktop/<version>` so web middleware can allow desktop-only traffic.
 - To run web + server + desktop together from one command, use:
 
 ```bash
 npm run desktop:full
 ```
+
+## Desktop Auto-Update (Installed Users)
+
+- Installed desktop users now download updates in the background from `desktop-update.json`.
+- On Windows, downloaded updates are staged and auto-installed when the app closes.
+- First-time users still install with the public `.exe` link.
+
+Recommended environment variables for durable updates:
+
+```bash
+NEXUSFORGE_UPDATE_MANIFEST_URL=https://your-domain.com/desktop-update.json
+NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com
+NEXUSFORGE_AUTO_INSTALL_ON_CLOSE=true
+```
+
+Release publishing:
+
+- `npm run desktop:share:none` updates `apps/web/public/desktop-update.json` with version, download URL, notes, and `sha256`.
+- `npm run desktop:share:force` publishes a required update (`forceUpdate: true`) with a patched desktop version.
+- If `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` is not set, release uses a Cloudflare quick tunnel URL (ephemeral).

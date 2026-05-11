@@ -6,6 +6,11 @@ Create a local `.env.local` from `.env.example` and set:
 
 - `NEXT_PUBLIC_API_URL` for the API origin used by the web client.
 - `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY` to enable browser push subscription for profile settings.
+- `NEXUSFORGE_DESKTOP_ONLY` to control launch mode:
+	- `true` keeps the web app desktop-only (non-desktop traffic is redirected to `/desktop-only`).
+	- `false` enables normal browser/mobile access.
+
+The value above is the default/fallback. Admin launch control can override launch mode at runtime via API, and that runtime state is persisted by the server database.
 
 ## Getting Started
 

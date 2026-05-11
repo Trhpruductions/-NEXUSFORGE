@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
-import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, getAdminAiInsights, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue } from "@/lib/api";
+import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, getAdminAiInsights, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue, setAdminLaunchMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -51,6 +51,7 @@ export function AdminDashboard() {
   const [auditActionFilter, setAuditActionFilter] = useState<"all" | "seed-medals" | "generate-sample-data" | "adjust-reputation">("all");
   const [auditActorFilter, setAuditActorFilter] = useState<string>("all");
   const [auditOffset, setAuditOffset] = useState<number>(0);
+  const [desktopOnlyDraft, setDesktopOnlyDraft] = useState<boolean>(true);
   const auditPageSize = 30;
 
   const summaryQuery = useQuery({
@@ -111,6 +112,12 @@ export function AdminDashboard() {
     queryFn: () => getAdminProfileToolsStatus(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
     refetchInterval: 5000,
+  });
+
+  const launchModeQuery = useQuery({
+    queryKey: ["admin-launch-mode", accessToken],
+    queryFn: () => getAdminLaunchMode(accessToken!, csrfToken!),
+    enabled: Boolean(accessToken && csrfToken),
   });
 
   const toggleAdmin = useMutation({
@@ -212,6 +219,17 @@ export function AdminDashboard() {
     },
   });
 
+  const setLaunchMode = useMutation({
+    mutationFn: async () => setAdminLaunchMode(accessToken!, csrfToken!, desktopOnlyDraft),
+    onSuccess: (data) => {
+      setActionNote(`Launch mode updated: desktop-only is now ${data.desktopOnly ? "ENABLED" : "DISABLED"}.`);
+      void queryClient.invalidateQueries({ queryKey: ["admin-launch-mode", accessToken] });
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to update launch mode."));
+    },
+  });
+
   useEffect(() => {
     if (!selectedUserId && usersQuery.data?.users?.length) {
       setSelectedUserId(usersQuery.data.users[0]!.id);
@@ -237,6 +255,12 @@ export function AdminDashboard() {
   useEffect(() => {
     setAuditOffset(0);
   }, [auditActionFilter, auditActorFilter]);
+
+  useEffect(() => {
+    if (typeof launchModeQuery.data?.desktopOnly === "boolean") {
+      setDesktopOnlyDraft(launchModeQuery.data.desktopOnly);
+    }
+  }, [launchModeQuery.data?.desktopOnly]);
 
   useEffect(() => {
     const latestCompletedAt = profileToolsStatusQuery.data?.lastCompletedAt;
@@ -321,14 +345,49 @@ export function AdminDashboard() {
             Failed Payments (30d): <span className="font-semibold text-rose-200">{revenueQuery.data?.revenue.failedPayments ?? 0}</span>
           </div>
         </div>
+
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-100">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Launch Control</p>
+          <p className="mt-1 text-slate-300">
+            Runtime launch gate currently <span className="font-semibold text-amber-100">{launchModeQuery.data?.desktopOnly ? "DESKTOP ONLY" : "WEB + MOBILE ENABLED"}</span>.
+          </p>
+          <p className="mt-1 text-slate-400">
+            Source: {launchModeQuery.data?.source ?? "-"}
+            {launchModeQuery.data?.updatedBy ? ` • Updated by ${launchModeQuery.data.updatedBy.username}` : ""}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant="ghost"
+              className={`h-8 px-3 text-xs ${desktopOnlyDraft ? "border border-cyan-500/35 bg-cyan-950/25 text-cyan-100" : ""}`}
+              onClick={() => setDesktopOnlyDraft(true)}
+            >
+              Desktop Only
+            </Button>
+            <Button
+              variant="ghost"
+              className={`h-8 px-3 text-xs ${!desktopOnlyDraft ? "border border-emerald-500/35 bg-emerald-950/25 text-emerald-100" : ""}`}
+              onClick={() => setDesktopOnlyDraft(false)}
+            >
+              Enable Web/Mobile
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-8 px-3 text-xs"
+              onClick={() => setLaunchMode.mutate()}
+              disabled={setLaunchMode.isPending || launchModeQuery.isLoading}
+            >
+              {setLaunchMode.isPending ? "Applying..." : "Apply Launch Mode"}
+            </Button>
+          </div>
+        </div>
       </section>
 
       <section className="nexus-panel rounded-2xl p-5">
         <h2 className="mb-4 text-xs uppercase tracking-[0.24em] text-cyan-300">Moderation Queue</h2>
         <div className="space-y-2">
           {usersQuery.data?.users.map((entry) => (
-            <div key={entry.id} className="flex items-center justify-between rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-sm text-slate-200 shadow-[inset_0_1px_0_rgba(148,163,184,0.08)]">
-              <div>
+            <div key={entry.id} className="nexus-list-row nexus-interactive-card flex-col items-stretch gap-3 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between">
+              <div className="nexus-list-main">
                 <p className="flex items-center gap-2">
                   <span>{entry.username}</span>
                   <span className="rounded-full border border-cyan-500/35 bg-cyan-950/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-cyan-100">
@@ -337,7 +396,7 @@ export function AdminDashboard() {
                 </p>
                 <p className="text-xs text-slate-400">{entry.email}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                 <select
                   value={roleDraftByUser[entry.id] ?? entry.appRole}
                   onChange={(event) =>
@@ -346,7 +405,7 @@ export function AdminDashboard() {
                       [entry.id]: event.target.value as AppRole,
                     }))
                   }
-                  className="h-9 rounded-lg border border-slate-600/80 bg-slate-950/80 px-2 text-xs text-slate-100"
+                  className="h-9 min-w-0 rounded-lg border border-slate-600/80 bg-slate-950/80 px-2 text-xs text-slate-100 sm:min-w-[140px]"
                   aria-label={`Select role for ${entry.username}`}
                 >
                   <option value="USER">USER</option>
@@ -357,7 +416,7 @@ export function AdminDashboard() {
                 </select>
                 <Button
                   variant="ghost"
-                  className="h-9 px-3 text-xs"
+                  className="h-9 px-3 text-xs nexus-interactive-btn"
                   onClick={() =>
                     setUserRole.mutate({
                       userId: entry.id,
@@ -368,7 +427,7 @@ export function AdminDashboard() {
                 >
                   Apply Role
                 </Button>
-                <Button variant="ghost" className="h-9 px-3 text-xs" onClick={() => toggleAdmin.mutate(entry.id)}>
+                <Button variant="ghost" className="h-9 px-3 text-xs nexus-interactive-btn" onClick={() => toggleAdmin.mutate(entry.id)}>
                   {entry.isAdmin ? "Quick Demote" : "Quick Promote"}
                 </Button>
               </div>
@@ -390,7 +449,7 @@ export function AdminDashboard() {
             </thead>
             <tbody>
               {(revenueQuery.data?.featureRevenue ?? []).map((row) => (
-                <tr key={row.featureCode} className="border-b border-slate-800/70 text-slate-200">
+                <tr key={row.featureCode} className="border-b border-slate-800/70 text-slate-200 transition-colors hover:bg-slate-900/45">
                   <td className="py-2 pr-3 font-medium text-slate-100">{row.featureCode}</td>
                   <td className="py-2 pr-3 text-emerald-200">{formatUsd(row.revenueCents)}</td>
                   <td className="py-2">{row.transactions}</td>

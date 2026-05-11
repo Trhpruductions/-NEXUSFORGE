@@ -8,6 +8,11 @@ out/
 dist/
 build/
 coverage/
+apps/desktop/release/
+apps/desktop/*.blockmap
+apps/desktop/*.exe
+apps/desktop/7za
+apps/desktop/%NEXUSFORGE_DESKTOP_PROFILE_DIR%/
 
 # Logs
 npm-debug.log*

@@ -1,0 +1,86 @@
+# NexusForge Beta Testing Runbook
+
+## Purpose
+Use this runbook to start beta services, expose public links, and onboard testers with consistent flows.
+
+## Fast Path (One Command)
+From repository root:
+
+```bash
+npm run beta:share
+```
+
+This script will:
+- clean conflicting ports
+- start API + web
+- start API + web tunnels
+- write `apps/web/.env.local` with public API URL
+- print the final tester link
+- write all links to `BETA_LINKS.txt`
+
+To stop all beta processes from the saved PID list:
+
+```bash
+npm run beta:stop
+```
+
+## 1) Start Beta Services
+From repository root:
+
+```bash
+npm run beta:start
+```
+
+This starts:
+- Web on `http://localhost:3100`
+- API on `http://localhost:4000`
+
+## 2) Start Public Tunnels (Two Terminals)
+Terminal A (web):
+
+```bash
+npm run beta:tunnel:web
+```
+
+Terminal B (api):
+
+```bash
+npm run beta:tunnel:api
+```
+
+Copy the generated tunnel URLs.
+
+## 3) Web Environment for Public API
+Set `apps/web/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=<your api tunnel url>
+NEXUSFORGE_DESKTOP_ONLY=false
+```
+
+Restart web after editing env values.
+
+## 4) Primary Tester Entry URL
+Send testers to:
+
+- `<your web tunnel url>/beta`
+
+From there they can access:
+- `/beta/checklist`
+- `/beta/feedback`
+
+## 5) Suggested Message To Testers
+Use this template:
+
+```text
+NexusForge Beta is live.
+Start here: <your web tunnel url>/beta
+
+Please run the checklist and submit findings using the built-in feedback page.
+When reporting issues, include route URL, timestamp, and repro steps.
+```
+
+## 6) Stability Notes
+- Keep all beta and tunnel terminals running.
+- Quick tunnel URLs rotate if restarted.
+- If links fail, restart tunnel commands and resend new URLs.

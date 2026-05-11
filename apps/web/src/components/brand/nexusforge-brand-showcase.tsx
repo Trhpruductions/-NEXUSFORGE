@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 export function NexusforgeBrandShowcase() {
   return (
@@ -36,9 +37,11 @@ export function NexusforgeBrandShowcase() {
           whileHover={{ scale: 1.015, rotateX: -1.5, rotateY: 1.5 }}
         >
           <div className="ember-frame holo-frame orbital-logo">
-            <img
+            <Image
               src="/brand/nexusforge-main-logo.png"
               alt="NexusForge logo"
+              width={960}
+              height={320}
               className="image-pan h-[280px] w-full rounded-2xl object-cover sm:h-[320px]"
             />
           </div>
@@ -53,16 +56,18 @@ export function NexusforgeBrandShowcase() {
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.06 }}
           className="nexus-panel relative overflow-hidden rounded-3xl p-5"
         >
-          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200">Core+ Card</p>
-          <p className="mt-1 text-xs text-slate-400">Premium identity card with utility and cosmetic perks.</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200">Boost Tier Badges</p>
+          <p className="mt-1 text-xs text-slate-400">Starter Core through Infinite League in one visual ladder.</p>
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <img
-              src="/brand/core-plus-card.png"
-              alt="NexusForge Core+ membership card"
-              className="image-pan h-52 w-full rounded-2xl object-cover"
+            <Image
+              src="/brand/boost-tier-badges.png"
+              alt="NexusForge boost tier badges"
+              width={640}
+              height={640}
+              className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
-          <p className="mt-3 text-xs text-cyan-100">Includes profile prestige, queue priority, and premium visuals.</p>
+          <p className="mt-3 text-xs text-cyan-100">Used as the canonical tier art across pricing and Core+ surfaces.</p>
         </motion.article>
 
         <motion.article
@@ -72,13 +77,15 @@ export function NexusforgeBrandShowcase() {
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.12 }}
           className="nexus-panel relative overflow-hidden rounded-3xl p-5"
         >
-          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200">Boost Levels</p>
-          <p className="mt-1 text-xs text-slate-400">Tiered performance and access upgrades with forge progression.</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200">Boost Pack Emblem</p>
+          <p className="mt-1 text-xs text-slate-400">Primary icon for boost offers, promos, and purchase rails.</p>
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <img
-              src="/brand/boost-levels-card.png"
-              alt="NexusForge boost level tiers"
-              className="image-pan h-52 w-full rounded-2xl object-cover"
+            <Image
+              src="/brand/boost-pack-icon.png"
+              alt="NexusForge boost pack icon"
+              width={640}
+              height={640}
+              className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
           <p className="mt-3 text-xs text-emerald-100">Designed for visible progression and high-retention engagement loops.</p>

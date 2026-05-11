@@ -1,0 +1,15 @@
+
+> nexusforge@1.0.0 beta:api
+> npm run dev -w @nexusforge/server
+
+
+> @nexusforge/server@1.0.0 dev
+> npx --yes tsx watch src/index.ts
+
+◇ injected env (23) from .env // tip: ⌘ override existing { override: true }
+◇ injected env (0) from apps\server\.env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+NexusForge API running on http://localhost:4000
+[0mGET /api/runtime/launch-mode [32m200[0m 38.119 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 1.675 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 26.698 ms - 143[0m

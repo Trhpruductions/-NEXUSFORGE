@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import Image from "next/image";
 import QRCode from "qrcode";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,7 +32,6 @@ import {
   getForgeOnboardingHealth,
   getCorePlusTelemetry,
   getMessages,
-  joinForge,
   listDmThreads,
   listForges,
   listFriends,
@@ -236,6 +236,16 @@ export function ForgeChatClient() {
   const [dmDraft, setDmDraft] = useState("");
   const [dmUnreadByThread, setDmUnreadByThread] = useState<Record<string, number>>({});
   const [dmPreviewByThread, setDmPreviewByThread] = useState<Record<string, string>>({});
+
+  const selectDmThread = (threadId: string | null) => {
+    setSelectedDmThreadId(threadId);
+    if (!threadId) return;
+
+    setDmUnreadByThread((current) => ({
+      ...current,
+      [threadId]: 0,
+    }));
+  };
 
   const [selectedVoiceChannelId, setSelectedVoiceChannelId] = useState<string | null>(null);
   const [voiceSession, setVoiceSession] = useState<(VoiceTokenResponse & { channelId: string }) | null>(null);
@@ -875,7 +885,7 @@ export function ForgeChatClient() {
     mutationFn: (targetUserId: string) => createDmThread(accessToken!, csrfToken!, targetUserId),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["dm-threads", accessToken] });
-      setSelectedDmThreadId(result.thread.id);
+      selectDmThread(result.thread.id);
       setStatusMessage("DM thread ready.");
     },
   });
@@ -1057,7 +1067,7 @@ export function ForgeChatClient() {
 
   useEffect(() => {
     if (!selectedDmThreadId && dmThreadsQuery.data?.threads?.length) {
-      setSelectedDmThreadId(dmThreadsQuery.data.threads[0].id);
+      selectDmThread(dmThreadsQuery.data.threads[0].id);
     }
   }, [dmThreadsQuery.data, selectedDmThreadId]);
 
@@ -1293,14 +1303,6 @@ export function ForgeChatClient() {
       }
     };
   }, [accessToken, dmThreadsQuery.data?.threads]);
-
-  useEffect(() => {
-    if (!selectedDmThreadId) return;
-    setDmUnreadByThread((current) => ({
-      ...current,
-      [selectedDmThreadId]: 0,
-    }));
-  }, [selectedDmThreadId]);
 
   const uploadFiles = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
@@ -1558,7 +1560,7 @@ export function ForgeChatClient() {
     queryClient.clear();
     setSelectedForgeId(null);
     setSelectedChannelId(null);
-    setSelectedDmThreadId(null);
+    selectDmThread(null);
     setSelectedVoiceChannelId(null);
     setVoiceSession(null);
     router.push("/login");
@@ -1804,7 +1806,14 @@ export function ForgeChatClient() {
         <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1 text-[11px]">
           <div className="flex items-center gap-2 rounded-full border border-slate-600/80 bg-slate-900/75 px-2 py-1 text-slate-100">
             {user.avatar ? (
-              <img src={user.avatar} alt={`${user.username} avatar`} className="h-7 w-7 rounded-full border border-cyan-500/40 object-cover" />
+              <Image
+                src={user.avatar}
+                alt={`${user.username} avatar`}
+                width={28}
+                height={28}
+                unoptimized
+                className="h-7 w-7 rounded-full border border-cyan-500/40 object-cover"
+              />
             ) : (
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/35 bg-cyan-950/35 text-[10px] font-semibold text-cyan-100">
                 {userInitials(user.username)}
@@ -2507,7 +2516,14 @@ export function ForgeChatClient() {
                   <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">QR Preview</p>
                   <p className="text-[11px] text-slate-400">Scan this to open the tagged invite link on another device.</p>
                   <div className="flex items-center justify-start rounded-lg border border-slate-700/80 bg-slate-950/80 p-3">
-                    <img src={selectedInviteQrCode} alt="Invite QR code" className="h-44 w-44 rounded-md bg-white p-2" />
+                    <Image
+                      src={selectedInviteQrCode}
+                      alt="Invite QR code"
+                      width={176}
+                      height={176}
+                      unoptimized
+                      className="h-44 w-44 rounded-md bg-white p-2"
+                    />
                   </div>
                 </div>
               ) : null}
@@ -2782,7 +2798,12 @@ export function ForgeChatClient() {
         transition={{ duration: 0.36, delay: 0.16, ease: "easeOut" }}
         className="nexus-panel order-3 max-h-[72vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
       >
-        <h2 className="command-section-title mb-3">Channels</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="command-section-title">Channels</h2>
+          <span className="rounded-full border border-slate-600/80 bg-slate-900/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+            {textChannels.length + voiceChannels.length} total
+          </span>
+        </div>
 
         <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Text</p>
         <div className="mb-4 space-y-1">
@@ -2790,13 +2811,23 @@ export function ForgeChatClient() {
             <button
               key={channel.id}
               onClick={() => setSelectedChannelId(channel.id)}
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+              className={`nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                 selectedChannelId === channel.id
-                  ? "border border-cyan-500/40 bg-cyan-950/45 text-cyan-100"
-                  : "text-slate-300 hover:bg-slate-800"
+                  ? "border-cyan-500/45 bg-cyan-950/45 text-cyan-100"
+                  : "border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-cyan-500/35"
               }`}
             >
-              # {channel.name}
+              <span className="flex items-center justify-between gap-2">
+                <span className="truncate">
+                  <span className="mr-1 text-cyan-300/80">#</span>
+                  {channel.name}
+                </span>
+                {(typingUsersByChannel[channel.id]?.length ?? 0) > 0 ? (
+                  <span className="rounded-full border border-cyan-500/35 bg-cyan-950/35 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                    {typingUsersByChannel[channel.id]?.length} typing
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
         </div>
@@ -2807,13 +2838,21 @@ export function ForgeChatClient() {
             <button
               key={channel.id}
               onClick={() => setSelectedVoiceChannelId(channel.id)}
-              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+              className={`nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
                 selectedVoiceChannelId === channel.id
-                  ? "border border-emerald-500/40 bg-emerald-950/45 text-emerald-100"
-                  : "text-slate-300 hover:bg-slate-800"
+                  ? "border-emerald-500/40 bg-emerald-950/45 text-emerald-100"
+                  : "border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-emerald-500/35"
               }`}
             >
-              {channel.type === "STAGE" ? "(stage)" : "(voice)"} {channel.name}
+              <span className="flex items-center justify-between gap-2">
+                <span className="truncate">
+                  <span className="mr-1 text-emerald-300/80">{channel.type === "STAGE" ? "(stage)" : "(voice)"}</span>
+                  {channel.name}
+                </span>
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-1.5 py-0.5 text-[10px] text-emerald-100">
+                  {voicePresenceByChannel[channel.id]?.length ?? 0} live
+                </span>
+              </span>
             </button>
           ))}
         </div>
@@ -2882,8 +2921,9 @@ export function ForgeChatClient() {
         </div>
 
         <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/80 bg-slate-950/92 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
-          <div className="mb-2 flex items-center gap-2 text-xs text-slate-300">
-            <label className="cursor-pointer rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-1 hover:border-cyan-500/70">
+          <div className="nexus-display-panel rounded-2xl border border-slate-700/70 p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <label className="nexus-interactive-btn cursor-pointer rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-1 hover:border-cyan-500/70">
               Attach Files
               <input
                 type="file"
@@ -2895,78 +2935,80 @@ export function ForgeChatClient() {
                 }}
               />
             </label>
-            {pendingFiles.length ? <span>{pendingFiles.length} file(s) queued</span> : null}
-          </div>
+              {pendingFiles.length ? <span className="rounded-full border border-cyan-500/30 bg-cyan-950/30 px-2 py-0.5 text-cyan-100">{pendingFiles.length} file(s) queued</span> : null}
+            </div>
 
-          <div className="mb-2 min-h-5 text-xs text-cyan-200">
-            {activeTypingUsers.length ? (
-              <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
-                <motion.span
-                  initial={{ opacity: 0.4 }}
-                  animate={{ opacity: [0.35, 1, 0.35] }}
-                  transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
-                  className="inline-flex gap-1"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                </motion.span>
-                {activeTypingUsers.join(", ")} typing...
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                value={messageDraft}
-                onChange={(event) => onMessageDraftChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Tab" && slashCommandSuggestions.length) {
-                    event.preventDefault();
-                    insertSlashCommand(slashCommandSuggestions[0].name);
-                    return;
-                  }
-
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void onSendChannelMessage();
-                  }
-                }}
-                placeholder={selectedChannelId ? "Type a message or / for bot commands..." : "Select a channel to chat"}
-                className="h-11 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-cyan-500"
-              />
-              {slashCommandSuggestions.length ? (
-                <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-xl border border-indigo-500/25 bg-slate-950/96 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
-                  <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-indigo-200">Slash Commands</p>
-                  <div className="space-y-1">
-                    {slashCommandSuggestions.map((command) => (
-                      <button
-                        key={command.id}
-                        type="button"
-                        onClick={() => insertSlashCommand(command.name)}
-                        className="flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/75 px-3 py-2 text-left text-xs text-slate-200 hover:border-cyan-500/50"
-                      >
-                        <span className="min-w-0">
-                          <span className="font-semibold text-cyan-100">/{command.name}</span>
-                          <span className="ml-2 text-slate-400">{command.description ?? `${command.botName} command`}</span>
-                        </span>
-                        <span className="ml-3 shrink-0 rounded-full border border-indigo-500/30 bg-indigo-950/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-indigo-100">
-                          {command.botName}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[10px] text-slate-500">Press Tab to accept the top command.</p>
-                </div>
+            <div className="mb-2 min-h-5 text-xs text-cyan-200">
+              {activeTypingUsers.length ? (
+                <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
+                  <motion.span
+                    initial={{ opacity: 0.4 }}
+                    animate={{ opacity: [0.35, 1, 0.35] }}
+                    transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+                    className="inline-flex gap-1"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  </motion.span>
+                  {activeTypingUsers.join(", ")} typing...
+                </span>
               ) : null}
             </div>
-            <Button
-              onClick={() => void onSendChannelMessage()}
-              disabled={sendMessageMutation.isPending || !selectedChannelId || !messageDraft.trim()}
-            >
-              Send
-            </Button>
+
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  value={messageDraft}
+                  onChange={(event) => onMessageDraftChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Tab" && slashCommandSuggestions.length) {
+                      event.preventDefault();
+                      insertSlashCommand(slashCommandSuggestions[0].name);
+                      return;
+                    }
+
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void onSendChannelMessage();
+                    }
+                  }}
+                  placeholder={selectedChannelId ? "Broadcast to active channel or type / for automation" : "Select a channel to chat"}
+                  className="h-11 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                {slashCommandSuggestions.length ? (
+                  <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-xl border border-indigo-500/25 bg-slate-950/96 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
+                    <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-indigo-200">Slash Commands</p>
+                    <div className="space-y-1">
+                      {slashCommandSuggestions.map((command) => (
+                        <button
+                          key={command.id}
+                          type="button"
+                          onClick={() => insertSlashCommand(command.name)}
+                          className="nexus-interactive-card flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/75 px-3 py-2 text-left text-xs text-slate-200 hover:border-cyan-500/50"
+                        >
+                          <span className="min-w-0">
+                            <span className="font-semibold text-cyan-100">/{command.name}</span>
+                            <span className="ml-2 text-slate-400">{command.description ?? `${command.botName} command`}</span>
+                          </span>
+                          <span className="ml-3 shrink-0 rounded-full border border-indigo-500/30 bg-indigo-950/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-indigo-100">
+                            {command.botName}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-slate-500">Press Tab to accept the top command.</p>
+                  </div>
+                ) : null}
+              </div>
+              <Button
+                className="nexus-interactive-btn"
+                onClick={() => void onSendChannelMessage()}
+                disabled={sendMessageMutation.isPending || !selectedChannelId || !messageDraft.trim()}
+              >
+                Send
+              </Button>
+            </div>
           </div>
         </div>
       </motion.main>
@@ -3042,12 +3084,12 @@ export function ForgeChatClient() {
 
         <div className="mb-4 rounded-xl border border-slate-700/80 bg-slate-950/72 p-3">
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">DM Threads</p>
-          <div className="max-h-24 space-y-1 overflow-y-auto">
+          <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
             {dmThreadsQuery.data?.threads.map((thread) => (
               <button
                 key={thread.id}
-                onClick={() => setSelectedDmThreadId(thread.id)}
-                className={`w-full rounded border px-2 py-1 text-left text-xs transition ${
+                onClick={() => selectDmThread(thread.id)}
+                className={`nexus-interactive-card w-full rounded-xl border px-2.5 py-2 text-left text-xs transition ${
                   selectedDmThreadId === thread.id
                     ? "border-cyan-500/50 bg-cyan-950/55 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
                     : "border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-cyan-500/40"
@@ -3058,15 +3100,25 @@ export function ForgeChatClient() {
                     <span className="inline-flex items-center gap-1.5">
                       <span className={`h-1.5 w-1.5 rounded-full ${selectedDmThreadId === thread.id ? "bg-cyan-300" : "bg-slate-500"}`} />
                       <span className="truncate">{threadLabel(thread, user.id)}</span>
+                      {(typingUsersByThread[thread.id]?.length ?? 0) > 0 ? (
+                        <span className="rounded-full border border-cyan-500/30 bg-cyan-950/30 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                          typing
+                        </span>
+                      ) : null}
                     </span>
                     <p className="mt-0.5 truncate text-[10px] text-slate-400">
                       {dmPreviewByThread[thread.id] || "No messages yet"}
                     </p>
                   </div>
                   {(dmUnreadByThread[thread.id] ?? 0) > 0 ? (
-                    <span className="rounded-full border border-cyan-500/45 bg-cyan-950/45 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                    <motion.span
+                      initial={{ scale: 0.9, opacity: 0.8 }}
+                      animate={{ scale: [1, 1.08, 1], opacity: [0.9, 1, 0.9] }}
+                      transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+                      className="rounded-full border border-cyan-500/45 bg-cyan-950/45 px-1.5 py-0.5 text-[10px] text-cyan-100"
+                    >
                       {dmUnreadByThread[thread.id]}
-                    </span>
+                    </motion.span>
                   ) : null}
                 </div>
               </button>
@@ -3074,13 +3126,13 @@ export function ForgeChatClient() {
           </div>
 
           <p className="mt-3 mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Start DM</p>
-          <div className="max-h-20 space-y-1 overflow-y-auto">
+          <div className="max-h-24 space-y-1 overflow-y-auto">
             {acceptedFriends.map((friend) => {
               const peer = friend.senderId === user.id ? friend.receiver : friend.sender;
               return (
                 <button
                   key={friend.id}
-                  className="w-full rounded border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-left text-xs text-slate-200 hover:border-cyan-500/40"
+                  className="nexus-interactive-card w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-left text-xs text-slate-200 hover:border-cyan-500/40"
                   onClick={() => createDmThreadMutation.mutate(peer.id)}
                 >
                   {peer.username}
@@ -3129,9 +3181,9 @@ export function ForgeChatClient() {
                 }
               }}
               placeholder="Message"
-              className="h-9 flex-1 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100"
+              className="h-9 flex-1 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-cyan-500"
             />
-            <Button className="h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>
+            <Button className="nexus-interactive-btn h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>
               Send
             </Button>
           </div>

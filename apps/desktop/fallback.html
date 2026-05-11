@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NexusForge Desktop Startup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #020617;
+        --panel: rgba(15, 23, 42, 0.85);
+        --panel-border: rgba(56, 189, 248, 0.25);
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #22d3ee;
+        --accent-strong: #0891b2;
+        --danger: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", "Inter", sans-serif;
+        background: radial-gradient(circle at 10% 10%, #0f172a 0%, var(--bg) 55%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(760px, 100%);
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+        padding: 28px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      p {
+        margin: 0 0 16px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .status {
+        margin: 14px 0 18px;
+        font-weight: 600;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        font-size: 13px;
+        margin: 14px 0 22px;
+      }
+
+      .meta div {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        background: rgba(2, 6, 23, 0.45);
+      }
+
+      .meta b {
+        display: block;
+        color: var(--muted);
+        font-weight: 500;
+        margin-bottom: 5px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        color: #001018;
+        background: var(--accent);
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      button.secondary {
+        background: #334155;
+        color: var(--text);
+      }
+
+      button.danger {
+        background: #7f1d1d;
+        color: #fee2e2;
+      }
+
+      code {
+        display: block;
+        margin-top: 12px;
+        white-space: pre-wrap;
+        font-size: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        background: rgba(2, 6, 23, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>NexusForge Desktop Is Warming Up</h1>
+      <p>
+        The app could not reach local services yet. Use the controls below to start services,
+        inspect status, and reconnect without closing desktop.
+      </p>
+      <div id="status" class="status">Checking local stack...</div>
+      <section class="meta">
+        <div><b>Target URL</b><span id="target">-</span></div>
+        <div><b>Workspace</b><span id="workspace">-</span></div>
+        <div><b>Ports</b><span id="ports">-</span></div>
+        <div><b>Last Error</b><span id="error">-</span></div>
+      </section>
+      <section class="actions">
+        <button id="start">Start Local Stack</button>
+        <button id="retry" class="secondary">Retry Connection</button>
+        <button id="log" class="secondary">Open Stack Log</button>
+        <button id="reload" class="danger">Reload Window</button>
+      </section>
+      <code id="history">History: none</code>
+    </main>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const targetEl = document.getElementById("target");
+      const workspaceEl = document.getElementById("workspace");
+      const portsEl = document.getElementById("ports");
+      const errorEl = document.getElementById("error");
+      const historyEl = document.getElementById("history");
+
+      async function refreshStatus() {
+        try {
+          const status = await window.nexusforgeDesktop.getLocalStackStatus();
+          targetEl.textContent = status.startUrl || "-";
+          workspaceEl.textContent = status.workspacePath || "not detected";
+          portsEl.textContent = `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
+          errorEl.textContent = status.lastError || "none";
+          statusEl.textContent = status.message || "Waiting for local stack.";
+          const history = status.history && status.history.length ? status.history.join("\n") : "History: none";
+          historyEl.textContent = history;
+        } catch (error) {
+          statusEl.textContent = "Unable to load startup status.";
+          errorEl.textContent = String(error);
+        }
+      }
+
+      document.getElementById("start").addEventListener("click", async () => {
+        statusEl.textContent = "Starting local stack...";
+        await window.nexusforgeDesktop.startLocalStack();
+        await refreshStatus();
+      });
+
+      document.getElementById("retry").addEventListener("click", async () => {
+        statusEl.textContent = "Retrying local connection...";
+        await window.nexusforgeDesktop.retryAppLoad();
+        await refreshStatus();
+      });
+
+      document.getElementById("log").addEventListener("click", async () => {
+        await window.nexusforgeDesktop.openLocalStackLog();
+      });
+
+      document.getElementById("reload").addEventListener("click", async () => {
+        await window.nexusforgeDesktop.reloadWindow();
+      });
+
+      refreshStatus();
+      setInterval(refreshStatus, 2500);
+    </script>
+  </body>
+</html>

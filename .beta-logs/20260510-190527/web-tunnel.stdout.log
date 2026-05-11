@@ -1,0 +1,4 @@
+
+> nexusforge@1.0.0 beta:tunnel:web
+> npx --yes cloudflared tunnel --url http://localhost:3100
+

@@ -73,26 +73,35 @@ body::after {
   transition: background 340ms ease;
 }
 
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
 .nexus-shell {
-  min-height: 100vh;
-  padding: 1rem 0.85rem;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1.25rem 1rem;
+  scroll-behavior: smooth;
 }
 
 .nexus-shell-inner {
   margin-inline: auto;
   width: 100%;
-  max-width: 82rem;
-  display: grid;
-  gap: 0.85rem;
+  max-width: 90rem;
 }
 
 @media (min-width: 640px) {
   .nexus-shell {
-    padding: 1.5rem 1.25rem;
+    padding: 1.75rem 1.5rem;
   }
+}
 
-  .nexus-shell-inner {
-    gap: 1rem;
+@media (min-width: 1024px) {
+  .nexus-shell {
+    padding: 2rem;
   }
 }
 
@@ -154,6 +163,140 @@ body::after {
   box-shadow:
     inset 0 1px 0 rgba(125, 211, 252, 0.16),
     0 20px 50px rgba(8, 47, 73, 0.35);
+}
+
+.nexus-display-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.18), transparent 28%),
+    linear-gradient(160deg, rgba(3, 10, 22, 0.96), rgba(7, 17, 32, 0.85));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 70px rgba(2, 6, 23, 0.5);
+}
+
+.nexus-display-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.06), transparent 36%),
+    radial-gradient(circle at 80% 80%, rgba(251, 146, 60, 0.08), transparent 28%);
+}
+
+.nexus-metric-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(71, 85, 105, 0.72);
+  background: linear-gradient(145deg, rgba(10, 18, 33, 0.92), rgba(15, 23, 42, 0.7));
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.08),
+    0 16px 34px rgba(2, 6, 23, 0.28);
+}
+
+.nexus-metric-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.45), transparent);
+}
+
+.nexus-signal-rail {
+  border: 1px solid rgba(71, 85, 105, 0.76);
+  background: linear-gradient(145deg, rgba(2, 6, 23, 0.84), rgba(15, 23, 42, 0.72));
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+.nexus-signal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 20px rgba(52, 211, 153, 0.55);
+}
+
+.nexus-glow-button {
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(8, 47, 73, 0.55));
+  box-shadow: 0 12px 28px rgba(8, 47, 73, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.nexus-outline-button {
+  border: 1px solid rgba(71, 85, 105, 0.9);
+  background: rgba(2, 6, 23, 0.55);
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+.nexus-interactive-card {
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, background-color 170ms ease;
+}
+
+.nexus-interactive-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.08),
+    0 16px 30px rgba(2, 6, 23, 0.3);
+}
+
+.nexus-interactive-btn {
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.nexus-interactive-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.nexus-grid-lines {
+  position: relative;
+}
+
+.nexus-grid-lines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 88%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 88%);
+}
+
+.nexus-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  border: 1px solid rgba(71, 85, 105, 0.8);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.82);
+  padding: 0.7rem;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+.nexus-list-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.nexus-list-end {
+  flex-shrink: 0;
+  padding-left: 0.35rem;
+  text-align: right;
+}
+
+@media (min-width: 640px) {
+  .nexus-list-row {
+    gap: 0.9rem;
+    padding: 0.85rem;
+  }
 }
 
 .nexus-pill {
@@ -262,6 +405,10 @@ body::after {
   animation: logoThrob 3.2s ease-in-out infinite;
 }
 
+.slow-float {
+  animation: slowFloat 9s ease-in-out infinite;
+}
+
 .orbital-logo::after {
   content: "";
   position: absolute;
@@ -342,13 +489,32 @@ body::after {
   }
 }
 
+@keyframes slowFloat {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .image-pan,
   .logo-throb,
+  .slow-float,
   .orbital-logo::after,
   .ember-frame::before,
   .holo-frame::after {
     animation: none !important;
+  }
+
+  .nexus-interactive-card,
+  .nexus-interactive-btn {
+    transition: none !important;
+    transform: none !important;
   }
 
   *,

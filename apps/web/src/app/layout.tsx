@@ -35,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${exo.variable} ${orbitron.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${exo.variable} ${orbitron.variable} h-screen w-screen overflow-hidden antialiased`}>
+      <body className="h-screen w-screen m-0 p-0 overflow-hidden flex flex-col">
         <AppProviders>
           <RouteTransition>{children}</RouteTransition>
         </AppProviders>

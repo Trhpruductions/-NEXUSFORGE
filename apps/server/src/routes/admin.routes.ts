@@ -10,6 +10,15 @@ import {
   SAMPLE_PROFILE_GENERATION_COOLDOWN_MS,
   SAMPLE_PROFILE_GENERATION_STALE_MS,
 } from "../lib/profile-tool-generation.js";
+import {
+  canAssignRole,
+  canModifyTarget,
+  hasAdminAccess,
+  privilegedAppRoles,
+  resolveEffectiveRole,
+} from "../lib/app-roles.js";
+import { getLaunchMode, setLaunchModeDesktopOnly } from "../lib/launch-mode.js";
+import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
@@ -18,26 +27,6 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAuth);
 adminRouter.use(requireAdmin);
-
-type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
-
-const privilegedRoles = new Set<AppRole>(["ADMIN", "EXEC", "OWNER"]);
-const roleRank: Record<AppRole, number> = {
-  USER: 0,
-  MODERATOR: 1,
-  ADMIN: 2,
-  EXEC: 3,
-  OWNER: 4,
-};
-
-function resolveEffectiveRole(role: AppRole | null | undefined, isAdmin: boolean): AppRole {
-  if (role) return role;
-  return isAdmin ? "ADMIN" : "USER";
-}
-
-function hasAdminAccess(role: AppRole | null | undefined, isAdmin: boolean): boolean {
-  return isAdmin || (role ? privilegedRoles.has(role) : false);
-}
 
 const setRoleSchema = z.object({
   role: z.enum(["USER", "MODERATOR", "ADMIN", "EXEC", "OWNER"]),
@@ -925,7 +914,7 @@ adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
       where: {
         OR: [
           { isAdmin: true },
-          { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } },
+          { appRole: { in: privilegedAppRoles } },
         ],
       },
     });
@@ -940,7 +929,7 @@ adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
     where: { id: user.id },
     data: {
       appRole: nextRole,
-      isAdmin: privilegedRoles.has(nextRole),
+      isAdmin: privilegedAppRoles.includes(nextRole),
     },
     select: {
       id: true,
@@ -1005,27 +994,22 @@ adminRouter.post("/users/:id/set-role", async (req, res) => {
     return;
   }
 
-  if (roleRank[nextRole] > roleRank[actorRole]) {
-    res.status(403).json({ error: "Cannot assign a role above your own" });
+  if (!canAssignRole(actorRole, nextRole)) {
+    res.status(403).json({ error: "Cannot assign this role with current permissions" });
     return;
   }
 
-  if ((nextRole === "EXEC" || nextRole === "OWNER") && actorRole !== "OWNER") {
-    res.status(403).json({ error: "Only OWNER can assign EXEC or OWNER roles" });
-    return;
-  }
-
-  if (actor.id !== target.id && roleRank[targetRole] >= roleRank[actorRole]) {
+  if (!canModifyTarget(actor.id, target.id, actorRole, targetRole)) {
     res.status(403).json({ error: "Cannot modify users with equal or higher role" });
     return;
   }
 
-  if (nextRole !== targetRole && !privilegedRoles.has(nextRole) && privilegedRoles.has(targetRole)) {
+  if (nextRole !== targetRole && !privilegedAppRoles.includes(nextRole) && privilegedAppRoles.includes(targetRole)) {
     const privilegedCount = await prisma.user.count({
       where: {
         OR: [
           { isAdmin: true },
-          { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } },
+          { appRole: { in: privilegedAppRoles } },
         ],
       },
     });
@@ -1053,7 +1037,7 @@ adminRouter.post("/users/:id/set-role", async (req, res) => {
     where: { id: target.id },
     data: {
       appRole: nextRole,
-      isAdmin: privilegedRoles.has(nextRole),
+      isAdmin: privilegedAppRoles.includes(nextRole),
     },
     select: {
       id: true,
@@ -1161,4 +1145,43 @@ adminRouter.get("/ai-insights", requirePaidFeature("ADVANCED_MODERATION_AI"), as
       bottlenecks,
     },
   });
+});
+
+adminRouter.get("/launch-mode", async (_req, res) => {
+  const launchMode = await getLaunchMode();
+  res.json(launchMode);
+});
+
+adminRouter.post("/launch-mode", async (req, res) => {
+  const schema = z.object({
+    desktopOnly: z.boolean(),
+  });
+
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const launchMode = await setLaunchModeDesktopOnly(parsed.data.desktopOnly, {
+      id: req.user!.id,
+      username: req.user!.username,
+    });
+
+    await logAdminProfileAction(
+      req.user!.id,
+      "Updated launch mode",
+      `Desktop-only mode set to ${parsed.data.desktopOnly ? "ENABLED" : "DISABLED"}.`,
+      {
+        action: "set-launch-mode",
+        desktopOnly: parsed.data.desktopOnly,
+      },
+    );
+
+    res.json(launchMode);
+  } catch (error) {
+    console.error("Failed to persist launch mode update:", error);
+    res.status(503).json({ error: "Launch mode update failed. Please retry." });
+  }
 });

@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "NexusForge API service",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "npx --yes tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test": "npx --yes tsx --test tests/**/*.test.ts",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:profiles": "tsx prisma/seed-profiles.ts"
+    "seed:profiles": "npx --yes tsx prisma/seed-profiles.ts"
   },
   "keywords": [],
   "author": "",

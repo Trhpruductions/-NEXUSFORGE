@@ -28,6 +28,7 @@ type VoiceRoomPanelProps = {
 export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave, statusMessage }: VoiceRoomPanelProps) {
   const roomRef = useRef<Room | null>(null);
   const remoteAudioHostRef = useRef<HTMLDivElement | null>(null);
+  const mutedRef = useRef(voiceState.muted);
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [participants, setParticipants] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -44,17 +45,20 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
   }, [connectionState]);
 
   useEffect(() => {
+    mutedRef.current = voiceState.muted;
+  }, [voiceState.muted]);
+
+  useEffect(() => {
+    const audioHost = remoteAudioHostRef.current;
+
     if (!session) {
       const room = roomRef.current;
       if (room) {
         void room.disconnect();
       }
       roomRef.current = null;
-      setConnectionState(ConnectionState.Disconnected);
-      setParticipants([]);
-      setError(null);
-      if (remoteAudioHostRef.current) {
-        remoteAudioHostRef.current.replaceChildren();
+      if (audioHost) {
+        audioHost.replaceChildren();
       }
       return;
     }
@@ -71,8 +75,8 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
     };
 
     const syncAudioTracks = () => {
-      if (!remoteAudioHostRef.current) return;
-      remoteAudioHostRef.current.replaceChildren();
+      if (!audioHost) return;
+      audioHost.replaceChildren();
 
       room.remoteParticipants.forEach((participant) => {
         participant.getTrackPublications().forEach((publication) => {
@@ -82,7 +86,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
           if (!track || track.kind !== Track.Kind.Audio) return;
           const element = track.attach();
           element.autoplay = true;
-          remoteAudioHostRef.current?.appendChild(element);
+          audioHost.appendChild(element);
         });
       });
     };
@@ -90,8 +94,8 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
     const handleDisconnected = () => {
       setConnectionState(ConnectionState.Disconnected);
       setParticipants([]);
-      if (remoteAudioHostRef.current) {
-        remoteAudioHostRef.current.replaceChildren();
+      if (audioHost) {
+        audioHost.replaceChildren();
       }
     };
 
@@ -114,7 +118,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
         await room.connect(session.wsUrl, session.token, {
           autoSubscribe: true,
         });
-        await room.localParticipant.setMicrophoneEnabled(!voiceState.muted);
+        await room.localParticipant.setMicrophoneEnabled(!mutedRef.current);
         syncParticipants();
         syncAudioTracks();
       } catch (connectError) {
@@ -129,8 +133,8 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
       room.removeAllListeners();
       void room.disconnect();
       roomRef.current = null;
-      if (remoteAudioHostRef.current) {
-        remoteAudioHostRef.current.replaceChildren();
+      if (audioHost) {
+        audioHost.replaceChildren();
       }
     };
   }, [session]);
@@ -144,14 +148,14 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
 
   if (!session) {
     return (
-      <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-400">
+      <div className="nexus-panel rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-400">
         Select a voice or stage channel to start a LiveKit session.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-700/80 bg-slate-950/78 p-3">
+    <div className="nexus-panel rounded-xl border border-slate-700/80 bg-slate-950/78 p-3">
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-400">
         <span className="truncate">{session.roomName}</span>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${connectionTone}`}>
@@ -171,16 +175,16 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
       ) : null}
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <button className={`rounded border px-2 py-1 text-slate-200 ${voiceState.muted ? "border-rose-500/50 bg-rose-950/35" : "border-slate-600"}`} onClick={() => onToggleVoiceFlag("muted")}>
+        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.muted ? "border-rose-500/50 bg-rose-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("muted")}>
           Mute: {voiceState.muted ? "On" : "Off"}
         </button>
-        <button className={`rounded border px-2 py-1 text-slate-200 ${voiceState.deafened ? "border-amber-500/50 bg-amber-950/35" : "border-slate-600"}`} onClick={() => onToggleVoiceFlag("deafened")}>
+        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.deafened ? "border-amber-500/50 bg-amber-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("deafened")}>
           Deafen: {voiceState.deafened ? "On" : "Off"}
         </button>
-        <button className={`rounded border px-2 py-1 text-slate-200 ${voiceState.screenSharing ? "border-violet-500/50 bg-violet-950/35" : "border-slate-600"}`} onClick={() => onToggleVoiceFlag("screenSharing")}>
+        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.screenSharing ? "border-violet-500/50 bg-violet-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("screenSharing")}>
           Screen: {voiceState.screenSharing ? "On" : "Off"}
         </button>
-        <button className={`rounded border px-2 py-1 text-slate-200 ${voiceState.noiseSuppression ? "border-cyan-500/50 bg-cyan-950/35" : "border-slate-600"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
+        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.noiseSuppression ? "border-cyan-500/50 bg-cyan-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
           Noise: {voiceState.noiseSuppression ? "On" : "Off"}
         </button>
       </div>

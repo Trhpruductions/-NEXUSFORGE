@@ -71,14 +71,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
-      <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
+    <div className="nexus-shell flex items-center justify-center">
       <AuthFormCard
         title="Create Account"
         subtitle="Join NexusForge and launch your first Forge"
         footer={
           <div className="flex items-center justify-end">
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-300 hover:text-cyan-200">
+            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
               Already have an account?
             </Link>
           </div>
@@ -108,7 +107,7 @@ export default function RegisterPage() {
             </p>
           ) : null}
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account..." : "Create account"}
+            {isSubmitting ? "Creating account..." : "Create Account"}
           </Button>
         </form>
       </AuthFormCard>

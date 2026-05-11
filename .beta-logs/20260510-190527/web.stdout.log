@@ -1,0 +1,37 @@
+
+> nexusforge@1.0.0 beta:web
+> npm run dev -w web -- --port 3100
+
+
+> web@0.1.0 dev
+> next dev --port 3100
+
+   ▲ Next.js 15.1.0
+   - Local:        http://localhost:3100
+   - Network:      http://192.168.1.136:3100
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1826ms
+ ✓ Compiled /src/middleware in 308ms (98 modules)
+ ○ Compiling /beta/checklist ...
+ ✓ Compiled /beta/checklist in 3.3s (1743 modules)
+ GET /beta/checklist 200 in 3737ms
+ ○ Compiling /app ...
+ ✓ Compiled /app in 1047ms (1810 modules)
+ GET /app 200 in 1355ms
+ GET /beta/checklist 200 in 16ms
+ ✓ Compiled /_not-found in 419ms (1755 modules)
+ GET /api/health 404 in 666ms
+ ✓ Compiled /beta in 256ms (1757 modules)
+ GET /beta 200 in 447ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 1127ms (1999 modules)
+ GET /beta/checklist 200 in 552ms
+ GET /beta/checklist 500 in 1875ms
+ GET /beta/checklist 200 in 9ms
+ GET /_next/static/css/app/layout.css?v=1778458573508 404 in 77ms
+ ○ Compiling /beta/feedback ...
+ ✓ Compiled /beta/feedback in 708ms (2008 modules)
+ GET /beta/feedback 200 in 889ms
+[?25h

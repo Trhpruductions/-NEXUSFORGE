@@ -1,0 +1,13 @@
+{
+    "version":  "1.0.4",
+    "notes":  [
+                  "Improved startup performance",
+                  "Added cinematic splash launch sequence",
+                  "Refined desktop dashboard animation",
+                  "Added desktop update notification center",
+                  "Stability and session recovery improvements"
+              ],
+    "downloadUrl":  "https://mixture-declined-peter-generators.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.4.exe",
+    "sha256":  "f0efbb9ac6d8b12b16dc23dd2e0e5d80892fc88ca9dc581fefe20701474cfba4",
+    "forceUpdate":  true
+}

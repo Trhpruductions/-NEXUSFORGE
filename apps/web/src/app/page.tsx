@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { NexusforgeBrandShowcase } from "@/components/brand/nexusforge-brand-showcase";
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
 import { PoweredByFooter } from "@/components/layout/powered-by-footer";
@@ -97,8 +98,10 @@ export default function Home() {
   return (
     <div className="relative flex flex-1 flex-col overflow-x-clip px-4 py-8 sm:px-8 lg:px-12">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
+      <div className="pointer-events-none absolute left-[8%] top-12 -z-10 h-56 w-56 rounded-full bg-cyan-500/12 blur-3xl" />
+      <div className="pointer-events-none absolute right-[6%] top-28 -z-10 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl" />
       <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-8">
-        <section className="grid gap-6 rounded-3xl border border-slate-700/80 bg-slate-950/50 p-6 backdrop-blur lg:grid-cols-[1.35fr_1fr] lg:p-9">
+        <section className="nexus-display-panel grid gap-6 rounded-[32px] p-6 lg:grid-cols-[1.35fr_1fr] lg:p-9">
           <div className="space-y-5">
             <p className="font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-[0.32em] text-cyan-300">
               NexusForge Platform
@@ -110,54 +113,71 @@ export default function Home() {
               Build gamer-focused communities with channels, streams, AI moderation, roles, premium upgrades,
               and clan events powered by a scalable Next.js + Socket.IO architecture.
             </p>
-            <div className="grid gap-2 text-xs text-slate-200 sm:grid-cols-3">
-              <div className="glass-cut rounded-xl px-3 py-2">
+            <div className="grid gap-3 text-xs text-slate-200 sm:grid-cols-3">
+              <div className="nexus-metric-card rounded-2xl px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Realtime Fabric</p>
                 <p className="mt-1 text-sm font-semibold">Events + DM + Voice</p>
               </div>
-              <div className="glass-cut rounded-xl px-3 py-2">
+              <div className="nexus-metric-card rounded-2xl px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Premium Loop</p>
                 <p className="mt-1 text-sm font-semibold">Core+ Telemetry</p>
               </div>
-              <div className="glass-cut rounded-xl px-3 py-2">
+              <div className="nexus-metric-card rounded-2xl px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300">Scalable Stack</p>
                 <p className="mt-1 text-sm font-semibold">Next + Prisma + Socket.IO</p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="nexus-signal-rail rounded-2xl px-4 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Concurrent Lanes</p>
+                <p className="mt-2 text-2xl font-semibold text-white">48</p>
+                <p className="mt-1 text-xs text-slate-400">Text, voice, billing, and notifications moving together.</p>
+              </div>
+              <div className="nexus-signal-rail rounded-2xl px-4 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Revenue Surface</p>
+                <p className="mt-2 text-2xl font-semibold text-white">Core+</p>
+                <p className="mt-1 text-xs text-slate-400">Subscriptions, boosts, and premium access feel native.</p>
+              </div>
+              <div className="nexus-signal-rail rounded-2xl px-4 py-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Ops Status</p>
+                <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-emerald-100"><span className="nexus-signal-dot" />Stable</div>
+                <p className="mt-1 text-xs text-slate-400">Desktop-first flows are live and visible right now.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/register"
-                className="inline-flex h-11 items-center rounded-xl bg-cyan-400 px-5 text-sm font-semibold text-slate-950 shadow-[0_0_32px_rgba(34,211,238,0.4)] hover:bg-cyan-300"
+                className="nexus-glow-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-cyan-50 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Launch NexusForge
               </Link>
               <Link
                 href="/app"
-                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-5 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Open Command Center
               </Link>
               <Link
                 href="/login"
-                className="inline-flex h-11 items-center rounded-xl border border-slate-600 bg-slate-900 px-5 text-sm font-semibold text-slate-100 hover:border-cyan-500/60"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
               >
                 Sign in
               </Link>
               <Link
                 href="/notifications"
-                className="inline-flex h-11 items-center rounded-xl border border-slate-700 bg-slate-950 px-5 text-sm font-semibold text-slate-100 hover:border-cyan-500/60"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
               >
                 Notifications
               </Link>
               <Link
                 href="/admin"
-                className="inline-flex h-11 items-center rounded-xl border border-amber-500/40 bg-amber-950/20 px-5 text-sm font-semibold text-amber-100 hover:border-amber-300"
+                className="inline-flex h-11 items-center rounded-xl border border-amber-500/40 bg-amber-950/20 px-5 text-sm font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:border-amber-300"
               >
                 Admin
               </Link>
               <Link
                 href="/settings"
-                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-5 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Settings
               </Link>
@@ -175,13 +195,18 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
+          <div className="nexus-display-panel slow-float relative overflow-hidden rounded-[28px] p-4 sm:p-5">
             <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-cyan-500/20 blur-3xl" />
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Operations Pulse</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Operations Pulse</h2>
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-100"><span className="nexus-signal-dot" />Live</div>
+            </div>
             <div className="ember-frame holo-frame mb-3">
-              <img
+              <Image
                 src="/brand/nexusforge-main-logo.png"
                 alt="NexusForge core logo"
+                width={640}
+                height={160}
                 className="image-pan h-40 w-full rounded-2xl object-cover"
               />
             </div>
@@ -197,6 +222,20 @@ export default function Home() {
               <div className="neo-badge flex items-center justify-between rounded-lg px-3 py-2">
                 <span>Core+ Layer</span>
                 <span className="font-semibold text-amber-200">READY</span>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Alerts</p>
+                <p className="mt-1 text-sm font-semibold text-white">12 active</p>
+              </div>
+              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Queues</p>
+                <p className="mt-1 text-sm font-semibold text-white">3 warming</p>
+              </div>
+              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Monetization</p>
+                <p className="mt-1 text-sm font-semibold text-white">Ready</p>
               </div>
             </div>
           </div>

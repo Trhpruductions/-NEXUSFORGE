@@ -61,17 +61,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
-      <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
+    <div className="nexus-shell flex items-center justify-center">
       <AuthFormCard
         title="Sign In"
         subtitle="Enter your credentials to access your NexusForge account"
         footer={
           <div className="flex items-center justify-between gap-4">
-            <Link href="/forgot-password" className="text-cyan-300 hover:text-cyan-200">
+            <Link href="/forgot-password" className="text-cyan-400 hover:text-cyan-300">
               Forgot password?
             </Link>
-            <Link href={`/register?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-300 hover:text-cyan-200">
+            <Link href={`/register?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
               Create account
             </Link>
           </div>
@@ -96,7 +95,7 @@ export default function LoginPage() {
           </label>
           {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Authenticating..." : "Login"}
+            {isSubmitting ? "Authenticating..." : "Sign In"}
           </Button>
         </form>
       </AuthFormCard>

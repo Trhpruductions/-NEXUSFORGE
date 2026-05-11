@@ -2,12 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { hasAdminAccess } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 
 export const profilesRouter = Router();
 const userIdParamSchema = z.string().uuid();
 const medalKeyParamSchema = z.string().min(1).max(64);
-const privilegedRoles = new Set(["ADMIN", "EXEC", "OWNER"]);
 
 // Search users by username or tag
 profilesRouter.get("/users/search", requireAuth, async (req, res) => {
@@ -409,7 +409,7 @@ profilesRouter.post("/users/:userId/medals/:medalKey", requireAuth, async (req, 
       select: { isAdmin: true, appRole: true },
     });
 
-    if (!currentUser || (!currentUser.isAdmin && !privilegedRoles.has(currentUser.appRole))) {
+    if (!currentUser || !hasAdminAccess(currentUser.appRole, currentUser.isAdmin)) {
       res.status(403).json({ error: "Admin only" });
       return;
     }
