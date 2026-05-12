@@ -61,11 +61,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
+    <div className="nexus-shell relative flex items-center overflow-hidden">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
-      <div className="mx-auto grid w-full max-w-5xl gap-4">
-        <section className="nexus-display-panel hidden rounded-[24px] p-4 sm:block">
-          <div className="grid gap-3 sm:grid-cols-3">
+      <div className="nexus-ambient" aria-hidden="true">
+        <div className="nexus-ambient-orb nexus-ambient-orb-a" />
+        <div className="nexus-ambient-orb nexus-ambient-orb-b" />
+      </div>
+      <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <section className="nexus-display-panel hidden rounded-[24px] p-5 lg:block">
+          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Command Access</p>
+          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
+            Full-screen operations,
+            <br />
+            one secure sign-in.
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-slate-300">
+            Resume your live command surface instantly with premium routing, friend activity, and billing-aware controls already synced.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <article className="nexus-metric-card rounded-xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Access Mode</p>
               <p className="mt-1 text-sm font-semibold text-cyan-200">Secure sign-in</p>
@@ -78,6 +91,16 @@ export default function LoginPage() {
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Recovery</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Password reset ready</p>
             </article>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="glass-cut rounded-2xl px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-cyan-300">Signal</p>
+              <p className="mt-1 text-sm text-slate-200">Realtime command graph and activity lanes reconnect after auth.</p>
+            </div>
+            <div className="glass-cut rounded-2xl px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-emerald-300">Coverage</p>
+              <p className="mt-1 text-sm text-slate-200">Desktop and mobile surfaces are synchronized with one identity.</p>
+            </div>
           </div>
         </section>
 
