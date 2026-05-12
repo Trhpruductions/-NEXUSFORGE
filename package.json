@@ -30,6 +30,7 @@
     "desktop:share:major": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump major",
     "brand:verify": "node ./scripts/verify-brand-assets.mjs",
     "admin:badge:smoke": "node ./scripts/admin-badge-smoke.mjs",
+    "smoke:local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/local-smoke.ps1",
     "build": "npm run brand:verify && npm run build -w web && npm run build -w @nexusforge/server",
     "lint": "npm run lint -w web"
   },
