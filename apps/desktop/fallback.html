@@ -7,69 +7,140 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #020617;
-        --panel: rgba(15, 23, 42, 0.85);
-        --panel-border: rgba(56, 189, 248, 0.25);
+        --bg: #030815;
+        --panel: rgba(10, 16, 33, 0.78);
+        --panel-border: rgba(56, 189, 248, 0.26);
         --text: #e2e8f0;
         --muted: #94a3b8;
         --accent: #22d3ee;
-        --accent-strong: #0891b2;
+        --accent-strong: #0ea5e9;
         --danger: #ef4444;
+        --ok: #34d399;
       }
 
       * {
         box-sizing: border-box;
       }
 
+      html,
+      body {
+        height: 100%;
+      }
+
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Segoe UI", "Inter", sans-serif;
-        background: radial-gradient(circle at 10% 10%, #0f172a 0%, var(--bg) 55%);
+        font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+        background:
+          radial-gradient(circle at 8% 10%, rgba(14, 165, 233, 0.22), transparent 34%),
+          radial-gradient(circle at 88% 14%, rgba(34, 211, 238, 0.18), transparent 30%),
+          radial-gradient(circle at 82% 86%, rgba(99, 102, 241, 0.18), transparent 30%),
+          linear-gradient(155deg, #020617 0%, #050f1f 52%, #071424 100%);
         color: var(--text);
         display: grid;
         place-items: center;
         padding: 24px;
+        overflow: hidden;
+      }
+
+      .grid {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+        background-size: 76px 76px;
+        opacity: 0.38;
+        -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 86%);
+        mask-image: radial-gradient(circle at center, black 30%, transparent 86%);
       }
 
       .card {
-        width: min(760px, 100%);
+        position: relative;
+        width: min(980px, 100%);
         border: 1px solid var(--panel-border);
-        border-radius: 16px;
-        background: var(--panel);
-        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
-        padding: 28px;
+        border-radius: 24px;
+        background:
+          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.62)),
+          var(--panel);
+        box-shadow:
+          0 30px 80px rgba(2, 6, 23, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        padding: 24px;
+        display: grid;
+        gap: 18px;
+        overflow: hidden;
+      }
+
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 14% 12%, rgba(103, 232, 249, 0.2), transparent 20%),
+          radial-gradient(circle at 86% 20%, rgba(96, 165, 250, 0.16), transparent 18%);
+        pointer-events: none;
+      }
+
+      .header {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.24em;
+        color: #7dd3fc;
       }
 
       h1 {
-        margin: 0 0 8px;
-        font-size: 28px;
+        margin: 8px 0 8px;
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 0.94;
+        letter-spacing: -0.04em;
       }
 
-      p {
-        margin: 0 0 16px;
+      .subtitle {
+        margin: 0;
         color: var(--muted);
-        line-height: 1.5;
+        line-height: 1.55;
+        max-width: 60ch;
       }
 
-      .status {
-        margin: 14px 0 18px;
-        font-weight: 600;
+      .status-chip {
+        border: 1px solid rgba(52, 211, 153, 0.32);
+        color: #d1fae5;
+        background: rgba(16, 185, 129, 0.15);
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 12px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        max-width: min(46vw, 420px);
+        text-overflow: ellipsis;
+        overflow: hidden;
       }
 
-      .meta {
+      .layout {
+        position: relative;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        font-size: 13px;
-        margin: 14px 0 22px;
+        grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+        gap: 16px;
+        align-items: start;
       }
 
       .meta div {
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 10px;
-        padding: 10px;
-        background: rgba(2, 6, 23, 0.45);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(2, 6, 23, 0.5);
       }
 
       .meta b {
@@ -79,66 +150,125 @@
         margin-bottom: 5px;
       }
 
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        font-size: 13px;
+      }
+
+      .actions-pane {
+        display: grid;
+        gap: 12px;
+      }
+
       .actions {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
 
       button {
         border: 0;
-        border-radius: 10px;
-        padding: 10px 14px;
-        font-size: 14px;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 13px;
         color: #001018;
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
         cursor: pointer;
         font-weight: 700;
+        transition: transform 180ms ease, box-shadow 220ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(14, 165, 233, 0.28);
       }
 
       button.secondary {
-        background: #334155;
+        background: #243043;
         color: var(--text);
       }
 
       button.danger {
-        background: #7f1d1d;
+        background: #7a1f29;
         color: #fee2e2;
       }
 
       code {
         display: block;
-        margin-top: 12px;
         white-space: pre-wrap;
         font-size: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 10px;
-        padding: 10px;
-        background: rgba(2, 6, 23, 0.55);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(2, 6, 23, 0.58);
+        max-height: 220px;
+        overflow: auto;
+        line-height: 1.45;
+      }
+
+      .history-title {
+        margin: 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: #93c5fd;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .actions {
+          grid-template-columns: 1fr;
+        }
+
+        .header {
+          flex-direction: column;
+        }
+
+        .status-chip {
+          max-width: 100%;
+        }
       }
     </style>
   </head>
   <body>
+    <div class="grid"></div>
     <main class="card">
-      <h1>NexusForge Desktop Is Warming Up</h1>
-      <p>
-        The app could not reach local services yet. Use the controls below to start services,
-        inspect status, and reconnect without closing desktop.
-      </p>
-      <div id="status" class="status">Checking local stack...</div>
-      <section class="meta">
-        <div><b>Target URL</b><span id="target">-</span></div>
-        <div><b>Workspace</b><span id="workspace">-</span></div>
-        <div><b>Ports</b><span id="ports">-</span></div>
-        <div><b>Last Error</b><span id="error">-</span></div>
+      <header class="header">
+        <div>
+          <p class="eyebrow">NexusForge Recovery Console</p>
+          <h1>Live Recovery<br />Runway</h1>
+          <p class="subtitle">
+            Startup is in recovery mode. Keep the app open and use these controls to restore local services,
+            retry the workspace handoff, and inspect diagnostics without exiting desktop.
+          </p>
+        </div>
+        <div id="status" class="status-chip">Checking local stack...</div>
+      </header>
+
+      <section class="layout">
+        <div class="meta">
+          <div><b>Target URL</b><span id="target">-</span></div>
+          <div><b>Workspace</b><span id="workspace">-</span></div>
+          <div><b>Ports</b><span id="ports">-</span></div>
+          <div><b>Last Error</b><span id="error">-</span></div>
+        </div>
+
+        <aside class="actions-pane">
+          <section class="actions">
+            <button id="start">Start Local Stack</button>
+            <button id="retry" class="secondary">Retry Connection</button>
+            <button id="log" class="secondary">Open Stack Log</button>
+            <button id="reload" class="danger">Reload Window</button>
+          </section>
+          <p class="history-title">Recovery Timeline</p>
+          <code id="history">History: none</code>
+        </aside>
       </section>
-      <section class="actions">
-        <button id="start">Start Local Stack</button>
-        <button id="retry" class="secondary">Retry Connection</button>
-        <button id="log" class="secondary">Open Stack Log</button>
-        <button id="reload" class="danger">Reload Window</button>
-      </section>
-      <code id="history">History: none</code>
     </main>
 
     <script>
@@ -157,10 +287,16 @@
           portsEl.textContent = `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
           errorEl.textContent = status.lastError || "none";
           statusEl.textContent = status.message || "Waiting for local stack.";
+          statusEl.style.borderColor = status.lastError ? "rgba(239,68,68,0.45)" : "rgba(52,211,153,0.32)";
+          statusEl.style.background = status.lastError ? "rgba(239,68,68,0.16)" : "rgba(16,185,129,0.15)";
+          statusEl.style.color = status.lastError ? "#fee2e2" : "#d1fae5";
           const history = status.history && status.history.length ? status.history.join("\n") : "History: none";
           historyEl.textContent = history;
         } catch (error) {
           statusEl.textContent = "Unable to load startup status.";
+          statusEl.style.borderColor = "rgba(239,68,68,0.45)";
+          statusEl.style.background = "rgba(239,68,68,0.16)";
+          statusEl.style.color = "#fee2e2";
           errorEl.textContent = String(error);
         }
       }

@@ -26,6 +26,7 @@ const updateManifestUrl =
 const updateCheckIntervalMs = 15 * 60 * 1000;
 const remindLaterDelayMs = 60 * 60 * 1000;
 const updateDownloadDir = path.join(app.getPath("userData"), "updates");
+const startupLogPath = path.join(app.getPath("userData"), "startup.log");
 const autoInstallOnClose =
   String(process.env.NEXUSFORGE_AUTO_INSTALL_ON_CLOSE || "true").toLowerCase() !== "false";
 const forceUpdateByDefault =
@@ -47,6 +48,7 @@ let startupRuntime = {
   detail: "Preparing the launch environment.",
   progress: 8,
   accent: "warmup",
+  currentVersion: app.getVersion(),
   timestamp: new Date().toISOString(),
 };
 
@@ -56,11 +58,13 @@ let updateRuntime = {
   forceRequired: false,
   downloading: false,
   downloaded: false,
+  downloadedVersion: null,
   downloadPercent: 0,
   currentVersion: app.getVersion(),
   latestVersion: null,
   notes: [],
   downloadUrl: null,
+  downloadUrls: [],
   sha256: null,
   installerPath: null,
   remindLaterUntil: 0,
@@ -126,6 +130,15 @@ function appendLocalStackHistory(message) {
   };
 }
 
+function appendStartupLog(message) {
+  try {
+    fs.mkdirSync(path.dirname(startupLogPath), { recursive: true });
+    fs.appendFileSync(startupLogPath, `${new Date().toISOString()} ${message}\n`, "utf8");
+  } catch {
+    // Best-effort diagnostics logging only.
+  }
+}
+
 function updateLocalStackStatus(next) {
   localStackStatus = {
     ...localStackStatus,
@@ -174,6 +187,9 @@ function emitUpdateRuntime() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("nexusforge-desktop:update-state", updateRuntime);
   }
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send("nexusforge-desktop:update-state", updateRuntime);
+  }
 }
 
 function emitStartupRuntime() {
@@ -188,6 +204,9 @@ function updateStartupRuntime(patch) {
     ...patch,
     timestamp: new Date().toISOString(),
   };
+  appendStartupLog(
+    `[startup] stage="${startupRuntime.stage}" progress=${Number(startupRuntime.progress) || 0} accent=${startupRuntime.accent || "n/a"} detail="${startupRuntime.detail || ""}"`,
+  );
   emitStartupRuntime();
 }
 
@@ -327,6 +346,27 @@ async function downloadUpdateInstaller(downloadUrl, latestVersion) {
   return destinationPath;
 }
 
+function normalizeDownloadCandidates(primaryUrl, secondaryUrls) {
+  const candidates = [primaryUrl, ...(Array.isArray(secondaryUrls) ? secondaryUrls : [])]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(candidates));
+}
+
+function resolveManifestUrlCandidate(candidateUrl, manifestUrl) {
+  const raw = String(candidateUrl || "").trim();
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return new URL(raw, manifestUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
 async function verifyInstallerIntegrity(installerPath, expectedSha256) {
   if (!expectedSha256) {
     return true;
@@ -341,8 +381,15 @@ async function installDownloadedUpdate() {
   }
 
   const installerPath = updateRuntime.installerPath;
+  const installerMatchesLatest =
+    Boolean(updateRuntime.latestVersion) &&
+    Boolean(updateRuntime.downloadedVersion) &&
+    updateRuntime.latestVersion === updateRuntime.downloadedVersion;
   if (!installerPath || !fs.existsSync(installerPath)) {
     throw new Error("Downloaded installer is unavailable.");
+  }
+  if (!installerMatchesLatest) {
+    throw new Error("Downloaded installer does not match the latest available version.");
   }
 
   installInProgress = true;
@@ -361,19 +408,50 @@ async function installDownloadedUpdate() {
 }
 
 function canAutoInstallOnClose() {
+  const installerMatchesLatest =
+    Boolean(updateRuntime.latestVersion) &&
+    Boolean(updateRuntime.downloadedVersion) &&
+    updateRuntime.latestVersion === updateRuntime.downloadedVersion;
+
   return (
     !skipAutoInstallOnQuit &&
     autoInstallOnClose &&
     process.platform === "win32" &&
     updateRuntime.downloaded &&
+    installerMatchesLatest &&
     Boolean(updateRuntime.installerPath) &&
     fs.existsSync(updateRuntime.installerPath)
   );
 }
 
 async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) {
-  if (updateRuntime.downloading || updateRuntime.downloaded) {
+  if (updateRuntime.downloading) {
     return;
+  }
+
+  const hasCurrentInstaller =
+    updateRuntime.downloaded &&
+    updateRuntime.downloadedVersion &&
+    updateRuntime.latestVersion &&
+    updateRuntime.downloadedVersion === updateRuntime.latestVersion &&
+    Boolean(updateRuntime.installerPath) &&
+    fs.existsSync(updateRuntime.installerPath);
+
+  if (hasCurrentInstaller) {
+    if (forceInstallAfterDownload || updateRuntime.forceRequired) {
+      await installDownloadedUpdate();
+    }
+    return;
+  }
+
+  if (updateRuntime.downloaded && !hasCurrentInstaller) {
+    updateRuntime = {
+      ...updateRuntime,
+      downloaded: false,
+      downloadedVersion: null,
+      downloadPercent: 0,
+      installerPath: null,
+    };
   }
 
   if (!updateRuntime.downloadUrl || !updateRuntime.latestVersion) {
@@ -394,7 +472,26 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
   emitUpdateRuntime();
 
   try {
-    const installerPath = await downloadUpdateInstaller(updateRuntime.downloadUrl, updateRuntime.latestVersion);
+    const candidateUrls = normalizeDownloadCandidates(updateRuntime.downloadUrl, updateRuntime.downloadUrls);
+    if (!candidateUrls.length) {
+      throw new Error("No update download URL is available in the update manifest.");
+    }
+
+    let installerPath = null;
+    let lastDownloadError = null;
+    for (const candidateUrl of candidateUrls) {
+      try {
+        installerPath = await downloadUpdateInstaller(candidateUrl, updateRuntime.latestVersion);
+        break;
+      } catch (error) {
+        lastDownloadError = error;
+      }
+    }
+
+    if (!installerPath) {
+      throw lastDownloadError || new Error("Unable to download installer from any configured URL.");
+    }
+
     const integrityOk = await verifyInstallerIntegrity(installerPath, updateRuntime.sha256);
     if (!integrityOk) {
       fs.rmSync(installerPath, { force: true });
@@ -405,6 +502,7 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
       ...updateRuntime,
       downloading: false,
       downloaded: true,
+      downloadedVersion: updateRuntime.latestVersion,
       downloadPercent: 100,
       installerPath,
     };
@@ -419,6 +517,7 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
       ...updateRuntime,
       downloading: false,
       downloaded: false,
+      downloadedVersion: null,
       downloadPercent: 0,
       installerPath: null,
       lastError: `Background update failed: ${String(error)}`,
@@ -485,7 +584,12 @@ async function checkForUpdates(trigger = "manual") {
     const payload = await response.json();
     const latestVersion = String(payload?.version || "").trim();
     const notes = sanitizeReleaseNotes(payload?.notes);
-    const downloadUrl = typeof payload?.downloadUrl === "string" ? payload.downloadUrl : null;
+    const downloadUrl = resolveManifestUrlCandidate(payload?.downloadUrl, updateManifestUrl);
+    const downloadUrls = Array.isArray(payload?.downloadUrls)
+      ? payload.downloadUrls
+          .map((value) => resolveManifestUrlCandidate(value, updateManifestUrl))
+          .filter(Boolean)
+      : [];
     const sha256 = typeof payload?.sha256 === "string" ? payload.sha256.trim() : null;
     const hasUpdate = Boolean(latestVersion) && isVersionGreater(latestVersion, app.getVersion());
     const payloadForceUpdate =
@@ -494,6 +598,7 @@ async function checkForUpdates(trigger = "manual") {
       payload?.mandatory === true ||
       payload?.forceRequired === true;
     const forceRequired = hasUpdate && (payloadForceUpdate || forceUpdateByDefault);
+    const sameAvailableVersion = hasUpdate && updateRuntime.latestVersion === latestVersion;
 
     updateRuntime = {
       ...updateRuntime,
@@ -503,10 +608,12 @@ async function checkForUpdates(trigger = "manual") {
       latestVersion: hasUpdate ? latestVersion : null,
       notes,
       downloadUrl,
+      downloadUrls,
       sha256,
-      downloaded: hasUpdate ? updateRuntime.downloaded : false,
-      downloadPercent: hasUpdate ? updateRuntime.downloadPercent : 0,
-      installerPath: hasUpdate ? updateRuntime.installerPath : null,
+      downloaded: hasUpdate ? (sameAvailableVersion ? updateRuntime.downloaded : false) : false,
+      downloadedVersion: hasUpdate ? (sameAvailableVersion ? updateRuntime.downloadedVersion : null) : null,
+      downloadPercent: hasUpdate ? (sameAvailableVersion ? updateRuntime.downloadPercent : 0) : 0,
+      installerPath: hasUpdate ? (sameAvailableVersion ? updateRuntime.installerPath : null) : null,
       lastCheckedAt: new Date().toISOString(),
       lastError: null,
     };
@@ -516,7 +623,12 @@ async function checkForUpdates(trigger = "manual") {
       void beginBackgroundUpdateDownload(forceRequired);
     }
 
-    if (hasUpdate && forceRequired && updateRuntime.downloaded) {
+    if (
+      hasUpdate &&
+      forceRequired &&
+      updateRuntime.downloaded &&
+      updateRuntime.downloadedVersion === updateRuntime.latestVersion
+    ) {
       await installDownloadedUpdate();
       return updateRuntime;
     }
@@ -566,6 +678,7 @@ function createSplashWindow() {
   void splashWindow.loadFile(splashPath);
   splashWindow.webContents.once("did-finish-load", () => {
     emitStartupRuntime();
+    emitUpdateRuntime();
   });
   splashWindow.on("closed", () => {
     splashWindow = null;
@@ -752,11 +865,13 @@ async function waitForLocalStackReady(timeoutMs) {
 function loadFallbackPage(message) {
   updateLocalStackStatus({ message });
   appendLocalStackHistory(message);
+  appendStartupLog(`[fallback] ${message}`);
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     void mainWindow.loadFile(fallbackPath).catch((error) => {
       console.warn("[NexusForge Desktop] Unable to load fallback page:", error);
     });
+    revealMainWindow();
   }
 }
 
@@ -917,6 +1032,7 @@ async function ensureAppReachable(trigger) {
         throw new Error("Hosted startup URL did not become reachable in time.");
       }
       await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
+      revealMainWindow();
       updateLocalStackStatus({
         message: "Desktop is connected to hosted services.",
         lastError: null,
@@ -959,13 +1075,27 @@ async function ensureAppReachable(trigger) {
       }
     }
 
-    const reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
+    let reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
+    if (!reachable && localStackStatus.autoStartEnabled) {
+      updateStartupRuntime({
+        stage: "Starting local services",
+        detail: "Local URL is not reachable yet. Restarting local services and retrying launch.",
+        progress: 56,
+        accent: "starting",
+      });
+      appendStartupLog("[recovery] Local URL unreachable after port checks. Starting recovery restart.");
+      await startLocalStack(`url-unreachable-${trigger}`);
+      await waitForLocalStackReady(startupWaitTimeoutMs);
+      reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
+    }
+
     if (!reachable) {
       loadFallbackPage("Local app URL did not become reachable. Retry in a moment or restart local services.");
       return;
     }
 
     await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
+    revealMainWindow();
     updateLocalStackStatus({
       message: "Desktop is connected to local services.",
       lastError: null,
@@ -1121,6 +1251,9 @@ if (process.platform === "win32") {
 
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
     }
@@ -1166,7 +1299,12 @@ function createWindow() {
     revealMainWindow();
   });
 
+  mainWindow.webContents.once("did-finish-load", () => {
+    revealMainWindow();
+  });
+
   mainWindow.webContents.on("did-fail-load", (_event, errorCode) => {
+    appendStartupLog(`[did-fail-load] errorCode=${errorCode}`);
     if (!isLocalStartTarget || errorCode === -3) {
       return;
     }
@@ -1195,6 +1333,9 @@ function stopSpawnedLocalStack() {
 
 app.on("second-instance", () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
     }
