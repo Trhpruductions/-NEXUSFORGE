@@ -25,6 +25,7 @@ const updateManifestUrl =
   process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || `${new URL(startUrl).origin}/desktop-update.json`;
 const updateCheckIntervalMs = 15 * 60 * 1000;
 const remindLaterDelayMs = 60 * 60 * 1000;
+const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
 const updateDownloadDir = path.join(app.getPath("userData"), "updates");
 const startupLogPath = path.join(app.getPath("userData"), "startup.log");
 const autoInstallOnClose =
@@ -242,6 +243,15 @@ function sanitizeReleaseNotes(input) {
     .slice(0, 12);
 }
 
+function snoozeUpdateReminder(delayMs = remindLaterDelayMs) {
+  updateRuntime = {
+    ...updateRuntime,
+    remindLaterUntil: Date.now() + Math.max(0, Number(delayMs) || 0),
+  };
+  persistUpdateState();
+  emitUpdateRuntime();
+}
+
 async function showChangelogWindow() {
   const notes = updateRuntime.notes.length
     ? updateRuntime.notes
@@ -260,13 +270,26 @@ async function showChangelogWindow() {
     },
   });
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>What's New</title>
-  <style>body{margin:0;padding:28px;background:#020617;color:#e2e8f0;font-family:Segoe UI,Inter,sans-serif}
-  h1{margin:0 0 6px;font-size:28px}p{color:#94a3b8}ul{margin:20px 0 0;padding-left:20px}
-  li{margin:10px 0;padding:10px 12px;border:1px solid rgba(56,189,248,.25);border-radius:10px;background:rgba(15,23,42,.7)}
-  .meta{margin-top:8px;font-size:12px;color:#67e8f9;letter-spacing:.08em;text-transform:uppercase}</style></head>
-  <body><h1>What's New</h1><p>Version ${String(updateRuntime.latestVersion || app.getVersion())}</p>
-  <div class="meta">NexusForge Desktop</div><ul>${list}</ul></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>What's New</title>
+  <style>
+  :root{color-scheme:dark;--text:#e6edf7;--muted:#9fb3cc;--line:rgba(125,211,252,.24);--panel:rgba(13,20,36,.76);--accent:#f97316;--accent-strong:#fb923c}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;padding:24px;background:radial-gradient(circle at 12% 14%,rgba(249,115,22,.24),transparent 31%),radial-gradient(circle at 84% 16%,rgba(125,211,252,.2),transparent 35%),linear-gradient(145deg,#0b1220 0%,#131c2f 52%,#1f1234 100%);color:var(--text);font-family:Bahnschrift,"Segoe UI Variable","Trebuchet MS",sans-serif;display:grid;place-items:center}
+  .panel{width:min(760px,100%);border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,rgba(15,23,42,.86),rgba(15,23,42,.7)),var(--panel);padding:22px;box-shadow:0 24px 62px rgba(5,9,18,.56),inset 0 1px 0 rgba(255,255,255,.08)}
+  .eyebrow{margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#7dd3fc}
+  h1{margin:10px 0 8px;font-size:34px;line-height:.95;letter-spacing:-.02em}
+  .meta{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .version-chip{padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.2);font-size:12px;color:#d8e5f7}
+  .subtitle{margin:0;color:var(--muted);line-height:1.55}
+  ul{margin:16px 0 0;padding-left:20px;display:grid;gap:10px}
+  li{padding:10px 12px;border:1px solid rgba(148,163,184,.22);border-radius:10px;background:rgba(2,6,23,.52)}
+  .footer{margin-top:18px;display:flex;justify-content:flex-end}
+  .close-btn{border:0;border-radius:11px;padding:10px 14px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#1b1207;font-weight:700;cursor:pointer}
+  .close-btn:hover{filter:saturate(1.07)}
+  </style></head>
+  <body><main class="panel"><p class="eyebrow">NexusForge Desktop Update</p><h1>What is New</h1>
+  <div class="meta"><p class="subtitle">Review the latest desktop improvements before you continue.</p><span class="version-chip">Version ${String(updateRuntime.latestVersion || app.getVersion())}</span></div>
+  <ul>${list}</ul><div class="footer"><button class="close-btn" onclick="window.close()">Close</button></div></main></body></html>`;
   await changelogWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
 }
 
@@ -277,10 +300,10 @@ async function showUpdateReadyDialog() {
 
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
-    title: "Update Ready",
-    message: `Update downloaded successfully and ready to install (v${updateRuntime.latestVersion || "latest"}).`,
-    detail: "Install now to apply the desktop binary update, or continue and install later.",
-    buttons: ["Install & Restart", "Later"],
+    title: "Desktop Update Ready",
+    message: `NexusForge Desktop update is ready to install (v${updateRuntime.latestVersion || "latest"}).`,
+    detail: "Restart now to apply this update, or continue using the current session and install later.",
+    buttons: ["Restart To Install", "Install Later"],
     defaultId: 0,
     cancelId: 1,
   });
@@ -533,10 +556,10 @@ async function showUpdateAvailableDialog() {
 
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
-    title: "New Update Available",
-    message: `New Update Available - Version ${updateRuntime.latestVersion || "latest"}`,
-    detail: "NexusForge will download and stage this desktop update in the background.",
-    buttons: ["Download in Background", "Remind Me Later", "View Changes"],
+    title: "Desktop Update Available",
+    message: `A NexusForge Desktop update is available (v${updateRuntime.latestVersion || "latest"}).`,
+    detail: "Choose how to proceed. You can review changes, start the background download, or postpone this reminder.",
+    buttons: ["Start Background Download", "Remind Me Later", "View What Is New"],
     defaultId: 0,
     cancelId: 1,
   });
@@ -547,16 +570,12 @@ async function showUpdateAvailableDialog() {
   }
 
   if (result.response === 1) {
-    updateRuntime = {
-      ...updateRuntime,
-      remindLaterUntil: Date.now() + remindLaterDelayMs,
-    };
-    persistUpdateState();
-    emitUpdateRuntime();
+    snoozeUpdateReminder();
     return;
   }
 
   await showChangelogWindow();
+  snoozeUpdateReminder(viewChangesSnoozeDelayMs);
 }
 
 async function checkForUpdates(trigger = "manual") {

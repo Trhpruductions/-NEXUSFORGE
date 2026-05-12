@@ -7,15 +7,18 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #030815;
-        --panel: rgba(10, 16, 33, 0.78);
-        --panel-border: rgba(56, 189, 248, 0.26);
-        --text: #e2e8f0;
-        --muted: #94a3b8;
-        --accent: #22d3ee;
-        --accent-strong: #0ea5e9;
-        --danger: #ef4444;
+        --bg-a: #0b1220;
+        --bg-b: #131c2f;
+        --bg-c: #1f1234;
+        --panel: rgba(13, 20, 36, 0.76);
+        --panel-border: rgba(125, 211, 252, 0.26);
+        --text: #e6edf7;
+        --muted: #9fb3cc;
+        --accent: #f97316;
+        --accent-strong: #fb923c;
         --ok: #34d399;
+        --warn: #f59e0b;
+        --danger: #f87171;
       }
 
       * {
@@ -30,190 +33,252 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+        font-family: "Bahnschrift", "Segoe UI Variable", "Trebuchet MS", sans-serif;
         background:
-          radial-gradient(circle at 8% 10%, rgba(14, 165, 233, 0.22), transparent 34%),
-          radial-gradient(circle at 88% 14%, rgba(34, 211, 238, 0.18), transparent 30%),
-          radial-gradient(circle at 82% 86%, rgba(99, 102, 241, 0.18), transparent 30%),
-          linear-gradient(155deg, #020617 0%, #050f1f 52%, #071424 100%);
+          radial-gradient(circle at 12% 14%, rgba(249, 115, 22, 0.24), transparent 31%),
+          radial-gradient(circle at 84% 16%, rgba(125, 211, 252, 0.2), transparent 35%),
+          radial-gradient(circle at 76% 84%, rgba(52, 211, 153, 0.14), transparent 30%),
+          linear-gradient(145deg, var(--bg-a) 0%, var(--bg-b) 52%, var(--bg-c) 100%);
         color: var(--text);
         display: grid;
         place-items: center;
-        padding: 24px;
+        padding: 20px;
         overflow: hidden;
       }
 
-      .grid {
+      .backdrop-grid {
         position: fixed;
         inset: 0;
         pointer-events: none;
         background-image:
-          linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-        background-size: 76px 76px;
-        opacity: 0.38;
-        -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 86%);
-        mask-image: radial-gradient(circle at center, black 30%, transparent 86%);
+          linear-gradient(rgba(159, 179, 204, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(159, 179, 204, 0.06) 1px, transparent 1px);
+        background-size: 68px 68px;
+        opacity: 0.45;
+        -webkit-mask-image: radial-gradient(circle at center, black 34%, transparent 84%);
+        mask-image: radial-gradient(circle at center, black 34%, transparent 84%);
       }
 
-      .card {
+      .shell {
         position: relative;
-        width: min(980px, 100%);
+        width: min(1080px, 100%);
         border: 1px solid var(--panel-border);
-        border-radius: 24px;
+        border-radius: 28px;
         background:
-          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.62)),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68)),
           var(--panel);
         box-shadow:
-          0 30px 80px rgba(2, 6, 23, 0.55),
+          0 38px 86px rgba(5, 9, 18, 0.6),
           inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        padding: 24px;
+        padding: 26px;
         display: grid;
-        gap: 18px;
+        gap: 20px;
         overflow: hidden;
       }
 
-      .card::before {
+      .shell::before {
         content: "";
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 14% 12%, rgba(103, 232, 249, 0.2), transparent 20%),
-          radial-gradient(circle at 86% 20%, rgba(96, 165, 250, 0.16), transparent 18%);
+          radial-gradient(circle at 18% 10%, rgba(251, 146, 60, 0.18), transparent 22%),
+          radial-gradient(circle at 84% 18%, rgba(125, 211, 252, 0.16), transparent 20%);
         pointer-events: none;
       }
 
       .header {
         position: relative;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: start;
       }
 
       .eyebrow {
         margin: 0;
-        font-size: 11px;
+        font-size: 12px;
         text-transform: uppercase;
-        letter-spacing: 0.24em;
+        letter-spacing: 0.18em;
         color: #7dd3fc;
       }
 
       h1 {
-        margin: 8px 0 8px;
-        font-size: clamp(30px, 4vw, 46px);
-        line-height: 0.94;
-        letter-spacing: -0.04em;
+        margin: 8px 0 10px;
+        font-size: clamp(34px, 4.8vw, 62px);
+        line-height: 0.9;
+        letter-spacing: -0.03em;
       }
 
       .subtitle {
         margin: 0;
         color: var(--muted);
-        line-height: 1.55;
-        max-width: 60ch;
+        line-height: 1.6;
+        max-width: 74ch;
+      }
+
+      .status-wrap {
+        display: grid;
+        gap: 8px;
+      }
+
+      .status-label {
+        margin: 0;
+        color: #9fb3cc;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 12px;
       }
 
       .status-chip {
-        border: 1px solid rgba(52, 211, 153, 0.32);
-        color: #d1fae5;
-        background: rgba(16, 185, 129, 0.15);
-        border-radius: 999px;
-        padding: 10px 14px;
-        font-size: 12px;
-        letter-spacing: 0.07em;
+        border: 1px solid rgba(245, 158, 11, 0.46);
+        color: #fef3c7;
+        background: rgba(245, 158, 11, 0.16);
+        border-radius: 16px;
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.4;
         text-transform: uppercase;
-        white-space: nowrap;
-        max-width: min(46vw, 420px);
-        text-overflow: ellipsis;
-        overflow: hidden;
+        max-width: min(52vw, 420px);
       }
 
       .layout {
         position: relative;
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
-        gap: 16px;
-        align-items: start;
-      }
-
-      .meta div {
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 12px;
-        padding: 12px;
-        background: rgba(2, 6, 23, 0.5);
-      }
-
-      .meta b {
-        display: block;
-        color: var(--muted);
-        font-weight: 500;
-        margin-bottom: 5px;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+        gap: 18px;
       }
 
       .meta {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 12px;
         font-size: 13px;
+      }
+
+      .meta-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 14px;
+        padding: 14px;
+        background: rgba(2, 6, 23, 0.54);
+        min-height: 86px;
+        display: grid;
+        align-content: start;
+        gap: 6px;
+      }
+
+      .meta-card b {
+        display: block;
+        color: #9fb3cc;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .value {
+        color: #e6edf7;
+        font-size: 14px;
+        line-height: 1.45;
+        word-break: break-word;
       }
 
       .actions-pane {
         display: grid;
-        gap: 12px;
+        gap: 14px;
+        align-content: start;
       }
 
       .actions {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 12px;
       }
 
       button {
         border: 0;
-        border-radius: 12px;
+        border-radius: 13px;
         padding: 12px 14px;
         font-size: 13px;
-        color: #001018;
+        color: #1b1207;
         background: linear-gradient(135deg, var(--accent), var(--accent-strong));
         cursor: pointer;
         font-weight: 700;
-        transition: transform 180ms ease, box-shadow 220ms ease;
+        transition:
+          transform 180ms ease,
+          box-shadow 220ms ease,
+          filter 180ms ease;
       }
 
       button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 12px 28px rgba(14, 165, 233, 0.28);
+        box-shadow: 0 14px 30px rgba(249, 115, 22, 0.28);
+        filter: saturate(1.08);
+      }
+
+      button:disabled {
+        opacity: 0.62;
+        cursor: wait;
+        transform: none;
+        box-shadow: none;
       }
 
       button.secondary {
-        background: #243043;
+        background: #2a354b;
         color: var(--text);
       }
 
       button.danger {
-        background: #7a1f29;
-        color: #fee2e2;
+        background: #782029;
+        color: #fff1f2;
       }
 
-      code {
-        display: block;
+      .history {
         white-space: pre-wrap;
         font-size: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 12px;
         padding: 12px;
-        background: rgba(2, 6, 23, 0.58);
-        max-height: 220px;
+        background: rgba(2, 6, 23, 0.6);
+        max-height: 250px;
         overflow: auto;
         line-height: 1.45;
+        margin: 0;
+        color: #dce8f8;
       }
 
       .history-title {
         margin: 0;
         font-size: 12px;
         text-transform: uppercase;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.14em;
         color: #93c5fd;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .legend-pill {
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.65);
+        color: #bdd2e9;
+      }
+
+      .legend-pill.live {
+        border-color: rgba(52, 211, 153, 0.35);
+        color: #d1fae5;
+      }
+
+      .legend-pill.warn {
+        border-color: rgba(245, 158, 11, 0.42);
+        color: #fef3c7;
       }
 
       @media (max-width: 900px) {
@@ -226,36 +291,48 @@
         }
 
         .header {
-          flex-direction: column;
+          grid-template-columns: 1fr;
         }
 
         .status-chip {
           max-width: 100%;
         }
+
+        .meta {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="grid"></div>
-    <main class="card">
+    <div class="backdrop-grid"></div>
+    <main class="shell">
       <header class="header">
         <div>
-          <p class="eyebrow">NexusForge Recovery Console</p>
-          <h1>Live Recovery<br />Runway</h1>
+          <p class="eyebrow">NexusForge Desktop Recovery</p>
+          <h1>NexusForge Desktop Is Warming Up</h1>
           <p class="subtitle">
-            Startup is in recovery mode. Keep the app open and use these controls to restore local services,
-            retry the workspace handoff, and inspect diagnostics without exiting desktop.
+            The app could not reach local services yet. Use the controls below to start services,
+            inspect status, and reconnect without closing desktop.
           </p>
         </div>
-        <div id="status" class="status-chip">Checking local stack...</div>
+        <div class="status-wrap">
+          <p class="status-label">Live Status</p>
+          <div id="status" class="status-chip">Checking local stack...</div>
+        </div>
       </header>
+
+      <div class="legend" aria-hidden="true">
+        <span class="legend-pill live">Auto recovery enabled</span>
+        <span class="legend-pill warn">Manual controls available</span>
+      </div>
 
       <section class="layout">
         <div class="meta">
-          <div><b>Target URL</b><span id="target">-</span></div>
-          <div><b>Workspace</b><span id="workspace">-</span></div>
-          <div><b>Ports</b><span id="ports">-</span></div>
-          <div><b>Last Error</b><span id="error">-</span></div>
+          <div class="meta-card"><b>Target URL</b><span id="target" class="value">-</span></div>
+          <div class="meta-card"><b>Workspace</b><span id="workspace" class="value">-</span></div>
+          <div class="meta-card"><b>Ports</b><span id="ports" class="value">-</span></div>
+          <div class="meta-card"><b>Last Error</b><span id="error" class="value">-</span></div>
         </div>
 
         <aside class="actions-pane">
@@ -266,7 +343,7 @@
             <button id="reload" class="danger">Reload Window</button>
           </section>
           <p class="history-title">Recovery Timeline</p>
-          <code id="history">History: none</code>
+          <pre id="history" class="history">History: none</pre>
         </aside>
       </section>
     </main>
@@ -278,6 +355,13 @@
       const portsEl = document.getElementById("ports");
       const errorEl = document.getElementById("error");
       const historyEl = document.getElementById("history");
+      const actionButtons = ["start", "retry", "log", "reload"].map((id) => document.getElementById(id));
+
+      function setActionBusy(isBusy) {
+        actionButtons.forEach((button) => {
+          button.disabled = isBusy;
+        });
+      }
 
       async function refreshStatus() {
         try {
@@ -287,38 +371,71 @@
           portsEl.textContent = `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
           errorEl.textContent = status.lastError || "none";
           statusEl.textContent = status.message || "Waiting for local stack.";
-          statusEl.style.borderColor = status.lastError ? "rgba(239,68,68,0.45)" : "rgba(52,211,153,0.32)";
-          statusEl.style.background = status.lastError ? "rgba(239,68,68,0.16)" : "rgba(16,185,129,0.15)";
-          statusEl.style.color = status.lastError ? "#fee2e2" : "#d1fae5";
+          const hasError = Boolean(status.lastError);
+          const allPortsOnline = Boolean(status.port3000Open && status.port4000Open);
+          if (hasError) {
+            statusEl.style.borderColor = "rgba(248,113,113,0.45)";
+            statusEl.style.background = "rgba(248,113,113,0.16)";
+            statusEl.style.color = "#ffe4e6";
+          } else if (allPortsOnline) {
+            statusEl.style.borderColor = "rgba(52,211,153,0.4)";
+            statusEl.style.background = "rgba(16,185,129,0.16)";
+            statusEl.style.color = "#d1fae5";
+          } else {
+            statusEl.style.borderColor = "rgba(245,158,11,0.46)";
+            statusEl.style.background = "rgba(245,158,11,0.16)";
+            statusEl.style.color = "#fef3c7";
+          }
+
           const history = status.history && status.history.length ? status.history.join("\n") : "History: none";
           historyEl.textContent = history;
         } catch (error) {
           statusEl.textContent = "Unable to load startup status.";
-          statusEl.style.borderColor = "rgba(239,68,68,0.45)";
-          statusEl.style.background = "rgba(239,68,68,0.16)";
-          statusEl.style.color = "#fee2e2";
+          statusEl.style.borderColor = "rgba(248,113,113,0.45)";
+          statusEl.style.background = "rgba(248,113,113,0.16)";
+          statusEl.style.color = "#ffe4e6";
           errorEl.textContent = String(error);
         }
       }
 
       document.getElementById("start").addEventListener("click", async () => {
+        setActionBusy(true);
         statusEl.textContent = "Starting local stack...";
-        await window.nexusforgeDesktop.startLocalStack();
-        await refreshStatus();
+        try {
+          await window.nexusforgeDesktop.startLocalStack();
+          await refreshStatus();
+        } finally {
+          setActionBusy(false);
+        }
       });
 
       document.getElementById("retry").addEventListener("click", async () => {
+        setActionBusy(true);
         statusEl.textContent = "Retrying local connection...";
-        await window.nexusforgeDesktop.retryAppLoad();
-        await refreshStatus();
+        try {
+          await window.nexusforgeDesktop.retryAppLoad();
+          await refreshStatus();
+        } finally {
+          setActionBusy(false);
+        }
       });
 
       document.getElementById("log").addEventListener("click", async () => {
-        await window.nexusforgeDesktop.openLocalStackLog();
+        setActionBusy(true);
+        try {
+          await window.nexusforgeDesktop.openLocalStackLog();
+        } finally {
+          setActionBusy(false);
+        }
       });
 
       document.getElementById("reload").addEventListener("click", async () => {
-        await window.nexusforgeDesktop.reloadWindow();
+        setActionBusy(true);
+        try {
+          await window.nexusforgeDesktop.reloadWindow();
+        } finally {
+          setActionBusy(false);
+        }
       });
 
       refreshStatus();

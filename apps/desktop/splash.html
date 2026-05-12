@@ -7,14 +7,14 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #020617;
-        --panel: rgba(15, 23, 42, 0.58);
+        --bg: #0b1220;
+        --panel: rgba(13, 20, 36, 0.72);
         --line: rgba(125, 211, 252, 0.24);
-        --text: #f8fafc;
-        --muted: #94a3b8;
-        --accent: #67e8f9;
-        --accent-strong: #38bdf8;
-        --shadow: rgba(2, 6, 23, 0.52);
+        --text: #e6edf7;
+        --muted: #9fb3cc;
+        --accent: #f97316;
+        --accent-strong: #fb923c;
+        --shadow: rgba(5, 9, 18, 0.55);
       }
 
       * {
@@ -33,21 +33,21 @@
         place-items: center;
         overflow: hidden;
         background:
-          radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.2), transparent 26%),
-          radial-gradient(circle at 78% 14%, rgba(34, 211, 238, 0.14), transparent 22%),
-          radial-gradient(circle at 78% 84%, rgba(129, 140, 248, 0.18), transparent 30%),
-          linear-gradient(155deg, #020617 0%, #050f1f 48%, #071424 100%);
+          radial-gradient(circle at 13% 16%, rgba(249, 115, 22, 0.24), transparent 28%),
+          radial-gradient(circle at 84% 15%, rgba(125, 211, 252, 0.2), transparent 30%),
+          radial-gradient(circle at 78% 84%, rgba(52, 211, 153, 0.14), transparent 28%),
+          linear-gradient(145deg, #0b1220 0%, #131c2f 52%, #1f1234 100%);
         color: var(--text);
-        font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+        font-family: "Bahnschrift", "Segoe UI Variable", "Trebuchet MS", sans-serif;
       }
 
       .grid {
         position: absolute;
         inset: 0;
         background-image:
-          linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-        background-size: 84px 84px;
+          linear-gradient(rgba(159, 179, 204, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(159, 179, 204, 0.05) 1px, transparent 1px);
+        background-size: 74px 74px;
         -webkit-mask-image: radial-gradient(circle at center, black 34%, transparent 88%);
         mask-image: radial-gradient(circle at center, black 34%, transparent 88%);
         opacity: 0.55;
@@ -68,7 +68,7 @@
         height: 280px;
         left: -40px;
         top: -70px;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.26), transparent 68%);
+        background: radial-gradient(circle, rgba(249, 115, 22, 0.24), transparent 68%);
       }
 
       .halo.two {
@@ -76,7 +76,7 @@
         height: 360px;
         right: -110px;
         bottom: -120px;
-        background: radial-gradient(circle, rgba(99, 102, 241, 0.18), transparent 68%);
+        background: radial-gradient(circle, rgba(125, 211, 252, 0.2), transparent 68%);
         animation-delay: -4s;
       }
 
@@ -96,7 +96,7 @@
         border: 1px solid var(--line);
         border-radius: 28px;
         background:
-          linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.6)),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68)),
           var(--panel);
         box-shadow:
           0 30px 80px var(--shadow),
@@ -114,8 +114,8 @@
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 18% 16%, rgba(103, 232, 249, 0.2), transparent 20%),
-          radial-gradient(circle at 78% 22%, rgba(96, 165, 250, 0.16), transparent 18%);
+          radial-gradient(circle at 18% 16%, rgba(251, 146, 60, 0.16), transparent 20%),
+          radial-gradient(circle at 78% 22%, rgba(125, 211, 252, 0.16), transparent 18%);
         pointer-events: none;
       }
 
@@ -134,9 +134,9 @@
 
       .eyebrow {
         margin: 0;
-        font-size: 11px;
+        font-size: 12px;
         text-transform: uppercase;
-        letter-spacing: 0.28em;
+        letter-spacing: 0.18em;
         color: #7dd3fc;
       }
 
@@ -148,7 +148,7 @@
         padding: 10px 14px;
         border-radius: 999px;
         background: rgba(2, 6, 23, 0.42);
-        color: #cbd5e1;
+        color: #d8e5f7;
         border: 1px solid rgba(148, 163, 184, 0.18);
         font-size: 12px;
         letter-spacing: 0.08em;
@@ -162,7 +162,7 @@
         padding: 10px 14px;
         border-radius: 18px;
         background: rgba(2, 6, 23, 0.42);
-        color: #cbd5e1;
+        color: #d8e5f7;
         border: 1px solid rgba(148, 163, 184, 0.18);
         font-size: 11px;
         letter-spacing: 0.06em;
@@ -170,7 +170,7 @@
       }
 
       .version-chip strong {
-        color: #f8fafc;
+        color: #e6edf7;
         font-size: 13px;
         letter-spacing: 0.02em;
         text-transform: none;
@@ -181,7 +181,7 @@
         height: 8px;
         border-radius: 999px;
         background: var(--accent);
-        box-shadow: 0 0 0 6px rgba(103, 232, 249, 0.12);
+        box-shadow: 0 0 0 6px rgba(251, 146, 60, 0.16);
       }
 
       .content {
@@ -200,9 +200,9 @@
 
       h1 {
         margin: 0;
-        font-size: clamp(48px, 7vw, 84px);
+        font-size: clamp(42px, 6.6vw, 78px);
         line-height: 0.92;
-        letter-spacing: -0.05em;
+        letter-spacing: -0.03em;
       }
 
       .subtitle {
@@ -228,8 +228,8 @@
 
       .fact strong {
         display: block;
-        font-size: 18px;
-        color: #f8fafc;
+        font-size: 17px;
+        color: #e6edf7;
       }
 
       .fact span {
@@ -287,11 +287,11 @@
       }
 
       .step.done {
-        color: #f8fafc;
+        color: #e6edf7;
       }
 
       .step.done::before {
-        background: #38bdf8;
+        background: var(--accent-strong);
       }
 
       .status-card {
@@ -315,6 +315,7 @@
         margin: 0;
         font-size: 22px;
         line-height: 1.12;
+        color: #f4f7fd;
       }
 
       .detail {
@@ -350,7 +351,7 @@
         height: 100%;
         border-radius: inherit;
         background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-        box-shadow: 0 0 24px rgba(56, 189, 248, 0.42);
+        box-shadow: 0 0 24px rgba(249, 115, 22, 0.33);
         transition: width 420ms ease;
       }
 
@@ -374,7 +375,7 @@
       }
 
       .footer strong {
-        color: #e2e8f0;
+        color: #e6edf7;
         font-weight: 600;
       }
 
@@ -389,13 +390,13 @@
 
       @keyframes pulse {
         0% {
-          box-shadow: 0 0 0 0 rgba(103, 232, 249, 0.36);
+          box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.36);
         }
         70% {
-          box-shadow: 0 0 0 14px rgba(103, 232, 249, 0);
+          box-shadow: 0 0 0 14px rgba(251, 146, 60, 0);
         }
         100% {
-          box-shadow: 0 0 0 0 rgba(103, 232, 249, 0);
+          box-shadow: 0 0 0 0 rgba(251, 146, 60, 0);
         }
       }
 
@@ -447,9 +448,9 @@
 
       <section class="content">
         <div class="hero">
-          <h1>Launch runway<br />online.</h1>
+          <h1>Desktop handoff<br />warming up.</h1>
           <p class="subtitle">
-            The desktop shell is waking up, preparing the session, and connecting your app stack before the full window opens.
+            NexusForge is preparing a clean startup path, checking services, and staging your workspace before the full app takes over.
           </p>
 
           <div class="facts">
