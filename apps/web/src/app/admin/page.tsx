@@ -37,7 +37,10 @@ export default function AdminPage() {
         actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]}
         maxWidthClassName="max-w-7xl"
       >
-        <div className="nexus-panel rounded-2xl p-4 text-sm text-slate-300">Your current account lacks admin privileges.</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-300">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Restricted Access</p>
+          <p className="mt-2">Your current account lacks admin privileges.</p>
+        </div>
       </ExperienceShell>
     );
   }

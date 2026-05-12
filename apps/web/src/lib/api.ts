@@ -344,6 +344,20 @@ export type BillingEntitlements = {
   }>;
 };
 
+export type BillingReadiness = {
+  provider: "stripe";
+  ready: boolean;
+  configured: {
+    stripeSecretKey: boolean;
+    corePlusTierPrices: boolean;
+    addOnPrices: boolean;
+  };
+  missing: {
+    tierPrices: string[];
+    addOnPrices: string[];
+  };
+};
+
 export type AdminRevenue = {
   revenue: {
     last30DaysCents: number;
@@ -620,6 +634,11 @@ export async function getBillingEntitlements(accessToken: string) {
   return response.data;
 }
 
+export async function getBillingReadiness() {
+  const response = await api.get<{ billing: BillingReadiness }>("/api/billing/status");
+  return response.data;
+}
+
 export async function consumeCreatorCampaignSlot(accessToken: string, csrfToken: string, quantity = 1) {
   const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
     "/api/billing/features/creator-campaign-slot/consume",
@@ -742,10 +761,19 @@ export async function getForgeInviteAvailability(inviteCode: string, currentForg
 }
 
 export async function getPublicForgeInvite(inviteCode: string, source?: string) {
-  const response = await api.get<{ forge: PublicForgeInvite }>(`/api/forges/public/${encodeURIComponent(inviteCode)}`, {
-    params: source ? { src: source } : {},
-  });
-  return response.data;
+  try {
+    const response = await api.get<{ forge: PublicForgeInvite }>(`/api/forges/public/${encodeURIComponent(inviteCode)}`, {
+      params: source ? { src: source } : {},
+      timeout: 5000,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return { forge: null };
+    }
+
+    throw error;
+  }
 }
 
 export async function getForge(accessToken: string, forgeId: string) {
