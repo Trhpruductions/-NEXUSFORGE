@@ -1,13 +1,13 @@
 {
-    "version": "1.0.5",
-    "notes": [
-        "Deterministic window handoff from splash to full app",
-        "Automatic local URL recovery retry before fallback",
-        "Version-aware cinematic launch screen enhancements",
-        "Premium diagnostics panel redesign for recovery mode",
-        "Installed-launch resolver and startup telemetry hardening"
-    ],
-    "downloadUrl": "https://mixture-declined-peter-generators.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.5.exe",
-    "sha256": "29459653fa007b8215e3e50895d1daef46f484b924cc950a7bac831537007936",
-    "forceUpdate": true
+    "version":  "1.0.7",
+    "notes":  [
+                  "Deterministic window handoff from splash to full app",
+                  "Automatic local URL recovery retry before fallback",
+                  "Version-aware cinematic launch screen enhancements",
+                  "Premium diagnostics panel redesign for recovery mode",
+                  "Installed-launch resolver and startup telemetry hardening"
+              ],
+    "downloadUrl":  "https://cannon-reliance-cholesterol-communicate.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.7.exe",
+    "sha256":  "fb0e8fef080f2cbb4028d74f92a0a201ddb56ec8a68512bc6717485b5316f84b",
+    "forceUpdate":  false
 }

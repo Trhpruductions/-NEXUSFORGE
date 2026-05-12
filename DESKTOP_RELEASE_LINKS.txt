@@ -1,17 +1,17 @@
 ﻿NexusForge Desktop Release Links
-Generated: 2026-05-11T16:10:00
+Generated: 2026-05-11T22:51:49
 
-Download:   https://mixture-declined-peter-generators.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.5.exe
-Directory:  https://mixture-declined-peter-generators.trycloudflare.com/
-SHA256:     29459653fa007b8215e3e50895d1daef46f484b924cc950a7bac831537007936
-Version:    1.0.5
-ForceUpdate: True
+Download:   https://cannon-reliance-cholesterol-communicate.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.7.exe
+Directory:  https://cannon-reliance-cholesterol-communicate.trycloudflare.com/
+SHA256:     fb0e8fef080f2cbb4028d74f92a0a201ddb56ec8a68512bc6717485b5316f84b
+Version:    1.0.7
+ForceUpdate: False
 Ephemeral:  True
 
 Process IDs
 httpServer=
-httpServerExistingPid=5896
-tunnel=34904
+httpServerExistingPid=52556
+tunnel=34076
 
 Manifest: D:\NEXUSFORGE GAMGING APP\apps\web\public\desktop-update.json
-Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260510-213829
+Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260511-225051
