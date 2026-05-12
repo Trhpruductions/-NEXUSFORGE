@@ -26,7 +26,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
   }, [themeMode]);
 
   return (
-    <div className="flex h-full flex-col transition-colors duration-300 overflow-hidden">
+    <div className="flex min-h-dvh w-full flex-col overflow-x-hidden transition-colors duration-300">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={pathname}
@@ -34,7 +34,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={{ opacity: 0, y: -4, filter: "blur(2px)" }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="flex h-full flex-col overflow-hidden"
+          className="flex min-h-dvh w-full flex-col overflow-x-hidden"
         >
           {children}
         </motion.div>
