@@ -73,6 +73,7 @@ NexusForge is a futuristic communication platform foundation for gamers, creator
 
 ## Implemented Billing Endpoints
 
+- `GET /api/billing/status`
 - `GET /api/billing/entitlements`
 - `POST /api/billing/checkout/session`
 - `POST /api/billing/portal/session`
@@ -169,6 +170,14 @@ The admin launch-control toggle can override this at runtime through the API and
 
 Set `APP_WEB_URL` to your deployed frontend base URL.
 
+Verify billing readiness before checkout testing:
+
+```bash
+curl http://localhost:4000/api/billing/status
+```
+
+`ready: true` means Stripe key + all required price IDs are configured.
+
 5. Run migrations for the expanded schema:
 
 ```bash
@@ -223,3 +232,25 @@ Release publishing:
 - `npm run desktop:share:none` updates `apps/web/public/desktop-update.json` with version, download URL, notes, and `sha256`.
 - `npm run desktop:share:force` publishes a required update (`forceUpdate: true`) with a patched desktop version.
 - If `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` is not set, release uses a Cloudflare quick tunnel URL (ephemeral).
+
+## QA Automation Commands
+
+- `npm run brand:verify` validates required logo and badge assets in `apps/web/public/brand`.
+- `npm run admin:badge:smoke` performs an end-to-end admin badge grant and revoke check against the API.
+
+Admin badge smoke test auth inputs:
+
+- Option 1: set `NEXUSFORGE_ADMIN_ACCESS_TOKEN`
+- Option 2: set `NEXUSFORGE_ADMIN_EMAIL` and `NEXUSFORGE_ADMIN_PASSWORD`
+- Optional target pin: `NEXUSFORGE_BADGE_TEST_USER_ID`
+
+## CI Workflows
+
+- `.github/workflows/brand-verify.yml`: runs `npm run brand:verify` on push and pull requests.
+- `.github/workflows/admin-badge-smoke.yml`: runs `npm run admin:badge:smoke` on `main`/`master` pushes and manual dispatch when smoke secrets are configured.
+
+Repository secrets for admin badge smoke CI:
+
+- `NEXUSFORGE_SMOKE_API_URL`
+- `NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN` (or `NEXUSFORGE_SMOKE_ADMIN_EMAIL` + `NEXUSFORGE_SMOKE_ADMIN_PASSWORD`)
+- Optional: `NEXUSFORGE_SMOKE_BADGE_TEST_USER_ID`
