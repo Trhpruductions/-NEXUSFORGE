@@ -1,17 +1,17 @@
 ﻿NexusForge Desktop Release Links
-Generated: 2026-05-11T22:51:49
+Generated: 2026-05-11T23:42:08
 
-Download:   https://cannon-reliance-cholesterol-communicate.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.7.exe
-Directory:  https://cannon-reliance-cholesterol-communicate.trycloudflare.com/
-SHA256:     fb0e8fef080f2cbb4028d74f92a0a201ddb56ec8a68512bc6717485b5316f84b
+Download:   https://persian-still-lone-dairy.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.7.exe
+Directory:  https://persian-still-lone-dairy.trycloudflare.com/
+SHA256:     0f40c315582c6034e5e09c6ed68607764709ac533bc896573a811b2f275678c3
 Version:    1.0.7
 ForceUpdate: False
 Ephemeral:  True
 
 Process IDs
-httpServer=
-httpServerExistingPid=52556
-tunnel=34076
+httpServer=52752
+httpServerExistingPid=
+tunnel=14620
 
 Manifest: D:\NEXUSFORGE GAMGING APP\apps\web\public\desktop-update.json
-Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260511-225051
+Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260511-234104
