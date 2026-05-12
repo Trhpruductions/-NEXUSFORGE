@@ -237,6 +237,14 @@ Release publishing:
 
 - `npm run brand:verify` validates required logo and badge assets in `apps/web/public/brand`.
 - `npm run admin:badge:smoke` performs an end-to-end admin badge grant and revoke check against the API.
+- `npm run build` runs the resilient workspace build pipeline (brand verify + web build with one-time transient Next.js retry + server build).
+- `npm run desktop:installer` runs resilient desktop installer packaging (workspace build + Windows package with one lock-recovery retry).
+- `npm run desktop:release:checklist` runs release readiness checks in one command: build/package, launch unpacked app, launch installed app, and summary.
+
+Desktop packaging resilience details:
+
+- The build pipeline retries web build once only for known transient Next.js page-module lookup failures (such as `/favicon.ico` and `/_document`).
+- The installer pipeline retries packaging once if `win-unpacked` is file-locked (`Access is denied` / `ERR_ELECTRON_BUILDER_CANNOT_EXECUTE`) after targeted Windows process cleanup.
 
 Admin badge smoke test auth inputs:
 
