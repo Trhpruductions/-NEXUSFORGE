@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { createCheckoutSession, type PaidFeatureCode } from "@/lib/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { createCheckoutSession, getBillingReadiness, type PaidFeatureCode } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 
 const tierCards = [
@@ -64,6 +65,13 @@ const tierCards = [
     perks: ["Everything in Elite", "White-glove support", "Boost multiplier x3", "Launch concierge help", "Top-priority feature access"],
   },
 ];
+
+const boostTierLogos = [
+  { id: "CORE", label: "Starter Core", src: "/brand/tier-starter-core.png" },
+  { id: "PLUS", label: "Plus Command", src: "/brand/tier-plus-command.png" },
+  { id: "ELITE", label: "Elite Creator", src: "/brand/tier-elite-creator.png" },
+  { id: "INFINITE", label: "Infinite League", src: "/brand/tier-infinite-league.png" },
+] as const;
 
 const paidCatalog = [
   {
@@ -211,6 +219,32 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
     },
   });
 
+  const billingStatusQuery = useQuery({
+    queryKey: ["billing-readiness"],
+    queryFn: getBillingReadiness,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  const billing = billingStatusQuery.data?.billing ?? null;
+  const billingReady = billing?.ready ?? false;
+  const missingTierPrices = billing?.missing.tierPrices ?? [];
+  const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
+  const billingStatusMessage = !billingReady
+    ? billing
+      ? `Billing is in setup mode. Missing tier prices: ${missingTierPrices.length}; missing add-on prices: ${missingAddOnPrices.length}.`
+      : "Checking billing readiness..."
+    : null;
+  const billingStatusDetail = !billingReady && billing
+    ? [
+        !billing.configured.stripeSecretKey ? "Missing STRIPE_SECRET_KEY" : null,
+        missingTierPrices.length ? `Missing tier IDs: ${missingTierPrices.slice(0, 4).join(", ")}${missingTierPrices.length > 4 ? "..." : ""}` : null,
+        missingAddOnPrices.length ? `Missing add-on IDs: ${missingAddOnPrices.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ")
+    : null;
+
   const handleCheckout = (payload: {
     featureCode: PaidFeatureCode;
     tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE";
@@ -298,12 +332,12 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </motion.div>
       ) : null}
       {checkoutState === "success" ? (
-        <div className="rounded-2xl border border-emerald-500/35 bg-emerald-950/25 p-4 text-sm text-emerald-100">
+        <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-emerald-100">
           Payment completed. Your subscription or entitlement is being activated now.
         </div>
       ) : null}
       {checkoutState === "cancelled" ? (
-        <div className="rounded-2xl border border-amber-500/35 bg-amber-950/20 p-4 text-sm text-amber-100">
+        <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-amber-100">
           Checkout was canceled. Your current access remains unchanged.
         </div>
       ) : null}
@@ -326,8 +360,14 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
           better presence, and stronger community momentum than the price suggests.
         </p>
+        {billingStatusMessage ? (
+          <div className="nexus-display-panel mt-4 rounded-[20px] border border-amber-500/40 bg-amber-950/25 p-3 text-xs text-amber-100">
+            <p>{billingStatusMessage}</p>
+            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-200/90">{billingStatusDetail}</p> : null}
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-emerald-500/35 bg-emerald-950/20 p-4">
+          <div className="nexus-display-panel rounded-[24px] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-200">Founder Window</p>
             <p className="mt-2 text-lg font-semibold text-slate-50">Early pricing is intentionally aggressive while NexusForge scales up.</p>
             <p className="mt-1 text-sm text-slate-300">
@@ -337,7 +377,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               Founder pricing countdown: {founderCountdown}
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-700/70 bg-slate-950/50 p-4">
+          <div className="nexus-display-panel rounded-[24px] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Why users upgrade</p>
             <p className="mt-2 text-sm text-slate-300">
               Better identity, faster access, stronger visibility, and operational tools that free communities from basic-chat limitations.
@@ -347,18 +387,20 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/45 px-3 py-3 text-xs text-slate-200">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-400">Billing Interval</span>
-            <button
+            <Button
               onClick={() => setInterval("MONTHLY")}
-              className={`rounded-md px-2 py-1 ${interval === "MONTHLY" ? "bg-cyan-900/60 text-cyan-100" : "text-slate-300"}`}
+              variant="ghost"
+              className={`h-8 rounded-md px-3 text-xs ${interval === "MONTHLY" ? "border-cyan-500/55 text-cyan-100" : "text-slate-300"}`}
             >
               Monthly
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setInterval("YEARLY")}
-              className={`rounded-md px-2 py-1 ${interval === "YEARLY" ? "bg-amber-900/60 text-amber-100" : "text-slate-300"}`}
+              variant="ghost"
+              className={`h-8 rounded-md px-3 text-xs ${interval === "YEARLY" ? "border-amber-500/55 text-amber-100" : "text-slate-300"}`}
             >
               Yearly
-            </button>
+            </Button>
           </div>
           <div className="rounded-full border border-emerald-500/35 bg-emerald-950/25 px-3 py-1 text-emerald-100">
             {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
@@ -366,20 +408,28 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <article className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Boost Tier Badges</p>
-            <p className="mt-1 text-xs text-slate-400">Starter Core, Plus Command, Elite Creator, and Infinite League visual ladder.</p>
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
-              <Image
-                src="/brand/boost-tier-badges.png"
-                alt="NexusForge boost tier badges"
-                width={1200}
-                height={1200}
-                className="h-auto w-full object-cover"
-              />
+          <article className="nexus-display-panel rounded-[24px] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Boost Tier Logos</p>
+            <p className="mt-1 text-xs text-slate-400">Starter Core, Plus Command, Elite Creator, and Infinite League logos.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {boostTierLogos.map((tier) => (
+                <div key={tier.id} className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
+                  <Image
+                    src={tier.src}
+                    alt={`${tier.label} logo`}
+                    width={1200}
+                    height={800}
+                    className="h-auto w-full object-cover"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <div className="px-3 py-2 text-xs font-semibold text-slate-200">{tier.label}</div>
+                </div>
+              ))}
             </div>
           </article>
-          <article className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
+          <article className="nexus-display-panel rounded-[24px] p-3">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Boost Pack Emblem</p>
             <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
             <div className="mt-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
@@ -402,7 +452,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
-              className={`rounded-2xl border bg-slate-950/55 p-4 ${tier.spotlight ? "border-amber-400/70 shadow-[0_18px_50px_rgba(251,191,36,0.16)]" : "border-slate-700/70"}`}
+              className={`nexus-interactive-card rounded-2xl border bg-slate-950/55 p-4 ${tier.spotlight ? "border-amber-400/70 shadow-[0_18px_50px_rgba(251,191,36,0.16)]" : "border-slate-700/70"}`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${tier.tone}`}>{tier.name}</div>
@@ -419,13 +469,13 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                   <li key={perk}>• {perk}</li>
                 ))}
               </ul>
-              <button
+              <Button
                 onClick={() => handleCheckout({ featureCode: "CORE_PLUS", tier: tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE" })}
-                disabled={checkoutMutation.isPending}
-                className={`mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg border px-3 text-xs font-semibold ${tier.spotlight ? "border-amber-300 bg-amber-300 text-slate-950 hover:bg-amber-200" : "border-cyan-500/35 bg-cyan-950/25 text-cyan-100 hover:border-cyan-300"}`}
+                disabled={checkoutMutation.isPending || !billingReady}
+                className={`mt-4 h-10 w-full rounded-lg px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.26)]" : ""}`}
               >
                 {checkoutMutation.isPending ? "Opening..." : tier.cta}
-              </button>
+              </Button>
               <p className="mt-2 text-center text-[11px] text-slate-500">Instant activation after successful payment</p>
             </motion.article>
           ))}
@@ -437,7 +487,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.04 }}
-        className="nexus-panel rounded-3xl p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -480,7 +530,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
-        className="nexus-panel rounded-3xl p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Paid Feature Catalog</p>
@@ -514,38 +564,41 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           </table>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-slate-700/70 bg-slate-950/55 p-4">
+          <div className="nexus-display-panel rounded-[24px] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Quick Buy Paths</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
+              <Button
                 onClick={() => handleCheckout({ featureCode: "FORGE_BOOST_PACK", quantity: 1 })}
-                disabled={checkoutMutation.isPending}
-                className="rounded-lg border border-emerald-500/40 bg-emerald-950/25 px-3 py-2 text-xs font-semibold text-emerald-100 hover:border-emerald-300"
+                disabled={checkoutMutation.isPending || !billingReady}
+                variant="ghost"
+                className="h-9 rounded-lg border-emerald-500/40 px-3 text-xs text-emerald-100"
               >
                 Buy Boost Pack
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleCheckout({ featureCode: "CREATOR_CAMPAIGN_SLOT", quantity: 1 })}
-                disabled={checkoutMutation.isPending}
-                className="rounded-lg border border-fuchsia-500/40 bg-fuchsia-950/25 px-3 py-2 text-xs font-semibold text-fuchsia-100 hover:border-fuchsia-300"
+                disabled={checkoutMutation.isPending || !billingReady}
+                variant="ghost"
+                className="h-9 rounded-lg border-fuchsia-500/40 px-3 text-xs text-fuchsia-100"
               >
                 Buy Campaign Slot
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleCheckout({ featureCode: "ADVANCED_MODERATION_AI", quantity: 1 })}
-                disabled={checkoutMutation.isPending}
-                className="rounded-lg border border-rose-500/40 bg-rose-950/25 px-3 py-2 text-xs font-semibold text-rose-100 hover:border-rose-300"
+                disabled={checkoutMutation.isPending || !billingReady}
+                variant="ghost"
+                className="h-9 rounded-lg border-rose-500/40 px-3 text-xs text-rose-100"
               >
                 Buy Moderation AI
-              </button>
+              </Button>
               <Link
                 href="/core-plus"
-                className="rounded-lg border border-cyan-500/40 bg-cyan-950/25 px-3 py-2 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
+                className="nexus-interactive-btn inline-flex h-9 items-center rounded-lg border border-cyan-500/40 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
               >
                 Manage Billing
               </Link>
             </div>
-            <div className="mt-4 grid gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-950/10 p-3">
+            <div className="mt-4 grid gap-3 rounded-[24px] border border-emerald-500/25 bg-emerald-950/10 p-3">
               <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">Growth Revenue Estimator</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="text-[11px] text-slate-300">
@@ -604,7 +657,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               </div>
             </div>
           </div>
-          <div className="rounded-2xl border border-cyan-500/25 bg-cyan-950/15 p-4 text-sm text-slate-200">
+          <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-slate-200">
             <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Checkout Confidence</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-300">
               <li>• You are redirected instantly to a live checkout session.</li>

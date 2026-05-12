@@ -93,12 +93,71 @@ async function resolveCustomerId(userId: string, email: string): Promise<string 
 
 export const billingRouter = Router();
 
+type BillingReadiness = {
+  provider: "stripe";
+  ready: boolean;
+  configured: {
+    stripeSecretKey: boolean;
+    corePlusTierPrices: boolean;
+    addOnPrices: boolean;
+  };
+  missing: {
+    tierPrices: string[];
+    addOnPrices: string[];
+  };
+};
+
+function getBillingReadiness(): BillingReadiness {
+  const tiers = ["CORE", "PLUS", "ELITE", "INFINITE"] as const;
+  const intervals = ["MONTHLY", "YEARLY"] as const;
+  const addons = ["FORGE_BOOST_PACK", "CREATOR_CAMPAIGN_SLOT", "EVENT_TICKET_PASS", "TEAM_BRANDING_KIT", "ADVANCED_MODERATION_AI"] as const;
+
+  const missingTierPrices: string[] = [];
+  const missingAddonPrices: string[] = [];
+
+  for (const tier of tiers) {
+    for (const interval of intervals) {
+      if (!getTierPriceId(tier, interval)) {
+        missingTierPrices.push(`${tier}_${interval}`);
+      }
+    }
+  }
+
+  for (const addon of addons) {
+    if (!getAddonPriceId(addon)) {
+      missingAddonPrices.push(addon);
+    }
+  }
+
+  const hasStripeKey = Boolean(stripeClient);
+  const corePlusTierPrices = missingTierPrices.length === 0;
+  const addOnPrices = missingAddonPrices.length === 0;
+
+  return {
+    provider: "stripe",
+    ready: hasStripeKey && corePlusTierPrices && addOnPrices,
+    configured: {
+      stripeSecretKey: hasStripeKey,
+      corePlusTierPrices,
+      addOnPrices,
+    },
+    missing: {
+      tierPrices: missingTierPrices,
+      addOnPrices: missingAddonPrices,
+    },
+  };
+}
+
 function readSubscriptionPeriod(subscription: unknown): { start: Date | null; end: Date | null } {
   const raw = subscription as { current_period_start?: number; current_period_end?: number };
   const start = typeof raw.current_period_start === "number" ? new Date(raw.current_period_start * 1000) : null;
   const end = typeof raw.current_period_end === "number" ? new Date(raw.current_period_end * 1000) : null;
   return { start, end };
 }
+
+billingRouter.get("/status", (_req, res) => {
+  res.json({ billing: getBillingReadiness() });
+});
 
 billingRouter.get("/entitlements", requireAuth, async (req, res) => {
   const [user, entitlements, subscription] = await Promise.all([

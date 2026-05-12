@@ -1,11 +1,13 @@
 "use client";
 
+import axios from "axios";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCheckoutSession, createPortalSession, getBillingEntitlements } from "@/lib/api";
+import { createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingReadiness } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 
 const perkRows = [
@@ -46,6 +48,13 @@ const tierCheckoutMeta = {
   },
 } as const;
 
+const boostTierLogoSet = [
+  { id: "CORE", label: "Starter Core", src: "/brand/tier-starter-core.png" },
+  { id: "PLUS", label: "Plus Command", src: "/brand/tier-plus-command.png" },
+  { id: "ELITE", label: "Elite Creator", src: "/brand/tier-elite-creator.png" },
+  { id: "INFINITE", label: "Infinite League", src: "/brand/tier-infinite-league.png" },
+] as const;
+
 const checkoutAssurances = [
   "Redirects to secure checkout instantly",
   "Subscription activates automatically after payment",
@@ -68,6 +77,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
     queryKey: ["billing-entitlements", accessToken],
     queryFn: () => getBillingEntitlements(accessToken!),
     enabled: Boolean(accessToken),
+  });
+
+  const billingStatusQuery = useQuery({
+    queryKey: ["billing-readiness"],
+    queryFn: getBillingReadiness,
+    staleTime: 30_000,
+    retry: false,
   });
 
   const activationMutation = useMutation({
@@ -110,6 +126,34 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
   const displayedPrice = billingInterval === "YEARLY" ? selectedPlan.yearly : selectedPlan.monthly;
   const displayedPriceSuffix = billingInterval === "YEARLY" ? "per year" : "per month";
   const activationCta = activationMutation.isPending ? "Securing checkout..." : `Upgrade to ${selectedPlan.label}`;
+  const billing = billingStatusQuery.data?.billing ?? null;
+  const billingReady = billing?.ready ?? false;
+  const missingTierPrices = billing?.missing.tierPrices ?? [];
+  const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
+  const billingStatusMessage = !billingReady
+    ? billing
+      ? `Billing is currently in setup mode. Missing tier prices: ${missingTierPrices.length}; missing add-on prices: ${missingAddOnPrices.length}.`
+      : "Checking billing readiness..."
+    : null;
+  const billingStatusDetail = !billingReady && billing
+    ? [
+        !billing.configured.stripeSecretKey ? "Missing STRIPE_SECRET_KEY" : null,
+        missingTierPrices.length ? `Missing tier IDs: ${missingTierPrices.slice(0, 4).join(", ")}${missingTierPrices.length > 4 ? "..." : ""}` : null,
+        missingAddOnPrices.length ? `Missing add-on IDs: ${missingAddOnPrices.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ")
+    : null;
+  const activationErrorMessage = axios.isAxiosError(activationMutation.error)
+    ? ((activationMutation.error.response?.data as { error?: string } | undefined)?.error ?? activationMutation.error.message)
+    : activationMutation.error instanceof Error
+      ? activationMutation.error.message
+      : "Checkout session creation failed. Verify Stripe config and retry.";
+  const portalErrorMessage = axios.isAxiosError(portalMutation.error)
+    ? ((portalMutation.error.response?.data as { error?: string } | undefined)?.error ?? portalMutation.error.message)
+    : portalMutation.error instanceof Error
+      ? portalMutation.error.message
+      : "Portal unavailable. You may not have an active customer record yet.";
 
   return (
     <section className="mx-auto grid w-full max-w-[1300px] gap-4 py-8 lg:grid-cols-[1.2fr_1fr]">
@@ -158,12 +202,12 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         <div className="pointer-events-none absolute -left-20 top-[-72px] h-56 w-56 rounded-full bg-cyan-500/12 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
         {checkoutState === "success" ? (
-          <div className="mb-3 rounded-2xl border border-emerald-500/35 bg-emerald-950/20 p-3 text-sm text-emerald-100">
+          <div className="nexus-display-panel mb-3 rounded-[24px] p-3 text-sm text-emerald-100">
             Checkout completed. Billing sync is now updating your Core+ access.
           </div>
         ) : null}
         {checkoutState === "cancelled" ? (
-          <div className="mb-3 rounded-2xl border border-amber-500/35 bg-amber-950/20 p-3 text-sm text-amber-100">
+          <div className="nexus-display-panel mb-3 rounded-[24px] p-3 text-sm text-amber-100">
             Checkout canceled. No subscription changes were made.
           </div>
         ) : null}
@@ -175,6 +219,12 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           Core+ combines visual prestige with operational advantages: queue priority, premium surfaces, and tiered
           progression mechanics tuned for creator-led ecosystems.
         </p>
+        {billingStatusMessage ? (
+          <div className="nexus-display-panel mt-4 rounded-[20px] border border-amber-500/40 bg-amber-950/25 p-3 text-xs text-amber-100">
+            <p>{billingStatusMessage}</p>
+            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-200/90">{billingStatusDetail}</p> : null}
+          </div>
+        ) : null}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="glass-cut rounded-xl px-3 py-2">
@@ -215,7 +265,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.12 + index * 0.07, ease: "easeOut" }}
-              className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3"
+              className="nexus-metric-card nexus-interactive-card rounded-2xl border border-slate-700/70 p-3"
             >
               <p className="text-sm font-semibold text-cyan-100">{perk.title}</p>
               <p className="mt-1 text-xs text-slate-400">{perk.detail}</p>
@@ -229,7 +279,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onChange={(event) => setSelectedTier(event.target.value as "CORE" | "PLUS" | "ELITE" | "INFINITE")}
             aria-label="Select Core Plus tier"
             title="Select Core Plus tier"
-            className="h-10 rounded-xl border border-amber-500/45 bg-amber-950/20 px-3 text-sm text-amber-100 outline-none focus:border-amber-300"
+            className="h-10 rounded-xl border border-amber-500/45 bg-[linear-gradient(155deg,rgba(120,53,15,0.22),rgba(15,23,42,0.88))] px-3 text-sm text-amber-100 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
           >
             <option value="CORE">Core</option>
             <option value="PLUS">Plus</option>
@@ -241,34 +291,35 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onChange={(event) => setBillingInterval(event.target.value as "MONTHLY" | "YEARLY")}
             aria-label="Select billing interval"
             title="Select billing interval"
-            className="h-10 rounded-xl border border-cyan-500/45 bg-cyan-950/20 px-3 text-sm text-cyan-100 outline-none focus:border-cyan-300"
+            className="h-10 rounded-xl border border-cyan-500/45 bg-[linear-gradient(155deg,rgba(8,47,73,0.22),rgba(15,23,42,0.88))] px-3 text-sm text-cyan-100 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-500/20"
           >
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
           </select>
-          <button
+          <Button
             onClick={() => activationMutation.mutate()}
-            disabled={!accessToken || !csrfToken || activationMutation.isPending}
-            className="inline-flex h-10 items-center rounded-xl bg-amber-400 px-4 text-sm font-semibold text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.35)] hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-65"
+            disabled={!accessToken || !csrfToken || activationMutation.isPending || !billingReady}
+            className="h-10 rounded-xl border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] px-4 text-sm text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.26)]"
           >
             {activationCta}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => portalMutation.mutate()}
-            disabled={!accessToken || !csrfToken || portalMutation.isPending}
-            className="inline-flex h-10 items-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-65"
+            disabled={!accessToken || !csrfToken || portalMutation.isPending || !billingReady}
+            variant="ghost"
+            className="h-10 rounded-xl border-emerald-500/35 px-4 text-sm text-emerald-100"
           >
             {portalMutation.isPending ? "Opening portal..." : "Manage Billing"}
-          </button>
+          </Button>
           <Link
             href="/app"
-            className="inline-flex h-10 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-cyan-500/35 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
           >
             Return to Command Center
           </Link>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-950/15 p-4">
+          <div className="nexus-display-panel rounded-[24px] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Selected Plan</p>
@@ -284,7 +335,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               {selectedPlan.savings}
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-700/70 bg-slate-950/65 p-4">
+          <div className="nexus-display-panel rounded-[24px] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Checkout Summary</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-300">
               <li>• Tier: {selectedPlan.label}</li>
@@ -296,7 +347,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 <p key={item}>• {item}</p>
               ))}
             </div>
-            <div className="mt-3 rounded-2xl border border-emerald-500/20 bg-emerald-950/15 p-3">
+            <div className="mt-3 rounded-[20px] border border-emerald-500/20 bg-emerald-950/15 p-3">
               <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">Billing portal later</p>
               <div className="mt-2 space-y-1 text-xs text-slate-400">
                 {portalAssurances.map((item) => (
@@ -307,10 +358,10 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           </div>
         </div>
         {activationMutation.error ? (
-          <p className="mt-2 text-xs text-red-300">Checkout session creation failed. Verify Stripe config and retry.</p>
+          <p className="mt-2 text-xs text-red-300">Checkout failed: {activationErrorMessage}</p>
         ) : null}
         {portalMutation.error ? (
-          <p className="mt-1 text-xs text-red-300">Portal unavailable. You may not have an active customer record yet.</p>
+          <p className="mt-1 text-xs text-red-300">Portal unavailable: {portalErrorMessage}</p>
         ) : null}
       </motion.article>
 
@@ -319,25 +370,37 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           initial={{ opacity: 0, x: 22 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.08 }}
-          className="nexus-panel rounded-3xl p-4"
+          className="nexus-display-panel rounded-[28px] p-4"
         >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Tier Badges</p>
-          <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <Image
-              src="/brand/boost-tier-badges.png"
-              alt="NexusForge boost tier badges"
-              width={640}
-              height={640}
-              className="image-pan h-auto w-full rounded-2xl object-cover"
-            />
-          </motion.div>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Tier Logos</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {boostTierLogoSet.map((tier) => (
+              <motion.div
+                key={tier.id}
+                whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }}
+                className="ember-frame holo-frame overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-950/65"
+              >
+                <Image
+                  src={tier.src}
+                  alt={`${tier.label} logo`}
+                  width={1200}
+                  height={800}
+                  className="image-pan h-auto w-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+                <div className="px-3 py-2 text-xs font-semibold text-slate-200">{tier.label}</div>
+              </motion.div>
+            ))}
+          </div>
         </motion.article>
 
         <motion.article
           initial={{ opacity: 0, x: 22 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.16 }}
-          className="nexus-panel rounded-3xl p-4"
+          className="nexus-display-panel rounded-[28px] p-4"
         >
           <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Pack Emblem</p>
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
