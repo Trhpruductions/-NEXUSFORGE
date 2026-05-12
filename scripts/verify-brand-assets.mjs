@@ -18,6 +18,7 @@ const requiredAssets = [
   "profile-badge-moderator.png",
   "profile-badge-developer.png",
   "profile-badge-vip.png",
+  "profile-badge-investor.png",
   "profile-badge-staff.png",
   "profile-badge-legend.png",
 ];

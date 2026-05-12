@@ -31,16 +31,18 @@ Profile badges
     - Developer badge.
 13) profile-badge-vip.png
    - VIP badge.
-14) profile-badge-staff.png
+14) profile-badge-investor.png
+   - Investor badge.
+15) profile-badge-staff.png
    - Staff badge.
-15) profile-badge-legend.png
+16) profile-badge-legend.png
    - Legend badge.
 
 Legacy compatibility assets
-16) core-plus-card.png
-17) boost-levels-card.png
-18) boost-tier-badges.png
-19) trh-powered-by.png
+17) core-plus-card.png
+18) boost-levels-card.png
+19) boost-tier-badges.png
+20) trh-powered-by.png
 
 Notes
 - Use these exact filenames so all tier and profile badge surfaces resolve without code changes.
