@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
-type ManualBadgeKey = "vip" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner";
+type ManualBadgeKey = "vip" | "investor" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner";
 
 const manualBadgeOptions: Array<{ key: ManualBadgeKey; label: string }> = [
   { key: "vip", label: "VIP" },
+  { key: "investor", label: "Investor" },
   { key: "staff", label: "Staff" },
   { key: "legend", label: "Legend" },
   { key: "founder", label: "Founder" },

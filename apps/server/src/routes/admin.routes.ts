@@ -34,6 +34,7 @@ const setRoleSchema = z.object({
 
 const manualBadgeKeySchema = z.enum([
   "vip",
+  "investor",
   "staff",
   "legend",
   "founder",
@@ -45,6 +46,7 @@ const manualBadgeKeySchema = z.enum([
 
 const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> = {
   vip: "badge-vip",
+  investor: "badge-investor",
   staff: "badge-staff",
   legend: "badge-legend",
   founder: "badge-founder",

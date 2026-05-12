@@ -62,6 +62,9 @@ export function ProfileBadgeStrip({
             width={24}
             height={24}
             className={cx("h-6 w-6 object-cover", imageClassName)}
+            onError={(event) => {
+              event.currentTarget.src = "/brand/profile-badge-vip.png";
+            }}
           />
           {showLabel ? <div className={cx("px-3 py-2 text-xs font-semibold text-slate-200", labelClassName)}>{badge.label}</div> : null}
         </div>

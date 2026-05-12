@@ -85,6 +85,13 @@ export const profileRoleBadges = {
     rarity: "rare",
     description: "Premium recognized member tier.",
   },
+  INVESTOR: {
+    key: "investor",
+    label: "Investor",
+    src: "/brand/profile-badge-investor.png",
+    rarity: "legendary",
+    description: "Strategic investor backing NexusForge growth.",
+  },
   STAFF: {
     key: "staff",
     label: "Staff",
@@ -112,6 +119,7 @@ export const badgeKeyMap = {
   moderator: profileRoleBadges.MODERATOR,
   developer: profileRoleBadges.DEVELOPER,
   vip: profileRoleBadges.VIP,
+  investor: profileRoleBadges.INVESTOR,
   staff: profileRoleBadges.STAFF,
   legend: profileRoleBadges.LEGEND,
 } as const;

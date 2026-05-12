@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$listeners = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pidNumber in $listeners) { if ($pidNumber) { Stop-Process -Id $pidNumber -Force -ErrorAction SilentlyContinue } }\"",
+    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/cleanup-server-port.ps1",
     "dev": "npm run dev:cleanup-port && npm run dev -w @nexusforge/server",
     "build": "npm run build -w @nexusforge/server",
     "test": "npm run test -w @nexusforge/server",
