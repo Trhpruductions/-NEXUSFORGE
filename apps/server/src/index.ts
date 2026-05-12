@@ -169,6 +169,25 @@ io.on("connection", (socket) => {
 
 setIo(io);
 
+httpServer.on("error", (error: NodeJS.ErrnoException) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(
+      `NexusForge API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
+    );
+    process.exit(1);
+    return;
+  }
+
+  if (error.code === "EACCES") {
+    console.error(`NexusForge API failed to start: insufficient permissions to bind port ${env.PORT}.`);
+    process.exit(1);
+    return;
+  }
+
+  console.error("NexusForge API failed to start due to an unexpected server error.", error);
+  process.exit(1);
+});
+
 httpServer.listen(env.PORT, () => {
   console.log(`NexusForge API running on http://localhost:${env.PORT}`);
 });
