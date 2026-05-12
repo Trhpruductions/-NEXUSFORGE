@@ -19,4 +19,9 @@ contextBridge.exposeInMainWorld("nexusforgeDesktop", {
     ipcRenderer.on("nexusforge-desktop:update-state", handler);
     return () => ipcRenderer.removeListener("nexusforge-desktop:update-state", handler);
   },
+  onStartupState: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("nexusforge-desktop:startup-state", handler);
+    return () => ipcRenderer.removeListener("nexusforge-desktop:startup-state", handler);
+  },
 });

@@ -1,0 +1,46 @@
+name: Admin Badge Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  admin-badge-smoke:
+    if: ${{ secrets.NEXUSFORGE_SMOKE_API_URL != '' && (secrets.NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN != '' || (secrets.NEXUSFORGE_SMOKE_ADMIN_EMAIL != '' && secrets.NEXUSFORGE_SMOKE_ADMIN_PASSWORD != '')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run admin badge smoke test
+        env:
+          NEXUSFORGE_API_URL: ${{ secrets.NEXUSFORGE_SMOKE_API_URL }}
+          NEXUSFORGE_ADMIN_ACCESS_TOKEN: ${{ secrets.NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN }}
+          NEXUSFORGE_ADMIN_EMAIL: ${{ secrets.NEXUSFORGE_SMOKE_ADMIN_EMAIL }}
+          NEXUSFORGE_ADMIN_PASSWORD: ${{ secrets.NEXUSFORGE_SMOKE_ADMIN_PASSWORD }}
+          NEXUSFORGE_BADGE_TEST_USER_ID: ${{ secrets.NEXUSFORGE_SMOKE_BADGE_TEST_USER_ID }}
+        run: npm run admin:badge:smoke
+
+  smoke-config-missing:
+    if: ${{ !(secrets.NEXUSFORGE_SMOKE_API_URL != '' && (secrets.NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN != '' || (secrets.NEXUSFORGE_SMOKE_ADMIN_EMAIL != '' && secrets.NEXUSFORGE_SMOKE_ADMIN_PASSWORD != ''))) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain skipped smoke run
+        run: |
+          echo "Admin badge smoke test skipped."
+          echo "Set repository secrets to enable this job:"
+          echo "- NEXUSFORGE_SMOKE_API_URL"
+          echo "- NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN (or NEXUSFORGE_SMOKE_ADMIN_EMAIL + NEXUSFORGE_SMOKE_ADMIN_PASSWORD)"
+          echo "- Optional: NEXUSFORGE_SMOKE_BADGE_TEST_USER_ID"

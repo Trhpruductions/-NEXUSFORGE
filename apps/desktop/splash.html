@@ -3,20 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexusForge Startup</title>
+    <title>NexusForge Launch</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #030712;
-        --panel: rgba(15, 23, 42, 0.52);
-        --line: rgba(34, 211, 238, 0.35);
-        --text: #e2e8f0;
+        --bg: #020617;
+        --panel: rgba(15, 23, 42, 0.58);
+        --line: rgba(125, 211, 252, 0.24);
+        --text: #f8fafc;
         --muted: #94a3b8;
-        --accent: #22d3ee;
+        --accent: #67e8f9;
+        --accent-strong: #38bdf8;
+        --shadow: rgba(2, 6, 23, 0.52);
       }
 
       * {
         box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
       }
 
       body {
@@ -26,197 +33,610 @@
         place-items: center;
         overflow: hidden;
         background:
-          radial-gradient(circle at 16% 8%, rgba(34, 211, 238, 0.16), transparent 35%),
-          radial-gradient(circle at 84% 82%, rgba(99, 102, 241, 0.2), transparent 34%),
-          linear-gradient(165deg, #020617 0%, #020a18 58%, #031024 100%);
+          radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.2), transparent 26%),
+          radial-gradient(circle at 78% 14%, rgba(34, 211, 238, 0.14), transparent 22%),
+          radial-gradient(circle at 78% 84%, rgba(129, 140, 248, 0.18), transparent 30%),
+          linear-gradient(155deg, #020617 0%, #050f1f 48%, #071424 100%);
         color: var(--text);
-        font-family: "Segoe UI", "Inter", sans-serif;
+        font-family: "Segoe UI", "Trebuchet MS", sans-serif;
       }
 
-      .particle {
+      .grid {
         position: absolute;
-        width: 3px;
-        height: 3px;
-        border-radius: 999px;
-        background: rgba(34, 211, 238, 0.75);
-        box-shadow: 0 0 14px rgba(34, 211, 238, 0.75);
-        animation: drift linear infinite;
-      }
-
-      @keyframes drift {
-        from {
-          transform: translateY(0) translateX(0);
-          opacity: 0;
-        }
-        20% {
-          opacity: 1;
-        }
-        80% {
-          opacity: 1;
-        }
-        to {
-          transform: translateY(-120px) translateX(24px);
-          opacity: 0;
-        }
-      }
-
-      .card {
-        position: relative;
-        width: min(760px, 92vw);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        background: var(--panel);
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
-        padding: 34px 34px 28px;
-        box-shadow:
-          0 24px 60px rgba(2, 6, 23, 0.46),
-          inset 0 1px 0 rgba(148, 163, 184, 0.15);
-      }
-
-      .glow {
-        position: absolute;
-        inset: -130px -120px auto;
-        height: 220px;
-        background: radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.25), transparent 62%);
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+        background-size: 84px 84px;
+        -webkit-mask-image: radial-gradient(circle at center, black 34%, transparent 88%);
+        mask-image: radial-gradient(circle at center, black 34%, transparent 88%);
+        opacity: 0.55;
         pointer-events: none;
-        filter: blur(12px);
+      }
+
+      .halo {
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+        filter: blur(2px);
+        opacity: 0.75;
+        animation: float 10s ease-in-out infinite;
+      }
+
+      .halo.one {
+        width: 280px;
+        height: 280px;
+        left: -40px;
+        top: -70px;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.26), transparent 68%);
+      }
+
+      .halo.two {
+        width: 360px;
+        height: 360px;
+        right: -110px;
+        bottom: -120px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.18), transparent 68%);
+        animation-delay: -4s;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0);
+        }
+        50% {
+          transform: translate3d(0, -12px, 0);
+        }
+      }
+
+      .splash {
+        position: relative;
+        width: min(920px, calc(100vw - 32px));
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background:
+          linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.6)),
+          var(--panel);
+        box-shadow:
+          0 30px 80px var(--shadow),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        -webkit-backdrop-filter: blur(18px);
+        backdrop-filter: blur(18px);
+        padding: 26px;
+        display: grid;
+        gap: 18px;
+        overflow: hidden;
+      }
+
+      .splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 18% 16%, rgba(103, 232, 249, 0.2), transparent 20%),
+          radial-gradient(circle at 78% 22%, rgba(96, 165, 250, 0.16), transparent 18%);
+        pointer-events: none;
+      }
+
+      .splash-top {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .brand {
+        display: grid;
+        gap: 8px;
       }
 
       .eyebrow {
         margin: 0;
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 0.22em;
-        color: #67e8f9;
+        letter-spacing: 0.28em;
+        color: #7dd3fc;
+      }
+
+      .badge {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.42);
+        color: #cbd5e1;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 6px rgba(103, 232, 249, 0.12);
+      }
+
+      .content {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+        gap: 22px;
+        align-items: stretch;
+      }
+
+      .hero {
+        display: grid;
+        gap: 20px;
+        align-content: start;
       }
 
       h1 {
-        margin: 10px 0 10px;
-        font-size: 58px;
-        line-height: 0.94;
-        letter-spacing: -0.02em;
-        opacity: 0;
-        transform: translateY(10px);
-        animation: reveal 0.75s ease forwards;
-      }
-
-      @keyframes reveal {
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        margin: 0;
+        font-size: clamp(48px, 7vw, 84px);
+        line-height: 0.92;
+        letter-spacing: -0.05em;
       }
 
       .subtitle {
-        margin: 0 0 20px;
+        margin: 0;
+        max-width: 40rem;
         color: var(--muted);
-        max-width: 530px;
+        font-size: 16px;
+        line-height: 1.6;
       }
 
-      .loader {
-        margin-top: 10px;
-        border: 1px solid rgba(71, 85, 105, 0.7);
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .fact {
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+      }
+
+      .fact strong {
+        display: block;
+        font-size: 18px;
+        color: #f8fafc;
+      }
+
+      .fact span {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.45;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+        padding: 18px;
+        border-radius: 22px;
+        background: rgba(2, 6, 23, 0.32);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      .timeline-title {
+        margin: 0;
+        color: #bae6fd;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        font-size: 11px;
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+      }
+
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
         border-radius: 14px;
-        background: rgba(2, 6, 23, 0.55);
-        padding: 12px 14px;
+        background: rgba(15, 23, 42, 0.45);
+        color: #dbeafe;
+      }
+
+      .step::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.4);
+      }
+
+      .step.active::before {
+        background: var(--accent);
+        box-shadow: 0 0 0 6px rgba(103, 232, 249, 0.12);
+      }
+
+      .step.done {
+        color: #f8fafc;
+      }
+
+      .step.done::before {
+        background: #38bdf8;
+      }
+
+      .status-card {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 22px;
+        background: rgba(2, 6, 23, 0.36);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      .status-label {
+        margin: 0;
+        color: #bae6fd;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        font-size: 11px;
       }
 
       .phase {
-        font-size: 15px;
-        color: #a5f3fc;
-        min-height: 22px;
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.12;
       }
 
-      .bar {
-        margin-top: 10px;
-        height: 6px;
+      .detail {
+        margin: 0;
+        color: #cbd5e1;
+        line-height: 1.55;
+      }
+
+      .meter {
+        display: grid;
+        gap: 10px;
+      }
+
+      .meter-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        color: #cbd5e1;
+        font-size: 13px;
+      }
+
+      .meter-track {
+        height: 10px;
         border-radius: 999px;
         overflow: hidden;
-        background: rgba(30, 41, 59, 0.9);
+        background: rgba(30, 41, 59, 0.92);
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.6);
       }
 
-      .bar > span {
-        display: block;
+      .meter-fill {
+        width: 8%;
         height: 100%;
-        width: 16%;
         border-radius: inherit;
-        background: linear-gradient(90deg, rgba(34, 211, 238, 0.55), rgba(99, 102, 241, 0.88));
-        box-shadow: 0 0 18px rgba(34, 211, 238, 0.4);
-        animation: load 4.8s ease forwards;
+        background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+        box-shadow: 0 0 24px rgba(56, 189, 248, 0.42);
+        transition: width 420ms ease;
       }
 
-      @keyframes load {
-        to {
-          width: 100%;
+      .footer {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        color: #94a3b8;
+        font-size: 12px;
+      }
+
+      .footer strong {
+        color: #e2e8f0;
+        font-weight: 600;
+      }
+
+      .pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 0 rgba(103, 232, 249, 0.38);
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(103, 232, 249, 0.36);
+        }
+        70% {
+          box-shadow: 0 0 0 14px rgba(103, 232, 249, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(103, 232, 249, 0);
         }
       }
 
-      .tips {
-        margin-top: 14px;
-        font-size: 12px;
-        color: #93c5fd;
+      @media (max-width: 880px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .facts {
+          grid-template-columns: 1fr;
+        }
+
+        .splash-top,
+        .footer {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .splash {
+          padding: 20px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
       }
     </style>
   </head>
   <body>
-    <div id="particles"></div>
-    <main class="card">
-      <div class="glow"></div>
-      <p class="eyebrow">NexusForge Command Home</p>
-      <h1>NEXUS<br />FORGE</h1>
-      <p class="subtitle">Premium desktop systems are initializing. Please wait while your workspace and services come online.</p>
+    <div class="grid"></div>
+    <div class="halo one"></div>
+    <div class="halo two"></div>
+    <main class="splash">
+      <div class="splash-top">
+        <div class="brand">
+          <p class="eyebrow">NexusForge Desktop</p>
+          <div class="badge"><span class="badge-dot"></span><span id="badgeText">Launching</span></div>
+        </div>
+        <div class="pulse" aria-hidden="true"></div>
+      </div>
 
-      <section class="loader">
-        <div class="phase" id="phaseText">Initializing Core Systems...</div>
-        <div class="bar"><span></span></div>
-        <div class="tips" id="tipText">Workspace optimization enabled.</div>
+      <section class="content">
+        <div class="hero">
+          <h1>Launch runway<br />online.</h1>
+          <p class="subtitle">
+            The desktop shell is waking up, preparing the session, and connecting your app stack before the full window opens.
+          </p>
+
+          <div class="facts">
+            <div class="fact">
+              <strong id="factOne">Secure session</strong>
+              <span id="factOneDesc">Resetting launch data and Chromium storage.</span>
+            </div>
+            <div class="fact">
+              <strong id="factTwo">Service check</strong>
+              <span id="factTwoDesc">Verifying local ports and recovery readiness.</span>
+            </div>
+            <div class="fact">
+              <strong id="factThree">Window handoff</strong>
+              <span id="factThreeDesc">Bringing NexusForge to the front when ready.</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="timeline">
+          <p class="timeline-title">Startup sequence</p>
+          <div class="steps" id="steps">
+            <div class="step done">Booting desktop shell</div>
+            <div class="step">Preparing secure session</div>
+            <div class="step">Checking local services</div>
+            <div class="step">Opening app</div>
+          </div>
+        </aside>
       </section>
+
+      <section class="status-card">
+        <p class="status-label">Current phase</p>
+        <p class="phase" id="phaseText">Booting desktop shell</p>
+        <p class="detail" id="detailText">Preparing the launch environment.</p>
+
+        <div class="meter">
+          <div class="meter-row">
+            <span id="meterLabel">Initializing</span>
+            <span id="meterValue">8%</span>
+          </div>
+          <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <div><strong id="footerTitle">Getting ready to open NexusForge.</strong> This usually takes a few seconds.</div>
+        <div>Desktop handoff is automatic once the workspace is live.</div>
+      </div>
     </main>
 
     <script>
-      const phases = [
-        "Initializing Core Systems...",
-        "Loading Workspace...",
-        "Connecting Services...",
-        "Verifying User Session...",
-        "Checking for Updates...",
-        "Preparing Dashboard...",
-        "Startup Complete",
-      ];
+      const defaultState = {
+        stage: "Booting desktop shell",
+        detail: "Preparing the launch environment.",
+        progress: 8,
+        accent: "warmup",
+      };
 
-      const tips = [
-        "Workspace optimization enabled.",
-        "Background services initialized.",
-        "Performance systems running normally.",
-        "NEXUS FORGE synced successfully.",
-      ];
+      const stageCopy = {
+        "Booting desktop shell": {
+          label: "Initializing",
+          footer: "Getting ready to open NexusForge.",
+          facts: [
+            "Resetting launch data and Chromium storage.",
+            "Standing by for the app stack to answer.",
+            "The loading screen will hand off automatically.",
+          ],
+          activeStep: 0,
+        },
+        "Preparing launch": {
+          label: "Preparing launch",
+          footer: "Running final startup checks before handoff.",
+          facts: [
+            "Checking update metadata and startup readiness.",
+            "Finalizing desktop launch orchestration.",
+            "Preparing to open the main workspace window.",
+          ],
+          activeStep: 1,
+        },
+        "Preparing secure session": {
+          label: "Securing session",
+          footer: "Setting up a clean startup path.",
+          facts: [
+            "Resetting launch data and Chromium storage.",
+            "Preparing the desktop shell for a clean handoff.",
+            "The app window stays hidden until the session is ready.",
+          ],
+          activeStep: 1,
+        },
+        "Checking local services": {
+          label: "Checking services",
+          footer: "Making sure the app stack is available.",
+          facts: [
+            "Verifying local ports and recovery readiness.",
+            "Watching the workspace services come online.",
+            "The app opens only after the stack is responsive.",
+          ],
+          activeStep: 2,
+        },
+        "Preparing recovery path": {
+          label: "Preparing recovery",
+          footer: "Local services need a moment more.",
+          facts: [
+            "Verifying local ports and recovery readiness.",
+            "Starting the workspace recovery path now.",
+            "The desktop will retry automatically before showing the app.",
+          ],
+          activeStep: 2,
+        },
+        "Starting local services": {
+          label: "Starting services",
+          footer: "Launching the workspace recovery process.",
+          facts: [
+            "Starting the workspace recovery path now.",
+            "Watching the local stack spin up.",
+            "The main window appears when the stack is reachable.",
+          ],
+          activeStep: 2,
+        },
+        "Local services ready": {
+          label: "Services ready",
+          footer: "The workspace answered on both ports.",
+          facts: [
+            "Verifying local ports and recovery readiness.",
+            "The desktop stack answered on both ports.",
+            "The app window is about to come forward.",
+          ],
+          activeStep: 2,
+        },
+        "Opening app": {
+          label: "Opening app",
+          footer: "Bringing the full workspace forward.",
+          facts: [
+            "Connecting the desktop shell to NexusForge.",
+            "The app window is loading and preparing to show.",
+            "The splash screen will close as soon as the window is ready.",
+          ],
+          activeStep: 3,
+        },
+        "Connecting hosted workspace": {
+          label: "Connecting hosted",
+          footer: "Opening the hosted NexusForge workspace.",
+          facts: [
+            "Routing desktop handoff to the hosted environment.",
+            "Validating remote availability before showing the app.",
+            "The splash closes after hosted startup is ready.",
+          ],
+          activeStep: 3,
+        },
+        "Opening NexusForge Desktop": {
+          label: "Ready",
+          footer: "NexusForge is opening now.",
+          facts: [
+            "The workspace is ready for the full app window.",
+            "The splash screen is handing off to NexusForge.",
+            "Startup is complete.",
+          ],
+          activeStep: 3,
+        },
+      };
 
-      const phaseEl = document.getElementById("phaseText");
-      const tipEl = document.getElementById("tipText");
-      let phaseIndex = 0;
-      let tipIndex = 0;
+      const phaseText = document.getElementById("phaseText");
+      const detailText = document.getElementById("detailText");
+      const meterFill = document.getElementById("meterFill");
+      const meterValue = document.getElementById("meterValue");
+      const meterLabel = document.getElementById("meterLabel");
+      const footerTitle = document.getElementById("footerTitle");
+      const badgeText = document.getElementById("badgeText");
+      const factOneDesc = document.getElementById("factOneDesc");
+      const factTwoDesc = document.getElementById("factTwoDesc");
+      const factThreeDesc = document.getElementById("factThreeDesc");
+      const steps = Array.from(document.querySelectorAll(".step"));
 
-      setInterval(() => {
-        phaseIndex = Math.min(phaseIndex + 1, phases.length - 1);
-        phaseEl.textContent = phases[phaseIndex];
-      }, 650);
+      function applyState(state) {
+        const current = { ...defaultState, ...(state || {}) };
+        const copy = stageCopy[current.stage] || stageCopy[defaultState.stage];
+        phaseText.textContent = current.stage;
+        detailText.textContent = current.detail || defaultState.detail;
+        meterValue.textContent = `${Math.max(0, Math.min(100, Math.round(current.progress || 0)))}%`;
+        meterFill.style.width = `${Math.max(8, Math.min(100, Number(current.progress) || 0))}%`;
+        meterLabel.textContent = copy.label;
+        footerTitle.textContent = copy.footer;
+        badgeText.textContent = current.stage.includes("Opening") ? "Handing off" : "Launching";
+        factOneDesc.textContent = copy.facts[0];
+        factTwoDesc.textContent = copy.facts[1];
+        factThreeDesc.textContent = copy.facts[2];
+        steps.forEach((step, index) => {
+          step.classList.toggle("done", index < copy.activeStep);
+          step.classList.toggle("active", index === copy.activeStep);
+        });
 
-      setInterval(() => {
-        tipIndex = (tipIndex + 1) % tips.length;
-        tipEl.textContent = tips[tipIndex];
-      }, 1100);
+        const accentMap = {
+          warmup: ["#67e8f9", "#38bdf8"],
+          checking: ["#7dd3fc", "#60a5fa"],
+          starting: ["#fbbf24", "#fb7185"],
+          opening: ["#a78bfa", "#60a5fa"],
+          ready: ["#34d399", "#38bdf8"],
+          warning: ["#fbbf24", "#f97316"],
+        };
+        const [primary, secondary] = accentMap[current.accent] || accentMap.warmup;
+        document.documentElement.style.setProperty("--accent", primary);
+        document.documentElement.style.setProperty("--accent-strong", secondary);
+      }
 
-      const particlesHost = document.getElementById("particles");
-      const count = 42;
-      for (let i = 0; i < count; i += 1) {
-        const el = document.createElement("div");
-        el.className = "particle";
-        el.style.left = `${Math.random() * 100}vw`;
-        el.style.top = `${55 + Math.random() * 45}vh`;
-        el.style.animationDuration = `${3 + Math.random() * 4}s`;
-        el.style.animationDelay = `${Math.random() * 3}s`;
-        particlesHost.appendChild(el);
+      applyState(defaultState);
+
+      if (window.nexusforgeDesktop?.onStartupState) {
+        window.nexusforgeDesktop.onStartupState((state) => applyState(state));
+      } else {
+        const phases = [
+          { stage: "Preparing secure session", detail: "Resetting desktop storage before launch.", progress: 24, accent: "warmup" },
+          { stage: "Checking local services", detail: "Verifying the app stack is reachable on ports 3000 and 4000.", progress: 58, accent: "checking" },
+          { stage: "Opening app", detail: "Connecting the desktop shell to NexusForge.", progress: 86, accent: "opening" },
+        ];
+        let index = 0;
+        setInterval(() => {
+          index = Math.min(index + 1, phases.length - 1);
+          applyState(phases[index]);
+        }, 900);
       }
     </script>
   </body>

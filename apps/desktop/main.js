@@ -5,8 +5,8 @@ const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
-const hostedBetaStartUrl = "https://abstract-weight-dicke-longest.trycloudflare.com/beta";
-const startUrl = process.env.NEXUSFORGE_DESKTOP_URL || hostedBetaStartUrl || "http://localhost:3000/app";
+const localStartUrl = "http://localhost:3000/app";
+const startUrl = process.env.NEXUSFORGE_DESKTOP_URL || localStartUrl;
 const isLocalStartTarget = /localhost|127\.0\.0\.1/i.test(startUrl);
 const appIconPath =
   process.platform === "win32"
@@ -41,6 +41,14 @@ let startupRevealTimer = null;
 let installInProgress = false;
 let skipAutoInstallOnQuit = false;
 const updateStatePath = path.join(app.getPath("userData"), "update-state.json");
+
+let startupRuntime = {
+  stage: "Booting desktop shell",
+  detail: "Preparing the launch environment.",
+  progress: 8,
+  accent: "warmup",
+  timestamp: new Date().toISOString(),
+};
 
 let updateRuntime = {
   checking: false,
@@ -166,6 +174,21 @@ function emitUpdateRuntime() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("nexusforge-desktop:update-state", updateRuntime);
   }
+}
+
+function emitStartupRuntime() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send("nexusforge-desktop:startup-state", startupRuntime);
+  }
+}
+
+function updateStartupRuntime(patch) {
+  startupRuntime = {
+    ...startupRuntime,
+    ...patch,
+    timestamp: new Date().toISOString(),
+  };
+  emitStartupRuntime();
 }
 
 function parseVersionSegments(version) {
@@ -536,10 +559,14 @@ function createSplashWindow() {
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
   void splashWindow.loadFile(splashPath);
+  splashWindow.webContents.once("did-finish-load", () => {
+    emitStartupRuntime();
+  });
   splashWindow.on("closed", () => {
     splashWindow = null;
   });
@@ -556,6 +583,12 @@ function revealMainWindow() {
   }
 
   startupRevealTimer = setTimeout(() => {
+    updateStartupRuntime({
+      stage: "Opening NexusForge Desktop",
+      detail: "The workspace is ready. Bringing the app forward.",
+      progress: 100,
+      accent: "ready",
+    });
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
@@ -622,13 +655,86 @@ function probePort(port) {
 }
 
 async function refreshLocalPortStatus() {
+  if (!isLocalStartTarget) {
+    return { port3000Open: false, port4000Open: false };
+  }
+
+  updateStartupRuntime({
+    stage: "Checking local services",
+    detail: "Verifying the app stack is reachable on ports 3000 and 4000.",
+    progress: 34,
+    accent: "checking",
+  });
   const [port3000Open, port4000Open] = await Promise.all([probePort(3000), probePort(4000)]);
   updateLocalStackStatus({ port3000Open, port4000Open });
+  updateStartupRuntime({
+    stage: port3000Open && port4000Open ? "Local services ready" : "Preparing recovery path",
+    detail: port3000Open && port4000Open ? "The desktop stack answered on both ports." : "Waiting on the local stack to finish coming online.",
+    progress: port3000Open && port4000Open ? 66 : 46,
+    accent: port3000Open && port4000Open ? "ready" : "checking",
+  });
   return { port3000Open, port4000Open };
 }
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientLoadError(error) {
+  const detail = String(error || "");
+  return /ERR_CONNECTION_RESET|ERR_CONNECTION_REFUSED|ERR_CONNECTION_ABORTED|ERR_ABORTED|ERR_TIMED_OUT|ERR_NETWORK_CHANGED/i.test(
+    detail,
+  );
+}
+
+async function loadMainWindowUrlWithRetry(url, options = {}) {
+  const attempts = Number(options.attempts || 1);
+  const delayMs = Number(options.delayMs || 700);
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      throw new Error("Main window is unavailable during URL load.");
+    }
+
+    try {
+      await mainWindow.loadURL(url);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts || !isTransientLoadError(error)) {
+        throw error;
+      }
+      await wait(delayMs);
+    }
+  }
+
+  throw lastError || new Error("Main window URL load failed.");
+}
+
+async function waitForUrlReachable(url, options = {}) {
+  const timeoutMs = Number(options.timeoutMs || 15000);
+  const intervalMs = Number(options.intervalMs || 500);
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (response.status >= 200 && response.status < 500) {
+        return true;
+      }
+    } catch {
+      // Probe retries until timeout.
+    }
+
+    await wait(intervalMs);
+  }
+
+  return false;
 }
 
 async function waitForLocalStackReady(timeoutMs) {
@@ -648,11 +754,19 @@ function loadFallbackPage(message) {
   appendLocalStackHistory(message);
 
   if (mainWindow && !mainWindow.isDestroyed()) {
-    void mainWindow.loadFile(fallbackPath);
+    void mainWindow.loadFile(fallbackPath).catch((error) => {
+      console.warn("[NexusForge Desktop] Unable to load fallback page:", error);
+    });
   }
 }
 
 async function startLocalStack(reason) {
+  updateStartupRuntime({
+    stage: "Starting local services",
+    detail: "Launching the workspace recovery process.",
+    progress: 48,
+    accent: "starting",
+  });
   if (!isLocalStartTarget) {
     updateLocalStackStatus({
       message: "Local stack start skipped: desktop target is not localhost.",
@@ -791,8 +905,18 @@ async function ensureAppReachable(trigger) {
   }
 
   if (!isLocalStartTarget) {
+    updateStartupRuntime({
+      stage: "Connecting hosted workspace",
+      detail: "Opening the remote NexusForge experience.",
+      progress: 78,
+      accent: "opening",
+    });
     try {
-      await mainWindow.loadURL(startUrl);
+      const reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
+      if (!reachable) {
+        throw new Error("Hosted startup URL did not become reachable in time.");
+      }
+      await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
       updateLocalStackStatus({
         message: "Desktop is connected to hosted services.",
         lastError: null,
@@ -808,6 +932,13 @@ async function ensureAppReachable(trigger) {
     }
     return;
   }
+
+  updateStartupRuntime({
+    stage: "Opening app",
+    detail: "Connecting the desktop shell to NexusForge.",
+    progress: 78,
+    accent: "opening",
+  });
 
   if (bootRecoveryInFlight) {
     return;
@@ -828,7 +959,13 @@ async function ensureAppReachable(trigger) {
       }
     }
 
-    await mainWindow.loadURL(startUrl);
+    const reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
+    if (!reachable) {
+      loadFallbackPage("Local app URL did not become reachable. Retry in a moment or restart local services.");
+      return;
+    }
+
+    await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
     updateLocalStackStatus({
       message: "Desktop is connected to local services.",
       lastError: null,
@@ -887,6 +1024,12 @@ function resetIsolatedDevSession() {
 }
 
 async function prepareDevSessionStorage() {
+  updateStartupRuntime({
+    stage: "Preparing secure session",
+    detail: "Resetting desktop storage before launch.",
+    progress: 18,
+    accent: "warmup",
+  });
   if (!isLocalStartTarget) {
     startupHealth = {
       mode: "web",
@@ -919,6 +1062,13 @@ async function prepareDevSessionStorage() {
       storages: ["serviceworkers", "cachestorage", "indexdb"],
     });
 
+    updateStartupRuntime({
+      stage: "Preparing secure session",
+      detail: "Desktop storage reset completed.",
+      progress: 26,
+      accent: "ready",
+    });
+
     startupHealth = {
       mode: "desktop-dev",
       storageResetAttempted: true,
@@ -931,6 +1081,12 @@ async function prepareDevSessionStorage() {
     };
   } catch (error) {
     console.warn("[NexusForge Desktop] Unable to clear dev session storage:", error);
+    updateStartupRuntime({
+      stage: "Preparing secure session",
+      detail: "Storage reset warning detected. Continuing launch.",
+      progress: 26,
+      accent: "warning",
+    });
     startupHealth = {
       mode: "desktop-dev",
       storageResetAttempted: true,
@@ -1052,10 +1208,25 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  updateStartupRuntime({
+    stage: "Booting desktop shell",
+    detail: "Starting NexusForge Desktop.",
+    progress: 4,
+    accent: "warmup",
+  });
   readPersistedUpdateState();
   resetDevQuotaDatabase();
   await prepareDevSessionStorage();
-  await refreshLocalPortStatus();
+  if (isLocalStartTarget) {
+    await refreshLocalPortStatus();
+  } else {
+    updateStartupRuntime({
+      stage: "Connecting hosted workspace",
+      detail: "Opening the remote NexusForge experience.",
+      progress: 32,
+      accent: "opening",
+    });
+  }
 
   startupHealth = {
     ...startupHealth,
@@ -1163,6 +1334,12 @@ app.whenReady().then(async () => {
 
   createSplashWindow();
   createWindow();
+  updateStartupRuntime({
+    stage: "Preparing launch",
+    detail: "Checking updates and final startup tasks.",
+    progress: 72,
+    accent: "checking",
+  });
   void ensureAppReachable("startup");
   void checkForUpdates("startup");
 
