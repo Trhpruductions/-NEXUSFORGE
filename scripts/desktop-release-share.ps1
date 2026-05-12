@@ -3,7 +3,8 @@ param(
   [string] $Bump = "patch",
   [string[]] $Notes = @(),
   [string] $PersistentBaseUrl = "",
-  [switch] $ForceUpdate
+  [switch] $ForceUpdate,
+  [switch] $AllowEphemeral
 )
 
 Set-StrictMode -Version Latest
@@ -32,6 +33,39 @@ function Normalize-BaseUrl {
     $normalized = $normalized.TrimEnd("/")
   }
   return $normalized
+}
+
+function Test-IsEphemeralOrNonDurableUrl {
+  param([Parameter(Mandatory = $true)] [string] $BaseUrl)
+
+  $candidate = $BaseUrl.Trim()
+  if ([string]::IsNullOrWhiteSpace($candidate)) {
+    return $true
+  }
+
+  try {
+    $uri = [System.Uri]$candidate
+    $host = [string]$uri.Host
+    if ($null -eq $host) {
+      $host = ""
+    }
+    $host = $host.ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($host)) {
+      return $true
+    }
+
+    if ($host -match "(^|\.)trycloudflare\.com$") {
+      return $true
+    }
+
+    if ($host -in @("localhost", "127.0.0.1", "0.0.0.0")) {
+      return $true
+    }
+
+    return $false
+  } catch {
+    return $true
+  }
 }
 
 function Stop-ProcessIfRunning {
@@ -259,8 +293,18 @@ $isEphemeral = $false
 
 if (![string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
   $publicBaseUrl = Normalize-BaseUrl -BaseUrl $PersistentBaseUrl
+  if ((Test-IsEphemeralOrNonDurableUrl -BaseUrl $publicBaseUrl) -and -not $AllowEphemeral) {
+    throw "Refusing to publish desktop release with non-durable base URL '$publicBaseUrl'. Provide a persistent host or re-run with -AllowEphemeral for temporary testing only."
+  }
+  if ((Test-IsEphemeralOrNonDurableUrl -BaseUrl $publicBaseUrl) -and $AllowEphemeral) {
+    $isEphemeral = $true
+  }
   Write-Host "[desktop-release] Using persistent base URL: $publicBaseUrl"
 } else {
+  if (-not $AllowEphemeral) {
+    throw "Persistent base URL is required. Set -PersistentBaseUrl or NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL. Use -AllowEphemeral only for temporary testing links."
+  }
+
   Write-Host "[desktop-release] Starting fresh public tunnel..."
   $tunnelProc = Start-LoggedProcess -Name "installer-tunnel" -FilePath "npx.cmd" -Arguments @("--yes", "cloudflared", "tunnel", "--url", "http://localhost:3200") -WorkingDirectory $repoRoot
   $publicBaseUrl = Wait-ForUrl -Paths @($tunnelProc.StdoutLog, $tunnelProc.StderrLog) -TimeoutSeconds 90

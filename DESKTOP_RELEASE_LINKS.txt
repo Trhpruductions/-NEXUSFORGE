@@ -1,10 +1,10 @@
 ﻿NexusForge Desktop Release Links
-Generated: 2026-05-10T21:40:20
+Generated: 2026-05-11T16:10:00
 
-Download:   https://mixture-declined-peter-generators.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.4.exe
+Download:   https://mixture-declined-peter-generators.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.5.exe
 Directory:  https://mixture-declined-peter-generators.trycloudflare.com/
-SHA256:     f0efbb9ac6d8b12b16dc23dd2e0e5d80892fc88ca9dc581fefe20701474cfba4
-Version:    1.0.4
+SHA256:     29459653fa007b8215e3e50895d1daef46f484b924cc950a7bac831537007936
+Version:    1.0.5
 ForceUpdate: True
 Ephemeral:  True
 
