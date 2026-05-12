@@ -32,6 +32,36 @@ const setRoleSchema = z.object({
   role: z.enum(["USER", "MODERATOR", "ADMIN", "EXEC", "OWNER"]),
 });
 
+const manualBadgeKeySchema = z.enum([
+  "vip",
+  "staff",
+  "legend",
+  "founder",
+  "developer",
+  "moderator",
+  "admin",
+  "owner",
+]);
+
+const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> = {
+  vip: "badge-vip",
+  staff: "badge-staff",
+  legend: "badge-legend",
+  founder: "badge-founder",
+  developer: "badge-developer",
+  moderator: "badge-moderator",
+  admin: "badge-admin",
+  owner: "badge-owner",
+};
+
+const manualBadgeReverseMap = Object.entries(manualBadgeMedalMap).reduce<Record<string, z.infer<typeof manualBadgeKeySchema>>>(
+  (acc, [badgeKey, medalKey]) => {
+    acc[medalKey] = badgeKey as z.infer<typeof manualBadgeKeySchema>;
+    return acc;
+  },
+  {},
+);
+
 const sampleMedalCatalog = [
   { key: "founding-member", name: "Founding Member", description: "Early supporter of NexusForge.", icon: "🏛" },
   { key: "forge-commander", name: "Forge Commander", description: "Leads high-signal communities.", icon: "🛡" },
@@ -333,6 +363,15 @@ adminRouter.get("/users", async (req, res) => {
         appRole: true,
         isAdmin: true,
         createdAt: true,
+        medals: {
+          select: {
+            medal: {
+              select: {
+                key: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -348,7 +387,133 @@ adminRouter.get("/users", async (req, res) => {
       ...user,
       appRole: resolveEffectiveRole(user.appRole as AppRole | null, user.isAdmin),
       isAdmin: hasAdminAccess(user.appRole as AppRole | null, user.isAdmin),
+      manualBadges: user.medals
+        .map((entry) => manualBadgeReverseMap[entry.medal.key])
+        .filter((value): value is z.infer<typeof manualBadgeKeySchema> => Boolean(value)),
     })),
+  });
+});
+
+adminRouter.post("/users/:id/badges/grant", async (req, res) => {
+  const parsed = z.object({ badgeKey: manualBadgeKeySchema }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, username: true },
+  });
+
+  if (!targetUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const badgeKey = parsed.data.badgeKey;
+  const medalKey = manualBadgeMedalMap[badgeKey];
+
+  const medal = await prisma.medal.upsert({
+    where: { key: medalKey },
+    update: {
+      name: `Badge: ${badgeKey.toUpperCase()}`,
+      description: `Manual admin badge override for ${badgeKey}.`,
+      icon: "🏷",
+    },
+    create: {
+      key: medalKey,
+      name: `Badge: ${badgeKey.toUpperCase()}`,
+      description: `Manual admin badge override for ${badgeKey}.`,
+      icon: "🏷",
+    },
+  });
+
+  await prisma.userMedal.upsert({
+    where: {
+      userId_medalId: {
+        userId: targetUser.id,
+        medalId: medal.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: targetUser.id,
+      medalId: medal.id,
+    },
+  });
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Granted manual profile badge",
+    `Granted ${badgeKey.toUpperCase()} badge to ${targetUser.username}.`,
+    {
+      action: "grant-profile-badge",
+      targetUserId: targetUser.id,
+      targetUsername: targetUser.username,
+      badgeKey,
+      medalKey,
+    },
+  );
+
+  res.json({
+    user: {
+      id: targetUser.id,
+      username: targetUser.username,
+    },
+    badgeKey,
+  });
+});
+
+adminRouter.post("/users/:id/badges/revoke", async (req, res) => {
+  const parsed = z.object({ badgeKey: manualBadgeKeySchema }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, username: true },
+  });
+
+  if (!targetUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const badgeKey = parsed.data.badgeKey;
+  const medalKey = manualBadgeMedalMap[badgeKey];
+  const medal = await prisma.medal.findUnique({ where: { key: medalKey }, select: { id: true } });
+
+  if (medal) {
+    await prisma.userMedal.deleteMany({
+      where: {
+        userId: targetUser.id,
+        medalId: medal.id,
+      },
+    });
+  }
+
+  await logAdminProfileAction(
+    req.user!.id,
+    "Revoked manual profile badge",
+    `Revoked ${badgeKey.toUpperCase()} badge from ${targetUser.username}.`,
+    {
+      action: "revoke-profile-badge",
+      targetUserId: targetUser.id,
+      targetUsername: targetUser.username,
+      badgeKey,
+      medalKey,
+    },
+  );
+
+  res.json({
+    user: {
+      id: targetUser.id,
+      username: targetUser.username,
+    },
+    badgeKey,
   });
 });
 
