@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev:reset": "node -e \"require('fs').rmSync('.next',{ recursive:true, force:true })\"",
+    "dev": "npm run dev:reset && next dev --hostname 127.0.0.1 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
