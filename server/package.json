@@ -3,7 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "npm run dev -w @nexusforge/server",
+    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$listeners = Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pidNumber in $listeners) { if ($pidNumber) { Stop-Process -Id $pidNumber -Force -ErrorAction SilentlyContinue } }\"",
+    "dev": "npm run dev:cleanup-port && npm run dev -w @nexusforge/server",
     "build": "npm run build -w @nexusforge/server",
     "test": "npm run test -w @nexusforge/server",
     "prisma:generate": "npm run prisma:generate -w @nexusforge/server",
