@@ -39,7 +39,8 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "server"
   ],
   "devDependencies": {
     "7zip-bin": "^5.2.0",
