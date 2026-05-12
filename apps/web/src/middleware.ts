@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const desktopUaToken = "NexusForgeDesktop";
-const runtimeApiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:4000";
+const configuredRuntimeApiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+const runtimeApiBase =
+  process.env.NODE_ENV !== "production" && !configuredRuntimeApiBase?.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i)
+    ? "http://127.0.0.1:4000"
+    : configuredRuntimeApiBase ?? "http://127.0.0.1:4000";
 const runtimeLaunchModeUrl = `${runtimeApiBase}/api/runtime/launch-mode`;
 const launchModeCacheTtlMs = 15000;
 

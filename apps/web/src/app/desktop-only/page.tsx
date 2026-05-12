@@ -10,7 +10,7 @@ export default function DesktopOnlyPage() {
     <ExperienceShell
       eyebrow="Launch Mode"
       title="NexusForge is desktop-only right now"
-      subtitle="Mobile and browser launch are temporarily locked while the desktop experience is hardened."
+      subtitle="Web access is temporarily locked while the desktop experience is hardened."
       metrics={[
         { label: "Desktop Access", value: desktopOnlyEnabled ? "Enabled" : "Disabled", tone: desktopOnlyEnabled ? "emerald" : "amber" },
         { label: "Web Access", value: desktopOnlyEnabled ? "Locked" : "Available", tone: "cyan" },
@@ -18,13 +18,13 @@ export default function DesktopOnlyPage() {
       maxWidthClassName="max-w-4xl"
     >
 
-        <section className="nexus-panel rounded-2xl p-5 text-sm text-slate-200">
+        <section className="nexus-display-panel rounded-[28px] p-5 text-sm text-slate-200">
           <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">Current Status</p>
           <p className="mt-2">
-            Desktop access is {desktopOnlyEnabled ? "ENABLED" : "DISABLED"}. When you are ready to launch web/mobile,
+            Desktop access is {desktopOnlyEnabled ? "ENABLED" : "DISABLED"}. When you are ready to reopen web access,
             set <span className="font-semibold text-cyan-100">NEXUSFORGE_DESKTOP_ONLY=false</span> and redeploy the web app.
           </p>
-          <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">
+          <div className="mt-4 rounded-[20px] border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">
             Desktop users should open NexusForge through the Electron app launcher.
           </div>
           <div className="mt-4">

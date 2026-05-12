@@ -1,24 +1,47 @@
-Place your uploaded brand images in this folder using these exact filenames:
+Place uploaded brand assets in this folder using these exact filenames.
 
+Core logos
 1) nexusforge-main-logo.png
-   - Canonical main app logo used across landing, auth, and in-app command header.
-
+   - Canonical main app logo used across landing, auth, and command header.
 2) nexusforge-logo.png
-   - Legacy logo file kept for compatibility and fallback only.
+   - Legacy compatibility logo.
 
-3) core-plus-card.png
-   - Core+ membership card art kept for legacy compatibility.
+Boost tier logos (Core+)
+3) tier-starter-core.png
+   - Starter Core logo.
+4) tier-plus-command.png
+   - Plus Command logo.
+5) tier-elite-creator.png
+   - Elite Creator logo.
+6) tier-infinite-league.png
+   - Infinite League logo.
+7) boost-pack-icon.png
+   - Forge Boost Pack emblem.
 
-4) boost-levels-card.png
-   - Legacy boost ladder card kept for compatibility.
+Profile badges
+8) profile-badge-founder.png
+   - Founder badge.
+9) profile-badge-owner.png
+   - Owner badge.
+10) profile-badge-admin.png
+    - Admin badge.
+11) profile-badge-moderator.png
+   - Moderator badge.
+12) profile-badge-developer.png
+    - Developer badge.
+13) profile-badge-vip.png
+   - VIP badge.
+14) profile-badge-staff.png
+   - Staff badge.
+15) profile-badge-legend.png
+   - Legend badge.
 
-5) boost-tier-badges.png
-   - Primary four-tier badge image used for Starter Core, Plus Command, Elite Creator, and Infinite League.
+Legacy compatibility assets
+16) core-plus-card.png
+17) boost-levels-card.png
+18) boost-tier-badges.png
+19) trh-powered-by.png
 
-6) boost-pack-icon.png
-   - Primary Boost Pack emblem image used in pricing and Core+ surfaces.
-
-Temporary placeholders are currently present for these files to prevent 404s in development.
-Replace each file with your final artwork using the same filename to update the app instantly.
-
-After copying files, restart the dev server if images do not appear immediately.
+Notes
+- Use these exact filenames so all tier and profile badge surfaces resolve without code changes.
+- If images do not refresh immediately, restart the web dev server.

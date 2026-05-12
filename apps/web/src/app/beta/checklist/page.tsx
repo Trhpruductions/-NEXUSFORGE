@@ -7,7 +7,7 @@ const checklistItems = [
   "Open notifications with /notifications?filter=activity",
   "Open settings with /settings?intent=create-forge",
   "Open invite route and validate join flow copy",
-  "Check mobile and desktop layout rendering at /app",
+  "Check desktop layout rendering at /app",
   "Validate no dead links from /beta and /app quick actions",
   "Confirm error states render cleanly for empty lists",
 ];
@@ -46,7 +46,7 @@ export default function BetaChecklistPage() {
           </Link>
           <Link
             href="/beta/feedback"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-slate-900/75 px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
           >
             Report Results
           </Link>

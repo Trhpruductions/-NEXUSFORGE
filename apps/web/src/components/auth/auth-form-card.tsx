@@ -19,10 +19,14 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
       transition={{ duration: 0.38, ease: "easeOut" }}
       className="w-full max-w-md"
     >
-      <div className="nexus-panel-strong overflow-hidden rounded-3xl p-6 sm:p-8">
+      <div className="nexus-panel-strong relative overflow-hidden rounded-3xl p-6 sm:p-8">
+        <div className="nexus-ambient" aria-hidden="true">
+          <div className="nexus-ambient-orb nexus-ambient-orb-a" />
+          <div className="nexus-ambient-orb nexus-ambient-orb-c" />
+        </div>
         {/* Brand header */}
-        <div className="mb-7 flex items-center gap-3.5">
-          <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-cyan-500/30 bg-slate-950/80">
+        <div className="relative mb-7 flex items-center gap-3.5">
+          <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-cyan-500/30 bg-slate-950/80 shadow-[0_14px_30px_rgba(8,47,73,0.28)]">
             <Image
               src="/brand/nexusforge-main-logo.png"
               alt="NexusForge"
@@ -38,12 +42,12 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
           </div>
         </div>
 
-        <p className="mb-6 text-sm text-slate-400">{subtitle}</p>
+        <p className="relative mb-6 text-sm text-slate-400">{subtitle}</p>
 
         {/* Form content */}
-        {children}
+        <div className="relative">{children}</div>
 
-        {footer ? <div className="mt-5 text-sm text-slate-400">{footer}</div> : null}
+        {footer ? <div className="relative mt-5 text-sm text-slate-400">{footer}</div> : null}
       </div>
     </motion.section>
   );

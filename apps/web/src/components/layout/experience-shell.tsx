@@ -58,7 +58,7 @@ export function ExperienceShell({
                   className={
                     action.tone === "primary"
                       ? "inline-flex h-9 items-center rounded-xl border border-cyan-500/40 bg-cyan-950/35 px-4 text-xs font-semibold text-cyan-100 transition hover:border-cyan-400/60 hover:bg-cyan-950/55"
-                      : "inline-flex h-9 items-center rounded-xl border border-slate-700 bg-slate-900/60 px-4 text-xs font-semibold text-slate-300 transition hover:border-slate-600 hover:text-slate-200"
+                      : "nexus-interactive-btn inline-flex h-9 items-center rounded-xl border border-slate-700 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-xs font-semibold text-slate-300 transition hover:border-cyan-500/45 hover:text-slate-100"
                   }
                 >
                   {action.label}

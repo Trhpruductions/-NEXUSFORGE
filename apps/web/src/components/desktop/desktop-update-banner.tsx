@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type DesktopUpdateState = {
   checking: boolean;
@@ -85,34 +86,33 @@ export function DesktopUpdateBanner() {
   const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
 
   return (
-    <div className={`pointer-events-auto fixed right-4 top-4 z-[120] w-[min(90vw,420px)] rounded-2xl border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
+    <div className={`pointer-events-auto fixed right-4 top-4 z-[120] w-[min(90vw,420px)] rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
       <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">Desktop Update Center</p>
       <p className="mt-1 text-sm font-medium">{statusMessage(state)}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
+        <Button
           disabled={Boolean(state?.forceRequired)}
           onClick={() => {
             if (typeof bridge?.checkUpdatesNow === "function") {
               void bridge.checkUpdatesNow().then(setState).catch(() => undefined);
             }
           }}
-          className="rounded-lg border border-slate-600 bg-slate-900/65 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:border-cyan-500/55 disabled:cursor-not-allowed disabled:opacity-60"
+          variant="ghost"
+          className="h-8 rounded-lg px-3 text-xs"
         >
           Check now
-        </button>
+        </Button>
         {state?.downloaded ? (
-          <button
-            type="button"
+          <Button
             onClick={() => {
               if (typeof bridge?.restartForUpdate === "function") {
                 void bridge.restartForUpdate();
               }
             }}
-            className="rounded-lg border border-emerald-500/55 bg-emerald-950/45 px-3 py-1.5 text-xs font-semibold text-emerald-100"
+            className="h-8 rounded-lg border-emerald-500/55 bg-[linear-gradient(180deg,rgba(110,231,183,0.95),rgba(16,185,129,0.96)_45%,rgba(5,150,105,0.96))] px-3 text-xs text-slate-950 shadow-[0_14px_28px_rgba(16,185,129,0.24),inset_0_1px_0_rgba(255,255,255,0.28)]"
           >
             Install update now
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

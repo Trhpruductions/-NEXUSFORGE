@@ -62,7 +62,7 @@ export default function BetaFeedbackPage() {
           title="Beta feedback report template"
           readOnly
           value={reportTemplate}
-          className="mt-4 min-h-80 w-full rounded-2xl border border-slate-700/80 bg-slate-900/75 p-4 font-mono text-xs text-slate-200 outline-none"
+          className="mt-4 min-h-80 w-full rounded-[24px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-4 font-mono text-xs text-slate-200 outline-none"
         />
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -75,7 +75,7 @@ export default function BetaFeedbackPage() {
           </button>
           <Link
             href="/beta/checklist"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-slate-900/75 px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
           >
             Return to Checklist
           </Link>

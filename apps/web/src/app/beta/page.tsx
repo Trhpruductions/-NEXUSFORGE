@@ -47,7 +47,7 @@ export default function BetaPage() {
           </Link>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-slate-700/80 bg-slate-900/70 p-4 text-sm text-slate-300">
+        <div className="nexus-display-panel mt-5 rounded-[24px] p-4 text-sm text-slate-300">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Recommended Beta Flow</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
             <li>Create an account.</li>

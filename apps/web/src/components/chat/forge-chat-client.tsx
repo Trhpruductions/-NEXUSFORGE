@@ -1573,7 +1573,7 @@ export function ForgeChatClient() {
           <div className="space-y-4">
             <p className="text-[11px] uppercase tracking-[0.26em] text-cyan-300">Secure Session</p>
             <h2 className="font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
-              Restoring your command center.
+              Restoring your desktop workspace.
             </h2>
             <p className="max-w-xl text-sm text-slate-300 sm:text-base">
               We&apos;re checking your session and preparing the live workspace. If this takes longer than expected, sign in again to reload the latest state.
@@ -1587,16 +1587,16 @@ export function ForgeChatClient() {
           <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.18),transparent_42%),radial-gradient(circle_at_80%_70%,rgba(245,158,11,0.16),transparent_40%)]" />
             <div className="relative space-y-3">
-              <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/80 p-4">
+              <div className="rounded-[22px] border border-cyan-500/20 bg-[linear-gradient(155deg,rgba(2,6,23,0.92),rgba(8,47,73,0.18))] p-4">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Live Fabric</p>
-                <p className="mt-1 text-sm text-slate-200">Command sync, moderation lanes, and premium surfaces are standing by.</p>
+                <p className="mt-1 text-sm text-slate-200">Workspace sync, moderation lanes, and premium operations are standing by.</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Realtime</div>
                 <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Moderation</div>
-                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Core+</div>
+                <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm text-slate-200">Premium Ops</div>
               </div>
-              <p className="text-xs text-slate-400">If the session is valid, the command center will load automatically.</p>
+              <p className="text-xs text-slate-400">If the session is valid, the desktop workspace will load automatically.</p>
             </div>
           </div>
         </div>
@@ -1609,12 +1609,12 @@ export function ForgeChatClient() {
       <div className="flex min-h-[72vh] items-center justify-center px-2 py-8">
         <div className="grid w-full max-w-5xl gap-4 rounded-3xl border border-amber-500/30 bg-slate-950/75 p-5 shadow-[0_28px_90px_rgba(8,15,30,0.5)] backdrop-blur sm:p-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-4">
-            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Command Center Locked</p>
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Workspace Locked</p>
             <h2 className="font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
               Sign in to continue.
             </h2>
             <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-              Your forge dashboard, moderation tools, and premium telemetry are ready once your session is restored.
+              Your forge workspace, moderation tools, and premium telemetry are ready once your session is restored.
             </p>
             <div className="flex flex-wrap gap-2">
               <Link
@@ -1634,10 +1634,10 @@ export function ForgeChatClient() {
           <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_36%),radial-gradient(circle_at_85%_75%,rgba(34,211,238,0.16),transparent_38%)]" />
             <div className="relative space-y-3">
-              <div className="rounded-2xl border border-amber-500/20 bg-slate-950/80 p-4">
+              <div className="rounded-[22px] border border-amber-500/20 bg-[linear-gradient(155deg,rgba(2,6,23,0.92),rgba(120,53,15,0.18))] p-4">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">What you get</p>
                 <div className="mt-2 grid gap-2 text-sm text-slate-200">
-                  <p>• Realtime guild spaces</p>
+                  <p>• Realtime forge spaces</p>
                   <p>• AI moderation lanes</p>
                   <p>• Premium campaign controls</p>
                 </div>
@@ -1675,7 +1675,7 @@ export function ForgeChatClient() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-[11px] uppercase tracking-[0.22em] text-fuchsia-200">Premium Operations</p>
-              <p className="text-sm text-slate-300">Consume premium creator inventory and moderation intelligence directly from the command center.</p>
+              <p className="text-sm text-slate-300">Deploy premium creator inventory and moderation intelligence directly from the desktop workspace.</p>
             </div>
             <Link
               href="/pricing"
@@ -1685,7 +1685,7 @@ export function ForgeChatClient() {
             </Link>
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <div className="glass-cut rounded-xl p-4">
+            <div className="glass-cut rounded-[20px] border border-slate-800/80 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Forge Boost Pack</p>
@@ -1712,7 +1712,7 @@ export function ForgeChatClient() {
               {forgeBoostMessage ? <p className="mt-2 text-xs text-cyan-100">{forgeBoostMessage}</p> : null}
             </div>
 
-            <div className="glass-cut rounded-xl p-4">
+            <div className="glass-cut rounded-[20px] border border-slate-800/80 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Event Ticket Pass</p>
@@ -1738,7 +1738,7 @@ export function ForgeChatClient() {
               {eventTicketMessage ? <p className="mt-2 text-xs text-amber-100">{eventTicketMessage}</p> : null}
             </div>
 
-            <div className="glass-cut rounded-xl p-4">
+            <div className="glass-cut rounded-[20px] border border-slate-800/80 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Creator Campaign Slot</p>
@@ -1764,7 +1764,7 @@ export function ForgeChatClient() {
               {creatorCampaignMessage ? <p className="mt-2 text-xs text-fuchsia-100">{creatorCampaignMessage}</p> : null}
             </div>
 
-            <div className="glass-cut rounded-xl p-4">
+            <div className="glass-cut rounded-[20px] border border-slate-800/80 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Advanced Moderation AI</p>

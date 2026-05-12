@@ -71,46 +71,66 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="nexus-shell flex items-center justify-center">
-      <AuthFormCard
-        title="Create Account"
-        subtitle="Join NexusForge and launch your first Forge"
-        footer={
-          <div className="flex items-center justify-end">
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
-              Already have an account?
-            </Link>
+    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
+      <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
+      <div className="mx-auto grid w-full max-w-5xl gap-4">
+        <section className="nexus-display-panel hidden rounded-[24px] p-4 sm:block">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Onboarding</p>
+              <p className="mt-1 text-sm font-semibold text-cyan-200">Create forge-ready access</p>
+            </article>
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-200">Redirects into app</p>
+            </article>
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Verification</p>
+              <p className="mt-1 text-sm font-semibold text-amber-200">Demo token issued</p>
+            </article>
           </div>
-        }
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-          <Input label="Username" autoComplete="username" error={errors.username?.message} {...register("username")} />
-          <Input label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            error={errors.password?.message}
-            {...register("password")}
-          />
-          <Input
-            label="Confirm Password"
-            type="password"
-            autoComplete="new-password"
-            error={errors.confirmPassword?.message}
-            {...register("confirmPassword")}
-          />
-          {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
-          {verificationToken ? (
-            <p className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-3 py-2 text-xs text-cyan-200">
-              Demo verification token: {verificationToken}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account..." : "Create Account"}
-          </Button>
-        </form>
-      </AuthFormCard>
+        </section>
+
+        <AuthFormCard
+          title="Create Account"
+          subtitle="Join NexusForge and launch your first Forge"
+          footer={
+            <div className="flex items-center justify-end">
+              <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
+                Already have an account?
+              </Link>
+            </div>
+          }
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+            <Input label="Username" autoComplete="username" error={errors.username?.message} {...register("username")} />
+            <Input label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
+            <Input
+              label="Password"
+              type="password"
+              autoComplete="new-password"
+              error={errors.password?.message}
+              {...register("password")}
+            />
+            <Input
+              label="Confirm Password"
+              type="password"
+              autoComplete="new-password"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
+            />
+            {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
+            {verificationToken ? (
+              <p className="nexus-display-panel rounded-[20px] px-3 py-2 text-xs text-cyan-200">
+                Demo verification token: {verificationToken}
+              </p>
+            ) : null}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating account..." : "Create Account"}
+            </Button>
+          </form>
+        </AuthFormCard>
+      </div>
     </div>
   );
 }

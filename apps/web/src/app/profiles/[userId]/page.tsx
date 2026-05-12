@@ -9,6 +9,8 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { format } from "date-fns";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+import { getProfileBadgesForUser } from "@/lib/brand-badges";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 
 export default function PublicProfilePage() {
   const { user: currentUser, accessToken } = useAuthStore();
@@ -60,7 +62,7 @@ export default function PublicProfilePage() {
         metrics={[{ label: "Status", value: "Syncing", tone: "cyan" }]}
         maxWidthClassName="max-w-6xl"
       >
-        <div className="nexus-panel rounded-2xl p-4 text-cyan-400">Loading profile...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-cyan-400">Loading profile...</div>
       </ExperienceShell>
     );
   }
@@ -74,10 +76,12 @@ export default function PublicProfilePage() {
         metrics={[{ label: "Status", value: "Unavailable", tone: "amber" }]}
         maxWidthClassName="max-w-6xl"
       >
-        <div className="nexus-panel rounded-2xl p-4 text-red-400">{error || "Profile not found"}</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-red-400">{error || "Profile not found"}</div>
       </ExperienceShell>
     );
   }
+
+  const profileBadges = getProfileBadgesForUser(profile);
 
   return (
     <ExperienceShell
@@ -133,30 +137,41 @@ export default function PublicProfilePage() {
               )}
             </div>
 
+            {profileBadges.length ? (
+              <ProfileBadgeStrip
+                badges={profileBadges}
+                maxItems={6}
+                showLabel
+                containerClassName="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+                imageClassName="h-auto w-full"
+                itemClassName="rounded-xl border-slate-700/75 bg-slate-950/65"
+              />
+            ) : null}
+
             {profile.bio && <p className="text-slate-300 mb-4">{profile.bio}</p>}
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-cyan-400 font-semibold">{profile.reputation}</div>
                 <div className="text-sm text-slate-400">Reputation</div>
               </div>
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-amber-300 font-semibold">#{profile.appRank}</div>
                 <div className="text-sm text-slate-400">App Rank</div>
               </div>
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-emerald-300 font-semibold">#{profile.boostRank}</div>
                 <div className="text-sm text-slate-400">Boost Rank</div>
               </div>
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-violet-300 font-semibold">{medals.length}</div>
                 <div className="text-sm text-slate-400">Medals</div>
               </div>
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-blue-400 font-semibold">{profile.forgesOwned}</div>
                 <div className="text-sm text-slate-400">Forges Owned</div>
               </div>
-              <div className="rounded-xl border border-slate-700/80 bg-slate-900/75 p-4">
+              <div className="nexus-metric-card rounded-xl p-4">
                 <div className="text-purple-400 font-semibold">{profile.forgesMember}</div>
                 <div className="text-sm text-slate-400">Forges Member</div>
               </div>
@@ -184,14 +199,14 @@ export default function PublicProfilePage() {
         </div>
 
         {medals.length > 0 && (
-          <div className="mt-12 rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4">
+          <div className="nexus-display-panel mt-12 rounded-[24px] p-4">
             <h2 className="text-2xl font-bold mb-4">Medals</h2>
             <MedalsDisplay medals={medals} />
           </div>
         )}
 
         {activities.length > 0 && (
-          <div className="mt-12 rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4">
+          <div className="nexus-display-panel mt-12 rounded-[24px] p-4">
             <h2 className="text-2xl font-bold mb-4">Recent Activity</h2>
             <ActivityFeed activities={activities} />
           </div>

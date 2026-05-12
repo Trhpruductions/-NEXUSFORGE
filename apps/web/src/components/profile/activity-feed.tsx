@@ -33,7 +33,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
 
   if (activities.length === 0) {
     return (
-      <div className="nexus-panel rounded-2xl border border-slate-700/70 py-8 text-center text-slate-400">
+      <div className="nexus-display-panel rounded-[24px] py-8 text-center text-slate-400">
         No activity yet
       </div>
     );

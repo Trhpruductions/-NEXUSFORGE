@@ -49,7 +49,7 @@ export function AppShell() {
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15 + index * 0.08 }}
-                className="grid h-12 place-items-center rounded-xl border border-slate-700 bg-slate-900/85 text-slate-200 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
+                className="nexus-interactive-btn grid h-12 place-items-center rounded-xl border border-slate-700 bg-slate-900/85 text-slate-200 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
               >
                 <Icon size={20} />
               </motion.button>
@@ -57,7 +57,7 @@ export function AppShell() {
             <button
               aria-label="Add forge"
               title="Add forge"
-              className="grid h-12 place-items-center rounded-xl border border-dashed border-slate-600 bg-slate-900/70 text-slate-300 hover:border-cyan-500/60"
+              className="nexus-interactive-btn grid h-12 place-items-center rounded-xl border border-dashed border-slate-600 bg-slate-900/70 text-slate-300 hover:border-cyan-500/60"
             >
               <Plus size={20} />
             </button>
@@ -65,7 +65,7 @@ export function AppShell() {
           <button
             aria-label="Settings"
             title="Settings"
-            className="grid h-12 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/60"
+            className="nexus-interactive-btn grid h-12 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/60"
           >
             <Settings size={20} />
           </button>
@@ -79,7 +79,7 @@ export function AppShell() {
         </div>
         <div className="mb-4 grid gap-2">
           {forgeItems.map((forge, index) => (
-            <button key={forge} className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-3 text-left text-sm text-slate-100 transition hover:border-cyan-500/60 hover:bg-cyan-950/20">
+            <button key={forge} className="nexus-interactive-card rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-3 text-left text-sm text-slate-100 transition hover:border-cyan-500/60 hover:bg-cyan-950/20">
               <div className="flex items-center justify-between gap-3">
                 <span>{forge}</span>
                 <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">0{index + 1}</span>
@@ -145,7 +145,7 @@ export function AppShell() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + idx * 0.1 }}
-              className="rounded-xl border border-slate-700/70 bg-slate-900/85 p-3 text-sm text-slate-200 shadow-[0_12px_24px_rgba(2,6,23,0.22)]"
+              className="nexus-interactive-card rounded-xl border border-slate-700/70 bg-slate-900/85 p-3 text-sm text-slate-200 shadow-[0_12px_24px_rgba(2,6,23,0.22)]"
             >
               {message}
             </motion.article>
@@ -155,7 +155,7 @@ export function AppShell() {
 
       <aside className="nexus-display-panel rounded-[28px] p-4">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Activity</h2>
-        <div className="mb-5 rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-sm text-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.35)]">
+        <div className="nexus-display-panel mb-5 rounded-[22px] p-3 text-sm text-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.35)]">
           <p className="mb-2 flex items-center gap-2 text-cyan-300">
             <Radio size={15} /> Streaming now
           </p>
@@ -165,7 +165,7 @@ export function AppShell() {
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Members Online</h3>
         <div className="grid gap-2">
           {["Astra", "Cipher", "Lynx", "Vektor"].map((member, index) => (
-            <div key={member} className="flex items-center justify-between rounded-lg border border-slate-700/80 bg-slate-900/75 px-3 py-2 text-sm text-slate-200">
+            <div key={member} className="nexus-interactive-card flex items-center justify-between rounded-lg border border-slate-700/80 bg-slate-900/75 px-3 py-2 text-sm text-slate-200">
               <span>{member}</span>
               <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">R0{index + 1}</span>
             </div>

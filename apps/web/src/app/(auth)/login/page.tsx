@@ -61,44 +61,64 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="nexus-shell flex items-center justify-center">
-      <AuthFormCard
-        title="Sign In"
-        subtitle="Enter your credentials to access your NexusForge account"
-        footer={
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/forgot-password" className="text-cyan-400 hover:text-cyan-300">
-              Forgot password?
-            </Link>
-            <Link href={`/register?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
-              Create account
-            </Link>
+    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
+      <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
+      <div className="mx-auto grid w-full max-w-5xl gap-4">
+        <section className="nexus-display-panel hidden rounded-[24px] p-4 sm:block">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Access Mode</p>
+              <p className="mt-1 text-sm font-semibold text-cyan-200">Secure sign-in</p>
+            </article>
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-200">Restores to app</p>
+            </article>
+            <article className="nexus-metric-card rounded-xl px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Recovery</p>
+              <p className="mt-1 text-sm font-semibold text-amber-200">Password reset ready</p>
+            </article>
           </div>
-        }
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-          <Input label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            {...register("password")}
-          />
-          <label className="inline-flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border border-slate-600 bg-slate-900 text-cyan-400 focus:ring-2 focus:ring-cyan-500/40"
-              {...register("rememberMe")}
+        </section>
+
+        <AuthFormCard
+          title="Sign In"
+          subtitle="Enter your credentials to access your NexusForge account"
+          footer={
+            <div className="flex items-center justify-between gap-4">
+              <Link href="/forgot-password" className="text-cyan-400 hover:text-cyan-300">
+                Forgot password?
+              </Link>
+              <Link href={`/register?redirect=${encodeURIComponent(redirectTarget)}`} className="text-cyan-400 hover:text-cyan-300">
+                Create account
+              </Link>
+            </div>
+          }
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+            <Input label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
+            <Input
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              error={errors.password?.message}
+              {...register("password")}
             />
-            <span>Remember me on this device</span>
-          </label>
-          {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Authenticating..." : "Sign In"}
-          </Button>
-        </form>
-      </AuthFormCard>
+            <label className="nexus-display-panel inline-flex items-center gap-2 rounded-[20px] px-3 py-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border border-slate-600 bg-slate-900 text-cyan-400 focus:ring-2 focus:ring-cyan-500/40"
+                {...register("rememberMe")}
+              />
+              <span>Remember me on this device</span>
+            </label>
+            {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Authenticating..." : "Sign In"}
+            </Button>
+          </form>
+        </AuthFormCard>
+      </div>
     </div>
   );
 }
