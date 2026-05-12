@@ -141,7 +141,7 @@ export default function LeaderboardsPage() {
                   </div>
                 ) : null}
                 {activeTab === "medals" ? <span className="text-lg font-bold text-yellow-300">{entry.medalCount ?? 0}</span> : null}
-                <ProfileBadgeStrip badges={rowBadges} maxItems={2} containerClassName="mt-2 justify-end" />
+                <ProfileBadgeStrip badges={rowBadges} containerClassName="mt-2 justify-end" />
               </div>
             </Link>
               );

@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { setApiUnauthorizedHandler } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { GlobalNotificationProvider } from "@/context/global-notifications";
+import { GlobalNotificationCenter } from "@/components/notifications/global-notification-center";
+import { DesktopUpdateListener } from "@/components/desktop/desktop-update-listener";
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -58,5 +61,13 @@ export function AppProviders({ children }: AppProvidersProps) {
     };
   }, [clearSession, queryClient]);
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <GlobalNotificationProvider>
+        <DesktopUpdateListener />
+        <GlobalNotificationCenter />
+        {children}
+      </GlobalNotificationProvider>
+    </QueryClientProvider>
+  );
 }

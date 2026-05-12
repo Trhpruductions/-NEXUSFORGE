@@ -140,10 +140,11 @@ export default function PublicProfilePage() {
             {profileBadges.length ? (
               <ProfileBadgeStrip
                 badges={profileBadges}
-                maxItems={6}
                 showLabel
                 containerClassName="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
                 imageClassName="h-auto w-full"
+                imageWidth={192}
+                imageHeight={72}
                 itemClassName="rounded-xl border-slate-700/75 bg-slate-950/65"
               />
             ) : null}

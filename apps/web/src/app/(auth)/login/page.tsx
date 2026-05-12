@@ -61,13 +61,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="nexus-shell relative flex items-center overflow-hidden">
+    <div className="relative flex min-h-[100dvh] w-full items-center overflow-hidden px-4 py-8 sm:px-6">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
       <div className="nexus-ambient" aria-hidden="true">
         <div className="nexus-ambient-orb nexus-ambient-orb-a" />
         <div className="nexus-ambient-orb nexus-ambient-orb-b" />
       </div>
-      <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+      <div className="mx-auto my-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
         <section className="nexus-display-panel hidden rounded-[24px] p-5 lg:block">
           <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Command Access</p>
           <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">

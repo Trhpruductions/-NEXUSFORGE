@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import {
   Bell,
   Compass,
@@ -17,16 +18,21 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { listForges, listFriends } from "@/lib/api";
+import { getUserGroups, listForges, listFriends } from "@/lib/api";
 import { getProfileBadgesForUser } from "@/lib/brand-badges";
 import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
+const CreateServerModal = dynamic(() => import("@/components/modals/create-server-modal").then(mod => ({ default: mod.CreateServerModal })), {
+  loading: () => null,
+});
+
 const fallbackServers = [
+  { name: "TRH Development", online: 42 },
+  { name: "THR Development", online: 28 },
   { name: "Apex Legion", online: 48 },
   { name: "Nexus", online: 32 },
-  { name: "Outlaw Crew", online: 17 },
   { name: "Nightfall", online: 24 },
   { name: "Pixel Club", online: 15 },
 ];
@@ -36,6 +42,65 @@ const fallbackFriends = [
   { name: "Zyra", status: "IDLE" as const },
   { name: "Rook", status: "ONLINE" as const },
   { name: "Vex", status: "DND" as const },
+];
+
+const fallbackGroups = [
+  {
+    tag: "CAS",
+    name: "Casual Crew",
+    description: "Low-pressure players who jump in for quick matches, chat, and social sessions.",
+    totalUsers: 5,
+    onlineUsers: 2,
+    premiumUsers: 3,
+    avgReputation: 116,
+    sampleUsers: [
+      { id: "cas-1", username: "lunaplay", status: "ONLINE" as const, premiumTier: "CORE" as const, reputation: 118 },
+      { id: "cas-2", username: "pixelmuse", status: "ONLINE" as const, premiumTier: "CORE" as const, reputation: 156 },
+      { id: "cas-3", username: "novaquest", status: "IDLE" as const, premiumTier: "NONE" as const, reputation: 92 },
+    ],
+  },
+  {
+    tag: "CRT",
+    name: "Creator Circle",
+    description: "Streamers, editors, and clip makers who keep the feed moving.",
+    totalUsers: 5,
+    onlineUsers: 3,
+    premiumUsers: 5,
+    avgReputation: 359,
+    sampleUsers: [
+      { id: "crt-1", username: "ariaframe", status: "ONLINE" as const, premiumTier: "PLUS" as const, reputation: 364 },
+      { id: "crt-2", username: "bloomcast", status: "ONLINE" as const, premiumTier: "PLUS" as const, reputation: 340 },
+      { id: "crt-3", username: "remicuts", status: "ONLINE" as const, premiumTier: "CORE" as const, reputation: 278 },
+    ],
+  },
+  {
+    tag: "COMP",
+    name: "Competitive League",
+    description: "Ranked players, scrim leaders, and tournament regulars.",
+    totalUsers: 5,
+    onlineUsers: 3,
+    premiumUsers: 5,
+    avgReputation: 605,
+    sampleUsers: [
+      { id: "comp-1", username: "kaderush", status: "ONLINE" as const, premiumTier: "ELITE" as const, reputation: 731 },
+      { id: "comp-2", username: "boltsync", status: "ONLINE" as const, premiumTier: "PLUS" as const, reputation: 642 },
+      { id: "comp-3", username: "hexstrike", status: "IDLE" as const, premiumTier: "ELITE" as const, reputation: 904 },
+    ],
+  },
+  {
+    tag: "OPS",
+    name: "Ops Team",
+    description: "Moderators, admins, and owner-level operators.",
+    totalUsers: 5,
+    onlineUsers: 3,
+    premiumUsers: 5,
+    avgReputation: 2948,
+    sampleUsers: [
+      { id: "ops-1", username: "atlasops", status: "ONLINE" as const, premiumTier: "INFINITE" as const, reputation: 5000 },
+      { id: "ops-2", username: "quinncore", status: "ONLINE" as const, premiumTier: "INFINITE" as const, reputation: 3180 },
+      { id: "ops-3", username: "seraforge", status: "ONLINE" as const, premiumTier: "ELITE" as const, reputation: 2610 },
+    ],
+  },
 ];
 
 const jumpBackIn = [
@@ -83,6 +148,7 @@ export function AppHomeScreen() {
   const user = useAuthStore((state) => state.user);
   const [desktopSearchDraft, setDesktopSearchDraft] = useState("");
   const [mobileSearchDraft, setMobileSearchDraft] = useState("");
+  const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
 
   const forgesQuery = useQuery({
     queryKey: ["home-forges", accessToken],
@@ -93,6 +159,12 @@ export function AppHomeScreen() {
   const friendsQuery = useQuery({
     queryKey: ["home-friends", accessToken],
     queryFn: () => listFriends(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+
+  const groupsQuery = useQuery({
+    queryKey: ["home-user-groups", accessToken],
+    queryFn: () => getUserGroups(accessToken!),
     enabled: Boolean(accessToken),
   });
 
@@ -119,6 +191,8 @@ export function AppHomeScreen() {
     });
   }, [friendsQuery.data, user?.id]);
 
+  const userGroups = groupsQuery.data?.groups ?? fallbackGroups;
+
   const visibleServers = servers.slice(0, 4);
   const serverTotalOnline = visibleServers.reduce((total, server) => total + server.online, 0);
   const onlineFriends = friends.filter((friend) => friend.status === "ONLINE").length;
@@ -137,6 +211,7 @@ export function AppHomeScreen() {
   }, [user]);
   const liveSignal = forgesQuery.isLoading || friendsQuery.isLoading ? "Syncing live data" : "Live signal stable";
   const commandPopulation = serverTotalOnline + onlineFriends;
+  const totalGroupMembers = userGroups.reduce((sum, group) => sum + group.totalUsers, 0);
 
   const submitSearch = (draft: string) => {
     const query = draft.trim();
@@ -183,6 +258,7 @@ export function AppHomeScreen() {
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-200">
                     <div className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5">{liveSignal}</div>
                     <div className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">{commandPopulation} active across your live command graph</div>
+                    <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5">{totalGroupMembers} simulated users across 4 groups</div>
                     <div className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5">Desktop command priority online</div>
                   </div>
                 </div>
@@ -193,7 +269,6 @@ export function AppHomeScreen() {
                     <p className="mt-1 text-xs text-slate-400">Tier {premiumLabel} • Boost {user?.corePlusBoostLevel ?? 0}</p>
                     <ProfileBadgeStrip
                       badges={operatorBadges}
-                      maxItems={3}
                       containerClassName="mt-3 grid grid-cols-3 gap-2"
                       imageClassName="h-14 w-full"
                       itemClassName="rounded-lg border-slate-700/75"
@@ -259,7 +334,6 @@ export function AppHomeScreen() {
                         <p className="mt-1.5 text-xl font-semibold text-white">{premiumLabel}</p>
                         <ProfileBadgeStrip
                           badges={operatorBadges}
-                          maxItems={2}
                           containerClassName="mt-2"
                           imageClassName="h-8 w-8"
                         />
@@ -401,28 +475,82 @@ export function AppHomeScreen() {
             </section>
 
             <section className="nexus-panel rounded-[24px] p-4">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Recommended</p>
-              <article className="nexus-interactive-card mt-4 flex items-center justify-between gap-3 rounded-[22px] border border-slate-700 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] p-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
-                    <Image src="/brand/nexusforge-logo.png" alt="Recommendation" width={48} height={48} className="h-12 w-12 object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">Valorant Central</p>
-                    <p className="truncate text-xs text-slate-400">8,732 Members • Competitive</p>
-                  </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Discover Servers</p>
+                <Link href="/search" className="text-xs font-medium text-indigo-400">Browse All</Link>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">Jump into new communities by tag, game, or active signal.</p>
+              <div className="mt-3 grid gap-2">
+                <Link href="/search" className="nexus-interactive-btn rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-cyan-500/40">
+                  Explore all discoverable servers
+                </Link>
+                <Link href="/search?q=games" className="nexus-interactive-btn rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-cyan-500/40">
+                  Find servers by game
+                </Link>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {servers.slice(0, 3).map((server) => (
+                  <Link
+                    key={`discover-${server.name}`}
+                    href={`/search?q=${encodeURIComponent(server.name)}`}
+                    className="nexus-interactive-card flex items-center justify-between rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-3 py-2"
+                  >
+                    <span className="truncate text-xs font-semibold text-slate-100">{server.name}</span>
+                    <span className="ml-3 shrink-0 text-[10px] text-emerald-300">{server.online} online</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="nexus-panel rounded-[24px] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Simulated Users</p>
+                  <h3 className="mt-1 text-xl font-semibold text-white">Four live user groups</h3>
                 </div>
-                <Link href="/search" className="nexus-interactive-btn rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white">Join</Link>
-              </article>
+                <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                  Seeded data
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {userGroups.map((group) => (
+                  <article key={group.tag} className="rounded-[22px] border border-slate-700 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-300">[{group.tag}]</p>
+                        <p className="mt-1 text-sm font-semibold text-white">{group.name}</p>
+                        <p className="mt-1 text-xs text-slate-400">{group.description}</p>
+                      </div>
+                      <div className="text-right text-xs text-slate-300">
+                        <p>{group.totalUsers} users</p>
+                        <p className="text-emerald-400">{group.onlineUsers} online</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-slate-300">
+                      <span className="rounded-full border border-slate-700 px-2 py-1">Avg rep {group.avgReputation}</span>
+                      <span className="rounded-full border border-slate-700 px-2 py-1">{group.premiumUsers} premium</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {group.sampleUsers.map((member) => (
+                        <div key={member.id} className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/55 px-2 py-1 text-[10px] text-slate-200">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          <span>{member.username}</span>
+                          <span className="text-slate-500">{member.premiumTier}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
 
             <section className="nexus-panel rounded-[24px] p-4">
               <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Quick Actions</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <Link href="/settings?intent=create-forge" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
+                <button onClick={() => setIsCreateServerOpen(true)} className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Create Forge</span>
                   <Plus size={16} />
-                </Link>
+                </button>
                 <Link href="/search?q=games" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Explore Games</span>
                   <Gamepad2 size={16} />
@@ -531,6 +659,22 @@ export function AppHomeScreen() {
           </div>
         </section>
 
+        <section className="mb-2 shrink-0">
+          <div className="mb-1.5 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">User Groups</h3>
+            <span className="text-xs font-medium text-cyan-400">4 cohorts</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {userGroups.map((group) => (
+              <article key={group.tag} className="nexus-interactive-card rounded-xl border border-slate-800 bg-slate-900/70 p-2">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-cyan-300">[{group.tag}]</p>
+                <p className="truncate text-[10px] font-medium text-slate-100">{group.name}</p>
+                <p className="text-[9px] text-slate-400">{group.totalUsers} users · {group.onlineUsers} online</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         {/* Friends — fills remaining space */}
         <section className="min-h-0 flex-1">
           <div className="mb-1.5 flex items-center justify-between">
@@ -574,6 +718,7 @@ export function AppHomeScreen() {
           <Image src="/brand/nexusforge-main-logo.png" alt="Profile" width={32} height={32} className="h-8 w-8 object-cover" />
         </Link>
       </nav>
+      <CreateServerModal isOpen={isCreateServerOpen} onClose={() => setIsCreateServerOpen(false)} />
     </div>
   );
 }

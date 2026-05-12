@@ -71,9 +71,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="nexus-shell relative flex items-center justify-center overflow-hidden">
+    <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
-      <div className="mx-auto grid w-full max-w-5xl gap-4">
+      <div className="mx-auto my-auto grid w-full max-w-5xl gap-4">
         <section className="nexus-display-panel hidden rounded-[24px] p-4 sm:block">
           <div className="grid gap-3 sm:grid-cols-3">
             <article className="nexus-metric-card rounded-xl px-3 py-2">

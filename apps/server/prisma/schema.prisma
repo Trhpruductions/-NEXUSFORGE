@@ -122,7 +122,7 @@ model User {
   premium            Boolean        @default(false)
   premiumTier        PremiumTier    @default(NONE)
   corePlusActivatedAt DateTime?
-  corePlusBoostLevel Int            @default(0)
+  corePlusBoostLevel Int            @default(3)
   corePlusStreakDays Int            @default(0)
   clanTag            String?        @db.VarChar(12)
   appRole            AppRole        @default(USER)

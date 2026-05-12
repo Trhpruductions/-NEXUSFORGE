@@ -85,8 +85,10 @@ export function ProfileSettingsForm() {
   });
 
   const hasBrandingKit = billingQuery.data?.entitlements.some((item) => item.featureCode === "TEAM_BRANDING_KIT" && item.quantity > 0) ?? false;
+  const betaCosmeticsBypassUsers = new Set(["jacksongaming69", "vanillapea"]);
+  const isBetaCosmeticsBypass = betaCosmeticsBypassUsers.has((user?.username ?? "").toLowerCase());
   const cosmeticFieldsFilled = Boolean(form.avatar.trim() || form.banner.trim());
-  const cosmeticUpsellVisible = cosmeticFieldsFilled && !hasBrandingKit;
+  const cosmeticUpsellVisible = cosmeticFieldsFilled && !hasBrandingKit && !isBetaCosmeticsBypass;
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -310,7 +312,9 @@ export function ProfileSettingsForm() {
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2">
                   <span>Branding Kit</span>
-                  <span className={hasBrandingKit ? "text-emerald-200" : "text-amber-200"}>{hasBrandingKit ? "Unlocked" : "Locked"}</span>
+                  <span className={hasBrandingKit || isBetaCosmeticsBypass ? "text-emerald-200" : "text-amber-200"}>
+                    {hasBrandingKit ? "Unlocked" : isBetaCosmeticsBypass ? "Beta Override" : "Locked"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2">
                   <span>Push Status</span>

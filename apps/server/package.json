@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:profiles": "npx --yes tsx prisma/seed-profiles.ts"
+    "seed:profiles": "npx --yes tsx prisma/seed-profiles.ts",
+    "seed:users": "npx --yes tsx prisma/seed-user-groups.ts"
   },
   "keywords": [],
   "author": "",

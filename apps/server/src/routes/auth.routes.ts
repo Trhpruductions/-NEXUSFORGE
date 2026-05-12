@@ -132,6 +132,7 @@ authRouter.post("/register", async (req, res) => {
       username,
       email,
       password: passwordHash,
+      corePlusBoostLevel: 3,
       emailVerifyToken: sha256(emailVerifyToken),
       emailVerifyExpires: new Date(Date.now() + 1000 * 60 * 60 * 24),
     },
@@ -314,8 +315,15 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
     return;
   }
 
+  const betaCosmeticsBypassUsers = new Set(["jacksongaming69", "vanillapea"]);
+  const requester = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: { username: true },
+  });
+  const isBetaCosmeticsBypass = requester ? betaCosmeticsBypassUsers.has(requester.username.toLowerCase()) : false;
+
   const requestedPremiumCosmetics = parsed.data.avatar !== undefined || parsed.data.banner !== undefined;
-  if (requestedPremiumCosmetics) {
+  if (requestedPremiumCosmetics && !isBetaCosmeticsBypass) {
     const hasBrandingKit = await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT");
     if (!hasBrandingKit) {
       res.status(402).json({

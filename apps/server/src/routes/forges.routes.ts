@@ -13,7 +13,7 @@ const inviteCodeSchema = z
   .max(32)
   .regex(/^[a-z0-9-]+$/i, "Invite link can only contain letters, numbers, and hyphens.");
 
-const forgeTemplateSchema = z.enum(["GAMING", "CREATOR", "ESPORTS", "STUDY"]);
+const forgeTemplateSchema = z.enum(["TRH", "GAMING", "CREATOR", "ESPORTS", "STUDY"]);
 
 const createForgeSchema = z.object({
   name: z.string().min(2).max(80),
@@ -67,6 +67,13 @@ const reservedInviteCodes = new Set([
 ]);
 
 const forgeTemplateChannels: Record<z.infer<typeof forgeTemplateSchema>, Array<{ name: string; type: "TEXT" | "ANNOUNCEMENT" | "VOICE" | "STAGE" }>> = {
+  TRH: [
+    { name: "trh-hq", type: "TEXT" },
+    { name: "thr-development", type: "TEXT" },
+    { name: "project-board", type: "TEXT" },
+    { name: "announcements", type: "ANNOUNCEMENT" },
+    { name: "client-voice", type: "VOICE" },
+  ],
   GAMING: [
     { name: "general", type: "TEXT" },
     { name: "announcements", type: "ANNOUNCEMENT" },

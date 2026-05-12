@@ -9,6 +9,75 @@ export const profilesRouter = Router();
 const userIdParamSchema = z.string().uuid();
 const medalKeyParamSchema = z.string().min(1).max(64);
 
+const userGroupSchema = z.enum(["CAS", "CRT", "COMP", "OPS"]);
+
+const userGroupDefinitions: Record<z.infer<typeof userGroupSchema>, { name: string; description: string }> = {
+  CAS: {
+    name: "Casual Crew",
+    description: "Low-pressure players who jump in for quick matches, chat, and social sessions.",
+  },
+  CRT: {
+    name: "Creator Circle",
+    description: "Streamers, editors, and clip makers who keep the feed moving.",
+  },
+  COMP: {
+    name: "Competitive League",
+    description: "Ranked players, scrim leaders, and tournament regulars.",
+  },
+  OPS: {
+    name: "Ops Team",
+    description: "Moderators, admins, and owner-level operators.",
+  },
+};
+
+profilesRouter.get("/users/groups", requireAuth, async (_req, res) => {
+  try {
+    const groups = await Promise.all(
+      Object.entries(userGroupDefinitions).map(async ([tag, meta]) => {
+        const users = await prisma.user.findMany({
+          where: { clanTag: tag },
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            status: true,
+            premiumTier: true,
+            reputation: true,
+          },
+          orderBy: [{ reputation: "desc" }, { createdAt: "asc" }],
+          take: 3,
+        });
+
+        const [totalUsers, onlineUsers, premiumUsers, avgResult] = await Promise.all([
+          prisma.user.count({ where: { clanTag: tag } }),
+          prisma.user.count({ where: { clanTag: tag, status: "ONLINE" } }),
+          prisma.user.count({ where: { clanTag: tag, premium: true, premiumTier: { not: "NONE" } } }),
+          prisma.user.aggregate({
+            where: { clanTag: tag },
+            _avg: { reputation: true },
+          }),
+        ]);
+
+        return {
+          tag,
+          name: meta.name,
+          description: meta.description,
+          totalUsers,
+          onlineUsers,
+          premiumUsers,
+          avgReputation: Math.round(avgResult._avg.reputation ?? 0),
+          sampleUsers: users,
+        };
+      }),
+    );
+
+    res.json({ groups });
+  } catch (error) {
+    console.error("Get user groups error:", error);
+    res.status(500).json({ error: "Failed to get user groups" });
+  }
+});
+
 // Search users by username or tag
 profilesRouter.get("/users/search", requireAuth, async (req, res) => {
   try {

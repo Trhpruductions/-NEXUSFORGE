@@ -32,7 +32,6 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
               alt="NexusForge"
               fill
               sizes="48px"
-              priority
               className="object-cover"
             />
           </div>

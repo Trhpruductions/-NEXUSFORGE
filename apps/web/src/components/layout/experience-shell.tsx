@@ -21,7 +21,16 @@ type ExperienceShellProps = {
   actions?: ExperienceAction[];
   children: ReactNode;
   maxWidthClassName?: string;
+  showGlobalNav?: boolean;
 };
+
+const globalNavActions: ExperienceAction[] = [
+  { label: "Home", href: "/app", tone: "ghost" },
+  { label: "Search", href: "/search", tone: "ghost" },
+  { label: "Activity", href: "/notifications", tone: "ghost" },
+  { label: "Leaders", href: "/leaderboards", tone: "ghost" },
+  { label: "Settings", href: "/settings", tone: "ghost" },
+];
 
 function metricToneClass(tone: ExperienceMetric["tone"]) {
   if (tone === "emerald") return "text-emerald-300";
@@ -38,7 +47,12 @@ export function ExperienceShell({
   actions = [],
   children,
   maxWidthClassName = "max-w-7xl",
+  showGlobalNav = true,
 }: ExperienceShellProps) {
+  const mergedActions = showGlobalNav
+    ? [...globalNavActions, ...actions.filter((action) => !globalNavActions.some((globalAction) => globalAction.href === action.href))]
+    : actions;
+
   return (
     <div className="nexus-shell">
       <div className={`nexus-shell-inner ${maxWidthClassName} nexus-shell-atmos space-y-5`}>
@@ -49,9 +63,9 @@ export function ExperienceShell({
               <h1 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h1>
               {subtitle ? <p className="mt-1.5 text-sm text-slate-300">{subtitle}</p> : null}
             </div>
-            {actions.length ? (
+            {mergedActions.length ? (
               <div className="flex flex-wrap gap-2">
-                {actions.map((action) => (
+                {mergedActions.map((action) => (
                   <Link
                     key={`${action.href}-${action.label}`}
                     href={action.href}

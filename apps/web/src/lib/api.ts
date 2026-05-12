@@ -706,7 +706,7 @@ export async function createForge(
     icon?: string;
     banner?: string;
     inviteCode?: string;
-    template?: "GAMING" | "CREATOR" | "ESPORTS" | "STUDY";
+    template?: "TRH" | "GAMING" | "CREATOR" | "ESPORTS" | "STUDY";
   },
 ) {
   const response = await api.post<{ forge: Forge }>("/api/forges", payload, {
@@ -1305,6 +1305,31 @@ export async function searchProfiles(accessToken: string, query: string, limit =
     offset: number;
   }>("/api/profiles/users/search", {
     params: { q: query, limit, offset },
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function getUserGroups(accessToken: string) {
+  const response = await api.get<{
+    groups: Array<{
+      tag: string;
+      name: string;
+      description: string;
+      totalUsers: number;
+      onlineUsers: number;
+      premiumUsers: number;
+      avgReputation: number;
+      sampleUsers: Array<{
+        id: string;
+        username: string;
+        avatar?: string | null;
+        status: User["status"];
+        premiumTier?: User["premiumTier"];
+        reputation: number;
+      }>;
+    }>;
+  }>("/api/profiles/users/groups", {
     headers: authHeaders(accessToken),
   });
   return response.data;

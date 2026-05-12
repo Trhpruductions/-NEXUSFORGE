@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev:reset": "node -e \"require('fs').rmSync('.next',{ recursive:true, force:true })\"",
-    "dev": "npm run dev:reset && next dev --hostname 127.0.0.1 --port 3000",
+    "dev:guard": "powershell -NoProfile -Command \"$conn = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($conn) { Stop-Process -Id $conn.OwningProcess -Force; Write-Output ('Cleared stale listener PID ' + $conn.OwningProcess) } else { Write-Output 'Port 3000 clear' }\"",
+    "dev:reset": "node -e \"require('fs').rmSync('.next-dev',{ recursive:true, force:true })\"",
+    "dev": "npm run dev:guard && npm run dev:reset && next dev --hostname 127.0.0.1 --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

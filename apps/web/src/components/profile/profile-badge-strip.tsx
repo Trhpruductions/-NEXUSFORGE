@@ -7,6 +7,8 @@ type ProfileBadgeStripProps = {
   containerClassName?: string;
   itemClassName?: string;
   imageClassName?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   showLabel?: boolean;
   labelClassName?: string;
 };
@@ -33,10 +35,12 @@ function rarityClass(rarity: BrandBadge["rarity"]) {
 
 export function ProfileBadgeStrip({
   badges,
-  maxItems = 3,
+  maxItems,
   containerClassName,
   itemClassName,
   imageClassName,
+  imageWidth,
+  imageHeight,
   showLabel = false,
   labelClassName,
 }: ProfileBadgeStripProps) {
@@ -44,9 +48,13 @@ export function ProfileBadgeStrip({
     return null;
   }
 
+  const visibleBadges = typeof maxItems === "number" ? badges.slice(0, maxItems) : badges;
+  const resolvedWidth = imageWidth ?? (showLabel ? 192 : 24);
+  const resolvedHeight = imageHeight ?? (showLabel ? 72 : 24);
+
   return (
     <div className={cx("flex flex-wrap gap-1", containerClassName)}>
-      {badges.slice(0, maxItems).map((badge) => (
+      {visibleBadges.map((badge) => (
         <div
           key={badge.key}
           title={`${badge.label} (${badge.rarity.toUpperCase()}) - ${badge.description}`}
@@ -59,12 +67,13 @@ export function ProfileBadgeStrip({
           <Image
             src={badge.src}
             alt={`${badge.label} badge`}
-            width={24}
-            height={24}
-            className={cx("h-6 w-6 object-cover", imageClassName)}
+            width={resolvedWidth}
+            height={resolvedHeight}
+            className={cx("h-6 w-6 object-contain", imageClassName)}
             onError={(event) => {
               event.currentTarget.src = "/brand/profile-badge-vip.png";
             }}
+            sizes={showLabel ? "(max-width: 640px) 100vw, 320px" : "24px"}
           />
           {showLabel ? <div className={cx("px-3 py-2 text-xs font-semibold text-slate-200", labelClassName)}>{badge.label}</div> : null}
         </div>
