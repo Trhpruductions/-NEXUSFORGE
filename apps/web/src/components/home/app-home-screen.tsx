@@ -18,6 +18,8 @@ import {
   Zap,
 } from "lucide-react";
 import { listForges, listFriends } from "@/lib/api";
+import { getProfileBadgesForUser } from "@/lib/brand-badges";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -121,6 +123,18 @@ export function AppHomeScreen() {
   const serverTotalOnline = visibleServers.reduce((total, server) => total + server.online, 0);
   const onlineFriends = friends.filter((friend) => friend.status === "ONLINE").length;
   const premiumLabel = user?.premium ? user.premiumTier ?? "CORE" : "NONE";
+  const operatorBadges = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return getProfileBadgesForUser({
+      premiumTier: user.premiumTier,
+      appRole: user.appRole,
+      isAdmin: user.isAdmin,
+      corePlusBoostLevel: user.corePlusBoostLevel,
+    });
+  }, [user]);
   const liveSignal = forgesQuery.isLoading || friendsQuery.isLoading ? "Syncing live data" : "Live signal stable";
   const commandPopulation = serverTotalOnline + onlineFriends;
 
@@ -135,6 +149,11 @@ export function AppHomeScreen() {
 
   return (
     <div className="relative h-full overflow-hidden bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.22),transparent_36%),radial-gradient(circle_at_90%_0%,rgba(99,102,241,0.16),transparent_30%),#030711] text-slate-100">
+      <div className="nexus-ambient" aria-hidden="true">
+        <div className="nexus-ambient-orb nexus-ambient-orb-a" />
+        <div className="nexus-ambient-orb nexus-ambient-orb-b" />
+        <div className="nexus-ambient-orb nexus-ambient-orb-c" />
+      </div>
       <div className="pointer-events-none absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl" />
 
       {/* Desktop: full-viewport layout */}
@@ -159,12 +178,12 @@ export function AppHomeScreen() {
                     The actual desktop control surface is live.
                   </h1>
                   <p className="mt-2 max-w-2xl text-sm text-slate-300 xl:text-[15px]">
-                    Run community operations, track live player activity, and move between forges without dropping back into a mobile-style shell.
+                    Run community operations, track live player activity, and move between forges without dropping out of the full command surface.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-200">
                     <div className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5">{liveSignal}</div>
                     <div className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5">{commandPopulation} active across your live command graph</div>
-                    <div className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5">Desktop route priority online</div>
+                    <div className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5">Desktop command priority online</div>
                   </div>
                 </div>
                 <div className="flex min-w-[240px] flex-col gap-3 text-slate-300">
@@ -172,6 +191,13 @@ export function AppHomeScreen() {
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Operator</p>
                     <p className="mt-2 text-lg font-semibold text-white">{user?.username ?? "Commander"}</p>
                     <p className="mt-1 text-xs text-slate-400">Tier {premiumLabel} • Boost {user?.corePlusBoostLevel ?? 0}</p>
+                    <ProfileBadgeStrip
+                      badges={operatorBadges}
+                      maxItems={3}
+                      containerClassName="mt-3 grid grid-cols-3 gap-2"
+                      imageClassName="h-14 w-full"
+                      itemClassName="rounded-lg border-slate-700/75"
+                    />
                   </div>
                   <div className="flex items-center gap-2 text-slate-300">
                     <Link href="/notifications" aria-label="Open notifications" title="Notifications" className="nexus-interactive-btn relative rounded-2xl border border-slate-800 bg-slate-900/70 p-3 hover:border-cyan-500/40">
@@ -188,7 +214,7 @@ export function AppHomeScreen() {
               <div className="mt-4 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
                 <div className="relative overflow-hidden rounded-[24px] border border-slate-700/70 bg-slate-900/75 shadow-[0_18px_36px_rgba(2,6,23,0.5)]">
                   <div className="relative h-60">
-                    <Image src="/brand/boost-pack-icon.png" alt="Featured boost event" fill priority sizes="(min-width: 1280px) 740px, 100vw" className="object-cover" />
+                    <Image src="/brand/boost-pack-icon.png" alt="Featured boost event" fill sizes="(min-width: 1280px) 740px, 100vw" className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-r from-[#070b17]/95 via-[#070b17]/68 to-transparent" />
                     <div className="absolute inset-0 flex flex-col justify-between p-6">
                       <div>
@@ -218,21 +244,35 @@ export function AppHomeScreen() {
 
                 <div className="grid gap-3">
                   <div className="nexus-panel rounded-[24px] p-4">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Session Overview</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Session Overview</p>
+                        <p className="mt-1 text-sm text-slate-400">Operator telemetry, premium posture, and live command load.</p>
+                      </div>
+                      <div className="rounded-full border border-cyan-500/25 bg-cyan-950/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200">
+                        Stable
+                      </div>
+                    </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                      <div className="glass-cut rounded-2xl p-3">
+                      <div className="glass-cut rounded-2xl border border-slate-800/80 p-3">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Premium Tier</p>
                         <p className="mt-1.5 text-xl font-semibold text-white">{premiumLabel}</p>
+                        <ProfileBadgeStrip
+                          badges={operatorBadges}
+                          maxItems={2}
+                          containerClassName="mt-2"
+                          imageClassName="h-8 w-8"
+                        />
                       </div>
-                      <div className="glass-cut rounded-2xl p-3">
+                      <div className="glass-cut rounded-2xl border border-slate-800/80 p-3">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Boost Level</p>
                         <p className="mt-1.5 text-xl font-semibold text-cyan-100">{user?.corePlusBoostLevel ?? 0}</p>
                       </div>
-                      <div className="glass-cut rounded-2xl p-3">
+                      <div className="glass-cut rounded-2xl border border-slate-800/80 p-3">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Servers Active</p>
                         <p className="mt-1.5 text-xl font-semibold text-emerald-100">{visibleServers.length}</p>
                       </div>
-                      <div className="glass-cut rounded-2xl p-3">
+                      <div className="glass-cut rounded-2xl border border-slate-800/80 p-3">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Friends Online</p>
                         <p className="mt-1.5 text-xl font-semibold text-amber-100">{onlineFriends}</p>
                       </div>
@@ -240,6 +280,15 @@ export function AppHomeScreen() {
                   </div>
 
                   <div className="nexus-panel rounded-[24px] p-4">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Command Search</p>
+                        <p className="mt-1 text-sm text-slate-400">Jump directly into players, raids, active lobbies, and forge surfaces.</p>
+                      </div>
+                      <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                        Live query
+                      </div>
+                    </div>
                     <form
                       className="flex items-center gap-3 rounded-2xl border border-slate-700/80 bg-slate-950/55 px-4 py-3 text-slate-400"
                       onSubmit={(event) => {
@@ -279,12 +328,16 @@ export function AppHomeScreen() {
                 </div>
                 <div className="grid min-h-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                   {servers.map((server, index) => (
-                    <article key={server.name} className="nexus-interactive-card rounded-2xl border border-slate-800 bg-slate-900/72 p-3">
+                    <article key={server.name} className="nexus-interactive-card relative overflow-hidden rounded-[22px] border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] p-3">
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/45 to-transparent" />
                       <div className={cn("mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-semibold text-slate-50", serverAccent(index))}>
                         {toInitials(server.name)}
                       </div>
                       <p className="truncate text-sm font-semibold text-slate-100">{server.name}</p>
-                      <p className="mt-1 text-xs text-emerald-400">{server.online} Online</p>
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <span className="text-slate-500">Forge signal</span>
+                        <span className="text-emerald-400">{server.online} Online</span>
+                      </div>
                     </article>
                   ))}
                 </div>
@@ -300,16 +353,16 @@ export function AppHomeScreen() {
                 </div>
                 <div className="grid min-h-0 gap-2">
                   {friends.map((friend) => (
-                    <article key={friend.name} className="nexus-list-row nexus-interactive-card">
+                    <article key={friend.name} className="nexus-interactive-card flex items-center gap-3 rounded-[22px] border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(30,41,59,0.82))] px-3 py-3">
                       <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-slate-800 text-sm font-semibold text-slate-100">
                         {toInitials(friend.name)}
                         <span className={cn("absolute bottom-0 right-0 h-3 w-3 rounded-full border border-[#030711]", statusToDot(friend.status))} />
                       </div>
-                      <div className="nexus-list-main">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-100">{friend.name}</p>
                         <p className="truncate text-xs text-slate-400">{statusToLabel(friend.status)}</p>
                       </div>
-                      <div className="nexus-list-end text-xs text-slate-400">Ready</div>
+                      <div className="rounded-full border border-slate-700/80 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">Ready</div>
                     </article>
                   ))}
                 </div>
@@ -333,7 +386,7 @@ export function AppHomeScreen() {
               </div>
               <div className="mt-3 grid gap-2">
                 {jumpBackIn.map((item) => (
-                  <article key={item.title} className="nexus-interactive-card overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/72">
+                  <article key={item.title} className="nexus-interactive-card overflow-hidden rounded-[22px] border border-slate-800 bg-[linear-gradient(160deg,rgba(15,23,42,0.96),rgba(49,46,129,0.3))]">
                     <div className="h-9 bg-gradient-to-r from-slate-700 via-indigo-700 to-slate-900" />
                     <div className="p-2.5">
                       <p className="text-sm font-semibold text-slate-100">{item.title}</p>
@@ -349,7 +402,7 @@ export function AppHomeScreen() {
 
             <section className="nexus-panel rounded-[24px] p-4">
               <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Recommended</p>
-              <article className="nexus-interactive-card mt-4 flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-3">
+              <article className="nexus-interactive-card mt-4 flex items-center justify-between gap-3 rounded-[22px] border border-slate-700 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] p-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
                     <Image src="/brand/nexusforge-logo.png" alt="Recommendation" width={48} height={48} className="h-12 w-12 object-cover" />
@@ -366,15 +419,15 @@ export function AppHomeScreen() {
             <section className="nexus-panel rounded-[24px] p-4">
               <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Quick Actions</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <Link href="/settings?intent=create-forge" className="nexus-interactive-btn flex items-center justify-between rounded-2xl border border-slate-700/80 bg-slate-900/72 px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
+                <Link href="/settings?intent=create-forge" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Create Forge</span>
                   <Plus size={16} />
                 </Link>
-                <Link href="/search?q=games" className="nexus-interactive-btn flex items-center justify-between rounded-2xl border border-slate-700/80 bg-slate-900/72 px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
+                <Link href="/search?q=games" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Explore Games</span>
                   <Gamepad2 size={16} />
                 </Link>
-                <Link href="/notifications?filter=activity" className="nexus-interactive-btn flex items-center justify-between rounded-2xl border border-slate-700/80 bg-slate-900/72 px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
+                <Link href="/notifications?filter=activity" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Browse Activity</span>
                   <Zap size={16} />
                 </Link>
@@ -434,7 +487,7 @@ export function AppHomeScreen() {
 
         {/* Hero event — proportional height */}
         <section className="relative mb-2 shrink-0 h-[32%] overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/75 shadow-[0_12px_28px_rgba(2,6,23,0.5)]">
-          <Image src="/brand/boost-pack-icon.png" alt="Featured boost event" fill priority sizes="(max-width: 640px) 100vw, 448px" className="object-cover" />
+          <Image src="/brand/boost-pack-icon.png" alt="Featured boost event" fill sizes="(max-width: 640px) 100vw, 448px" className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#070b17]/95 via-[#070b17]/65 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-between p-4">
             <div>

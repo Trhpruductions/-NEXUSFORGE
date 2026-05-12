@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+import { getProfileBadgesForUser } from "@/lib/brand-badges";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 
 export default function LeaderboardsPage() {
   const { user: currentUser, accessToken } = useAuthStore();
@@ -68,8 +70,8 @@ export default function LeaderboardsPage() {
       ]}
       maxWidthClassName="max-w-4xl"
     >
-      {/* Tab bar */}
-      <div className="flex gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/60 p-1">
+      <div className="nexus-display-panel rounded-[24px] p-1.5">
+        <div className="flex gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/60 p-1">
         {(["reputation", "streaks", "medals"] as const).map((tab) => (
           <button
             key={tab}
@@ -83,30 +85,37 @@ export default function LeaderboardsPage() {
             {tab}
           </button>
         ))}
+        </div>
       </div>
 
-      {/* Content */}
       {loading ? (
-        <div className="rounded-2xl border border-slate-700/70 bg-slate-900/60 p-5 text-center text-sm text-slate-400">Loading leaderboard...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-center text-sm text-slate-400">Loading leaderboard...</div>
       ) : (
         <div className="space-y-2">
           {!leaderboard.length ? (
-            <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-8 text-center">
+            <div className="nexus-display-panel rounded-[24px] p-8 text-center">
               <p className="text-sm text-slate-400">No entries yet for this category</p>
             </div>
           ) : null}
           {leaderboard.map((entry, index) => (
+            (() => {
+              const rowBadges = getProfileBadgesForUser({
+                premiumTier: (entry.premiumTier as "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ?? "NONE",
+                appRole: undefined,
+                isAdmin: false,
+                corePlusBoostLevel: entry.corePlusBoostLevel,
+              });
+
+              return (
             <Link
               key={entry.id}
               href={`/profiles/${entry.id}`}
-              className="nexus-list-row nexus-interactive-card"
+              className="nexus-interactive-card flex items-center gap-4 rounded-[24px] border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.16))] px-4 py-4"
             >
-              {/* Rank */}
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold ${getMedalColor(entry.premiumTier)}`}>
                 {index + 1}
               </div>
 
-              {/* Avatar */}
               {entry.avatar ? (
                 <Image src={entry.avatar} alt={entry.username} width={40} height={40} className="h-10 w-10 rounded-xl object-cover" />
               ) : (
@@ -115,12 +124,15 @@ export default function LeaderboardsPage() {
                 </div>
               )}
 
-              <div className="nexus-list-main">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-100">{entry.username}</p>
-                {entry.clanTag ? <p className="text-xs text-cyan-400">[{entry.clanTag}]</p> : null}
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  {entry.clanTag ? <p className="text-cyan-400">[{entry.clanTag}]</p> : null}
+                  <span className="text-slate-500">Rank #{index + 1}</span>
+                </div>
               </div>
 
-              <div className="nexus-list-end">
+              <div className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-right">
                 {activeTab === "reputation" ? <span className="text-lg font-bold text-cyan-300">{entry.reputation ?? 0}</span> : null}
                 {activeTab === "streaks" ? (
                   <div>
@@ -129,11 +141,11 @@ export default function LeaderboardsPage() {
                   </div>
                 ) : null}
                 {activeTab === "medals" ? <span className="text-lg font-bold text-yellow-300">{entry.medalCount ?? 0}</span> : null}
-                {entry.premium ? (
-                  <span className="mt-1 block rounded-full border border-amber-500/25 bg-amber-950/25 px-1.5 py-0.5 text-[10px] text-amber-400">{entry.premiumTier}</span>
-                ) : null}
+                <ProfileBadgeStrip badges={rowBadges} maxItems={2} containerClassName="mt-2 justify-end" />
               </div>
             </Link>
+              );
+            })()
           ))}
         </div>
       )}

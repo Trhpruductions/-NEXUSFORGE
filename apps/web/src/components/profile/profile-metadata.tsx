@@ -1,6 +1,8 @@
 "use client";
 
 import { User } from "@/lib/api";
+import { getProfileBadgesForUser } from "@/lib/brand-badges";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 
 function formatTimeAgo(date: Date): string {
   const now = new Date();
@@ -22,6 +24,7 @@ function formatTimeAgo(date: Date): string {
 export function ProfileMetadata({ user }: { user: User }) {
   const joinDate = new Date(user.createdAt);
   const joinDateFormatted = formatTimeAgo(joinDate);
+  const profileBadges = getProfileBadgesForUser(user);
 
   const getTierLabel = () => {
     if (user.premiumTier && user.premiumTier !== "NONE") {
@@ -90,9 +93,23 @@ export function ProfileMetadata({ user }: { user: User }) {
       </div>
 
       {user.clanTag ? (
-        <div className="mt-4 rounded-xl border border-slate-700/70 bg-slate-900/65 px-4 py-3">
+        <div className="nexus-display-panel mt-4 rounded-[22px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Clan Tag</p>
           <p className="mt-1 text-sm font-mono font-bold text-cyan-300">[{user.clanTag}]</p>
+        </div>
+      ) : null}
+
+      {profileBadges.length ? (
+        <div className="nexus-display-panel mt-4 rounded-[22px] px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Profile Badges</p>
+          <ProfileBadgeStrip
+            badges={profileBadges}
+            maxItems={6}
+            showLabel
+            containerClassName="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+            imageClassName="h-auto w-full"
+            itemClassName="rounded-xl border-slate-700/75 bg-slate-950/65"
+          />
         </div>
       ) : null}
     </section>
