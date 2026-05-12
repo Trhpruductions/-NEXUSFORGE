@@ -8,14 +8,43 @@ $serverProcess = $null
 $serverStdoutLog = Join-Path $env:TEMP "nexusforge-smoke-server.stdout.log"
 $serverStderrLog = Join-Path $env:TEMP "nexusforge-smoke-server.stderr.log"
 
-Write-Host "[smoke] Build workspace" -ForegroundColor Cyan
-npm run build
+function Invoke-NpmChecked {
+  param(
+    [Parameter(Mandatory = $true)] [string] $Label,
+    [Parameter(Mandatory = $true)] [string[]] $Arguments,
+    [switch] $RetryOnTransientFavicon
+  )
 
-Write-Host "[smoke] Lint web" -ForegroundColor Cyan
-npm run lint -w web
+  $attempt = 1
+  $maxAttempts = if ($RetryOnTransientFavicon) { 2 } else { 1 }
 
-Write-Host "[smoke] Run server tests" -ForegroundColor Cyan
-npm run test -w server
+  while ($attempt -le $maxAttempts) {
+    Write-Host "[smoke] $Label" -ForegroundColor Cyan
+    if ($attempt -gt 1) {
+      Write-Host "[smoke] Retrying after transient favicon build module error (attempt $attempt of $maxAttempts)" -ForegroundColor Yellow
+    }
+
+    $commandOutput = & npm.cmd @Arguments 2>&1
+    $commandOutput | ForEach-Object { Write-Host $_ }
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
+      return
+    }
+
+    $hasFaviconModuleError = ($commandOutput -match "Cannot find module for page: /favicon.ico") -or ($commandOutput -match "Failed to collect page data for /favicon.ico")
+    if ($RetryOnTransientFavicon -and $attempt -lt $maxAttempts -and $hasFaviconModuleError) {
+      $attempt++
+      continue
+    }
+
+    throw "Command failed (exit $exitCode): npm $($Arguments -join ' ')"
+  }
+}
+
+Invoke-NpmChecked -Label "Build workspace" -Arguments @("run", "build") -RetryOnTransientFavicon
+Invoke-NpmChecked -Label "Lint web" -Arguments @("run", "lint", "-w", "web")
+Invoke-NpmChecked -Label "Run server tests" -Arguments @("run", "test", "-w", "server")
 
 function Test-ApiProbe {
   param([Parameter(Mandatory = $true)] [string] $Url)
