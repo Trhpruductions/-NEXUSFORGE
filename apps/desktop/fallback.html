@@ -311,9 +311,8 @@
         <div>
           <p class="eyebrow">NexusForge Desktop Recovery</p>
           <h1>NexusForge Desktop Is Warming Up</h1>
-          <p class="subtitle">
-            The app could not reach local services yet. Use the controls below to start services,
-            inspect status, and reconnect without closing desktop.
+          <p id="subtitle" class="subtitle">
+            The app is still connecting. Use the controls below to inspect status and retry without closing desktop.
           </p>
         </div>
         <div class="status-wrap">
@@ -350,11 +349,14 @@
 
     <script>
       const statusEl = document.getElementById("status");
+      const subtitleEl = document.getElementById("subtitle");
       const targetEl = document.getElementById("target");
       const workspaceEl = document.getElementById("workspace");
       const portsEl = document.getElementById("ports");
       const errorEl = document.getElementById("error");
       const historyEl = document.getElementById("history");
+      const startButton = document.getElementById("start");
+      const logButton = document.getElementById("log");
       const actionButtons = ["start", "retry", "log", "reload"].map((id) => document.getElementById(id));
 
       function setActionBusy(isBusy) {
@@ -366,11 +368,20 @@
       async function refreshStatus() {
         try {
           const status = await window.nexusforgeDesktop.getLocalStackStatus();
+          const localRecoveryEnabled = Boolean(status.localRecoveryEnabled);
+          const inHostedMode = status.launchMode === "hosted" || !localRecoveryEnabled;
           targetEl.textContent = status.startUrl || "-";
-          workspaceEl.textContent = status.workspacePath || "not detected";
-          portsEl.textContent = `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
+          workspaceEl.textContent = inHostedMode ? "not required in hosted mode" : status.workspacePath || "not detected";
+          portsEl.textContent = inHostedMode
+            ? "not applicable in hosted mode"
+            : `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
           errorEl.textContent = status.lastError || "none";
           statusEl.textContent = status.message || "Waiting for local stack.";
+          startButton.disabled = inHostedMode;
+          logButton.disabled = inHostedMode;
+          subtitleEl.textContent = inHostedMode
+            ? "The desktop app is trying to reach hosted NexusForge services. Retry while network and service availability are restored."
+            : "The app could not reach local services yet. Use local recovery controls to restart and reconnect.";
           const hasError = Boolean(status.lastError);
           const allPortsOnline = Boolean(status.port3000Open && status.port4000Open);
           if (hasError) {

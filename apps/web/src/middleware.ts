@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getAgeGateCookieNamesForRead, verifyAgeGateToken } from "@/lib/age-gate-token";
 
 const desktopUaToken = "NexusForgeDesktop";
 const configuredRuntimeApiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-const runtimeApiBase =
-  process.env.NODE_ENV !== "production" && !configuredRuntimeApiBase?.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i)
-    ? "http://127.0.0.1:4000"
-    : configuredRuntimeApiBase ?? "http://127.0.0.1:4000";
-const runtimeLaunchModeUrl = `${runtimeApiBase}/api/runtime/launch-mode`;
 const launchModeCacheTtlMs = 15000;
 
 type LaunchModeCache = {
@@ -18,14 +14,31 @@ type LaunchModeCache = {
 let launchModeCache: LaunchModeCache | null = null;
 
 function isDesktopOnlyEnabled() {
-  return process.env.NEXUSFORGE_DESKTOP_ONLY !== "false";
+  return process.env.NEXUSFORGE_DESKTOP_ONLY === "true";
 }
 
-async function resolveDesktopOnlyEnabled() {
+function resolveRuntimeApiBase(request: NextRequest) {
+  if (configuredRuntimeApiBase) {
+    return configuredRuntimeApiBase;
+  }
+
+  const hostname = request.nextUrl.hostname;
+  const runningLocally = hostname === "localhost" || hostname === "127.0.0.1";
+  if (runningLocally) {
+    return "http://127.0.0.1:4000";
+  }
+
+  // Hosted deployments should probe runtime mode from their own origin when explicit API base is absent.
+  return request.nextUrl.origin;
+}
+
+async function resolveDesktopOnlyEnabled(request: NextRequest) {
   const now = Date.now();
   if (launchModeCache && launchModeCache.expiresAt > now) {
     return launchModeCache.desktopOnly;
   }
+
+  const runtimeLaunchModeUrl = `${resolveRuntimeApiBase(request)}/api/runtime/launch-mode`;
 
   try {
     const controller = new AbortController();
@@ -60,7 +73,26 @@ async function resolveDesktopOnlyEnabled() {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/desktop-only") {
+  const isDesktopUpdateAsset =
+    pathname === "/desktop-update.json" ||
+    /^\/NexusForge(?:%20|\s)Desktop(?:%20|\s)Setup.*\.exe$/i.test(pathname);
+
+  const isAgeGateRoute = pathname === "/age-gate";
+  const isAgeApiRoute = pathname.startsWith("/api/age/");
+
+  if (!isAgeGateRoute && !isAgeApiRoute && !isDesktopUpdateAsset) {
+    const ageCookieNames = getAgeGateCookieNamesForRead();
+    const ageCookie = ageCookieNames.map((name) => request.cookies.get(name)?.value || "").find(Boolean) || "";
+    const verified = ageCookie ? await verifyAgeGateToken(ageCookie, Date.now(), request.headers.get("user-agent")) : false;
+    if (!verified) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/age-gate";
+      redirectUrl.search = `next=${encodeURIComponent(`${pathname}${request.nextUrl.search}`)}`;
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  if (pathname === "/desktop-only" || isDesktopUpdateAsset) {
     return NextResponse.next();
   }
 
@@ -69,7 +101,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const desktopOnlyEnabled = await resolveDesktopOnlyEnabled();
+  const desktopOnlyEnabled = await resolveDesktopOnlyEnabled(request);
   if (!desktopOnlyEnabled) {
     return NextResponse.next();
   }
@@ -82,6 +114,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|desktop-update\.json|NexusForge%20Desktop%20Setup.*\.exe).*)",
   ],
 };

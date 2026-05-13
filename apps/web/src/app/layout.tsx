@@ -16,15 +16,18 @@ const orbitron = Orbitron({
 
 export const metadata: Metadata = {
   metadataBase: new URL("http://localhost:3000"),
-  title: "NexusForge",
-  description: "Futuristic communication platform for gaming communities",
+  title: {
+    default: "NexusForge",
+    template: "%s | NexusForge",
+  },
+  description: "Premium 18+ command network for gaming communities, creators, and power users.",
   icons: {
     icon: "/brand/nexusforge-main-logo.png",
     apple: "/brand/nexusforge-main-logo.png",
   },
   openGraph: {
     title: "NexusForge",
-    description: "Futuristic communication platform for gaming communities",
+    description: "Premium 18+ command network for gaming communities",
     images: ["/brand/nexusforge-main-logo.png"],
   },
 };
@@ -36,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${exo.variable} ${orbitron.variable} h-full min-h-dvh w-full antialiased`}>
-      <body className="m-0 flex min-h-dvh w-full flex-col overflow-x-hidden p-0">
+      <body className="m-0 flex min-h-dvh w-full flex-col overflow-x-hidden bg-background p-0 text-foreground">
         <AppProviders>
           <RouteTransition>{children}</RouteTransition>
         </AppProviders>

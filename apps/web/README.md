@@ -6,9 +6,19 @@ Create a local `.env.local` from `.env.example` and set:
 
 - `NEXT_PUBLIC_API_URL` for the API origin used by the web client.
 - `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY` to enable browser push subscription for profile settings.
+- `NEXUSFORGE_AGE_GATE_SECRET` for server-signed 18+ verification cookies.
 - `NEXUSFORGE_DESKTOP_ONLY` to control launch mode:
 	- `true` keeps the web app desktop-only (non-desktop traffic is redirected to `/desktop-only`).
 	- `false` enables normal browser/mobile access.
+
+Age gate cookie note:
+
+- In production, 18+ verification uses a `__Host-` scoped cookie and requires HTTPS.
+- On local development, a legacy non-`__Host-` cookie name is used for localhost compatibility.
+
+Hosted access note:
+
+- For users outside your local network, `NEXT_PUBLIC_API_URL` must point to a public API origin (not localhost).
 
 The value above is the default/fallback. Admin launch control can override launch mode at runtime via API, and that runtime state is persisted by the server database.
 

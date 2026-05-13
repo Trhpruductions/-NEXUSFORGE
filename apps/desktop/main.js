@@ -6,8 +6,11 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 const localStartUrl = "http://localhost:3000/app";
-const startUrl = process.env.NEXUSFORGE_DESKTOP_URL || localStartUrl;
+const packagedHostedFallbackUrl = "https://www.nexusforge.app/app";
+const configuredStartUrl = String(process.env.NEXUSFORGE_DESKTOP_URL || "").trim();
+const startUrl = configuredStartUrl || (app.isPackaged ? packagedHostedFallbackUrl : localStartUrl);
 const isLocalStartTarget = /localhost|127\.0\.0\.1/i.test(startUrl);
+const desktopLaunchMode = isLocalStartTarget ? "local-dev" : "hosted";
 const appIconPath =
   process.platform === "win32"
     ? path.join(__dirname, "assets", "app-icon.ico")
@@ -85,17 +88,19 @@ let startupHealth = {
 };
 
 let localStackStatus = {
+  launchMode: desktopLaunchMode,
   startUrl,
   workspacePath: null,
   attempted: false,
   started: false,
   running: false,
-  autoStartEnabled: true,
+  autoStartEnabled: isLocalStartTarget,
+  localRecoveryEnabled: isLocalStartTarget,
   port3000Open: false,
   port4000Open: false,
   processPid: null,
   lastError: null,
-  message: "Local stack not started yet.",
+  message: isLocalStartTarget ? "Local stack not started yet." : "Desktop is running in hosted mode.",
   history: [],
   logPath: localStackLogPath,
   timestamp: new Date().toISOString(),
@@ -869,6 +874,32 @@ async function waitForUrlReachable(url, options = {}) {
   return false;
 }
 
+function resolveHostedStartTargets() {
+  const candidates = [startUrl, packagedHostedFallbackUrl, "https://nexusforge.app", "https://www.nexusforge.app/app", "https://www.nexusforge.app"];
+
+  const appendOriginTargets = (value) => {
+    try {
+      const origin = new URL(value).origin;
+      candidates.push(`${origin}/app`, origin);
+    } catch {
+      // Ignore malformed target values.
+    }
+  };
+
+  appendOriginTargets(startUrl);
+  appendOriginTargets(packagedHostedFallbackUrl);
+
+  try {
+    const manifestOrigin = new URL(updateManifestUrl).origin;
+    candidates.push(`${manifestOrigin}/app`);
+    candidates.push(manifestOrigin);
+  } catch {
+    // Ignore malformed manifest URLs in target resolution.
+  }
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
+
 async function waitForLocalStackReady(timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -881,15 +912,36 @@ async function waitForLocalStackReady(timeoutMs) {
   return false;
 }
 
+function isDestroyedWindowError(error) {
+  const message = error && typeof error === "object" && "message" in error ? String(error.message) : "";
+  const detail = `${message} ${String(error || "")}`;
+  return /object has been destroyed/i.test(detail) || /ERR_INVALID_STATE/i.test(detail);
+}
+
 function loadFallbackPage(message) {
   updateLocalStackStatus({ message });
   appendLocalStackHistory(message);
   appendStartupLog(`[fallback] ${message}`);
 
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    void mainWindow.loadFile(fallbackPath).catch((error) => {
-      console.warn("[NexusForge Desktop] Unable to load fallback page:", error);
+  const targetWindow = mainWindow;
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    return;
+  }
+
+  try {
+    void targetWindow.loadFile(fallbackPath).catch((error) => {
+      if (!isDestroyedWindowError(error)) {
+        console.warn("[NexusForge Desktop] Unable to load fallback page:", error);
+      }
     });
+  } catch (error) {
+    if (!isDestroyedWindowError(error)) {
+      console.warn("[NexusForge Desktop] Fallback load aborted because window was destroyed:", error);
+    }
+    return;
+  }
+
+  if (!targetWindow.isDestroyed()) {
     revealMainWindow();
   }
 }
@@ -902,18 +954,21 @@ async function startLocalStack(reason) {
     accent: "starting",
   });
   if (!isLocalStartTarget) {
+    const hostedMessage = "Local stack controls are disabled in hosted mode.";
     updateLocalStackStatus({
-      message: "Local stack start skipped: desktop target is not localhost.",
+      message: hostedMessage,
       attempted: true,
       started: false,
       running: false,
+      lastError: null,
     });
+    appendLocalStackHistory(hostedMessage);
     return localStackStatus;
   }
 
   const workspacePath = resolveWorkspacePath();
   if (!workspacePath) {
-    const message = "Local workspace was not found. Set NEXUSFORGE_WORKSPACE_PATH to your repo path.";
+    const message = "Local workspace was not found for desktop dev recovery.";
     try {
       fs.mkdirSync(path.dirname(localStackLogPath), { recursive: true });
       fs.appendFileSync(
@@ -1046,24 +1101,37 @@ async function ensureAppReachable(trigger) {
       accent: "opening",
     });
     try {
-      const reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
-      if (!reachable) {
-        throw new Error("Hosted startup URL did not become reachable in time.");
+      const hostedTargets = resolveHostedStartTargets();
+      let connectedTarget = null;
+      let lastError = null;
+
+      for (const target of hostedTargets) {
+        try {
+          await loadMainWindowUrlWithRetry(target, { attempts: 4, delayMs: 900 });
+          connectedTarget = target;
+          break;
+        } catch (error) {
+          lastError = error;
+        }
       }
-      await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
+
+      if (!connectedTarget) {
+        throw lastError || new Error("No hosted start target could be loaded.");
+      }
+
       revealMainWindow();
       updateLocalStackStatus({
-        message: "Desktop is connected to hosted services.",
+        message: `Desktop is connected to hosted services (${connectedTarget}).`,
         lastError: null,
       });
-      appendLocalStackHistory("Desktop connected to hosted target.");
+      appendLocalStackHistory(`Desktop connected to hosted target: ${connectedTarget}`);
     } catch (error) {
       const message = `Hosted target unreachable: ${String(error)}`;
       updateLocalStackStatus({
         lastError: message,
         message,
       });
-      loadFallbackPage("Hosted app is unreachable. Retry in a moment or set NEXUSFORGE_DESKTOP_URL to a live target.");
+      loadFallbackPage("Hosted app is unreachable. Check internet access and retry. Admins can set NEXUSFORGE_DESKTOP_URL to a live target.");
     }
     return;
   }
@@ -1416,6 +1484,12 @@ app.whenReady().then(async () => {
     return localStackStatus;
   });
   ipcMain.handle("nexusforge-desktop:open-local-stack-log", async () => {
+    if (!isLocalStartTarget) {
+      const message = "No local stack log is available in hosted mode.";
+      updateLocalStackStatus({ message, lastError: null });
+      appendLocalStackHistory(message);
+      return { opened: false, logPath: null, reason: "hosted-mode" };
+    }
     if (fs.existsSync(localStackLogPath)) {
       await shell.openPath(localStackLogPath);
       return { opened: true, logPath: localStackLogPath };

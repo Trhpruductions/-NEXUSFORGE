@@ -96,20 +96,20 @@ const developmentLog = [
 
 export default function Home() {
   return (
-    <div className="relative flex flex-1 flex-col overflow-x-clip px-4 py-8 sm:px-8 lg:px-12">
+    <div className="relative grid flex-1 gap-8 overflow-x-clip px-4 py-6 sm:px-6 lg:gap-10 lg:px-8">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
       <div className="pointer-events-none absolute left-[8%] top-12 -z-10 h-56 w-56 rounded-full bg-cyan-500/12 blur-3xl" />
       <div className="pointer-events-none absolute right-[6%] top-28 -z-10 h-64 w-64 rounded-full bg-amber-500/10 blur-3xl" />
       <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-8">
-        <section className="nexus-display-panel grid gap-6 rounded-[32px] p-6 lg:grid-cols-[1.35fr_1fr] lg:p-9">
+        <section className="nexus-hero grid gap-6 lg:grid-cols-[1.12fr_0.88fr] lg:p-8">
           <div className="space-y-5">
-            <p className="font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-[0.32em] text-cyan-300">
+            <p className="nexus-eyebrow font-[family-name:var(--font-orbitron)] text-cyan-300">
               NexusForge Platform
             </p>
             <h1 className="max-w-3xl font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-slate-50 sm:text-5xl lg:text-6xl">
               Build a command network, not just another chat server.
             </h1>
-            <p className="max-w-2xl text-base text-slate-300 sm:text-lg">
+            <p className="nexus-subtitle max-w-2xl text-base text-slate-300 sm:text-lg">
               Build gamer-focused communities with channels, streams, AI moderation, roles, premium upgrades,
               and clan events powered by a scalable Next.js + Socket.IO architecture.
             </p>
@@ -147,49 +147,49 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/register"
-                className="nexus-glow-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-cyan-50 transition hover:-translate-y-0.5 hover:border-cyan-300"
+                className="nexus-glow-button inline-flex h-11 items-center rounded-2xl px-5 text-sm font-semibold text-cyan-50 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Launch NexusForge
               </Link>
               <Link
                 href="/app"
-                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-2xl px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Open Command Center
               </Link>
               <Link
                 href="/login"
-                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-2xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
               >
                 Sign in
               </Link>
               <Link
                 href="/notifications"
-                className="nexus-outline-button inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
+                className="nexus-outline-button inline-flex h-11 items-center rounded-2xl px-5 text-sm font-semibold text-slate-100 transition hover:-translate-y-0.5 hover:border-cyan-500/60"
               >
                 Notifications
               </Link>
               <Link
                 href="/admin"
-                className="inline-flex h-11 items-center rounded-xl border border-amber-500/40 bg-amber-950/20 px-5 text-sm font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:border-amber-300"
+                className="inline-flex h-11 items-center rounded-2xl border border-amber-500/35 bg-amber-950/22 px-5 text-sm font-semibold text-amber-100 transition hover:-translate-y-0.5 hover:border-amber-300"
               >
                 Admin
               </Link>
               <Link
                 href="/settings"
-                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/20 bg-cyan-950/20 px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
+                className="inline-flex h-11 items-center rounded-2xl border border-cyan-500/20 bg-cyan-950/20 px-5 text-sm font-semibold text-cyan-100 transition hover:-translate-y-0.5 hover:border-cyan-300"
               >
                 Settings
               </Link>
               <Link
                 href="/core-plus"
-                className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-5 text-sm font-semibold text-amber-100 hover:border-amber-300"
+                className="inline-flex h-11 items-center rounded-2xl border border-amber-500/35 bg-amber-950/25 px-5 text-sm font-semibold text-amber-100 hover:border-amber-300"
               >
                 Core+
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex h-11 items-center rounded-xl border border-fuchsia-500/35 bg-fuchsia-950/25 px-5 text-sm font-semibold text-fuchsia-100 hover:border-fuchsia-300"
+                className="inline-flex h-11 items-center rounded-2xl border border-fuchsia-500/35 bg-fuchsia-950/25 px-5 text-sm font-semibold text-fuchsia-100 hover:border-fuchsia-300"
               >
                 Pricing
               </Link>
@@ -211,29 +211,29 @@ export default function Home() {
               />
             </div>
             <div className="space-y-2 text-xs text-slate-200">
-              <div className="neo-badge flex items-center justify-between rounded-lg px-3 py-2">
+              <div className="neo-badge flex items-center justify-between rounded-2xl px-3 py-2">
                 <span>Realtime Gateway</span>
                 <span className="font-semibold text-emerald-200">ONLINE</span>
               </div>
-              <div className="neo-badge flex items-center justify-between rounded-lg px-3 py-2">
+              <div className="neo-badge flex items-center justify-between rounded-2xl px-3 py-2">
                 <span>Voice Fabric</span>
                 <span className="font-semibold text-cyan-200">SYNCED</span>
               </div>
-              <div className="neo-badge flex items-center justify-between rounded-lg px-3 py-2">
+              <div className="neo-badge flex items-center justify-between rounded-2xl px-3 py-2">
                 <span>Core+ Layer</span>
                 <span className="font-semibold text-amber-200">READY</span>
               </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Alerts</p>
                 <p className="mt-1 text-sm font-semibold text-white">12 active</p>
               </div>
-              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Queues</p>
                 <p className="mt-1 text-sm font-semibold text-white">3 warming</p>
               </div>
-              <div className="rounded-xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/55 px-3 py-2">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Monetization</p>
                 <p className="mt-1 text-sm font-semibold text-white">Ready</p>
               </div>
@@ -242,11 +242,11 @@ export default function Home() {
         </section>
         <section className="grid gap-4">
           <div className="nexus-panel rounded-3xl p-4 sm:p-5">
-            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Nexus Desk Layout</p>
+            <p className="nexus-eyebrow text-cyan-300">Nexus Desk Layout</p>
             <h2 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-3xl">
               Discord-style architecture, redesigned for high-performance communities.
             </h2>
-            <p className="mt-1 max-w-3xl text-sm text-slate-300">
+            <p className="nexus-subtitle mt-1 max-w-3xl text-sm text-slate-300">
               Familiar command ergonomics with stronger moderation lanes, premium telemetry, and monetization surfaces.
             </p>
           </div>
@@ -255,17 +255,17 @@ export default function Home() {
         <section className="nexus-panel rounded-3xl p-4 sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Accessible Surfaces</p>
+              <p className="nexus-eyebrow text-amber-200">Accessible Surfaces</p>
               <h2 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-3xl">
                 Everything a user can reach.
               </h2>
-              <p className="mt-1 max-w-3xl text-sm text-slate-300">
+              <p className="nexus-subtitle mt-1 max-w-3xl text-sm text-slate-300">
                 This is the live map of public pages, signed-in routes, in-app modules, and privileged tools that the product exposes.
               </p>
             </div>
             <Link
               href="/app"
-              className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+              className="inline-flex h-11 items-center rounded-2xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
             >
               Open Command Center
             </Link>
@@ -281,7 +281,7 @@ export default function Home() {
                     <Link
                       key={item.label}
                       href={item.href}
-                      className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 transition hover:border-cyan-500/60 hover:bg-cyan-950/20"
+                      className="rounded-2xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 transition hover:border-cyan-500/60 hover:bg-cyan-950/20"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-slate-100">{item.label}</p>
@@ -298,17 +298,17 @@ export default function Home() {
         <section className="nexus-panel rounded-3xl p-4 sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">TRH Development Log</p>
+              <p className="nexus-eyebrow text-emerald-200">TRH Development Log</p>
               <h2 className="mt-1 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-3xl">
                 What is built right now.
               </h2>
-              <p className="mt-1 max-w-3xl text-sm text-slate-300">
+              <p className="nexus-subtitle mt-1 max-w-3xl text-sm text-slate-300">
                 This is the working inventory of completed surfaces so you can test directly from the current app.
               </p>
             </div>
             <Link
               href="/app"
-              className="inline-flex h-11 items-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300"
+              className="inline-flex h-11 items-center rounded-2xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300"
             >
               Test Command Center
             </Link>

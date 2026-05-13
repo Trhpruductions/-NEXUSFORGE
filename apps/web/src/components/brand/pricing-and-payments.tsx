@@ -73,6 +73,11 @@ const boostTierLogos = [
   { id: "INFINITE", label: "Infinite League", src: "/brand/tier-infinite-league.png" },
 ] as const;
 
+const tierLogoById = Object.fromEntries(boostTierLogos.map((tier) => [tier.id, tier])) as Record<
+  "CORE" | "PLUS" | "ELITE" | "INFINITE",
+  (typeof boostTierLogos)[number]
+>;
+
 const paidCatalog = [
   {
     item: "Core+ subscription",
@@ -407,28 +412,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <article className="nexus-display-panel rounded-[24px] p-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Boost Tier Logos</p>
-            <p className="mt-1 text-xs text-slate-400">Starter Core, Plus Command, Elite Creator, and Infinite League logos.</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {boostTierLogos.map((tier) => (
-                <div key={tier.id} className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
-                  <Image
-                    src={tier.src}
-                    alt={`${tier.label} logo`}
-                    width={1200}
-                    height={800}
-                    className="h-auto w-full object-cover"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <div className="px-3 py-2 text-xs font-semibold text-slate-200">{tier.label}</div>
-                </div>
-              ))}
-            </div>
-          </article>
+        <div className="mt-4 grid gap-3">
           <article className="nexus-display-panel rounded-[24px] p-3">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Boost Pack Emblem</p>
             <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
@@ -454,6 +438,15 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
               className={`nexus-interactive-card rounded-2xl border bg-slate-950/55 p-4 ${tier.spotlight ? "border-amber-400/70 shadow-[0_18px_50px_rgba(251,191,36,0.16)]" : "border-slate-700/70"}`}
             >
+              <div className="mb-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
+                <Image
+                  src={tierLogoById[tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE"].src}
+                  alt={`${tier.name} tier artwork`}
+                  width={1200}
+                  height={800}
+                  className="h-auto w-full object-cover"
+                />
+              </div>
               <div className="flex items-center justify-between gap-2">
                 <div className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] ${tier.tone}`}>{tier.name}</div>
                 <div className={`text-[11px] font-semibold ${tier.accent}`}>{tier.badge}</div>

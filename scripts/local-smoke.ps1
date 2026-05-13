@@ -7,6 +7,10 @@ $serverStartedBySmoke = $false
 $serverProcess = $null
 $serverStdoutLog = Join-Path $env:TEMP "nexusforge-smoke-server.stdout.log"
 $serverStderrLog = Join-Path $env:TEMP "nexusforge-smoke-server.stderr.log"
+$webStartedBySmoke = $false
+$webProcess = $null
+$webStdoutLog = Join-Path $env:TEMP "nexusforge-smoke-web.stdout.log"
+$webStderrLog = Join-Path $env:TEMP "nexusforge-smoke-web.stderr.log"
 
 function Invoke-NpmChecked {
   param(
@@ -71,6 +75,17 @@ function Test-ApiHealthy {
   }
 }
 
+function Test-WebHealthy {
+  param([Parameter(Mandatory = $true)] [string] $BaseUrl)
+
+  try {
+    $response = Invoke-WebRequest -Uri "$BaseUrl/age-gate" -UseBasicParsing -TimeoutSec 2
+    return $response.StatusCode -eq 200
+  } catch {
+    return $false
+  }
+}
+
 function Wait-ForApiHealthy {
   param(
     [Parameter(Mandatory = $true)] [string] $BaseUrl,
@@ -96,7 +111,33 @@ function Wait-ForApiHealthy {
   return $false
 }
 
+function Wait-ForWebHealthy {
+  param(
+    [Parameter(Mandatory = $true)] [string] $BaseUrl,
+    [int] $TimeoutSeconds = 60
+  )
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    if (Test-WebHealthy -BaseUrl $BaseUrl) {
+      return $true
+    }
+
+    if ($webProcess -and $webProcess.HasExited) {
+      return $false
+    }
+
+    if ($webProcess) {
+      Wait-Process -Id $webProcess.Id -Timeout 1 -ErrorAction SilentlyContinue
+      $webProcess.Refresh()
+    }
+  }
+
+  return $false
+}
+
 $apiBase = "http://127.0.0.1:4000"
+$webBase = "http://127.0.0.1:3000"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {
     Write-Host "[smoke] Server not detected; launching temporary server for API probes" -ForegroundColor Yellow
@@ -118,8 +159,33 @@ try {
   Test-ApiProbe -Url "$apiBase/api/health"
   Test-ApiProbe -Url "$apiBase/api/runtime/launch-mode"
 
+  if (-not (Test-WebHealthy -BaseUrl $webBase)) {
+    Write-Host "[smoke] Web app not detected; launching temporary web app for age gate security validation" -ForegroundColor Yellow
+
+    if (Test-Path $webStdoutLog) { Remove-Item $webStdoutLog -Force }
+    if (Test-Path $webStderrLog) { Remove-Item $webStderrLog -Force }
+
+    $webProcess = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "-w", "web") -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $webStdoutLog -RedirectStandardError $webStderrLog
+    $webStartedBySmoke = $true
+
+    if (-not (Wait-ForWebHealthy -BaseUrl $webBase -TimeoutSeconds 60)) {
+      $webStdoutTail = if (Test-Path $webStdoutLog) { (Get-Content $webStdoutLog -Tail 20) -join "`n" } else { "(no stdout log)" }
+      $webStderrTail = if (Test-Path $webStderrLog) { (Get-Content $webStderrLog -Tail 20) -join "`n" } else { "(no stderr log)" }
+      throw "Web app failed to become healthy within timeout.`n--- web stdout ---`n$webStdoutTail`n--- web stderr ---`n$webStderrTail"
+    }
+  }
+
+  Invoke-NpmChecked -Label "Validate age-gate security" -Arguments @("run", "age:gate:validate:local")
+
   Write-Host "[smoke] Completed successfully." -ForegroundColor Green
 } finally {
+  if ($webStartedBySmoke) {
+    Write-Host "[smoke] Stopping temporary web app instance" -ForegroundColor Cyan
+    if ($webProcess -and -not $webProcess.HasExited) {
+      Stop-Process -Id $webProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+  }
+
   if ($serverStartedBySmoke) {
     Write-Host "[smoke] Stopping temporary server instance" -ForegroundColor Cyan
     powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" | Out-Null

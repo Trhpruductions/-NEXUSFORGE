@@ -43,18 +43,29 @@ export default function ForgotPasswordPage() {
   return (
     <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
-      <div className="mx-auto my-auto grid w-full max-w-5xl gap-4">
-        <section className="nexus-display-panel hidden rounded-2xl p-4 sm:block">
+      <div className="nexus-ambient" aria-hidden="true">
+        <div className="nexus-ambient-orb nexus-ambient-orb-a" />
+        <div className="nexus-ambient-orb nexus-ambient-orb-c" />
+      </div>
+      <div className="mx-auto my-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <section className="nexus-display-panel hidden rounded-[24px] p-5 lg:block">
+          <p className="nexus-eyebrow text-cyan-300">Recovery Rail</p>
+          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
+            Recover access without breaking session trust.
+          </h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Generate a one-time recovery token and return to authenticated command flow with minimal friction.
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Recovery Mode</p>
               <p className="mt-1 text-sm font-semibold text-cyan-200">Token generation</p>
             </article>
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Security</p>
               <p className="mt-1 text-sm font-semibold text-emerald-200">One-time flow</p>
             </article>
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Next Step</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Back to sign in</p>
             </article>

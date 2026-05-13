@@ -19,6 +19,11 @@ function resolveBrowserApiBase(): string {
     return localApiBase;
   }
 
+  // In hosted browser contexts without explicit API config, prefer same-origin over localhost.
+  if (!configuredApiBase) {
+    return window.location.origin;
+  }
+
   return configuredApiBase ?? localApiBase;
 }
 

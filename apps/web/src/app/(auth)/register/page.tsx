@@ -73,18 +73,29 @@ export default function RegisterPage() {
   return (
     <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden px-4 py-8 sm:px-6">
       <div className="solar-grid pointer-events-none absolute inset-0 -z-10" />
-      <div className="mx-auto my-auto grid w-full max-w-5xl gap-4">
-        <section className="nexus-display-panel hidden rounded-[24px] p-4 sm:block">
+      <div className="nexus-ambient" aria-hidden="true">
+        <div className="nexus-ambient-orb nexus-ambient-orb-a" />
+        <div className="nexus-ambient-orb nexus-ambient-orb-b" />
+      </div>
+      <div className="mx-auto my-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <section className="nexus-display-panel hidden rounded-[24px] p-5 lg:block">
+          <p className="nexus-eyebrow text-cyan-300">Onboarding Rail</p>
+          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
+            Launch your account and drop into the command network fast.
+          </h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Registration is wired for immediate session activation, route handoff, and premium posture visibility from first login.
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Onboarding</p>
               <p className="mt-1 text-sm font-semibold text-cyan-200">Create forge-ready access</p>
             </article>
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
               <p className="mt-1 text-sm font-semibold text-emerald-200">Redirects into app</p>
             </article>
-            <article className="nexus-metric-card rounded-xl px-3 py-2">
+            <article className="nexus-metric-card mt-4 rounded-2xl px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Verification</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Demo token issued</p>
             </article>

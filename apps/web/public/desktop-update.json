@@ -1,5 +1,5 @@
 {
-    "version":  "1.0.7",
+    "version":  "1.0.11",
     "notes":  [
                   "Deterministic window handoff from splash to full app",
                   "Automatic local URL recovery retry before fallback",
@@ -7,7 +7,7 @@
                   "Premium diagnostics panel redesign for recovery mode",
                   "Installed-launch resolver and startup telemetry hardening"
               ],
-    "downloadUrl":  "https://persian-still-lone-dairy.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.7.exe",
-    "sha256":  "0f40c315582c6034e5e09c6ed68607764709ac533bc896573a811b2f275678c3",
-    "forceUpdate":  false
+    "downloadUrl":  "https://www.nexusforge.app/NexusForge%20Desktop%20Setup%201.0.11.exe",
+    "sha256":  "7e6d890ad08464b81b4d8868675c7d3c546965672692a473e574cda3961a8cb8",
+    "forceUpdate":  true
 }

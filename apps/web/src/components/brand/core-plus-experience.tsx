@@ -55,6 +55,11 @@ const boostTierLogoSet = [
   { id: "INFINITE", label: "Infinite League", src: "/brand/tier-infinite-league.png" },
 ] as const;
 
+const tierLogoById = Object.fromEntries(boostTierLogoSet.map((tier) => [tier.id, tier])) as Record<
+  "CORE" | "PLUS" | "ELITE" | "INFINITE",
+  (typeof boostTierLogoSet)[number]
+>;
+
 const checkoutAssurances = [
   "Redirects to secure checkout instantly",
   "Subscription activates automatically after payment",
@@ -197,7 +202,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="nexus-panel-strong relative overflow-hidden rounded-3xl p-5 sm:p-7"
+        className="nexus-panel-strong relative overflow-hidden rounded-3xl p-5 sm:p-7 lg:col-span-2"
       >
         <div className="pointer-events-none absolute -left-20 top-[-72px] h-56 w-56 rounded-full bg-cyan-500/12 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
@@ -318,8 +323,34 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             Return to Command Center
           </Link>
         </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-400">Available tiers:</span>
+          {(Object.entries(tierCheckoutMeta) as Array<["CORE" | "PLUS" | "ELITE" | "INFINITE", (typeof tierCheckoutMeta)["CORE"]]>).map(
+            ([tierKey, tier]) => (
+              <span
+                key={tierKey}
+                className={`rounded-full border px-2.5 py-1 ${
+                  selectedTier === tierKey
+                    ? "border-amber-400/55 bg-amber-950/35 text-amber-100"
+                    : "border-slate-700/80 bg-slate-900/60 text-slate-300"
+                }`}
+              >
+                {tier.label}
+              </span>
+            ),
+          )}
+        </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="nexus-display-panel rounded-[24px] p-4">
+            <div className="mb-3 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/65">
+              <Image
+                src={tierLogoById[selectedTier].src}
+                alt={`${selectedPlan.label} tier artwork`}
+                width={1200}
+                height={800}
+                className="h-auto w-full object-cover"
+              />
+            </div>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Selected Plan</p>
@@ -365,55 +396,6 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         ) : null}
       </motion.article>
 
-      <div className="grid gap-4">
-        <motion.article
-          initial={{ opacity: 0, x: 22 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut", delay: 0.08 }}
-          className="nexus-display-panel rounded-[28px] p-4"
-        >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Tier Logos</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {boostTierLogoSet.map((tier) => (
-              <motion.div
-                key={tier.id}
-                whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }}
-                className="ember-frame holo-frame overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-950/65"
-              >
-                <Image
-                  src={tier.src}
-                  alt={`${tier.label} logo`}
-                  width={1200}
-                  height={800}
-                  className="image-pan h-auto w-full object-cover"
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                />
-                <div className="px-3 py-2 text-xs font-semibold text-slate-200">{tier.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.article>
-
-        <motion.article
-          initial={{ opacity: 0, x: 22 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut", delay: 0.16 }}
-          className="nexus-display-panel rounded-[28px] p-4"
-        >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">Boost Pack Emblem</p>
-          <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
-            <Image
-              src="/brand/boost-pack-icon.png"
-              alt="NexusForge boost pack icon"
-              width={640}
-              height={640}
-              className="image-pan h-auto w-full rounded-2xl object-cover"
-            />
-          </motion.div>
-        </motion.article>
-      </div>
     </section>
   );
 }

@@ -134,16 +134,16 @@ copy apps\server\.env.example apps\server\.env
 copy apps\web\.env.example apps\web\.env.local
 ```
 
-Desktop-only launch mode defaults from `apps/web/.env.local`:
-
-```bash
-NEXUSFORGE_DESKTOP_ONLY=true
-```
-
-When you are ready to launch browser/mobile access, set:
+Launch mode defaults from `apps/web/.env.local`:
 
 ```bash
 NEXUSFORGE_DESKTOP_ONLY=false
+```
+
+To enforce desktop-only mode instead, set:
+
+```bash
+NEXUSFORGE_DESKTOP_ONLY=true
 ```
 
 The admin launch-control toggle can override this at runtime through the API and is now persisted in the database. The env value is used as the initial fallback/default.
@@ -169,6 +169,20 @@ The admin launch-control toggle can override this at runtime through the API and
 - `STRIPE_PRICE_ADVANCED_MODERATION_AI`
 
 Set `APP_WEB_URL` to your deployed frontend base URL.
+
+For remote/off-network users, also set:
+
+- `apps/web/.env.local` (or deployed web env): `NEXT_PUBLIC_API_URL=https://<your-public-api-origin>`
+- `apps/web/.env.local` (or deployed web env): `NEXUSFORGE_AGE_GATE_SECRET=<long-random-secret>`
+- `apps/server/.env`: `CLIENT_ORIGIN=https://<your-public-web-origin>` (comma-separate multiple origins)
+
+Age-gate hardening note:
+
+- `NEXUSFORGE_AGE_GATE_SECRET` is required in production for signed 18+ verification cookies.
+- Keep this secret unique per environment and at least 32 random characters.
+
+For a deployment-ready variable checklist and verification commands, use `DEPLOYMENT_ENV_CHECKLIST.md`.
+For platform-specific copy/paste steps (Vercel + Render/Railway), use `DEPLOYMENT_PLATFORM_CHECKLIST.md`.
 
 Verify billing readiness before checkout testing:
 
@@ -232,11 +246,82 @@ Release publishing:
 - `npm run desktop:share:none` updates `apps/web/public/desktop-update.json` with version, download URL, notes, and `sha256`.
 - `npm run desktop:share:force` publishes a required update (`forceUpdate: true`) with a patched desktop version.
 - If `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` is not set, release uses a Cloudflare quick tunnel URL (ephemeral).
+- Releases also publish a stable installer URL: `.../NexusForge%20Desktop%20Setup%20Latest.exe`.
+- `desktop-update.json` always points to this stable URL, so users keep one download link while still receiving new versions.
+- To auto-refresh the Discord `app-downloads` embed on every release, set:
+	- `DISCORD_BOT_TOKEN=<bot-token>`
+	- `DISCORD_DOWNLOAD_TARGET_ID=<guild-or-category-id>`
+	- optional: `DISCORD_DOWNLOAD_CHANNEL_NAME=app-downloads`
+
+## Discord Bot Setup
+
+The API server can run an integrated Discord bot with slash commands.
+
+Environment variables (apps/server/.env):
+
+```bash
+DISCORD_BOT_ENABLED=true
+DISCORD_BOT_TOKEN=<bot-token>
+DISCORD_CLIENT_ID=<application-client-id>
+DISCORD_PUBLIC_KEY=<application-public-key>
+DISCORD_REGISTER_COMMANDS_ON_START=true
+DISCORD_GUILD_ID=<optional-fast-dev-guild-id>
+DISCORD_INSTALL_URL=https://discord.com/oauth2/authorize?client_id=<application-client-id>&scope=bot%20applications.commands
+DISCORD_REPORT_ENABLED=true
+DISCORD_REPORT_GUILD_ID=<optional-reporting-guild-id>
+DISCORD_REPORT_CHANNEL_STATUS=bot-status
+DISCORD_REPORT_CHANNEL_ERRORS=bot-errors
+DISCORD_REPORT_CHANNEL_ALERTS=bot-alerts
+```
+
+Notes:
+
+- `DISCORD_GUILD_ID` is optional. If provided, commands register instantly in that guild.
+- Without `DISCORD_GUILD_ID`, commands are registered globally and can take longer to appear.
+- The bot starts automatically with the API when `DISCORD_BOT_ENABLED=true`.
+- Set `DISCORD_REGISTER_COMMANDS_ON_START=false` if you want to run the bot without command auto-registration.
+- If `DISCORD_INSTALL_URL` is not set, the generated install URL is pinned to `DISCORD_GUILD_ID` when provided.
+- If reporting is enabled, the bot posts startup and error events to the configured ops channels.
+
+Discord interactions webhook endpoint:
+
+- `POST /api/discord/interactions`
+- Signature verified using `DISCORD_PUBLIC_KEY`.
+- Keep this endpoint public only behind HTTPS when used with Discord Interactions URL.
+
+Included slash commands:
+
+- `/ping` - bot latency check
+- `/app` - app and install links
+- `/status` - API launch mode summary
+
+Preflight check before starting the API:
+
+```bash
+npm run discord:whoami -w @nexusforge/server
+npm run discord:verify -w @nexusforge/server
+```
+
+`discord:whoami` prints which bot user the token belongs to.
+`discord:verify` verifies `DISCORD_BOT_TOKEN` belongs to `DISCORD_CLIENT_ID` and fails fast on mismatches.
+If `DISCORD_GUILD_ID` is set, it also verifies the bot can access that target.
+`DISCORD_GUILD_ID` (or argv[2]) can be a guild ID, category ID, or channel ID; verification resolves channel/category targets to their parent guild.
+
+Mismatch remediation:
+
+- If `discord:verify` reports token/client mismatch, run `discord:whoami` and align `DISCORD_CLIENT_ID` to the reported bot ID.
+- If you intended a different application, rotate `DISCORD_BOT_TOKEN` for that intended application instead of changing client ID.
+
+Discord release channel automation:
+
+- `npm run discord:setup:channels -w @nexusforge/server -- <guild-or-category-id>` ensures ops + `app-downloads` channels exist.
+- `npm run discord:post:download -w @nexusforge/server -- <guild-or-category-id> app-downloads` posts the latest installer/launcher/update-manifest embed from `apps/web/public/desktop-update.json`.
 
 ## QA Automation Commands
 
 - `npm run brand:verify` validates required logo and badge assets in `apps/web/public/brand`.
 - `npm run admin:badge:smoke` performs an end-to-end admin badge grant and revoke check against the API.
+- `npm run age:gate:validate:local` validates 18+ gate security controls locally (cross-origin blocking, no-store headers, cookie issuance, and rate limiting).
 - `npm run build` runs the resilient workspace build pipeline (brand verify + web build with one-time transient Next.js retry + server build).
 - `npm run desktop:installer` runs resilient desktop installer packaging (workspace build + Windows package with one lock-recovery retry).
 - `npm run desktop:release:checklist` runs release readiness checks in one command: build/package, launch unpacked app, launch installed app, and summary.

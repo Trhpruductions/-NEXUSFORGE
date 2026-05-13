@@ -84,3 +84,18 @@ When reporting issues, include route URL, timestamp, and repro steps.
 - Keep all beta and tunnel terminals running.
 - Quick tunnel URLs rotate if restarted.
 - If links fail, restart tunnel commands and resend new URLs.
+
+## Latest Validation Snapshot (2026-05-12)
+
+End-to-end validation was executed from repository root and completed with all checks passing.
+
+- `npm run build` -> PASS
+- `npm run lint` -> PASS
+- `npm run test -w @nexusforge/server` -> PASS (15/15)
+- `npm run smoke:local` -> PASS (includes API probes)
+- `npm run desktop:release:checklist` -> PASS (build/package + launch checks)
+- `npm run admin:badge:smoke` -> PASS (grant/revoke verified and state restored)
+
+Notes:
+- Admin badge smoke used seeded local admin credentials for validation in local environment.
+- Temporary credential environment variables were cleared after the run.

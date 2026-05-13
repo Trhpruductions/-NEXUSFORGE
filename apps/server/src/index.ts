@@ -25,38 +25,77 @@ import { adminRouter } from "./routes/admin.routes.js";
 import { profilesRouter } from "./routes/profiles.routes.js";
 import { runtimeRouter } from "./routes/runtime.routes.js";
 import { billingRouter, billingWebhookHandler } from "./routes/billing.routes.js";
+import { reportDiscordAlert, startDiscordBot, stopDiscordBot } from "./lib/discord-bot.js";
+import { discordInteractionHandler } from "./routes/discord.routes.js";
 
 const app = express();
 const httpServer = createServer(app);
+
+const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
 const configuredOrigins = env.CLIENT_ORIGIN.split(",")
   .map((value) => value.trim())
   .filter(Boolean);
 
+let appWebOrigin = "";
+try {
+  appWebOrigin = new URL(env.APP_WEB_URL).origin;
+} catch {
+  appWebOrigin = "";
+}
+
 const allowedOrigins = Array.from(
   new Set(
     env.NODE_ENV === "production"
-      ? configuredOrigins
+      ? [...configuredOrigins, appWebOrigin].filter(Boolean)
       : [...configuredOrigins, "http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
   ),
 );
 
+const hasOnlyLocalConfiguredOrigins =
+  allowedOrigins.length > 0 && allowedOrigins.every((origin) => localOriginPattern.test(origin));
+
+function isOriginAllowed(origin?: string) {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  if (env.NODE_ENV !== "production" && localOriginPattern.test(origin)) {
+    return true;
+  }
+
+  if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
+    return /^https:\/\//i.test(origin);
+  }
+
+  return false;
+}
+
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      callback(null, isOriginAllowed(origin));
+    },
     credentials: true,
   },
 });
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin(origin, callback) {
+      callback(null, isOriginAllowed(origin));
+    },
     credentials: true,
   }),
 );
 app.use(helmet());
 app.use(morgan("dev"));
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
+app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(globalRateLimit);
@@ -190,9 +229,15 @@ httpServer.on("error", (error: NodeJS.ErrnoException) => {
 
 httpServer.listen(env.PORT, () => {
   console.log(`NexusForge API running on http://localhost:${env.PORT}`);
+  void startDiscordBot().catch((error) => {
+    console.error("[discord] Failed to start bot:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    void reportDiscordAlert(`Bot startup failure: ${message}`);
+  });
 });
 
 async function gracefulShutdown(): Promise<void> {
+  await stopDiscordBot();
   await prisma.$disconnect();
   httpServer.close();
 }

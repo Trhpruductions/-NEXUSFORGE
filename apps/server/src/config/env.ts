@@ -39,6 +39,32 @@ const envSchema = z.object({
   UPLOAD_MAX_BYTES: z.coerce.number().default(25 * 1024 * 1024),
   PREMIUM_UPLOAD_MAX_BYTES: z.coerce.number().default(150 * 1024 * 1024),
   APP_WEB_URL: z.string().default("http://localhost:3000"),
+  DISCORD_BOT_ENABLED: z
+    .string()
+    .default("false")
+    .transform((value) => value.toLowerCase() === "true"),
+  DISCORD_BOT_TOKEN: z.string().optional(),
+  DISCORD_CLIENT_ID: z.string().optional(),
+  DISCORD_CLIENT_SECRET: z.string().optional(),
+  DISCORD_PUBLIC_KEY: z.string().optional(),
+  DISCORD_REGISTER_COMMANDS_ON_START: z
+    .string()
+    .default("true")
+    .transform((value) => value.toLowerCase() !== "false"),
+  DISCORD_ENFORCE_CLIENT_ID_MATCH: z
+    .string()
+    .default("true")
+    .transform((value) => value.toLowerCase() !== "false"),
+  DISCORD_GUILD_ID: z.string().optional(),
+  DISCORD_INSTALL_URL: z.string().optional(),
+  DISCORD_REPORT_ENABLED: z
+    .string()
+    .default("true")
+    .transform((value) => value.toLowerCase() !== "false"),
+  DISCORD_REPORT_GUILD_ID: z.string().optional(),
+  DISCORD_REPORT_CHANNEL_STATUS: z.string().default("bot-status"),
+  DISCORD_REPORT_CHANNEL_ERRORS: z.string().default("bot-errors"),
+  DISCORD_REPORT_CHANNEL_ALERTS: z.string().default("bot-alerts"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_CORE_MONTHLY: z.string().optional(),

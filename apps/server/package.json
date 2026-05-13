@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "NexusForge API service",
   "scripts": {
-    "dev": "npx --yes tsx watch src/index.ts",
+    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1",
+    "dev": "npm run dev:cleanup-port && npx --yes tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "test": "npx --yes tsx --test tests/**/*.test.ts",
     "start": "node dist/index.js",
@@ -11,7 +12,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed:profiles": "npx --yes tsx prisma/seed-profiles.ts",
-    "seed:users": "npx --yes tsx prisma/seed-user-groups.ts"
+    "seed:users": "npx --yes tsx prisma/seed-user-groups.ts",
+    "discord:whoami": "node ./scripts/discord-token-whoami.mjs",
+    "discord:verify": "node ./scripts/verify-discord-bot-config.mjs",
+    "discord:setup:channels": "node ./scripts/discord-setup-channels.mjs",
+    "discord:post:download": "node ./scripts/discord-post-download-embed.mjs"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +30,7 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.1",

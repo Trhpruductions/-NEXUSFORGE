@@ -551,6 +551,10 @@ export function AppHomeScreen() {
                   <span>Create Forge</span>
                   <Plus size={16} />
                 </button>
+                <Link href="/app/join" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-cyan-500/35 bg-[linear-gradient(155deg,rgba(8,47,73,0.4),rgba(15,23,42,0.96))] px-4 py-3 text-left text-cyan-100 hover:border-cyan-300">
+                  <span>Join Server Via Invite</span>
+                  <Users size={16} />
+                </Link>
                 <Link href="/search?q=games" className="nexus-interactive-btn flex items-center justify-between rounded-[22px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.18))] px-4 py-3 text-left text-slate-200 hover:border-cyan-500/40">
                   <span>Explore Games</span>
                   <Gamepad2 size={16} />
@@ -652,10 +656,10 @@ export function AppHomeScreen() {
                 <p className="text-[9px] text-emerald-400">{server.online} Online</p>
               </article>
             ))}
-            <article className="grid place-items-center rounded-xl border border-slate-800 bg-slate-900/65 p-1.5 text-slate-300">
+            <Link href="/app/join" className="grid place-items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 p-1.5 text-cyan-100">
               <Plus size={14} />
-              <p className="mt-0.5 text-[10px]">Add</p>
-            </article>
+              <p className="mt-0.5 text-[10px]">Join</p>
+            </Link>
           </div>
         </section>
 

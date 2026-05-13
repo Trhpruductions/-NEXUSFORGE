@@ -14,7 +14,7 @@ type LaunchModeState = {
 };
 
 const LAUNCH_MODE_RECORD_ID = 1;
-const initialDesktopOnly = (process.env.NEXUSFORGE_DESKTOP_ONLY ?? "true") !== "false";
+const initialDesktopOnly = (process.env.NEXUSFORGE_DESKTOP_ONLY ?? "false") === "true";
 
 let lastKnownState: LaunchModeState = {
   desktopOnly: initialDesktopOnly,

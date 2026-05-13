@@ -25,7 +25,13 @@ if ([string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
   $PersistentBaseUrl = [string]$env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL
 }
 
-function Normalize-BaseUrl {
+$discordDownloadTargetId = [string]$env:DISCORD_DOWNLOAD_TARGET_ID
+$discordDownloadChannelName = [string]$env:DISCORD_DOWNLOAD_CHANNEL_NAME
+if ([string]::IsNullOrWhiteSpace($discordDownloadChannelName)) {
+  $discordDownloadChannelName = "app-downloads"
+}
+
+function Format-BaseUrl {
   param([Parameter(Mandatory = $true)] [string] $BaseUrl)
 
   $normalized = $BaseUrl.Trim()
@@ -45,20 +51,20 @@ function Test-IsEphemeralOrNonDurableUrl {
 
   try {
     $uri = [System.Uri]$candidate
-    $host = [string]$uri.Host
-    if ($null -eq $host) {
-      $host = ""
+    $baseHost = [string]$uri.Host
+    if ($null -eq $baseHost) {
+      $baseHost = ""
     }
-    $host = $host.ToLowerInvariant()
-    if ([string]::IsNullOrWhiteSpace($host)) {
+    $baseHost = $baseHost.ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($baseHost)) {
       return $true
     }
 
-    if ($host -match "(^|\.)trycloudflare\.com$") {
+    if ($baseHost -match "(^|\.)trycloudflare\.com$") {
       return $true
     }
 
-    if ($host -in @("localhost", "127.0.0.1", "0.0.0.0")) {
+    if ($baseHost -in @("localhost", "127.0.0.1", "0.0.0.0")) {
       return $true
     }
 
@@ -180,6 +186,33 @@ function Wait-ForUrl {
   throw "Timed out waiting for tunnel URL in logs: $($Paths -join ', ')"
 }
 
+function Assert-DownloadUrlLooksLikeBinary {
+  param([Parameter(Mandatory = $true)] [string] $Url)
+
+  try {
+    $response = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing -TimeoutSec 30
+    $statusCode = [int]$response.StatusCode
+    if ($statusCode -lt 200 -or $statusCode -ge 400) {
+      throw "Unexpected status code $statusCode"
+    }
+
+    $contentType = [string]$response.Headers["Content-Type"]
+    if ([string]::IsNullOrWhiteSpace($contentType)) {
+      $contentType = [string]$response.ContentType
+    }
+    if ($null -eq $contentType) {
+      $contentType = ""
+    }
+    $contentType = $contentType.ToLowerInvariant()
+
+    if ($contentType -match "text/html") {
+      throw "Content-Type '$contentType' indicates HTML, not an installer binary"
+    }
+  } catch {
+    throw "Download URL validation failed for '$Url'. Ensure this URL serves the .exe file directly. Details: $($_.Exception.Message)"
+  }
+}
+
 function Repair-GeneratedChromiumLicenses {
   param([Parameter(Mandatory = $true)] [string] $ReleaseDir)
 
@@ -274,6 +307,10 @@ if (!(Test-Path $installerPath)) {
   throw "Installer not found at $installerPath after build."
 }
 
+$latestInstallerName = "NexusForge Desktop Setup Latest.exe"
+$latestInstallerPath = Join-Path $releaseDir $latestInstallerName
+Copy-Item -Path $installerPath -Destination $latestInstallerPath -Force
+
 Repair-GeneratedChromiumLicenses -ReleaseDir $releaseDir
 
 $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -292,7 +329,7 @@ $publicBaseUrl = ""
 $isEphemeral = $false
 
 if (![string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
-  $publicBaseUrl = Normalize-BaseUrl -BaseUrl $PersistentBaseUrl
+  $publicBaseUrl = Format-BaseUrl -BaseUrl $PersistentBaseUrl
   if ((Test-IsEphemeralOrNonDurableUrl -BaseUrl $publicBaseUrl) -and -not $AllowEphemeral) {
     throw "Refusing to publish desktop release with non-durable base URL '$publicBaseUrl'. Provide a persistent host or re-run with -AllowEphemeral for temporary testing only."
   }
@@ -313,10 +350,13 @@ if (![string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
 
 $encodedInstaller = [System.Uri]::EscapeDataString($installerName)
 $downloadUrl = "$publicBaseUrl/$encodedInstaller"
+$encodedLatestInstaller = [System.Uri]::EscapeDataString($latestInstallerName)
+$stableDownloadUrl = "$publicBaseUrl/$encodedLatestInstaller"
+Assert-DownloadUrlLooksLikeBinary -Url $stableDownloadUrl
 
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $manifest.version = $desktopVersion
-$manifest.downloadUrl = $downloadUrl
+$manifest.downloadUrl = $stableDownloadUrl
 $releaseNotes = if ($Notes.Count -gt 0) { $Notes } else { @($manifest.notes) }
 if ($manifest.PSObject.Properties.Name -contains "notes") {
   $manifest.notes = @($releaseNotes)
@@ -349,6 +389,7 @@ $summary = @(
   "Generated: $(Get-Date -Format s)"
   ""
   "Download:   $downloadUrl"
+  "DownloadStable: $stableDownloadUrl"
   "Directory:  $publicBaseUrl/"
   "SHA256:     $hash"
   "Version:    $desktopVersion"
@@ -366,8 +407,21 @@ $summary = @(
 
 Set-Content -Path $summaryPath -Value $summary -Encoding UTF8
 
+if (-not [string]::IsNullOrWhiteSpace($env:DISCORD_BOT_TOKEN) -and -not [string]::IsNullOrWhiteSpace($discordDownloadTargetId)) {
+  Write-Host "[desktop-release] Updating Discord download embed..."
+  & npm.cmd run discord:post:download -w @nexusforge/server -- $discordDownloadTargetId $discordDownloadChannelName
+  if ($LASTEXITCODE -ne 0) {
+    throw "Discord download embed update failed."
+  }
+  Write-Host "[desktop-release] Discord download embed updated." -ForegroundColor Green
+} else {
+  Write-Host "[desktop-release] Skipping Discord embed update (set DISCORD_BOT_TOKEN and DISCORD_DOWNLOAD_TARGET_ID to enable)." -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "[desktop-release] Share this download URL:" -ForegroundColor Green
+Write-Host $stableDownloadUrl -ForegroundColor Cyan
+Write-Host "[desktop-release] Version-specific URL:" -ForegroundColor Green
 Write-Host $downloadUrl -ForegroundColor Cyan
 Write-Host ""
 Write-Host "[desktop-release] Updated desktop manifest with downloadUrl + sha256." -ForegroundColor Green
