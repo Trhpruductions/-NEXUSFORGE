@@ -25,6 +25,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+scripts/desktop-release-deploy.env
 
 # OS/editor
 .DS_Store

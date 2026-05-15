@@ -19,6 +19,8 @@ Age gate cookie note:
 Hosted access note:
 
 - For users outside your local network, `NEXT_PUBLIC_API_URL` must point to a public API origin (not localhost).
+- Desktop clients can now auto-fallback between local and hosted app targets; for explicit hosted desktop validation from the repo root, use `npm run desktop:open:hosted`.
+- If hosted Electron launches depend on temporary certificate bypass during rollout, the desktop shell gates that behavior behind `NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS`.
 
 The value above is the default/fallback. Admin launch control can override launch mode at runtime via API, and that runtime state is persisted by the server database.
 

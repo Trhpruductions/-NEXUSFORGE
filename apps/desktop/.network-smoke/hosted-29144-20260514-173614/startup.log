@@ -1,0 +1,21 @@
+﻿
+2026-05-14T22:36:18.438Z [startup-timing] t+28ms app-when-ready
+2026-05-14T22:36:18.439Z [startup-timing] log-path="D:\NEXUSFORGE GAMGING APP\apps\desktop\.network-smoke\hosted-29144-20260514-173614\startup.log"
+2026-05-14T22:36:18.439Z [startup] stage="Booting desktop shell" progress=4 accent=warmup detail="Starting NexusForge Desktop."
+2026-05-14T22:36:18.440Z [startup] stage="Preparing secure session" progress=18 accent=warmup detail="Resetting desktop storage before launch."
+2026-05-14T22:36:18.440Z [startup] stage="Connecting hosted workspace" progress=32 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-14T22:36:18.467Z [startup-timing] t+57ms splash-window-create
+2026-05-14T22:36:18.546Z [startup-timing] t+136ms main-window-create
+2026-05-14T22:36:18.582Z [startup] stage="Preparing launch" progress=72 accent=checking detail="Checking updates and final startup tasks."
+2026-05-14T22:36:18.582Z [startup-timing] t+172ms ensure-app-reachable-start trigger=startup
+2026-05-14T22:36:18.583Z [startup] stage="Connecting hosted workspace" progress=78 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-14T22:36:18.731Z [startup-timing] t+321ms splash-did-finish-load
+2026-05-14T22:36:20.013Z [tls] certificate bypass accepted for https://www.nexusforge.app/app (net::ERR_CERT_AUTHORITY_INVALID)
+2026-05-14T22:36:20.292Z [tls] certificate bypass accepted for https://www.nexusforge.app/app (net::ERR_CERT_AUTHORITY_INVALID)
+2026-05-14T22:37:02.573Z [startup-timing] t+44162ms main-ready-to-show
+2026-05-14T22:37:02.573Z [startup-timing] t+44163ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:37:03.485Z [startup-timing] t+45075ms main-did-finish-load
+2026-05-14T22:37:03.485Z [startup-timing] t+45075ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:37:03.485Z [startup-timing] t+45075ms hosted-target-connected target=https://www.nexusforge.app/app
+2026-05-14T22:37:03.486Z [startup-timing] t+45076ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:37:03.486Z [startup] stage="Connecting hosted workspace" progress=78 accent=opening detail="Opening the remote NexusForge experience."

@@ -1,0 +1,25 @@
+﻿
+2026-05-15T00:01:41.504Z [startup-timing] t+33ms app-when-ready
+2026-05-15T00:01:41.505Z [startup-timing] log-path="D:\NEXUSFORGE GAMGING APP\apps\desktop\.network-smoke\hosted-21840-20260514-190137\startup.log"
+2026-05-15T00:01:41.505Z [startup] stage="Booting desktop shell" progress=4 accent=warmup detail="Starting NexusForge Desktop."
+2026-05-15T00:01:41.506Z [startup] stage="Preparing secure session" progress=18 accent=warmup detail="Resetting desktop storage before launch."
+2026-05-15T00:01:41.506Z [startup] stage="Connecting hosted workspace" progress=32 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-15T00:01:41.535Z [startup-timing] t+63ms splash-window-create
+2026-05-15T00:01:41.630Z [startup-timing] t+159ms main-window-create
+2026-05-15T00:01:41.741Z [startup] stage="Preparing launch" progress=72 accent=checking detail="Checking updates and final startup tasks."
+2026-05-15T00:01:41.741Z [startup-timing] t+270ms ensure-app-reachable-start trigger=startup
+2026-05-15T00:01:41.742Z [startup] stage="Connecting hosted workspace" progress=78 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-15T00:01:41.940Z [startup-timing] t+469ms splash-did-finish-load
+2026-05-15T00:01:43.493Z [tls] certificate bypass accepted for https://www.nexusforge.app/app (net::ERR_CERT_AUTHORITY_INVALID)
+2026-05-15T00:02:20.573Z [startup-timing] t+39102ms main-ready-to-show
+2026-05-15T00:02:20.573Z [startup-timing] t+39102ms handoff-reveal-scheduled hold=2200ms
+2026-05-15T00:02:22.774Z [startup-timing] t+41303ms handoff-reveal-fire from-splash-to-main
+2026-05-15T00:02:22.775Z [startup] stage="Opening NexusForge Desktop" progress=100 accent=ready detail="The workspace is ready. Bringing the app forward."
+2026-05-15T00:02:22.793Z [startup-timing] t+41322ms main-window-show
+2026-05-15T00:02:22.794Z [startup-timing] t+41322ms splash-window-close
+2026-05-15T00:02:22.794Z [startup-timing] t+41323ms startup-handoff-complete
+2026-05-15T00:02:24.504Z [startup-timing] t+43032ms main-did-finish-load
+2026-05-15T00:02:24.504Z [startup-timing] t+43033ms handoff-reveal-scheduled hold=2200ms
+2026-05-15T00:02:24.504Z [startup-timing] t+43033ms hosted-target-connected target=https://www.nexusforge.app/app
+2026-05-15T00:02:24.505Z [startup-timing] t+43034ms handoff-reveal-scheduled hold=2200ms
+2026-05-15T00:02:24.505Z [startup] stage="Opening NexusForge Desktop" progress=100 accent=ready detail="The workspace is ready. Bringing the app forward."

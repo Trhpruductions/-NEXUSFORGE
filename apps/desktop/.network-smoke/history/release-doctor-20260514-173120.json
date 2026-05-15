@@ -1,0 +1,31 @@
+﻿{
+    "generatedAt":  "2026-05-14T17:31:20.9532850-05:00",
+    "repoRoot":  "D:\\NEXUSFORGE GAMGING APP",
+    "passed":  false,
+    "startedAt":  "2026-05-14T17:29:43.9691851-05:00",
+    "finishedAt":  "2026-05-14T17:31:20.9460245-05:00",
+    "durationMs":  96977,
+    "totalChecks":  4,
+    "executedChecks":  2,
+    "failedChecks":  1,
+    "checks":  [
+                   {
+                       "name":  "powershell-parser",
+                       "command":  "npm run scripts:validate:powershell",
+                       "startedAt":  "2026-05-14T17:29:43.9886412-05:00",
+                       "finishedAt":  "2026-05-14T17:29:44.5703680-05:00",
+                       "durationMs":  582,
+                       "exitCode":  0,
+                       "passed":  true
+                   },
+                   {
+                       "name":  "desktop-network-strict",
+                       "command":  "npm run desktop:network:validate:ci:strict",
+                       "startedAt":  "2026-05-14T17:29:44.5831683-05:00",
+                       "finishedAt":  "2026-05-14T17:31:20.9440132-05:00",
+                       "durationMs":  96361,
+                       "exitCode":  1,
+                       "passed":  false
+                   }
+               ]
+}

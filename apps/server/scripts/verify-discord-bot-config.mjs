@@ -38,6 +38,23 @@ function resolveClientId() {
     }
   }
 
+  const token = String(process.env.DISCORD_BOT_TOKEN || "").trim();
+  if (token) {
+    const firstSegment = token.split(".")[0] || "";
+    if (firstSegment) {
+      const normalized = firstSegment.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+      try {
+        const decoded = Buffer.from(padded, "base64").toString("utf8").trim();
+        if (/^\d{15,21}$/.test(decoded)) {
+          return { clientId: decoded, source: "DISCORD_BOT_TOKEN(payload)" };
+        }
+      } catch {
+        // Ignore malformed token and continue to hard failure below.
+      }
+    }
+  }
+
   return { clientId: "", source: "" };
 }
 

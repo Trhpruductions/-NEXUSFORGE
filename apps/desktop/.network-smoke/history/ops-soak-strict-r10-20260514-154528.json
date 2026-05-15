@@ -1,0 +1,12 @@
+﻿{
+    "passed":  false,
+    "strict":  true,
+    "runs":  10,
+    "script":  "ops:validate:strict",
+    "startedAt":  "2026-05-14T15:43:21.0993562-05:00",
+    "finishedAt":  "2026-05-14T15:45:28.7141882-05:00",
+    "totalDurationMs":  127615,
+    "results":  [
+
+                ]
+}

@@ -3,6 +3,60 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
+function decodeClientIdFromBotToken(token?: string) {
+  const value = String(token || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  const firstSegment = value.split(".")[0] || "";
+  if (!firstSegment) {
+    return "";
+  }
+
+  const normalized = firstSegment.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+
+  try {
+    const decoded = Buffer.from(padded, "base64").toString("utf8").trim();
+    return /^\d{15,21}$/.test(decoded) ? decoded : "";
+  } catch {
+    return "";
+  }
+}
+
+function resolveClientId(
+  explicitClientId?: string,
+  applicationId?: string,
+  installUrl?: string,
+  botToken?: string,
+) {
+  const direct = String(explicitClientId || "").trim();
+  if (direct) {
+    return direct;
+  }
+
+  const appId = String(applicationId || "").trim();
+  if (appId) {
+    return appId;
+  }
+
+  const url = String(installUrl || "").trim();
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      const fromQuery = String(parsed.searchParams.get("client_id") || "").trim();
+      if (fromQuery) {
+        return fromQuery;
+      }
+    } catch {
+      // Ignore malformed install URL and continue fallback chain.
+    }
+  }
+
+  return decodeClientIdFromBotToken(botToken);
+}
+
 const localEnvPath = fileURLToPath(new URL("../../.env", import.meta.url));
 const envPaths = [
   resolve(process.cwd(), ".env"),
@@ -41,10 +95,11 @@ const envSchema = z.object({
   APP_WEB_URL: z.string().default("http://localhost:3000"),
   DISCORD_BOT_ENABLED: z
     .string()
-    .default("false")
+    .default("true")
     .transform((value) => value.toLowerCase() === "true"),
   DISCORD_BOT_TOKEN: z.string().optional(),
   DISCORD_CLIENT_ID: z.string().optional(),
+  DISCORD_APPLICATION_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_PUBLIC_KEY: z.string().optional(),
   DISCORD_REGISTER_COMMANDS_ON_START: z
@@ -82,4 +137,15 @@ const envSchema = z.object({
   STRIPE_PRICE_ADVANCED_MODERATION_AI: z.string().optional(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+const resolvedDiscordClientId = resolveClientId(
+  parsedEnv.DISCORD_CLIENT_ID,
+  parsedEnv.DISCORD_APPLICATION_ID,
+  parsedEnv.DISCORD_INSTALL_URL,
+  parsedEnv.DISCORD_BOT_TOKEN,
+);
+
+export const env = {
+  ...parsedEnv,
+  DISCORD_CLIENT_ID: resolvedDiscordClientId || parsedEnv.DISCORD_CLIENT_ID,
+};

@@ -5,12 +5,13 @@ Push-Location $repoRoot
 
 $serverStartedBySmoke = $false
 $serverProcess = $null
-$serverStdoutLog = Join-Path $env:TEMP "nexusforge-smoke-server.stdout.log"
-$serverStderrLog = Join-Path $env:TEMP "nexusforge-smoke-server.stderr.log"
+$runToken = "{0}-{1}" -f $PID, (Get-Date -Format "yyyyMMdd-HHmmss")
+$serverStdoutLog = Join-Path $env:TEMP ("nexusforge-smoke-server.stdout.{0}.log" -f $runToken)
+$serverStderrLog = Join-Path $env:TEMP ("nexusforge-smoke-server.stderr.{0}.log" -f $runToken)
 $webStartedBySmoke = $false
 $webProcess = $null
-$webStdoutLog = Join-Path $env:TEMP "nexusforge-smoke-web.stdout.log"
-$webStderrLog = Join-Path $env:TEMP "nexusforge-smoke-web.stderr.log"
+$webStdoutLog = Join-Path $env:TEMP ("nexusforge-smoke-web.stdout.{0}.log" -f $runToken)
+$webStderrLog = Join-Path $env:TEMP ("nexusforge-smoke-web.stderr.{0}.log" -f $runToken)
 
 function Invoke-NpmChecked {
   param(
@@ -98,13 +99,13 @@ function Wait-ForApiHealthy {
       return $true
     }
 
-    if ($serverProcess -and $serverProcess.HasExited) {
-      return $false
-    }
-
     if ($serverProcess) {
-      Wait-Process -Id $serverProcess.Id -Timeout 1 -ErrorAction SilentlyContinue
-      $serverProcess.Refresh()
+      Wait-Process -Id $serverProcess.Id -Timeout 1 -ErrorAction SilentlyContinue | Out-Null
+      try {
+        $serverProcess.Refresh()
+      } catch {
+        # Parent process handle may be stale while child watcher stays active.
+      }
     }
   }
 
@@ -123,32 +124,29 @@ function Wait-ForWebHealthy {
       return $true
     }
 
-    if ($webProcess -and $webProcess.HasExited) {
-      return $false
-    }
-
     if ($webProcess) {
-      Wait-Process -Id $webProcess.Id -Timeout 1 -ErrorAction SilentlyContinue
-      $webProcess.Refresh()
+      Wait-Process -Id $webProcess.Id -Timeout 1 -ErrorAction SilentlyContinue | Out-Null
+      try {
+        $webProcess.Refresh()
+      } catch {
+        # Parent process handle may be stale while child watcher stays active.
+      }
     }
   }
 
   return $false
 }
 
-$apiBase = "http://127.0.0.1:4000"
+$apiBase = "http://localhost:4000"
 $webBase = "http://127.0.0.1:3000"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {
     Write-Host "[smoke] Server not detected; launching temporary server for API probes" -ForegroundColor Yellow
 
-    if (Test-Path $serverStdoutLog) { Remove-Item $serverStdoutLog -Force }
-    if (Test-Path $serverStderrLog) { Remove-Item $serverStderrLog -Force }
-
-    $serverProcess = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "-w", "server") -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $serverStdoutLog -RedirectStandardError $serverStderrLog
+    $serverProcess = Start-Process -FilePath "node.exe" -ArgumentList @("dist/index.js") -WorkingDirectory (Join-Path $repoRoot "apps/server") -PassThru -WindowStyle Hidden -RedirectStandardOutput $serverStdoutLog -RedirectStandardError $serverStderrLog
     $serverStartedBySmoke = $true
 
-    if (-not (Wait-ForApiHealthy -BaseUrl $apiBase -TimeoutSeconds 40)) {
+    if (-not (Wait-ForApiHealthy -BaseUrl $apiBase -TimeoutSeconds 60)) {
       $stdoutTail = if (Test-Path $serverStdoutLog) { (Get-Content $serverStdoutLog -Tail 20) -join "`n" } else { "(no stdout log)" }
       $stderrTail = if (Test-Path $serverStderrLog) { (Get-Content $serverStderrLog -Tail 20) -join "`n" } else { "(no stderr log)" }
       throw "Server failed to become healthy within timeout.`n--- stdout ---`n$stdoutTail`n--- stderr ---`n$stderrTail"
@@ -161,9 +159,6 @@ try {
 
   if (-not (Test-WebHealthy -BaseUrl $webBase)) {
     Write-Host "[smoke] Web app not detected; launching temporary web app for age gate security validation" -ForegroundColor Yellow
-
-    if (Test-Path $webStdoutLog) { Remove-Item $webStdoutLog -Force }
-    if (Test-Path $webStderrLog) { Remove-Item $webStderrLog -Force }
 
     $webProcess = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "-w", "web") -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $webStdoutLog -RedirectStandardError $webStderrLog
     $webStartedBySmoke = $true

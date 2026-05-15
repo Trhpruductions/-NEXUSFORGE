@@ -1,0 +1,91 @@
+﻿{
+    "passed":  true,
+    "strict":  true,
+    "runs":  10,
+    "script":  "ops:validate:strict",
+    "startedAt":  "2026-05-14T16:48:24.8167235-05:00",
+    "finishedAt":  "2026-05-14T16:55:56.8002578-05:00",
+    "totalDurationMs":  451984,
+    "results":  [
+                    {
+                        "run":  1,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  46819,
+                        "startedAt":  "2026-05-14T16:48:24.8280767-05:00",
+                        "finishedAt":  "2026-05-14T16:49:11.6474367-05:00"
+                    },
+                    {
+                        "run":  2,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  44273,
+                        "startedAt":  "2026-05-14T16:49:11.6628794-05:00",
+                        "finishedAt":  "2026-05-14T16:49:55.9357650-05:00"
+                    },
+                    {
+                        "run":  3,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  42750,
+                        "startedAt":  "2026-05-14T16:49:55.9357650-05:00",
+                        "finishedAt":  "2026-05-14T16:50:38.6856409-05:00"
+                    },
+                    {
+                        "run":  4,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  41816,
+                        "startedAt":  "2026-05-14T16:50:38.6866441-05:00",
+                        "finishedAt":  "2026-05-14T16:51:20.5024279-05:00"
+                    },
+                    {
+                        "run":  5,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  44954,
+                        "startedAt":  "2026-05-14T16:51:20.5024279-05:00",
+                        "finishedAt":  "2026-05-14T16:52:05.4561389-05:00"
+                    },
+                    {
+                        "run":  6,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  46927,
+                        "startedAt":  "2026-05-14T16:52:05.4566432-05:00",
+                        "finishedAt":  "2026-05-14T16:52:52.3834406-05:00"
+                    },
+                    {
+                        "run":  7,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  52074,
+                        "startedAt":  "2026-05-14T16:52:52.3834406-05:00",
+                        "finishedAt":  "2026-05-14T16:53:44.4570483-05:00"
+                    },
+                    {
+                        "run":  8,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  45746,
+                        "startedAt":  "2026-05-14T16:53:44.4575475-05:00",
+                        "finishedAt":  "2026-05-14T16:54:30.2037622-05:00"
+                    },
+                    {
+                        "run":  9,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  44545,
+                        "startedAt":  "2026-05-14T16:54:30.2047875-05:00",
+                        "finishedAt":  "2026-05-14T16:55:14.7499702-05:00"
+                    },
+                    {
+                        "run":  10,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  42049,
+                        "startedAt":  "2026-05-14T16:55:14.7499702-05:00",
+                        "finishedAt":  "2026-05-14T16:55:56.7992537-05:00"
+                    }
+                ]
+}

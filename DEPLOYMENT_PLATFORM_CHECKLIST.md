@@ -103,6 +103,48 @@ Validation command:
 npm run desktop:update:validate:insecure
 ```
 
+Recommended additional verification:
+
+```bash
+curl -kI "https://app.your-domain.com/desktop-update.json"
+curl -kI "https://app.your-domain.com/NexusForge%20Desktop%20Setup%20Latest.exe"
+curl -kI "https://app.your-domain.com/NexusForge%20Desktop%20Setup%201.0.11.exe"
+```
+
+Expected headers:
+
+- `desktop-update.json` returns `application/json` (or `text/json`)
+- installer `.exe` URLs return `application/octet-stream`
+- installer URLs must not return `text/html`
+
+### 6) Nginx static-file guard (if using Nginx in front of web app)
+
+Installers and desktop manifest must bypass SPA fallback and be served as real files.
+
+Example nginx location blocks:
+
+```nginx
+# Desktop update manifest: serve file directly
+location = /desktop-update.json {
+  add_header Cache-Control "no-store" always;
+  try_files /desktop-update.json =404;
+}
+
+# Stable and versioned installer names: serve binary directly
+location ~* ^/NexusForge%20Desktop%20Setup%20(Latest|[0-9]+\.[0-9]+\.[0-9]+)\.exe$ {
+  default_type application/octet-stream;
+  add_header Cache-Control "public, max-age=300" always;
+  try_files $uri =404;
+}
+
+# SPA/app routes (example)
+location / {
+  try_files $uri $uri/ /index.html;
+}
+```
+
+If your public app domain is behind a CDN or reverse proxy, ensure these exact paths are excluded from HTML rewrite/page rules there as well.
+
 ## Option B: Vercel (Web) + Railway (API)
 
 ### 1) Deploy API on Railway

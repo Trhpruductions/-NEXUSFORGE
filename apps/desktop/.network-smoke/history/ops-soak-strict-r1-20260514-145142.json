@@ -1,0 +1,19 @@
+﻿{
+    "passed":  true,
+    "strict":  true,
+    "runs":  1,
+    "script":  "ops:validate:strict",
+    "startedAt":  "2026-05-14T14:50:46.4143825-05:00",
+    "finishedAt":  "2026-05-14T14:51:42.7825501-05:00",
+    "totalDurationMs":  56368,
+    "results":  [
+                    {
+                        "run":  1,
+                        "script":  "ops:validate:strict",
+                        "exitCode":  0,
+                        "durationMs":  56342,
+                        "startedAt":  "2026-05-14T14:50:46.4249759-05:00",
+                        "finishedAt":  "2026-05-14T14:51:42.7673123-05:00"
+                    }
+                ]
+}

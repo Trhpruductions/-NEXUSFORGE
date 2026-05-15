@@ -7,7 +7,7 @@
                   "Premium diagnostics panel redesign for recovery mode",
                   "Installed-launch resolver and startup telemetry hardening"
               ],
-    "downloadUrl":  "https://www.nexusforge.app/NexusForge%20Desktop%20Setup%201.0.11.exe",
-    "sha256":  "7e6d890ad08464b81b4d8868675c7d3c546965672692a473e574cda3961a8cb8",
-    "forceUpdate":  true
+    "downloadUrl":  "https://heather-patches-existence-parenting.trycloudflare.com/NexusForge%20Desktop%20Setup%20Latest.exe",
+    "sha256":  "c02a6d205552768685d5a2e630238f6e01d22d2a1a815d3be2e9565b791f09d9",
+    "forceUpdate":  false
 }

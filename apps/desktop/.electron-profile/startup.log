@@ -1,0 +1,53 @@
+2026-05-13T22:29:43.121Z [startup-timing] t+24ms app-when-ready
+2026-05-13T22:29:43.122Z [startup-timing] log-path="D:\NEXUSFORGE GAMGING APP\apps\desktop\.electron-profile\startup.log"
+2026-05-13T22:29:43.122Z [startup] stage="Booting desktop shell" progress=4 accent=warmup detail="Starting NexusForge Desktop."
+2026-05-13T22:29:43.122Z [startup] stage="Preparing secure session" progress=18 accent=warmup detail="Resetting desktop storage before launch."
+2026-05-13T22:29:43.123Z [startup] stage="Connecting hosted workspace" progress=32 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-13T22:29:43.123Z [startup-timing] t+26ms splash-window-create
+2026-05-13T22:29:43.160Z [startup-timing] t+63ms main-window-create
+2026-05-13T22:29:43.246Z [startup] stage="Preparing launch" progress=72 accent=checking detail="Checking updates and final startup tasks."
+2026-05-13T22:29:43.247Z [startup-timing] t+150ms ensure-app-reachable-start trigger=startup
+2026-05-13T22:29:43.247Z [startup] stage="Connecting hosted workspace" progress=78 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-13T22:29:43.828Z [startup-timing] t+731ms splash-did-finish-load
+2026-05-13T22:29:45.721Z [startup-timing] t+2623ms main-did-fail-load errorCode=-202
+2026-05-13T22:29:45.721Z [did-fail-load] errorCode=-202
+2026-05-13T22:29:45.764Z [startup-timing] t+2666ms main-did-finish-load
+2026-05-13T22:29:45.764Z [startup-timing] t+2667ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:29:45.791Z [startup-timing] t+2693ms main-ready-to-show
+2026-05-13T22:29:45.791Z [startup-timing] t+2694ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:29:46.484Z [startup-timing] t+3387ms main-did-fail-load errorCode=-202
+2026-05-13T22:29:46.485Z [did-fail-load] errorCode=-202
+2026-05-13T22:29:47.132Z [startup-timing] t+4035ms main-did-fail-load errorCode=-202
+2026-05-13T22:29:47.132Z [did-fail-load] errorCode=-202
+2026-05-13T22:29:47.136Z [startup] stage="Hosted target unavailable" progress=60 accent=checking detail="Attempting local fallback before showing recovery options."
+2026-05-13T22:29:47.790Z [startup-timing] t+4693ms hosted-fallback-local-connected target=http://localhost:3000/app
+2026-05-13T22:29:47.790Z [startup-timing] t+4693ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:29:49.995Z [startup-timing] t+6898ms handoff-reveal-fire from-splash-to-main
+2026-05-13T22:29:49.995Z [startup] stage="Opening NexusForge Desktop" progress=100 accent=ready detail="The workspace is ready. Bringing the app forward."
+2026-05-13T22:29:50.004Z [startup-timing] t+6907ms main-window-show
+2026-05-13T22:29:50.005Z [startup-timing] t+6907ms splash-window-close
+2026-05-13T22:29:50.005Z [startup-timing] t+6908ms startup-handoff-complete
+2026-05-13T22:31:03.777Z [startup-timing] t+25ms app-when-ready
+2026-05-13T22:31:03.777Z [startup-timing] log-path="D:\NEXUSFORGE GAMGING APP\apps\desktop\.electron-profile\startup.log"
+2026-05-13T22:31:03.777Z [startup] stage="Booting desktop shell" progress=4 accent=warmup detail="Starting NexusForge Desktop."
+2026-05-13T22:31:03.778Z [startup] stage="Preparing secure session" progress=18 accent=warmup detail="Resetting desktop storage before launch."
+2026-05-13T22:31:03.778Z [startup] stage="Connecting hosted workspace" progress=32 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-13T22:31:03.778Z [startup-timing] t+26ms splash-window-create
+2026-05-13T22:31:03.822Z [startup-timing] t+70ms main-window-create
+2026-05-13T22:31:03.839Z [startup] stage="Preparing launch" progress=72 accent=checking detail="Checking updates and final startup tasks."
+2026-05-13T22:31:03.840Z [startup-timing] t+88ms ensure-app-reachable-start trigger=startup
+2026-05-13T22:31:03.840Z [startup] stage="Connecting hosted workspace" progress=78 accent=opening detail="Opening the remote NexusForge experience."
+2026-05-13T22:31:03.961Z [startup-timing] t+209ms splash-did-finish-load
+2026-05-13T22:31:04.530Z [tls] certificate bypass accepted for https://www.nexusforge.app/app (net::ERR_CERT_AUTHORITY_INVALID)
+2026-05-13T22:31:04.789Z [tls] certificate bypass accepted for https://www.nexusforge.app/app (net::ERR_CERT_AUTHORITY_INVALID)
+2026-05-13T22:31:08.305Z [startup-timing] t+4552ms main-ready-to-show
+2026-05-13T22:31:08.305Z [startup-timing] t+4553ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:31:09.162Z [startup-timing] t+5410ms main-did-finish-load
+2026-05-13T22:31:09.162Z [startup-timing] t+5410ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:31:09.162Z [startup-timing] t+5410ms hosted-target-connected target=https://www.nexusforge.app/app
+2026-05-13T22:31:09.162Z [startup-timing] t+5410ms handoff-reveal-scheduled hold=2200ms
+2026-05-13T22:31:11.370Z [startup-timing] t+7618ms handoff-reveal-fire from-splash-to-main
+2026-05-13T22:31:11.370Z [startup] stage="Opening NexusForge Desktop" progress=100 accent=ready detail="The workspace is ready. Bringing the app forward."
+2026-05-13T22:31:11.377Z [startup-timing] t+7625ms main-window-show
+2026-05-13T22:31:11.377Z [startup-timing] t+7625ms splash-window-close
+2026-05-13T22:31:11.378Z [startup-timing] t+7625ms startup-handoff-complete

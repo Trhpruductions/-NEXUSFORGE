@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { GlobalNotificationProvider } from "@/context/global-notifications";
 import { GlobalNotificationCenter } from "@/components/notifications/global-notification-center";
 import { DesktopUpdateListener } from "@/components/desktop/desktop-update-listener";
+import { DesktopLaunchModeBadge } from "@/components/desktop/desktop-launch-mode-badge";
 
 type AppProvidersProps = {
   children: ReactNode;
@@ -65,6 +66,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <QueryClientProvider client={queryClient}>
       <GlobalNotificationProvider>
         <DesktopUpdateListener />
+        <DesktopLaunchModeBadge />
         <GlobalNotificationCenter />
         {children}
       </GlobalNotificationProvider>

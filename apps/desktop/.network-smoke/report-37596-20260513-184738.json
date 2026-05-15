@@ -1,0 +1,21 @@
+﻿{
+    "timeoutSeconds":  45,
+    "generatedAt":  "2026-05-13T18:47:45.9949227-05:00",
+    "mode":  "all",
+    "results":  [
+                    {
+                        "RequestedMode":  "local",
+                        "Marker":  "local-target-connected",
+                        "EffectiveMode":  "local",
+                        "StartupLog":  "D:\\NEXUSFORGE GAMGING APP\\apps\\desktop\\.network-smoke\\local-37596-20260513-184738\\startup.log",
+                        "ProfileRoot":  "D:\\NEXUSFORGE GAMGING APP\\apps\\desktop\\.network-smoke\\local-37596-20260513-184738"
+                    },
+                    {
+                        "RequestedMode":  "hosted",
+                        "Marker":  "hosted-target-connected",
+                        "EffectiveMode":  "hosted",
+                        "StartupLog":  "D:\\NEXUSFORGE GAMGING APP\\apps\\desktop\\.network-smoke\\hosted-37596-20260513-184738\\startup.log",
+                        "ProfileRoot":  "D:\\NEXUSFORGE GAMGING APP\\apps\\desktop\\.network-smoke\\hosted-37596-20260513-184738"
+                    }
+                ]
+}

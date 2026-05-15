@@ -1,0 +1,49 @@
+﻿{
+    "generatedAt":  "2026-05-14T19:34:42.5782622-05:00",
+    "repoRoot":  "D:\\NEXUSFORGE GAMGING APP",
+    "passed":  true,
+    "startedAt":  "2026-05-14T19:32:57.8064377-05:00",
+    "finishedAt":  "2026-05-14T19:34:42.5696169-05:00",
+    "durationMs":  104763,
+    "totalChecks":  4,
+    "executedChecks":  4,
+    "failedChecks":  0,
+    "checks":  [
+                   {
+                       "name":  "powershell-parser",
+                       "command":  "npm run scripts:validate:powershell",
+                       "startedAt":  "2026-05-14T19:32:57.8392678-05:00",
+                       "finishedAt":  "2026-05-14T19:32:58.4636066-05:00",
+                       "durationMs":  624,
+                       "exitCode":  0,
+                       "passed":  true
+                   },
+                   {
+                       "name":  "desktop-network-strict",
+                       "command":  "npm run desktop:network:validate:ci:strict",
+                       "startedAt":  "2026-05-14T19:32:58.4748921-05:00",
+                       "finishedAt":  "2026-05-14T19:33:08.8217989-05:00",
+                       "durationMs":  10347,
+                       "exitCode":  0,
+                       "passed":  true
+                   },
+                   {
+                       "name":  "ops-validate-strict",
+                       "command":  "npm run ops:validate:strict",
+                       "startedAt":  "2026-05-14T19:33:08.8238082-05:00",
+                       "finishedAt":  "2026-05-14T19:33:55.5138519-05:00",
+                       "durationMs":  46690,
+                       "exitCode":  0,
+                       "passed":  true
+                   },
+                   {
+                       "name":  "candidate-quick",
+                       "command":  "npm run ops:validate:candidate:quick",
+                       "startedAt":  "2026-05-14T19:33:55.5159094-05:00",
+                       "finishedAt":  "2026-05-14T19:34:42.5681173-05:00",
+                       "durationMs":  47052,
+                       "exitCode":  0,
+                       "passed":  true
+                   }
+               ]
+}

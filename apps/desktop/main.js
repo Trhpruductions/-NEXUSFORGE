@@ -1,4 +1,17 @@
-const { app, BrowserWindow, shell, session, ipcMain, dialog } = require("electron");
+// Utility: fetch with timeout (prevents indefinite hangs)
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(resource, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
@@ -8,7 +21,15 @@ const { spawn } = require("node:child_process");
 const localStartUrl = "http://localhost:3000/app";
 const packagedHostedFallbackUrl = "https://www.nexusforge.app/app";
 const configuredStartUrl = String(process.env.NEXUSFORGE_DESKTOP_URL || "").trim();
-const startUrl = configuredStartUrl || (app.isPackaged ? packagedHostedFallbackUrl : localStartUrl);
+const allowHostedDevLaunch =
+  String(process.env.NEXUSFORGE_ALLOW_HOSTED_DEV || "false").toLowerCase() === "true";
+const allowHostedCertBypass =
+  String(process.env.NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS || "true").toLowerCase() !== "false";
+const shouldForceLocalInDev = !app.isPackaged && !allowHostedDevLaunch;
+const startUrl =
+  shouldForceLocalInDev && configuredStartUrl && !/localhost|127\.0\.0\.1/i.test(configuredStartUrl)
+    ? localStartUrl
+    : configuredStartUrl || (app.isPackaged ? packagedHostedFallbackUrl : localStartUrl);
 const isLocalStartTarget = /localhost|127\.0\.0\.1/i.test(startUrl);
 const desktopLaunchMode = isLocalStartTarget ? "local-dev" : "hosted";
 const appIconPath =
@@ -18,6 +39,7 @@ const appIconPath =
 const fallbackPath = path.join(__dirname, "fallback.html");
 const splashPath = path.join(__dirname, "splash.html");
 const startupWaitTimeoutMs = 90000;
+const startupQuickRecoveryTimeoutMs = 15000;
 const startupProbeDelayMs = 1250;
 const startupSplashHoldMs = 2200;
 const desktopUaToken = "NexusForgeDesktop";
@@ -31,6 +53,10 @@ const remindLaterDelayMs = 60 * 60 * 1000;
 const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
 const updateDownloadDir = path.join(app.getPath("userData"), "updates");
 const startupLogPath = path.join(app.getPath("userData"), "startup.log");
+const windowStatePath = path.join(app.getPath("userData"), "window-state.json");
+const desktopPreferencesPath = path.join(app.getPath("userData"), "desktop-preferences.json");
+const startupBootEpochMs = Date.now();
+const startupTimingMarks = new Set();
 const autoInstallOnClose =
   String(process.env.NEXUSFORGE_AUTO_INSTALL_ON_CLOSE || "true").toLowerCase() !== "false";
 const forceUpdateByDefault =
@@ -45,13 +71,26 @@ let updateCheckTimer = null;
 let startupRevealTimer = null;
 let installInProgress = false;
 let skipAutoInstallOnQuit = false;
+let isQuitting = false;
+let appTray = null;
+let shouldStartHiddenOnLaunch = false;
 const updateStatePath = path.join(app.getPath("userData"), "update-state.json");
+
+const launchedFromStartupArg = process.argv.some((arg) => /^(--|\/)startup$/i.test(String(arg || "").trim()));
+const requestedHiddenArg = process.argv.some((arg) => /^(--|\/)(hidden|minimized)$/i.test(String(arg || "").trim()));
+
+let desktopPreferences = {
+  launchOnStartup: process.platform === "win32" && app.isPackaged,
+  minimizeToTray: true,
+  startMinimized: true,
+};
 
 let startupRuntime = {
   stage: "Booting desktop shell",
   detail: "Preparing the launch environment.",
   progress: 8,
   accent: "warmup",
+  launchMode: desktopLaunchMode,
   currentVersion: app.getVersion(),
   timestamp: new Date().toISOString(),
 };
@@ -145,6 +184,16 @@ function appendStartupLog(message) {
   }
 }
 
+function markStartupTiming(label, detail = "", once = true) {
+  if (once && startupTimingMarks.has(label)) {
+    return;
+  }
+  startupTimingMarks.add(label);
+  const elapsedMs = Date.now() - startupBootEpochMs;
+  const suffix = detail ? ` ${detail}` : "";
+  appendStartupLog(`[startup-timing] t+${elapsedMs}ms ${label}${suffix}`);
+}
+
 function updateLocalStackStatus(next) {
   localStackStatus = {
     ...localStackStatus,
@@ -166,6 +215,182 @@ function readPersistedUpdateState() {
     };
   } catch (error) {
     console.warn("[NexusForge Desktop] Unable to read update state:", error);
+  }
+}
+
+function readDesktopPreferences() {
+  try {
+    if (!fs.existsSync(desktopPreferencesPath)) {
+      return;
+    }
+    const parsed = JSON.parse(fs.readFileSync(desktopPreferencesPath, "utf8"));
+    desktopPreferences = {
+      ...desktopPreferences,
+      launchOnStartup:
+        typeof parsed?.launchOnStartup === "boolean"
+          ? parsed.launchOnStartup
+          : desktopPreferences.launchOnStartup,
+      minimizeToTray:
+        typeof parsed?.minimizeToTray === "boolean"
+          ? parsed.minimizeToTray
+          : desktopPreferences.minimizeToTray,
+      startMinimized:
+        typeof parsed?.startMinimized === "boolean"
+          ? parsed.startMinimized
+          : desktopPreferences.startMinimized,
+    };
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to read desktop preferences:", error);
+  }
+}
+
+function persistDesktopPreferences() {
+  try {
+    fs.mkdirSync(path.dirname(desktopPreferencesPath), { recursive: true });
+    fs.writeFileSync(desktopPreferencesPath, JSON.stringify(desktopPreferences, null, 2), "utf8");
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to persist desktop preferences:", error);
+  }
+}
+
+function applyLaunchOnStartupPreference() {
+  try {
+    if (process.platform === "win32") {
+      app.setLoginItemSettings({
+        openAtLogin: Boolean(desktopPreferences.launchOnStartup),
+        openAsHidden: Boolean(desktopPreferences.startMinimized),
+        args: ["--startup"],
+      });
+      return;
+    }
+
+    if (process.platform === "darwin") {
+      app.setLoginItemSettings({
+        openAtLogin: Boolean(desktopPreferences.launchOnStartup),
+        openAsHidden: Boolean(desktopPreferences.startMinimized),
+      });
+    }
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to apply launch-on-startup preference:", error);
+  }
+}
+
+function readWindowState() {
+  try {
+    if (!fs.existsSync(windowStatePath)) {
+      return null;
+    }
+    const parsed = JSON.parse(fs.readFileSync(windowStatePath, "utf8"));
+    const width = Number(parsed?.width);
+    const height = Number(parsed?.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      return null;
+    }
+
+    return {
+      width: Math.max(1100, Math.round(width)),
+      height: Math.max(760, Math.round(height)),
+      x: Number.isFinite(Number(parsed?.x)) ? Math.round(Number(parsed.x)) : undefined,
+      y: Number.isFinite(Number(parsed?.y)) ? Math.round(Number(parsed.y)) : undefined,
+      isMaximized: Boolean(parsed?.isMaximized),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  try {
+    const bounds = mainWindow.getBounds();
+    const payload = {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      isMaximized: mainWindow.isMaximized(),
+    };
+    fs.mkdirSync(path.dirname(windowStatePath), { recursive: true });
+    fs.writeFileSync(windowStatePath, JSON.stringify(payload, null, 2), "utf8");
+  } catch {
+    // Best-effort persistence only.
+  }
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    void ensureAppReachable("tray-show");
+    return;
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.focus();
+}
+
+function hideMainWindowToTray() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  if (!mainWindow.isVisible()) {
+    return;
+  }
+
+  mainWindow.hide();
+  appendStartupLog("[tray] Main window hidden to system tray.");
+}
+
+function createAppTray() {
+  if (appTray) {
+    return;
+  }
+
+  try {
+    appTray = new Tray(appIconPath);
+    appTray.setToolTip("NexusForge Desktop");
+    appTray.setContextMenu(
+      Menu.buildFromTemplate([
+        {
+          label: "Open NexusForge",
+          click: () => {
+            showMainWindow();
+          },
+        },
+        {
+          type: "separator",
+        },
+        {
+          label: "Quit",
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
+      ]),
+    );
+
+    appTray.on("click", () => {
+      if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()) {
+        showMainWindow();
+        return;
+      }
+
+      if (mainWindow.isFocused()) {
+        hideMainWindowToTray();
+      } else {
+        showMainWindow();
+      }
+    });
+  } catch (error) {
+    console.warn("[NexusForge Desktop] Unable to create tray icon:", error);
   }
 }
 
@@ -339,7 +564,7 @@ async function downloadUpdateInstaller(downloadUrl, latestVersion) {
   const destinationPath = path.join(updateDownloadDir, installerName);
   const tempPath = `${destinationPath}.download`;
 
-  const response = await fetch(downloadUrl, { cache: "no-store" });
+  const response = await fetchWithTimeout(downloadUrl, { cache: "no-store" }, 10000);
   if (!response.ok || !response.body) {
     throw new Error(`Installer download failed (${response.status}).`);
   }
@@ -600,7 +825,7 @@ async function checkForUpdates(trigger = "manual") {
   emitUpdateRuntime();
 
   try {
-    const response = await fetch(updateManifestUrl, { cache: "no-store" });
+    const response = await fetchWithTimeout(updateManifestUrl, { cache: "no-store" }, 10000);
     if (!response.ok) {
       throw new Error(`Update manifest request failed (${response.status}).`);
     }
@@ -679,6 +904,7 @@ async function checkForUpdates(trigger = "manual") {
 }
 
 function createSplashWindow() {
+  markStartupTiming("splash-window-create");
   splashWindow = new BrowserWindow({
     width: 980,
     height: 560,
@@ -701,6 +927,7 @@ function createSplashWindow() {
 
   void splashWindow.loadFile(splashPath);
   splashWindow.webContents.once("did-finish-load", () => {
+    markStartupTiming("splash-did-finish-load");
     emitStartupRuntime();
     emitUpdateRuntime();
   });
@@ -714,12 +941,26 @@ function revealMainWindow() {
     return;
   }
 
+  if (shouldStartHiddenOnLaunch) {
+    if (startupRevealTimer) {
+      clearTimeout(startupRevealTimer);
+      startupRevealTimer = null;
+    }
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+      markStartupTiming("splash-window-close-hidden-start");
+    }
+    markStartupTiming("startup-hidden-on-launch");
+    return;
+  }
+
   if (startupRevealTimer) {
     clearTimeout(startupRevealTimer);
     startupRevealTimer = null;
   }
 
   startupRevealTimer = setTimeout(() => {
+    markStartupTiming("handoff-reveal-fire", "from-splash-to-main");
     updateStartupRuntime({
       stage: "Opening NexusForge Desktop",
       detail: "The workspace is ready. Bringing the app forward.",
@@ -729,11 +970,15 @@ function revealMainWindow() {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
+      markStartupTiming("main-window-show");
     }
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.close();
+      markStartupTiming("splash-window-close");
     }
+    markStartupTiming("startup-handoff-complete");
   }, startupSplashHoldMs);
+  markStartupTiming("handoff-reveal-scheduled", `hold=${startupSplashHoldMs}ms`, false);
 }
 
 function isWorkspaceRoot(candidatePath) {
@@ -900,6 +1145,15 @@ function resolveHostedStartTargets() {
   return Array.from(new Set(candidates.filter(Boolean)));
 }
 
+function isTrustedHostedDomain(candidateUrl) {
+  try {
+    const { hostname } = new URL(candidateUrl);
+    return /(^|\.)nexusforge\.app$/i.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
 async function waitForLocalStackReady(timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -910,6 +1164,80 @@ async function waitForLocalStackReady(timeoutMs) {
     await wait(startupProbeDelayMs);
   }
   return false;
+}
+
+async function tryLocalFallbackFromHosted() {
+  const port3000Open = await probePort(3000);
+  if (!port3000Open) {
+    return false;
+  }
+
+  const reachable = await waitForUrlReachable(localStartUrl, {
+    timeoutMs: 7000,
+    intervalMs: 500,
+  });
+  if (!reachable) {
+    return false;
+  }
+
+  await loadMainWindowUrlWithRetry(localStartUrl, { attempts: 3, delayMs: 700 });
+  markStartupTiming("hosted-fallback-local-connected", `target=${localStartUrl}`, false);
+  revealMainWindow();
+  updateLocalStackStatus({
+    launchMode: "local-dev",
+    message: "Hosted target was unreachable. Desktop switched to local services.",
+    lastError: null,
+    running: true,
+    port3000Open: true,
+  });
+  updateStartupRuntime({
+    launchMode: "local-dev",
+  });
+  appendLocalStackHistory("Hosted load failed; recovered by loading local target.");
+  return true;
+}
+
+async function tryHostedFallbackFromLocal() {
+  const hostedTargets = resolveHostedStartTargets();
+  let connectedTarget = null;
+  let lastError = null;
+
+  for (const target of hostedTargets) {
+    if (/localhost|127\.0\.0\.1/i.test(target)) {
+      continue;
+    }
+
+    try {
+      await loadMainWindowUrlWithRetry(target, { attempts: 3, delayMs: 800 });
+      connectedTarget = target;
+      markStartupTiming("local-fallback-hosted-connected", `target=${target}`, false);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!connectedTarget) {
+    if (lastError) {
+      appendStartupLog(`[recovery] Local->hosted fallback failed: ${String(lastError)}`);
+    }
+    return false;
+  }
+
+  revealMainWindow();
+  updateLocalStackStatus({
+    launchMode: "hosted",
+    message: `Local services unavailable. Desktop switched to hosted services (${connectedTarget}).`,
+    lastError: null,
+    running: false,
+    port3000Open: false,
+    port4000Open: false,
+  });
+  updateStartupRuntime({
+    launchMode: "hosted",
+  });
+  appendLocalStackHistory(`Local load failed; recovered by loading hosted target: ${connectedTarget}`);
+  return true;
 }
 
 function isDestroyedWindowError(error) {
@@ -1089,6 +1417,7 @@ async function startLocalStack(reason) {
 }
 
 async function ensureAppReachable(trigger) {
+  markStartupTiming("ensure-app-reachable-start", `trigger=${trigger}`, false);
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
   }
@@ -1109,6 +1438,7 @@ async function ensureAppReachable(trigger) {
         try {
           await loadMainWindowUrlWithRetry(target, { attempts: 4, delayMs: 900 });
           connectedTarget = target;
+          markStartupTiming("hosted-target-connected", `target=${target}`, false);
           break;
         } catch (error) {
           lastError = error;
@@ -1121,8 +1451,12 @@ async function ensureAppReachable(trigger) {
 
       revealMainWindow();
       updateLocalStackStatus({
+        launchMode: "hosted",
         message: `Desktop is connected to hosted services (${connectedTarget}).`,
         lastError: null,
+      });
+      updateStartupRuntime({
+        launchMode: "hosted",
       });
       appendLocalStackHistory(`Desktop connected to hosted target: ${connectedTarget}`);
     } catch (error) {
@@ -1131,7 +1465,26 @@ async function ensureAppReachable(trigger) {
         lastError: message,
         message,
       });
-      loadFallbackPage("Hosted app is unreachable. Check internet access and retry. Admins can set NEXUSFORGE_DESKTOP_URL to a live target.");
+
+      updateStartupRuntime({
+        stage: "Hosted target unavailable",
+        detail: "Attempting local fallback before showing recovery options.",
+        progress: 60,
+        accent: "checking",
+      });
+
+      try {
+        const recoveredLocally = await tryLocalFallbackFromHosted();
+        if (recoveredLocally) {
+          return;
+        }
+      } catch (fallbackError) {
+        appendStartupLog(`[recovery] Hosted->local fallback failed: ${String(fallbackError)}`);
+      }
+
+      loadFallbackPage(
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target, or start local services on http://localhost:3000/app.",
+      );
     }
     return;
   }
@@ -1153,11 +1506,34 @@ async function ensureAppReachable(trigger) {
     if (!ports.port3000Open || !ports.port4000Open) {
       loadFallbackPage("Local services are down. Starting recovery sequence.");
       if (localStackStatus.autoStartEnabled) {
-        await startLocalStack(`auto-${trigger}`);
+        const startResult = await startLocalStack(`auto-${trigger}`);
+        const couldStartLocal = Boolean(startResult?.started || startResult?.running);
+        if (!couldStartLocal) {
+          updateStartupRuntime({
+            stage: "Switching to hosted fallback",
+            detail: "Local services could not start. Trying hosted NexusForge now.",
+            progress: 60,
+            accent: "checking",
+          });
+          const recoveredHosted = await tryHostedFallbackFromLocal();
+          if (recoveredHosted) {
+            return;
+          }
+        }
       }
-      const ready = await waitForLocalStackReady(startupWaitTimeoutMs);
+      const ready = await waitForLocalStackReady(Math.min(startupWaitTimeoutMs, startupQuickRecoveryTimeoutMs));
       if (!ready) {
-        loadFallbackPage("Local services are still offline. Use Start Local Stack to retry.");
+        updateStartupRuntime({
+          stage: "Local services unavailable",
+          detail: "Trying hosted fallback so users can still join from outside the local network.",
+          progress: 62,
+          accent: "checking",
+        });
+        const recoveredHosted = await tryHostedFallbackFromLocal();
+        if (recoveredHosted) {
+          return;
+        }
+        loadFallbackPage("Local services are still offline and hosted fallback was unavailable. Use Start Local Stack to retry.");
         return;
       }
     }
@@ -1177,16 +1553,31 @@ async function ensureAppReachable(trigger) {
     }
 
     if (!reachable) {
-      loadFallbackPage("Local app URL did not become reachable. Retry in a moment or restart local services.");
+      updateStartupRuntime({
+        stage: "Local URL unavailable",
+        detail: "Trying hosted fallback so users can still join from outside the local network.",
+        progress: 62,
+        accent: "checking",
+      });
+      const recoveredHosted = await tryHostedFallbackFromLocal();
+      if (recoveredHosted) {
+        return;
+      }
+      loadFallbackPage("Local app URL did not become reachable and hosted fallback was unavailable. Retry in a moment or restart local services.");
       return;
     }
 
     await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
+    markStartupTiming("local-target-connected", `target=${startUrl}`, false);
     revealMainWindow();
     updateLocalStackStatus({
+      launchMode: "local-dev",
       message: "Desktop is connected to local services.",
       lastError: null,
       running: true,
+    });
+    updateStartupRuntime({
+      launchMode: "local-dev",
     });
     appendLocalStackHistory("Desktop reconnected to local services.");
   } catch (error) {
@@ -1195,7 +1586,10 @@ async function ensureAppReachable(trigger) {
       lastError: message,
       message,
     });
-    loadFallbackPage("Recovery encountered an error. Open stack log for details.");
+    const recoveredHosted = await tryHostedFallbackFromLocal();
+    if (!recoveredHosted) {
+      loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
+    }
   } finally {
     bootRecoveryInFlight = false;
   }
@@ -1336,7 +1730,20 @@ if (process.platform === "win32") {
   app.setAppUserModelId("com.nexusforge.desktop");
 }
 
+app.on("certificate-error", (event, _webContents, url, error, _certificate, callback) => {
+  const allowBypass = allowHostedCertBypass && isTrustedHostedDomain(url);
+  if (!allowBypass) {
+    callback(false);
+    return;
+  }
+
+  event.preventDefault();
+  appendStartupLog(`[tls] certificate bypass accepted for ${url} (${error})`);
+  callback(true);
+});
+
 function createWindow() {
+  markStartupTiming("main-window-create");
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (!mainWindow.isVisible()) {
       mainWindow.show();
@@ -1348,9 +1755,12 @@ function createWindow() {
     return;
   }
 
+  const savedState = readWindowState();
   mainWindow = new BrowserWindow({
-    width: 1480,
-    height: 920,
+    width: savedState?.width ?? 1480,
+    height: savedState?.height ?? 920,
+    x: savedState?.x,
+    y: savedState?.y,
     minWidth: 1100,
     minHeight: 760,
     show: false,
@@ -1379,18 +1789,49 @@ function createWindow() {
   }
 
   mainWindow.on("closed", () => {
+    saveWindowState();
     mainWindow = null;
   });
 
+  mainWindow.on("close", (event) => {
+    saveWindowState();
+    if (isQuitting) {
+      return;
+    }
+
+    if (desktopPreferences.minimizeToTray) {
+      event.preventDefault();
+      hideMainWindowToTray();
+      return;
+    }
+
+    isQuitting = true;
+  });
+
+  mainWindow.on("resize", () => {
+    saveWindowState();
+  });
+
+  mainWindow.on("move", () => {
+    saveWindowState();
+  });
+
+  if (savedState?.isMaximized) {
+    mainWindow.maximize();
+  }
+
   mainWindow.once("ready-to-show", () => {
+    markStartupTiming("main-ready-to-show");
     revealMainWindow();
   });
 
   mainWindow.webContents.once("did-finish-load", () => {
+    markStartupTiming("main-did-finish-load");
     revealMainWindow();
   });
 
   mainWindow.webContents.on("did-fail-load", (_event, errorCode) => {
+    markStartupTiming("main-did-fail-load", `errorCode=${errorCode}`, false);
     appendStartupLog(`[did-fail-load] errorCode=${errorCode}`);
     if (!isLocalStartTarget || errorCode === -3) {
       return;
@@ -1436,6 +1877,8 @@ app.on("second-instance", () => {
 });
 
 app.whenReady().then(async () => {
+  markStartupTiming("app-when-ready");
+  appendStartupLog(`[startup-timing] log-path="${startupLogPath}"`);
   updateStartupRuntime({
     stage: "Booting desktop shell",
     detail: "Starting NexusForge Desktop.",
@@ -1443,6 +1886,14 @@ app.whenReady().then(async () => {
     accent: "warmup",
   });
   readPersistedUpdateState();
+  readDesktopPreferences();
+  applyLaunchOnStartupPreference();
+  shouldStartHiddenOnLaunch =
+    requestedHiddenArg || (desktopPreferences.startMinimized && launchedFromStartupArg);
+
+  if (shouldStartHiddenOnLaunch) {
+    appendStartupLog("[startup] Launching in hidden mode due to startup preferences.");
+  }
   resetDevQuotaDatabase();
   await prepareDevSessionStorage();
   if (isLocalStartTarget) {
@@ -1468,6 +1919,20 @@ app.whenReady().then(async () => {
     return localStackStatus;
   });
   ipcMain.handle("nexusforge-desktop:get-update-state", async () => updateRuntime);
+  ipcMain.handle("nexusforge-desktop:get-desktop-preferences", async () => ({ ...desktopPreferences }));
+  ipcMain.handle("nexusforge-desktop:update-desktop-preferences", async (_event, patch = {}) => {
+    const next = {
+      ...desktopPreferences,
+      ...(typeof patch?.launchOnStartup === "boolean" ? { launchOnStartup: patch.launchOnStartup } : null),
+      ...(typeof patch?.minimizeToTray === "boolean" ? { minimizeToTray: patch.minimizeToTray } : null),
+      ...(typeof patch?.startMinimized === "boolean" ? { startMinimized: patch.startMinimized } : null),
+    };
+
+    desktopPreferences = next;
+    persistDesktopPreferences();
+    applyLaunchOnStartupPreference();
+    return { ...desktopPreferences };
+  });
   ipcMain.handle("nexusforge-desktop:check-updates-now", async () => checkForUpdates("manual"));
   ipcMain.handle("nexusforge-desktop:restart-for-update", async () => {
     if (updateRuntime.downloaded && updateRuntime.installerPath) {
@@ -1566,6 +2031,7 @@ app.whenReady().then(async () => {
     return startupHealth;
   });
 
+  createAppTray();
   createSplashWindow();
   createWindow();
   updateStartupRuntime({
@@ -1592,12 +2058,13 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && isQuitting) {
     app.quit();
   }
 });
 
 app.on("before-quit", (event) => {
+  isQuitting = true;
   if (!canAutoInstallOnClose() || installInProgress) {
     return;
   }
@@ -1616,6 +2083,10 @@ app.on("before-quit", (event) => {
 });
 
 app.on("will-quit", () => {
+  if (appTray) {
+    appTray.destroy();
+    appTray = null;
+  }
   if (updateCheckTimer) {
     clearInterval(updateCheckTimer);
     updateCheckTimer = null;
@@ -1628,6 +2099,8 @@ app.on("will-quit", () => {
   ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
   ipcMain.removeHandler("nexusforge-desktop:get-local-stack-status");
   ipcMain.removeHandler("nexusforge-desktop:get-update-state");
+  ipcMain.removeHandler("nexusforge-desktop:get-desktop-preferences");
+  ipcMain.removeHandler("nexusforge-desktop:update-desktop-preferences");
   ipcMain.removeHandler("nexusforge-desktop:check-updates-now");
   ipcMain.removeHandler("nexusforge-desktop:restart-for-update");
   ipcMain.removeHandler("nexusforge-desktop:start-local-stack");

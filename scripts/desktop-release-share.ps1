@@ -4,7 +4,11 @@ param(
   [string[]] $Notes = @(),
   [string] $PersistentBaseUrl = "",
   [switch] $ForceUpdate,
-  [switch] $AllowEphemeral
+  [switch] $AllowEphemeral,
+  [switch] $AllowUnresolvedTunnelHostnames,
+  [switch] $AllowInsecureTlsValidation,
+  [switch] $SkipDownloadUrlValidation,
+  [switch] $SkipDoctor
 )
 
 Set-StrictMode -Version Latest
@@ -164,17 +168,17 @@ function Start-LoggedProcess {
 function Wait-ForUrl {
   param(
     [Parameter(Mandatory = $true)] [string[]] $Paths,
-    [Parameter(Mandatory = $true)] [int] $TimeoutSeconds
+    [Parameter(Mandatory = $true)] [int] $TimeoutSeconds,
+    [Parameter(Mandatory = $true)] [string] $Pattern
   )
 
-  $pattern = "https://[a-z0-9-]+\.trycloudflare\.com"
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
   while ((Get-Date) -lt $deadline) {
     foreach ($path in $Paths) {
       if (Test-Path $path) {
         $content = Get-Content $path -Raw -ErrorAction SilentlyContinue
-        if ($content -match $pattern) {
+        if ($content -match $Pattern) {
           return $Matches[0]
         }
       }
@@ -183,33 +187,193 @@ function Wait-ForUrl {
     [System.Threading.Thread]::Sleep(1000)
   }
 
-  throw "Timed out waiting for tunnel URL in logs: $($Paths -join ', ')"
+  throw "Timed out waiting for public URL in logs: $($Paths -join ', ')"
 }
 
-function Assert-DownloadUrlLooksLikeBinary {
+function Test-UrlHostnameResolves {
   param([Parameter(Mandatory = $true)] [string] $Url)
 
   try {
-    $response = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing -TimeoutSec 30
-    $statusCode = [int]$response.StatusCode
-    if ($statusCode -lt 200 -or $statusCode -ge 400) {
-      throw "Unexpected status code $statusCode"
+    $uri = [System.Uri]$Url
+    $host = [string]$uri.Host
+    if ([string]::IsNullOrWhiteSpace($host)) {
+      return $false
     }
 
-    $contentType = [string]$response.Headers["Content-Type"]
-    if ([string]::IsNullOrWhiteSpace($contentType)) {
-      $contentType = [string]$response.ContentType
-    }
-    if ($null -eq $contentType) {
-      $contentType = ""
-    }
-    $contentType = $contentType.ToLowerInvariant()
+    $addresses = [System.Net.Dns]::GetHostAddresses($host)
+    return ($null -ne $addresses -and $addresses.Count -gt 0)
+  }
+  catch {
+    return $false
+  }
+}
 
-    if ($contentType -match "text/html") {
-      throw "Content-Type '$contentType' indicates HTML, not an installer binary"
+function Start-EphemeralTunnelWithResolvedHostname {
+  param(
+    [int] $UrlTimeoutSeconds = 90,
+    [int] $DnsProbeAttempts = 10,
+    [int] $DnsProbeDelaySeconds = 2,
+    [switch] $AllowUnresolvedHostnames
+  )
+
+  if ($UrlTimeoutSeconds -lt 15) {
+    $UrlTimeoutSeconds = 15
+  }
+  if ($DnsProbeAttempts -lt 1) {
+    $DnsProbeAttempts = 1
+  }
+  if ($DnsProbeDelaySeconds -lt 1) {
+    $DnsProbeDelaySeconds = 1
+  }
+
+  $providers = @(
+    [PSCustomObject]@{
+      Name = "cloudflared"
+      Attempts = 4
+      FilePath = "npx.cmd"
+      Arguments = @("--yes", "cloudflared", "tunnel", "--url", "http://localhost:3200")
+      Pattern = "https://[a-z0-9-]+\.trycloudflare\.com"
+    },
+    [PSCustomObject]@{
+      Name = "localtunnel"
+      Attempts = 2
+      FilePath = "npx.cmd"
+      Arguments = @("--yes", "localtunnel", "--port", "3200")
+      Pattern = "https://[a-z0-9-]+\.loca\.lt"
     }
-  } catch {
-    throw "Download URL validation failed for '$Url'. Ensure this URL serves the .exe file directly. Details: $($_.Exception.Message)"
+  )
+
+  foreach ($provider in $providers) {
+    if ($provider.Attempts -lt 1) {
+      continue
+    }
+
+    for ($attempt = 1; $attempt -le $provider.Attempts; $attempt++) {
+      Write-Host ("[desktop-release] Starting public tunnel via {0} (attempt {1}/{2})..." -f $provider.Name, $attempt, $provider.Attempts)
+      $tunnelName = "installer-tunnel-{0}-{1}" -f $provider.Name, $attempt
+      $tunnelProc = Start-LoggedProcess -Name $tunnelName -FilePath $provider.FilePath -Arguments $provider.Arguments -WorkingDirectory $repoRoot
+      $retainTunnelProcess = $false
+
+      try {
+        $publicBaseUrl = Wait-ForUrl -Paths @($tunnelProc.StdoutLog, $tunnelProc.StderrLog) -TimeoutSeconds $UrlTimeoutSeconds -Pattern $provider.Pattern
+
+        if ($AllowUnresolvedHostnames) {
+          $retainTunnelProcess = $true
+          return [PSCustomObject]@{
+            PublicBaseUrl = $publicBaseUrl
+            TunnelProcess = $tunnelProc
+            Provider = $provider.Name
+          }
+        }
+
+        $dnsResolved = $false
+
+        for ($dnsAttempt = 1; $dnsAttempt -le $DnsProbeAttempts; $dnsAttempt++) {
+          if (Test-UrlHostnameResolves -Url $publicBaseUrl) {
+            $dnsResolved = $true
+            break
+          }
+
+          if ($dnsAttempt -lt $DnsProbeAttempts) {
+            [System.Threading.Thread]::Sleep($DnsProbeDelaySeconds * 1000)
+          }
+        }
+
+        if ($dnsResolved) {
+          $retainTunnelProcess = $true
+          return [PSCustomObject]@{
+            PublicBaseUrl = $publicBaseUrl
+            TunnelProcess = $tunnelProc
+            Provider = $provider.Name
+          }
+        }
+
+        Write-Host ("[desktop-release] {0} URL did not resolve via DNS: {1}" -f $provider.Name, $publicBaseUrl) -ForegroundColor Yellow
+      }
+      catch {
+        Write-Host ("[desktop-release] {0} bootstrap failed: {1}" -f $provider.Name, $_.Exception.Message) -ForegroundColor Yellow
+      }
+      finally {
+        if (-not $retainTunnelProcess -and (Stop-ProcessIfRunning -ProcessId $tunnelProc.ProcessId)) {
+          Write-Host ("[desktop-release] Stopped unresolved tunnel PID {0}" -f $tunnelProc.ProcessId) -ForegroundColor Yellow
+        }
+      }
+    }
+  }
+
+  throw "Failed to provision a DNS-resolved temporary tunnel (cloudflared/localtunnel) after multiple attempts."
+}
+
+function Assert-DownloadUrlLooksLikeBinary {
+  param(
+    [Parameter(Mandatory = $true)] [string] $Url,
+    [int] $MaxAttempts = 6,
+    [int] $DelaySeconds = 5,
+    [switch] $AllowInsecureTlsValidation
+  )
+
+  if ($MaxAttempts -lt 1) {
+    $MaxAttempts = 1
+  }
+
+  if ($DelaySeconds -lt 1) {
+    $DelaySeconds = 1
+  }
+
+  $lastErrorMessage = ""
+  $previousTlsCallback = $null
+  $tlsCallbackUpdated = $false
+  $previousSecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol
+
+  try {
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+    if ($AllowInsecureTlsValidation) {
+      $previousTlsCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+      [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+      $tlsCallbackUpdated = $true
+      Write-Host "[desktop-release] WARNING: URL validation is running with insecure TLS certificate bypass." -ForegroundColor Yellow
+    }
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+      try {
+        $response = Invoke-WebRequest -Uri $Url -Method Head -UseBasicParsing -TimeoutSec 30
+        $statusCode = [int]$response.StatusCode
+        if ($statusCode -lt 200 -or $statusCode -ge 400) {
+          throw "Unexpected status code $statusCode"
+        }
+
+        $contentType = [string]$response.Headers["Content-Type"]
+        if ([string]::IsNullOrWhiteSpace($contentType)) {
+          $contentType = [string]$response.ContentType
+        }
+        if ($null -eq $contentType) {
+          $contentType = ""
+        }
+        $contentType = $contentType.ToLowerInvariant()
+
+        if ($contentType -match "text/html") {
+          throw "Content-Type '$contentType' indicates HTML, not an installer binary"
+        }
+
+        return
+      }
+      catch {
+        $lastErrorMessage = $_.Exception.Message
+        if ($attempt -lt $MaxAttempts) {
+          Write-Host ("[desktop-release] Download URL check attempt {0}/{1} failed: {2}" -f $attempt, $MaxAttempts, $lastErrorMessage) -ForegroundColor Yellow
+          [System.Threading.Thread]::Sleep($DelaySeconds * 1000)
+        }
+      }
+    }
+
+    throw "Download URL validation failed for '$Url' after $MaxAttempts attempts. Ensure this URL serves the .exe file directly. Details: $lastErrorMessage"
+  }
+  finally {
+    [System.Net.ServicePointManager]::SecurityProtocol = $previousSecurityProtocol
+    if ($tlsCallbackUpdated) {
+      [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $previousTlsCallback
+    }
   }
 }
 
@@ -294,6 +458,16 @@ if ($desktopVersion -ne $currentVersion) {
   Write-Host "[desktop-release] Desktop version unchanged: $desktopVersion"
 }
 
+if ($SkipDoctor) {
+  Write-Host "[desktop-release] Skipping release doctor gate due to -SkipDoctor." -ForegroundColor Yellow
+} else {
+  Write-Host "[desktop-release] Running release doctor archive gate..."
+  & npm.cmd run ops:doctor:archive
+  if ($LASTEXITCODE -ne 0) {
+    throw "Release doctor gate failed. Fix failures before publishing desktop release."
+  }
+}
+
 Write-Host "[desktop-release] Building desktop installer..."
 & npm.cmd run package:win -w @nexusforge/desktop
 if ($LASTEXITCODE -ne 0) {
@@ -342,9 +516,14 @@ if (![string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
     throw "Persistent base URL is required. Set -PersistentBaseUrl or NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL. Use -AllowEphemeral only for temporary testing links."
   }
 
-  Write-Host "[desktop-release] Starting fresh public tunnel..."
-  $tunnelProc = Start-LoggedProcess -Name "installer-tunnel" -FilePath "npx.cmd" -Arguments @("--yes", "cloudflared", "tunnel", "--url", "http://localhost:3200") -WorkingDirectory $repoRoot
-  $publicBaseUrl = Wait-ForUrl -Paths @($tunnelProc.StdoutLog, $tunnelProc.StderrLog) -TimeoutSeconds 90
+  $tunnelResult = Start-EphemeralTunnelWithResolvedHostname -AllowUnresolvedHostnames:$AllowUnresolvedTunnelHostnames
+  $tunnelProc = $tunnelResult.TunnelProcess
+  $publicBaseUrl = [string]$tunnelResult.PublicBaseUrl
+  $tunnelProvider = [string]$tunnelResult.Provider
+  Write-Host ("[desktop-release] Using temporary tunnel provider: {0}" -f $tunnelProvider) -ForegroundColor Cyan
+  if ($AllowUnresolvedTunnelHostnames) {
+    Write-Host "[desktop-release] WARNING: Allowing unresolved tunnel hostname by explicit override." -ForegroundColor Yellow
+  }
   $isEphemeral = $true
 }
 
@@ -352,7 +531,11 @@ $encodedInstaller = [System.Uri]::EscapeDataString($installerName)
 $downloadUrl = "$publicBaseUrl/$encodedInstaller"
 $encodedLatestInstaller = [System.Uri]::EscapeDataString($latestInstallerName)
 $stableDownloadUrl = "$publicBaseUrl/$encodedLatestInstaller"
-Assert-DownloadUrlLooksLikeBinary -Url $stableDownloadUrl
+if ($SkipDownloadUrlValidation) {
+  Write-Host "[desktop-release] WARNING: Skipping download URL validation by explicit override." -ForegroundColor Yellow
+} else {
+  Assert-DownloadUrlLooksLikeBinary -Url $stableDownloadUrl -AllowInsecureTlsValidation:$AllowInsecureTlsValidation
+}
 
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $manifest.version = $desktopVersion

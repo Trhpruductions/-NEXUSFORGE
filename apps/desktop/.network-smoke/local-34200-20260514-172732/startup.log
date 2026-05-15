@@ -1,0 +1,25 @@
+﻿
+2026-05-14T22:27:33.143Z [startup-timing] t+27ms app-when-ready
+2026-05-14T22:27:33.143Z [startup-timing] log-path="D:\NEXUSFORGE GAMGING APP\apps\desktop\.network-smoke\local-34200-20260514-172732\startup.log"
+2026-05-14T22:27:33.144Z [startup] stage="Booting desktop shell" progress=4 accent=warmup detail="Starting NexusForge Desktop."
+2026-05-14T22:27:33.144Z [startup] stage="Preparing secure session" progress=18 accent=warmup detail="Resetting desktop storage before launch."
+2026-05-14T22:27:33.152Z [startup] stage="Preparing secure session" progress=26 accent=ready detail="Desktop storage reset completed."
+2026-05-14T22:27:33.152Z [startup] stage="Checking local services" progress=34 accent=checking detail="Verifying the app stack is reachable on ports 3000 and 4000."
+2026-05-14T22:27:33.159Z [startup] stage="Local services ready" progress=66 accent=ready detail="The desktop stack answered on both ports."
+2026-05-14T22:27:33.184Z [startup-timing] t+68ms splash-window-create
+2026-05-14T22:27:33.253Z [startup-timing] t+137ms main-window-create
+2026-05-14T22:27:33.284Z [startup] stage="Preparing launch" progress=72 accent=checking detail="Checking updates and final startup tasks."
+2026-05-14T22:27:33.284Z [startup-timing] t+168ms ensure-app-reachable-start trigger=startup
+2026-05-14T22:27:33.285Z [startup] stage="Opening app" progress=78 accent=opening detail="Connecting the desktop shell to NexusForge."
+2026-05-14T22:27:33.285Z [startup] stage="Checking local services" progress=34 accent=checking detail="Verifying the app stack is reachable on ports 3000 and 4000."
+2026-05-14T22:27:33.329Z [startup] stage="Local services ready" progress=66 accent=ready detail="The desktop stack answered on both ports."
+2026-05-14T22:27:33.403Z [startup-timing] t+287ms splash-did-finish-load
+2026-05-14T22:27:33.878Z [startup-timing] t+762ms main-ready-to-show
+2026-05-14T22:27:33.879Z [startup-timing] t+763ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:27:34.097Z [startup-timing] t+981ms main-did-finish-load
+2026-05-14T22:27:34.098Z [startup-timing] t+981ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:27:34.098Z [startup-timing] t+982ms local-target-connected target=http://localhost:3000/app
+2026-05-14T22:27:34.098Z [startup-timing] t+982ms handoff-reveal-scheduled hold=2200ms
+2026-05-14T22:27:34.099Z [startup] stage="Local services ready" progress=66 accent=ready detail="The desktop stack answered on both ports."
+2026-05-14T22:27:34.134Z [startup] stage="Checking local services" progress=34 accent=checking detail="Verifying the app stack is reachable on ports 3000 and 4000."
+2026-05-14T22:27:34.135Z [startup] stage="Local services ready" progress=66 accent=ready detail="The desktop stack answered on both ports."
