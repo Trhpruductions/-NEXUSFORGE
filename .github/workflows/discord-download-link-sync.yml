@@ -43,7 +43,9 @@ jobs:
 
           const token = String(secrets.DISCORD_BOT_TOKEN || "").trim();
           const targetId = String(secrets.DISCORD_DOWNLOAD_TARGET_ID || "").trim();
+          const reportGuildId = String(secrets.DISCORD_REPORT_GUILD_ID || "").trim();
           const guildId = String(secrets.DISCORD_GUILD_ID || "").trim();
+          const resolvedTargetId = targetId || reportGuildId || guildId;
           const channelName = String(vars.DISCORD_DOWNLOAD_CHANNEL_NAME || "app-downloads").trim() || "app-downloads";
           const appWebUrl = String(vars.APP_WEB_URL || "").trim();
 
@@ -51,13 +53,14 @@ jobs:
             console.error("DISCORD_BOT_TOKEN secret is missing.");
             process.exit(1);
           }
-          if (!targetId) {
-            console.error("DISCORD_DOWNLOAD_TARGET_ID secret is missing.");
+          if (!resolvedTargetId) {
+            console.error("Set one of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID.");
             process.exit(1);
           }
 
           console.log(`DISCORD_BOT_TOKEN=${token}`);
-          console.log(`DISCORD_DOWNLOAD_TARGET_ID=${targetId}`);
+          console.log(`DISCORD_DOWNLOAD_TARGET_ID=${resolvedTargetId}`);
+          console.log(`DISCORD_REPORT_GUILD_ID=${reportGuildId}`);
           console.log(`DISCORD_GUILD_ID=${guildId}`);
           console.log(`DISCORD_DOWNLOAD_CHANNEL_NAME=${channelName}`);
           console.log(`APP_WEB_URL=${appWebUrl}`);

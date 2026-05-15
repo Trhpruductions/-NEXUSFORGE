@@ -30,6 +30,16 @@ if ([string]::IsNullOrWhiteSpace($PersistentBaseUrl)) {
 }
 
 $discordDownloadTargetId = [string]$env:DISCORD_DOWNLOAD_TARGET_ID
+$discordReportGuildId = [string]$env:DISCORD_REPORT_GUILD_ID
+$discordGuildId = [string]$env:DISCORD_GUILD_ID
+$discordResolvedTargetId = ""
+$discordTargetCandidates = @($discordDownloadTargetId, $discordReportGuildId, $discordGuildId)
+foreach ($candidate in $discordTargetCandidates) {
+  if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+    $discordResolvedTargetId = $candidate.Trim()
+    break
+  }
+}
 $discordDownloadChannelName = [string]$env:DISCORD_DOWNLOAD_CHANNEL_NAME
 if ([string]::IsNullOrWhiteSpace($discordDownloadChannelName)) {
   $discordDownloadChannelName = "app-downloads"
@@ -634,14 +644,14 @@ $summary = @(
 
 Set-Content -Path $summaryPath -Value $summary -Encoding UTF8
 
-if (-not [string]::IsNullOrWhiteSpace($env:DISCORD_BOT_TOKEN) -and -not [string]::IsNullOrWhiteSpace($discordDownloadTargetId)) {
+if (-not [string]::IsNullOrWhiteSpace($env:DISCORD_BOT_TOKEN) -and -not [string]::IsNullOrWhiteSpace($discordResolvedTargetId)) {
   Write-Host "[desktop-release] Updating Discord download embed..."
   Invoke-CommandWithRetry -Description "Discord download embed update" -MaxAttempts 3 -DelaySeconds 4 -Action {
-    & npm.cmd run discord:post:download -w @nexusforge/server -- $discordDownloadTargetId $discordDownloadChannelName
+    & npm.cmd run discord:post:download -w @nexusforge/server -- $discordResolvedTargetId $discordDownloadChannelName
   }
   Write-Host "[desktop-release] Discord download embed updated." -ForegroundColor Green
 } else {
-  Write-Host "[desktop-release] Skipping Discord embed update (set DISCORD_BOT_TOKEN and DISCORD_DOWNLOAD_TARGET_ID to enable)." -ForegroundColor Yellow
+  Write-Host "[desktop-release] Skipping Discord embed update (set DISCORD_BOT_TOKEN and one of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID to enable)." -ForegroundColor Yellow
 }
 
 Write-Host ""

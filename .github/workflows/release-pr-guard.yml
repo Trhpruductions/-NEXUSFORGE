@@ -46,13 +46,19 @@ jobs:
         run: |
           node - <<'NODE'
           const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
-          const required = ['DISCORD_BOT_TOKEN', 'DISCORD_DOWNLOAD_TARGET_ID'];
-          const missing = required.filter((key) => !String(secrets[key] || '').trim());
+          const token = String(secrets.DISCORD_BOT_TOKEN || '').trim();
+          const target = String(secrets.DISCORD_DOWNLOAD_TARGET_ID || '').trim();
+          const reportGuild = String(secrets.DISCORD_REPORT_GUILD_ID || '').trim();
+          const guild = String(secrets.DISCORD_GUILD_ID || '').trim();
 
-          if (missing.length > 0) {
+          const hasTarget = Boolean(target || reportGuild || guild);
+          if (!token || !hasTarget) {
             console.error('Release PR Guard failed: missing required repository secrets for Discord download-link sync.');
-            for (const key of missing) {
-              console.error(`- ${key}`);
+            if (!token) {
+              console.error('- DISCORD_BOT_TOKEN');
+            }
+            if (!hasTarget) {
+              console.error('- One of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID');
             }
             process.exit(1);
           }

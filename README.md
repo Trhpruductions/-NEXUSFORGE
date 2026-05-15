@@ -499,12 +499,11 @@ Repository secrets for admin badge smoke CI:
 Repository secrets for Discord download-link sync CI:
 
 - `DISCORD_BOT_TOKEN`
-- `DISCORD_DOWNLOAD_TARGET_ID` (guild/category/channel ID for release-channel resolution)
-- Optional: `DISCORD_GUILD_ID` (passed through for guild-scoped resolution when needed)
+- One of: `DISCORD_DOWNLOAD_TARGET_ID` or `DISCORD_REPORT_GUILD_ID` or `DISCORD_GUILD_ID` (guild/category/channel ID for release-channel resolution)
 
 Release PR guard enforcement:
 
-- Pull requests touching release-link automation fail unless `DISCORD_BOT_TOKEN` and `DISCORD_DOWNLOAD_TARGET_ID` are configured as repository secrets.
+- Pull requests touching release-link automation fail unless `DISCORD_BOT_TOKEN` and at least one target secret (`DISCORD_DOWNLOAD_TARGET_ID` or `DISCORD_REPORT_GUILD_ID` or `DISCORD_GUILD_ID`) are configured.
 - Pull requests touching release-link automation fail if `apps/web/public/desktop-update.json` is invalid JSON or has invalid field types/values.
 
 Repository variables for Discord download-link sync CI:
