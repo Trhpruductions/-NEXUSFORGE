@@ -1,0 +1,59 @@
+name: discord-download-link-sync
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - apps/web/public/desktop-update.json
+      - apps/server/scripts/discord-post-download-embed.mjs
+      - scripts/desktop-release-share.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-download-link-sync
+  cancel-in-progress: true
+
+jobs:
+  post-download-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required Discord secrets
+        shell: bash
+        run: |
+          if [ -z "${DISCORD_BOT_TOKEN}" ]; then
+            echo "DISCORD_BOT_TOKEN secret is missing."
+            exit 1
+          fi
+          if [ -z "${DISCORD_DOWNLOAD_TARGET_ID}" ]; then
+            echo "DISCORD_DOWNLOAD_TARGET_ID secret is missing."
+            exit 1
+          fi
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_DOWNLOAD_TARGET_ID: ${{ secrets.DISCORD_DOWNLOAD_TARGET_ID }}
+
+      - name: Install server workspace dependencies
+        run: npm ci --workspace @nexusforge/server
+
+      - name: Sync Discord app-downloads message
+        run: npm run discord:post:download -w @nexusforge/server -- "$DISCORD_DOWNLOAD_TARGET_ID" "$DISCORD_DOWNLOAD_CHANNEL_NAME"
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_DOWNLOAD_TARGET_ID: ${{ secrets.DISCORD_DOWNLOAD_TARGET_ID }}
+          DISCORD_DOWNLOAD_CHANNEL_NAME: ${{ vars.DISCORD_DOWNLOAD_CHANNEL_NAME || 'app-downloads' }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          APP_WEB_URL: ${{ vars.APP_WEB_URL }}

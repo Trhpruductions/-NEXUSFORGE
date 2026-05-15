@@ -486,9 +486,21 @@ Admin badge smoke test auth inputs:
 
 - `.github/workflows/brand-verify.yml`: runs `npm run brand:verify` on push and pull requests.
 - `.github/workflows/admin-badge-smoke.yml`: runs `npm run admin:badge:smoke` on `main`/`master` pushes and manual dispatch when smoke secrets are configured.
+- `.github/workflows/discord-download-link-sync.yml`: runs on `main`/`master` pushes when `apps/web/public/desktop-update.json` changes (or manual dispatch) and upserts the Discord `app-downloads` embed with the latest installer/manifest links.
 
 Repository secrets for admin badge smoke CI:
 
 - `NEXUSFORGE_SMOKE_API_URL`
 - `NEXUSFORGE_SMOKE_ADMIN_ACCESS_TOKEN` (or `NEXUSFORGE_SMOKE_ADMIN_EMAIL` + `NEXUSFORGE_SMOKE_ADMIN_PASSWORD`)
 - Optional: `NEXUSFORGE_SMOKE_BADGE_TEST_USER_ID`
+
+Repository secrets for Discord download-link sync CI:
+
+- `DISCORD_BOT_TOKEN`
+- `DISCORD_DOWNLOAD_TARGET_ID` (guild/category/channel ID for release-channel resolution)
+- Optional: `DISCORD_GUILD_ID` (passed through for guild-scoped resolution when needed)
+
+Repository variables for Discord download-link sync CI:
+
+- Optional: `DISCORD_DOWNLOAD_CHANNEL_NAME` (default: `app-downloads`)
+- Optional: `APP_WEB_URL` (used by the embed script to compute launcher URL when provided)
