@@ -992,22 +992,76 @@ function isWorkspaceRoot(candidatePath) {
   return fs.existsSync(packageJsonPath) && hasServer && hasWeb;
 }
 
+function getDiscoveredWorkspaceCandidates() {
+  const discovered = [];
+  const cwdWorkspace = path.resolve(process.cwd());
+  const executableDir = path.dirname(process.execPath);
+
+  const seedPaths = [
+    cwdWorkspace,
+    __dirname,
+    executableDir,
+    path.resolve(cwdWorkspace, ".."),
+    path.resolve(cwdWorkspace, "..", ".."),
+    path.resolve(__dirname, ".."),
+    path.resolve(__dirname, "..", ".."),
+    path.resolve(executableDir, ".."),
+    path.resolve(executableDir, "..", ".."),
+    path.resolve(executableDir, "..", "..", ".."),
+    path.resolve(executableDir, "..", "..", "..", ".."),
+  ];
+
+  for (const seed of seedPaths) {
+    if (!seed) {
+      continue;
+    }
+    discovered.push(seed);
+    discovered.push(path.resolve(seed, ".."));
+    discovered.push(path.resolve(seed, "..", ".."));
+  }
+
+  // Last-resort scan on the current drive for likely NexusForge workspace folders.
+  const driveRoot = path.parse(cwdWorkspace).root || "";
+  if (driveRoot && fs.existsSync(driveRoot)) {
+    try {
+      const entries = fs.readdirSync(driveRoot, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) {
+          continue;
+        }
+        if (!/nexusforge/i.test(entry.name)) {
+          continue;
+        }
+        discovered.push(path.join(driveRoot, entry.name));
+      }
+    } catch {
+      // Best-effort discovery only.
+    }
+  }
+
+  return discovered;
+}
+
 function resolveWorkspacePath() {
   if (localStackStatus.workspacePath && isWorkspaceRoot(localStackStatus.workspacePath)) {
     return localStackStatus.workspacePath;
   }
 
   const envWorkspace = process.env.NEXUSFORGE_WORKSPACE_PATH;
-  const cwdWorkspace = path.resolve(process.cwd());
-  const parentWorkspace = path.resolve(cwdWorkspace, "..", "..");
-  const executableWorkspace = path.resolve(path.dirname(process.execPath), "..", "..", "..", "..");
   const hardcodedWorkspace = "D:\\NEXUSFORGE GAMGING APP";
-
-  const candidates = [envWorkspace, cwdWorkspace, parentWorkspace, executableWorkspace, hardcodedWorkspace].filter(Boolean);
+  const candidates = [envWorkspace, ...getDiscoveredWorkspaceCandidates(), hardcodedWorkspace].filter(Boolean);
+  const seen = new Set();
   for (const candidate of candidates) {
-    if (isWorkspaceRoot(candidate)) {
-      updateLocalStackStatus({ workspacePath: candidate });
-      return candidate;
+    const normalizedCandidate = path.resolve(String(candidate));
+    const dedupeKey = process.platform === "win32" ? normalizedCandidate.toLowerCase() : normalizedCandidate;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+
+    if (isWorkspaceRoot(normalizedCandidate)) {
+      updateLocalStackStatus({ workspacePath: normalizedCandidate });
+      return normalizedCandidate;
     }
   }
 
