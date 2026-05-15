@@ -416,6 +416,46 @@ function Repair-GeneratedChromiumLicenses {
   )
 }
 
+function Invoke-CommandWithRetry {
+  param(
+    [Parameter(Mandatory = $true)] [scriptblock] $Action,
+    [Parameter(Mandatory = $true)] [string] $Description,
+    [int] $MaxAttempts = 3,
+    [int] $DelaySeconds = 3
+  )
+
+  if ($MaxAttempts -lt 1) {
+    $MaxAttempts = 1
+  }
+  if ($DelaySeconds -lt 1) {
+    $DelaySeconds = 1
+  }
+
+  $lastErrorMessage = ""
+
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    try {
+      & $Action
+      if ($LASTEXITCODE -eq 0) {
+        return
+      }
+
+      $lastErrorMessage = "$Description exited with code $LASTEXITCODE"
+    }
+    catch {
+      $lastErrorMessage = $_.Exception.Message
+    }
+
+    if ($attempt -lt $MaxAttempts) {
+      Write-Host ("[desktop-release] {0} failed (attempt {1}/{2}): {3}" -f $Description, $attempt, $MaxAttempts, $lastErrorMessage) -ForegroundColor Yellow
+      [System.Threading.Thread]::Sleep($DelaySeconds * 1000)
+      continue
+    }
+
+    throw "{0} failed after {1} attempts. Last error: {2}" -f $Description, $MaxAttempts, $lastErrorMessage
+  }
+}
+
 if (Test-Path $summaryPath) {
   $previousSummary = Get-Content $summaryPath -Raw -ErrorAction SilentlyContinue
   if (-not [string]::IsNullOrWhiteSpace($previousSummary)) {
@@ -564,6 +604,10 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 10
   [System.Text.UTF8Encoding]::new($false)
 )
 
+Invoke-CommandWithRetry -Description "desktop manifest validation" -MaxAttempts 2 -DelaySeconds 2 -Action {
+  & npm.cmd run desktop:manifest:validate -w @nexusforge/server
+}
+
 $httpServerPid = if ($httpProc) { $httpProc.ProcessId } else { "" }
 $httpServerExistingPid = if ($httpOwnerPid) { $httpOwnerPid } else { "" }
 
@@ -592,9 +636,8 @@ Set-Content -Path $summaryPath -Value $summary -Encoding UTF8
 
 if (-not [string]::IsNullOrWhiteSpace($env:DISCORD_BOT_TOKEN) -and -not [string]::IsNullOrWhiteSpace($discordDownloadTargetId)) {
   Write-Host "[desktop-release] Updating Discord download embed..."
-  & npm.cmd run discord:post:download -w @nexusforge/server -- $discordDownloadTargetId $discordDownloadChannelName
-  if ($LASTEXITCODE -ne 0) {
-    throw "Discord download embed update failed."
+  Invoke-CommandWithRetry -Description "Discord download embed update" -MaxAttempts 3 -DelaySeconds 4 -Action {
+    & npm.cmd run discord:post:download -w @nexusforge/server -- $discordDownloadTargetId $discordDownloadChannelName
   }
   Write-Host "[desktop-release] Discord download embed updated." -ForegroundColor Green
 } else {

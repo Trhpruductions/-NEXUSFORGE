@@ -15,6 +15,7 @@
     "seed:users": "npx --yes tsx prisma/seed-user-groups.ts",
     "discord:whoami": "node ./scripts/discord-token-whoami.mjs",
     "discord:verify": "node ./scripts/verify-discord-bot-config.mjs",
+    "desktop:manifest:validate": "node ./scripts/validate-desktop-manifest.mjs",
     "discord:setup:channels": "node ./scripts/discord-setup-channels.mjs",
     "discord:post:download": "node ./scripts/discord-post-download-embed.mjs",
     "discord:probe": "node ./scripts/discord-report-probe.mjs"

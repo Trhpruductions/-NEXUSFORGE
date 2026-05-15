@@ -461,6 +461,7 @@ Discord release channel automation:
 
 - `npm run discord:setup:channels -w @nexusforge/server -- <guild-or-category-id>` ensures ops + `app-downloads` channels exist.
 - `npm run discord:post:download -w @nexusforge/server -- <guild-or-category-id> app-downloads` posts the latest installer/launcher/update-manifest embed from `apps/web/public/desktop-update.json`.
+- `npm run desktop:manifest:validate -w @nexusforge/server` validates `apps/web/public/desktop-update.json` schema before posting/releasing.
 
 ## QA Automation Commands
 
