@@ -24,6 +24,65 @@ function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getHttpStatus(error) {
+  const status = Number(error?.status ?? error?.response?.status ?? 0);
+  return Number.isFinite(status) ? status : 0;
+}
+
+function getRetryAfterMs(error) {
+  const retryAfterSeconds = Number(
+    error?.data?.retry_after ?? error?.rawError?.retry_after ?? error?.retry_after ?? 0,
+  );
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.ceil(retryAfterSeconds * 1000);
+  }
+  return 0;
+}
+
+function isRetryableError(error) {
+  const status = getHttpStatus(error);
+  if (status === 429 || status >= 500) {
+    return true;
+  }
+
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    message.includes("network") ||
+    message.includes("econnreset") ||
+    message.includes("etimedout") ||
+    message.includes("socket hang up")
+  );
+}
+
+async function withDiscordRetry(operationName, action, maxAttempts = 5) {
+  let attempt = 1;
+  while (attempt <= maxAttempts) {
+    try {
+      return await action();
+    } catch (error) {
+      if (attempt >= maxAttempts || !isRetryableError(error)) {
+        throw error;
+      }
+
+      const retryAfterMs = getRetryAfterMs(error);
+      const backoffMs = Math.min(12000, 400 * 2 ** (attempt - 1));
+      const delayMs = Math.max(retryAfterMs, backoffMs);
+      const status = getHttpStatus(error);
+      console.warn(
+        `[discord:post:download] RETRY: ${operationName} attempt ${attempt}/${maxAttempts} failed (status=${status || "n/a"}); retrying in ${delayMs}ms`,
+      );
+      await sleep(delayMs);
+      attempt += 1;
+    }
+  }
+
+  throw new Error(`[discord:post:download] Unexpected retry state for ${operationName}`);
+}
+
 function loadDesktopManifest() {
   const candidates = [
     path.resolve(process.cwd(), "apps/web/public/desktop-update.json"),
@@ -88,7 +147,9 @@ async function findExistingReleaseMessage(rest, channelId, meId, preferredMessag
   const messageId = String(preferredMessageId || "").trim();
   if (messageId) {
     try {
-      const candidate = await rest.get(Routes.channelMessage(channelId, messageId));
+      const candidate = await withDiscordRetry("fetch preferred release message", () =>
+        rest.get(Routes.channelMessage(channelId, messageId)),
+      );
       if (isReleaseMessage(candidate, meId)) {
         return candidate;
       }
@@ -100,11 +161,13 @@ async function findExistingReleaseMessage(rest, channelId, meId, preferredMessag
   let before = undefined;
   for (let page = 0; page < 5; page += 1) {
     const batch = asArray(
-      await rest.get(
-        Routes.channelMessages(channelId, {
-          limit: 100,
-          ...(before ? { before } : {}),
-        }),
+      await withDiscordRetry("scan release messages", () =>
+        rest.get(
+          Routes.channelMessages(channelId, {
+            limit: 100,
+            ...(before ? { before } : {}),
+          }),
+        ),
       ),
     );
 
@@ -133,12 +196,12 @@ async function resolveGuildAndChannel(rest, targetId, channelName) {
 
   if (targetId) {
     try {
-      const guild = await rest.get(Routes.guild(targetId));
+      const guild = await withDiscordRetry("resolve guild", () => rest.get(Routes.guild(targetId)));
       if (guild?.id) {
         guildId = String(guild.id);
       }
     } catch {
-      const targetChannel = await rest.get(Routes.channel(targetId));
+      const targetChannel = await withDiscordRetry("resolve channel", () => rest.get(Routes.channel(targetId)));
       if (!targetChannel?.guild_id) {
         throw new Error(`Target ${targetId} is not a guild or guild channel.`);
       }
@@ -157,7 +220,7 @@ async function resolveGuildAndChannel(rest, targetId, channelName) {
   }
 
   if (!channelId) {
-    const channels = asArray(await rest.get(Routes.guildChannels(guildId)));
+    const channels = asArray(await withDiscordRetry("list guild channels", () => rest.get(Routes.guildChannels(guildId))));
     const desired = normalizeName(channelName);
     const existing = channels.find((channel) => {
       const matchesName = normalizeName(channel.name) === desired;
@@ -170,14 +233,16 @@ async function resolveGuildAndChannel(rest, targetId, channelName) {
     if (existing) {
       channelId = String(existing.id);
     } else {
-      const created = await rest.post(Routes.guildChannels(guildId), {
-        body: {
-          name: channelName,
-          type: ChannelType.GuildText,
-          topic: "Official NexusForge installer, launcher, and update manifest links.",
-          parent_id: parentCategoryId,
-        },
-      });
+      const created = await withDiscordRetry("create download channel", () =>
+        rest.post(Routes.guildChannels(guildId), {
+          body: {
+            name: channelName,
+            type: ChannelType.GuildText,
+            topic: "Official NexusForge installer, launcher, and update manifest links.",
+            parent_id: parentCategoryId,
+          },
+        }),
+      );
       channelId = String(created.id);
     }
   }
@@ -243,22 +308,26 @@ async function main() {
     allowed_mentions: { parse: [] },
   };
 
-  const me = await rest.get(Routes.user("@me"));
+  const me = await withDiscordRetry("resolve bot identity", () => rest.get(Routes.user("@me")));
   const meId = String(me?.id || "");
   const existing = await findExistingReleaseMessage(rest, channelId, meId, preferredMessageId);
 
   let mode = "posted";
   let messageId = "";
   if (existing?.id) {
-    const updated = await rest.patch(Routes.channelMessage(channelId, String(existing.id)), {
-      body: payload,
-    });
+    const updated = await withDiscordRetry("update download embed", () =>
+      rest.patch(Routes.channelMessage(channelId, String(existing.id)), {
+        body: payload,
+      }),
+    );
     mode = "updated";
     messageId = String(updated?.id || existing.id || "");
   } else {
-    const posted = await rest.post(Routes.channelMessages(channelId), {
-      body: payload,
-    });
+    const posted = await withDiscordRetry("post download embed", () =>
+      rest.post(Routes.channelMessages(channelId), {
+        body: payload,
+      }),
+    );
     messageId = String(posted?.id || "");
   }
 
