@@ -510,3 +510,4 @@ Repository variables for Discord download-link sync CI:
 
 - Optional: `DISCORD_DOWNLOAD_CHANNEL_NAME` (default: `app-downloads`)
 - Optional: `APP_WEB_URL` (used by the embed script to compute launcher URL when provided)
+- Optional: `DISCORD_DOWNLOAD_MESSAGE_ID` (forces update of a specific existing download embed message to prevent duplicate posts)

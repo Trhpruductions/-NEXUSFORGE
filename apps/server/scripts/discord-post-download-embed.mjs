@@ -69,6 +69,63 @@ function resolveManifestUrl(downloadUrl) {
   }
 }
 
+function isReleaseMessage(message, meId) {
+  const authorId = String(message?.author?.id || "");
+  if (!authorId || authorId !== meId) {
+    return false;
+  }
+
+  const title = String(message?.embeds?.[0]?.title || "");
+  if (title === "NexusForge App Download + Updates") {
+    return true;
+  }
+
+  const content = String(message?.content || "");
+  return content.includes("Official NexusForge release links.");
+}
+
+async function findExistingReleaseMessage(rest, channelId, meId, preferredMessageId) {
+  const messageId = String(preferredMessageId || "").trim();
+  if (messageId) {
+    try {
+      const candidate = await rest.get(Routes.channelMessage(channelId, messageId));
+      if (isReleaseMessage(candidate, meId)) {
+        return candidate;
+      }
+    } catch {
+      // Fall through to paginated discovery.
+    }
+  }
+
+  let before = undefined;
+  for (let page = 0; page < 5; page += 1) {
+    const batch = asArray(
+      await rest.get(
+        Routes.channelMessages(channelId, {
+          limit: 100,
+          ...(before ? { before } : {}),
+        }),
+      ),
+    );
+
+    if (batch.length === 0) {
+      break;
+    }
+
+    const existing = batch.find((message) => isReleaseMessage(message, meId));
+    if (existing) {
+      return existing;
+    }
+
+    before = String(batch[batch.length - 1]?.id || "").trim();
+    if (!before) {
+      break;
+    }
+  }
+
+  return null;
+}
+
 async function resolveGuildAndChannel(rest, targetId, channelName) {
   let guildId = String(process.env.DISCORD_GUILD_ID || "").trim();
   let parentCategoryId = null;
@@ -132,6 +189,7 @@ async function main() {
   const token = String(process.env.DISCORD_BOT_TOKEN || "").trim();
   const targetId = String(process.argv[2] || process.env.DISCORD_REPORT_GUILD_ID || process.env.DISCORD_GUILD_ID || "").trim();
   const channelName = String(process.argv[3] || "app-downloads").trim();
+  const preferredMessageId = String(process.env.DISCORD_DOWNLOAD_MESSAGE_ID || "").trim();
 
   if (!token) {
     console.error("[discord:post:download] FAIL: DISCORD_BOT_TOKEN is missing");
@@ -187,35 +245,26 @@ async function main() {
 
   const me = await rest.get(Routes.user("@me"));
   const meId = String(me?.id || "");
-  const messages = asArray(await rest.get(Routes.channelMessages(channelId, { limit: 100 })));
-  const existing = messages.find((message) => {
-    const authorId = String(message?.author?.id || "");
-    if (!authorId || authorId !== meId) {
-      return false;
-    }
-
-    const title = String(message?.embeds?.[0]?.title || "");
-    if (title === "NexusForge App Download + Updates") {
-      return true;
-    }
-
-    const content = String(message?.content || "");
-    return content.includes("Official NexusForge release links.");
-  });
+  const existing = await findExistingReleaseMessage(rest, channelId, meId, preferredMessageId);
 
   let mode = "posted";
+  let messageId = "";
   if (existing?.id) {
-    await rest.patch(Routes.channelMessage(channelId, String(existing.id)), {
+    const updated = await rest.patch(Routes.channelMessage(channelId, String(existing.id)), {
       body: payload,
     });
     mode = "updated";
+    messageId = String(updated?.id || existing.id || "");
   } else {
-    await rest.post(Routes.channelMessages(channelId), {
+    const posted = await rest.post(Routes.channelMessages(channelId), {
       body: payload,
     });
+    messageId = String(posted?.id || "");
   }
 
-  console.log(`[discord:post:download] OK: ${mode}; guild=${guildId} channel=${channelId} channelName=${channelName}`);
+  console.log(
+    `[discord:post:download] OK: ${mode}; guild=${guildId} channel=${channelId} channelName=${channelName} messageId=${messageId || "unknown"}`,
+  );
 }
 
 main().catch((error) => {
