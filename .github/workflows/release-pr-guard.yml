@@ -1,0 +1,114 @@
+name: Release PR Guard
+
+on:
+  pull_request:
+    branches: ["main", "master"]
+    paths:
+      - apps/web/public/desktop-update.json
+      - scripts/desktop-release-share.ps1
+      - apps/server/scripts/discord-post-download-embed.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-desktop-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate desktop-update.json schema
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const manifestPath = path.resolve(process.cwd(), 'apps/web/public/desktop-update.json');
+          const raw = fs.readFileSync(manifestPath, 'utf8');
+          let manifest;
+
+          try {
+            manifest = JSON.parse(raw);
+          } catch (error) {
+            console.error('desktop-update.json is not valid JSON:', error.message);
+            process.exit(1);
+          }
+
+          const fail = (message) => {
+            console.error(message);
+            process.exit(1);
+          };
+
+          const version = String(manifest.version || '').trim();
+          if (!/^\d+\.\d+\.\d+$/.test(version)) {
+            fail('desktop-update.json: version must be semver (x.y.z).');
+          }
+
+          const downloadUrl = String(manifest.downloadUrl || '').trim();
+          if (!/^https?:\/\//i.test(downloadUrl)) {
+            fail('desktop-update.json: downloadUrl must be an absolute http(s) URL.');
+          }
+
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(downloadUrl);
+          } catch {
+            fail('desktop-update.json: downloadUrl must be a valid URL.');
+          }
+
+          if (!/\.exe($|[?#])/i.test(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash)) {
+            fail('desktop-update.json: downloadUrl must point to an .exe installer.');
+          }
+
+          const sha256 = String(manifest.sha256 || '').trim();
+          if (!/^[a-f0-9]{64}$/i.test(sha256)) {
+            fail('desktop-update.json: sha256 must be a 64-character hex string.');
+          }
+
+          if (typeof manifest.forceUpdate !== 'boolean') {
+            fail('desktop-update.json: forceUpdate must be a boolean.');
+          }
+
+          if (!Array.isArray(manifest.notes)) {
+            fail('desktop-update.json: notes must be an array of strings.');
+          }
+
+          for (const note of manifest.notes) {
+            if (typeof note !== 'string') {
+              fail('desktop-update.json: every notes entry must be a string.');
+            }
+          }
+
+          console.log('desktop-update.json schema validation passed.');
+          NODE
+
+  discord-sync-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: validate-desktop-manifest
+    env:
+      SECRETS_JSON: ${{ toJSON(secrets) }}
+
+    steps:
+      - name: Validate Discord sync secrets
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
+          const required = ['DISCORD_BOT_TOKEN', 'DISCORD_DOWNLOAD_TARGET_ID'];
+          const missing = required.filter((key) => !String(secrets[key] || '').trim());
+
+          if (missing.length > 0) {
+            console.error('Release PR Guard failed: missing required repository secrets for Discord download-link sync.');
+            for (const key of missing) {
+              console.error(`- ${key}`);
+            }
+            process.exit(1);
+          }
+
+          console.log('Discord sync secrets preflight passed.');
+          NODE

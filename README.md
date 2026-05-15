@@ -487,6 +487,7 @@ Admin badge smoke test auth inputs:
 - `.github/workflows/brand-verify.yml`: runs `npm run brand:verify` on push and pull requests.
 - `.github/workflows/admin-badge-smoke.yml`: runs `npm run admin:badge:smoke` on `main`/`master` pushes and manual dispatch when smoke secrets are configured.
 - `.github/workflows/discord-download-link-sync.yml`: runs on `main`/`master` pushes when `apps/web/public/desktop-update.json` changes (or manual dispatch) and upserts the Discord `app-downloads` embed with the latest installer/manifest links.
+- `.github/workflows/release-pr-guard.yml`: runs on release-related pull requests and fails fast when `desktop-update.json` is malformed or Discord sync secrets are missing.
 
 Repository secrets for admin badge smoke CI:
 
@@ -499,6 +500,11 @@ Repository secrets for Discord download-link sync CI:
 - `DISCORD_BOT_TOKEN`
 - `DISCORD_DOWNLOAD_TARGET_ID` (guild/category/channel ID for release-channel resolution)
 - Optional: `DISCORD_GUILD_ID` (passed through for guild-scoped resolution when needed)
+
+Release PR guard enforcement:
+
+- Pull requests touching release-link automation fail unless `DISCORD_BOT_TOKEN` and `DISCORD_DOWNLOAD_TARGET_ID` are configured as repository secrets.
+- Pull requests touching release-link automation fail if `apps/web/public/desktop-update.json` is invalid JSON or has invalid field types/values.
 
 Repository variables for Discord download-link sync CI:
 
