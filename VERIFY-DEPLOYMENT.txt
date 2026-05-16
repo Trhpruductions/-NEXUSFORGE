@@ -1,0 +1,15 @@
+﻿Desktop release deployment bundle
+Generated: 2026-05-16T13:38:19
+Version: 1.0.11
+
+Upload these files to your public download host root (same host as desktop-update.json and installer URLs):
+- desktop-update.json
+- NexusForge Desktop Setup Latest.exe
+- NexusForge Desktop Setup 1.0.11.exe
+
+Then verify from this repo:
+1) npm run desktop:release:verify:insecure
+2) npm run desktop:release:verify
+
+If verify shows HTML for installer URLs, your host is still rewriting to SPA HTML.
+Use nginx-desktop-release.conf rules and disable CDN/page rewrite rules for these paths.
