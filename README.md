@@ -150,7 +150,19 @@ The admin launch-control toggle can override this at runtime through the API and
 
 3. Set `DATABASE_URL` and JWT secrets in `apps/server/.env`.
 
-4. Configure Stripe billing keys and price IDs in `apps/server/.env`:
+4. For local development, seed the database with demo accounts and sample profiles:
+
+```bash
+cd apps/server
+cp .env.example .env
+# Update .env values if needed, especially DATABASE_URL and JWT secrets.
+npm run prisma:migrate
+npm run seed:all
+```
+
+A supported demo account is seeded with the email `trhdevelopment@nexusforge.local` and password `Sample!2026`.
+
+5. Configure Stripe billing keys and price IDs in `apps/server/.env`:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
@@ -291,6 +303,7 @@ npm run smoke:release-gate
 - Installed desktop users now download updates in the background from `desktop-update.json`.
 - On Windows, downloaded updates are staged and auto-installed when the app closes.
 - First-time users still install with the public `.exe` link.
+- When packaged, the app defaults to using the configured desktop host origin for the update manifest, or `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` if set.
 
 Recommended environment variables for durable updates:
 
@@ -300,12 +313,39 @@ NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com
 NEXUSFORGE_AUTO_INSTALL_ON_CLOSE=true
 ```
 
+If your public host is not yet serving `/desktop-update.json` from root, set `NEXUSFORGE_UPDATE_MANIFEST_URL` to the shared manifest URL until your durable release host is configured.
+
+Free durable hosting options:
+- GitHub Pages or Cloudflare Pages are good no-cost hosts for `desktop-update.json` and installer static assets.
+- GitHub Releases can also serve installer binaries for free; host `desktop-update.json` on Pages or another static host, then point `downloadUrl` to the release asset URL.
+- Set `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` to the static host root for repeatable in-app updates.
+
+GitHub Pages example:
+1) Build installer and publish release assets:
+   - `npm run desktop:installer`
+   - copy `apps/desktop/release/NexusForge Desktop Setup Latest.exe` and `apps/desktop/release/NexusForge Desktop Setup 1.0.11.exe` into a GitHub Pages branch or folder.
+2) Publish `apps/web/public/desktop-update.json` to the same Pages root as `/desktop-update.json`.
+3) Use `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://<username>.github.io/<repo>`.
+4) Confirm:
+   - `https://<username>.github.io/<repo>/desktop-update.json`
+   - `https://<username>.github.io/<repo>/NexusForge%20Desktop%20Setup%20Latest.exe`
+
+Alternatively, create and publish the bundle with the helper script:
+- `powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-desktop-release-gh-pages.ps1 -Force`
+
+If you prefer GitHub Releases for binary hosting:
+- Upload the `.exe` asset to the release.
+- Set `downloadUrl` in `desktop-update.json` to the GitHub Releases asset URL.
+- Keep `desktop-update.json` on a stable static host with `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` pointing to that host.
+
 Release publishing:
 
 - `npm run desktop:share:none` updates `apps/web/public/desktop-update.json` with version, download URL, notes, and `sha256`.
 - `npm run desktop:share:force` publishes a required update (`forceUpdate: true`) with a patched desktop version.
 - `desktop-release-share.ps1` now runs `npm run ops:doctor:archive` before packaging/publishing; release is blocked if doctor fails.
 - `npm run desktop:release:bundle` creates a deployment-ready bundle (manifest + stable/versioned installers + nginx snippet + verify instructions) in `apps/desktop/.network-smoke/deploy-bundles/`.
+- The bundle manifest is rewritten for root-relative static hosting so you can upload `desktop-update.json` and the installer files together to GitHub Pages or another static root.
+- In this bundle form, `desktop-update.json` may use a relative `downloadUrl` such as `NexusForge%20Desktop%20Setup%20Latest.exe`, so the installer binary must be published to the same host root as the manifest.
 - No domain/server yet: use temporary publishing with Cloudflare quick tunnel:
 	- `npm run desktop:share:temp` (keeps current version, generates temporary download URLs)
 	- `npm run desktop:share:temp:patch` (bumps patch version, then publishes temporary URLs)
@@ -318,6 +358,9 @@ Release publishing:
 	- `npm run desktop:share:persistent`
 	- `npm run desktop:share:persistent:patch`
 	- `npm run desktop:share:persistent:force`
+- For durable hosting, set `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` to your stable public download host (for example `https://downloads.your-domain.com`).
+- The packaged desktop app resolves the manifest to `https://downloads.your-domain.com/desktop-update.json` when this env var is set.
+- If your public app host is not serving `/desktop-update.json` directly, set `NEXUSFORGE_UPDATE_MANIFEST_URL` to the shared manifest URL until durable hosting is configured.
 - Emergency bypass exists for manual ops only: pass `-SkipDoctor` to `desktop-release-share.ps1`.
 - Transport/certificate emergency overrides are available for manual ops only:
 	- `-AllowInsecureTlsValidation` allows URL probe with local TLS certificate bypass.
@@ -331,6 +374,7 @@ Post-publish validation (required):
 
 ```bash
 npm run desktop:release:verify
+npm run desktop:update:validate:persistent
 npm run desktop:update:validate:insecure
 curl -kI "https://your-domain.com/desktop-update.json"
 curl -kI "https://your-domain.com/NexusForge%20Desktop%20Setup%20Latest.exe"
@@ -463,7 +507,7 @@ Mismatch remediation:
 
 Discord release channel automation:
 
-- `npm run discord:setup:channels -w @nexusforge/server -- <guild-or-category-id>` ensures ops + `app-downloads` channels exist.
+- `npm run discord:setup:channels -w @nexusforge/server -- <guild-or-category-or-channel-id>` ensures ops channels exist and creates a NexusForge role plus a protected NexusForge Ops category.
 - `npm run discord:post:download -w @nexusforge/server -- <guild-or-category-id> app-downloads` posts the latest installer/launcher/update-manifest embed from `apps/web/public/desktop-update.json`.
 - `npm run desktop:manifest:validate -w @nexusforge/server` validates `apps/web/public/desktop-update.json` schema before posting/releasing.
 
