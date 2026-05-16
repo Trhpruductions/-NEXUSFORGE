@@ -13,6 +13,40 @@ $webProcess = $null
 $webStdoutLog = Join-Path $env:TEMP ("nexusforge-smoke-web.stdout.{0}.log" -f $runToken)
 $webStderrLog = Join-Path $env:TEMP ("nexusforge-smoke-web.stderr.{0}.log" -f $runToken)
 
+function Get-EnvFileValue {
+  param(
+    [Parameter(Mandatory = $true)] [string] $Path,
+    [Parameter(Mandatory = $true)] [string] $Key
+  )
+
+  if (-not (Test-Path -Path $Path)) {
+    return $null
+  }
+
+  try {
+    $content = Get-Content -Path $Path -ErrorAction SilentlyContinue
+    foreach ($line in $content) {
+      $trimmed = $line.Trim()
+      if ($trimmed -eq '' -or $trimmed.StartsWith('#')) {
+        continue
+      }
+
+      $parts = $trimmed.Split('=', 2)
+      if ($parts.Count -ne 2) {
+        continue
+      }
+
+      if ($parts[0].Trim() -ieq $Key) {
+        return $parts[1].Trim()
+      }
+    }
+  } catch {
+    return $null
+  }
+
+  return $null
+}
+
 function Invoke-NpmChecked {
   param(
     [Parameter(Mandatory = $true)] [string] $Label,
@@ -137,7 +171,15 @@ function Wait-ForWebHealthy {
   return $false
 }
 
-$apiBase = "http://localhost:4000"
+$serverEnvPath = Join-Path $repoRoot "apps\server\.env"
+$apiPort = 4000
+$portValue = Get-EnvFileValue -Path $serverEnvPath -Key "PORT"
+if ($portValue -and [int]::TryParse($portValue, [ref]$apiPort)) {
+  Write-Host "[smoke] Using server port from apps/server/.env: $apiPort" -ForegroundColor Cyan
+} else {
+  Write-Host "[smoke] Using default server port: $apiPort" -ForegroundColor Cyan
+}
+$apiBase = "http://127.0.0.1:$apiPort"
 $webBase = "http://127.0.0.1:3000"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {

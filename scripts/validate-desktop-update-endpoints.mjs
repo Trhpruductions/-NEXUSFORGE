@@ -106,9 +106,22 @@ async function request(url, method, redirectCount = 0) {
 	return response;
 }
 
+function resolveManifestUrlCandidate(candidateUrl, manifestUrl) {
+	const raw = String(candidateUrl || "").trim();
+	if (!raw) {
+		return null;
+	}
+
+	try {
+		return new URL(raw, manifestUrl).toString();
+	} catch {
+		return null;
+	}
+}
+
 async function main() {
 	const rawBase = getArgValue("--base") || process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || defaultBaseUrl;
-	const baseUrl = rawBase.replace(/\/+$/, "");
+	const baseUrl = String(rawBase || "").trim().replace(/\/+$/, "");
 	const manifestUrl = `${baseUrl}/desktop-update.json`;
 
 	console.log(`[desktop-update-validate] Base URL: ${baseUrl}`);
@@ -134,14 +147,18 @@ async function main() {
 	}
 
 	const version = String(manifest.version || "").trim();
-	const downloadUrl = String(manifest.downloadUrl || "").trim();
+	const rawDownloadUrl = String(manifest.downloadUrl || "").trim();
+	const downloadUrl = resolveManifestUrlCandidate(rawDownloadUrl, manifestUrl);
 	const sha256 = String(manifest.sha256 || "").trim();
 
 	if (!version) {
 		fail("Manifest is missing version");
 	}
-	if (!downloadUrl) {
+	if (!rawDownloadUrl) {
 		fail("Manifest is missing downloadUrl");
+	}
+	if (!downloadUrl) {
+		fail("Manifest downloadUrl is invalid or could not be resolved");
 	}
 	if (!sha256 || !/^[a-f0-9]{64}$/i.test(sha256)) {
 		fail("Manifest sha256 is missing or invalid");

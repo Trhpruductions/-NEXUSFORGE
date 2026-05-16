@@ -47,6 +47,7 @@
     "desktop:update:validate": "node ./scripts/validate-desktop-update-endpoints.mjs",
     "desktop:update:validate:insecure": "node ./scripts/validate-desktop-update-endpoints.mjs --insecure",
     "desktop:update:validate:local": "node ./scripts/validate-desktop-update-endpoints.mjs --base http://127.0.0.1:3000 --insecure",
+    "desktop:update:validate:persistent": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$base = [string]$env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL; if (-not $base.Trim()) { Write-Error 'NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL is not set'; exit 1 }; node ./scripts/validate-desktop-update-endpoints.mjs --base \"$($base.Trim())\" --insecure\"",
     "desktop:release:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify-desktop-release.ps1",
     "desktop:release:verify:insecure": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify-desktop-release.ps1 -Insecure",
     "desktop:network:validate": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/validate-desktop-network-modes.ps1 -Mode all",
