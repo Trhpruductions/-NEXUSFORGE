@@ -1,6 +1,6 @@
 {
   "name": "nexusforge",
-  "version": "1.0.0",
+  "version": "1.0.11",
   "description": "",
   "scripts": {
     "dev:cleanup": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/cleanup-dev-ports.ps1",
@@ -28,6 +28,12 @@
     "desktop:share:temp": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -AllowEphemeral",
     "desktop:share:temp:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump patch -AllowEphemeral",
     "desktop:share:temp:force": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -AllowEphemeral -AllowUnresolvedTunnelHostnames -SkipDownloadUrlValidation",
+    "desktop:share:local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -PersistentBaseUrl http://127.0.0.1:3200 -AllowEphemeral",
+    "desktop:share:local:force": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -PersistentBaseUrl http://127.0.0.1:3200 -AllowEphemeral -ForceUpdate",
+    "desktop:share:local:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump patch -PersistentBaseUrl http://127.0.0.1:3200 -AllowEphemeral",
+    "desktop:share:persistent": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -PersistentBaseUrl $env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL",
+    "desktop:share:persistent:force": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump none -PersistentBaseUrl $env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL -ForceUpdate",
+    "desktop:share:persistent:patch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump patch -PersistentBaseUrl $env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL",
     "desktop:release:checklist": "node ./scripts/desktop-release-checklist.mjs",
     "desktop:release:bundle": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/prepare-desktop-web-release.ps1",
     "desktop:release:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/deploy-desktop-web-release.ps1",
