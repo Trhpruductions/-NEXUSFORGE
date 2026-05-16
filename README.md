@@ -314,6 +314,10 @@ Release publishing:
 		- This bypasses tunnel DNS/download URL validation and still writes/share links.
 	- Keep the terminal session open while sharing temporary URLs, or the tunnel will go offline.
 	- This is for beta/testing distribution only, not durable production auto-update hosting.
+- Durable release hosting is available once you configure a persistent download base URL:
+	- `npm run desktop:share:persistent`
+	- `npm run desktop:share:persistent:patch`
+	- `npm run desktop:share:persistent:force`
 - Emergency bypass exists for manual ops only: pass `-SkipDoctor` to `desktop-release-share.ps1`.
 - Transport/certificate emergency overrides are available for manual ops only:
 	- `-AllowInsecureTlsValidation` allows URL probe with local TLS certificate bypass.
