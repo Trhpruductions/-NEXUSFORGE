@@ -303,6 +303,7 @@ npm run smoke:release-gate
 - Installed desktop users now download updates in the background from `desktop-update.json`.
 - On Windows, downloaded updates are staged and auto-installed when the app closes.
 - First-time users still install with the public `.exe` link.
+- The desktop update manifest may include a `downloadUrls` list so the app can fall back to alternate installer locations.
 - When packaged, the app defaults to using the configured desktop host origin for the update manifest, or `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` if set.
 
 Recommended environment variables for durable updates:

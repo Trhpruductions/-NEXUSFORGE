@@ -211,7 +211,18 @@ function Test-UrlHostnameResolves {
     }
 
     $addresses = [System.Net.Dns]::GetHostAddresses($host)
-    return ($null -ne $addresses -and $addresses.Count -gt 0)
+    if ($null -eq $addresses -or $addresses.Count -eq 0) {
+      return $false
+    }
+
+    $ipv4Addresses = $addresses | Where-Object { $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork }
+    if ($ipv4Addresses.Count -eq 0) {
+      return $false
+    }
+
+    $port = if ($uri.Port -gt 0) { $uri.Port } else { 443 }
+    $connect = Test-NetConnection -ComputerName $host -Port $port -WarningAction SilentlyContinue
+    return $connect.TcpTestSucceeded
   }
   catch {
     return $false
@@ -581,6 +592,7 @@ $encodedInstaller = [System.Uri]::EscapeDataString($installerName)
 $downloadUrl = "$publicBaseUrl/$encodedInstaller"
 $encodedLatestInstaller = [System.Uri]::EscapeDataString($latestInstallerName)
 $stableDownloadUrl = "$publicBaseUrl/$encodedLatestInstaller"
+$manifestUrl = "$publicBaseUrl/desktop-update.json"
 if ($SkipDownloadUrlValidation) {
   Write-Host "[desktop-release] WARNING: Skipping download URL validation by explicit override." -ForegroundColor Yellow
 } else {
@@ -590,6 +602,11 @@ if ($SkipDownloadUrlValidation) {
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $manifest.version = $desktopVersion
 $manifest.downloadUrl = $stableDownloadUrl
+if ($manifest.PSObject.Properties.Name -contains "downloadUrls") {
+  $manifest.downloadUrls = @($stableDownloadUrl, $downloadUrl)
+} else {
+  $manifest | Add-Member -NotePropertyName "downloadUrls" -NotePropertyValue @($stableDownloadUrl, $downloadUrl)
+}
 $releaseNotes = if ($Notes.Count -gt 0) { $Notes } else { @($manifest.notes) }
 if ($manifest.PSObject.Properties.Name -contains "notes") {
   $manifest.notes = @($releaseNotes)
@@ -613,6 +630,10 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 10
   $manifestJson,
   [System.Text.UTF8Encoding]::new($false)
 )
+
+# Ensure the desktop update manifest is available from the ephemeral file server too.
+$releaseManifestPath = Join-Path $releaseDir "desktop-update.json"
+Copy-Item -Path $manifestPath -Destination $releaseManifestPath -Force
 
 Invoke-CommandWithRetry -Description "desktop manifest validation" -MaxAttempts 2 -DelaySeconds 2 -Action {
   & npm.cmd run desktop:manifest:validate -w @nexusforge/server
@@ -639,6 +660,7 @@ $summary = @(
   "tunnel=$(if ($tunnelProc) { $tunnelProc.ProcessId } else { '' })"
   ""
   "Manifest: $manifestPath"
+  "ManifestUrl: $manifestUrl"
   "Logs:     $logDir"
 ) -join [Environment]::NewLine
 
