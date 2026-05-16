@@ -11,26 +11,69 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
     throw err;
   }
 }
-const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu } = require("electron");
+const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 
-const localStartUrl = "http://localhost:3000/app";
+const localStartUrl = "http://127.0.0.1:3000/app";
 const packagedHostedFallbackUrl = "https://www.nexusforge.app/app";
-const configuredStartUrl = String(process.env.NEXUSFORGE_DESKTOP_URL || "").trim();
-const allowHostedDevLaunch =
-  String(process.env.NEXUSFORGE_ALLOW_HOSTED_DEV || "false").toLowerCase() === "true";
-const allowHostedCertBypass =
-  String(process.env.NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS || "true").toLowerCase() !== "false";
+const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
+function isLocalHostTarget(value) {
+  try {
+    const normalized = normalizeUrl(value);
+    if (!normalized) {
+      return false;
+    }
+    const hostname = new URL(normalized).hostname;
+    return localHostPattern.test(hostname);
+  } catch {
+    return false;
+  }
+}
+function normalizeUrl(value) {
+  const candidate = String(value).trim();
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    return new URL(candidate).toString();
+  } catch {
+    // Support host-only values like "localhost:3000/app" or "nexusforge.app/app".
+  }
+
+  try {
+    return new URL(`http://${candidate}`).toString();
+  } catch {
+    // Best effort only.
+  }
+
+  return null;
+}
+function parseBooleanEnv(name, defaultValue = false) {
+  const raw = String(process.env[name] ?? "").trim().toLowerCase();
+  if (raw === "" || raw === undefined) {
+    return Boolean(defaultValue);
+  }
+  return ["1", "true", "yes", "y", "on"].includes(raw);
+}
+const configuredStartUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || "") || "";
+const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
+const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", false);
+if (allowHostedCertBypass) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  app.commandLine.appendSwitch("ignore-certificate-errors");
+}
 const shouldForceLocalInDev = !app.isPackaged && !allowHostedDevLaunch;
 const startUrl =
-  shouldForceLocalInDev && configuredStartUrl && !/localhost|127\.0\.0\.1/i.test(configuredStartUrl)
+  shouldForceLocalInDev && configuredStartUrl && !isLocalHostTarget(configuredStartUrl)
     ? localStartUrl
     : configuredStartUrl || (app.isPackaged ? packagedHostedFallbackUrl : localStartUrl);
-const isLocalStartTarget = /localhost|127\.0\.0\.1/i.test(startUrl);
+const isLocalStartTarget = isLocalHostTarget(startUrl);
 const desktopLaunchMode = isLocalStartTarget ? "local-dev" : "hosted";
 const appIconPath =
   process.platform === "win32"
@@ -46,8 +89,12 @@ const desktopUaToken = "NexusForgeDesktop";
 const desktopUserAgentSuffix = ` ${desktopUaToken}/${app.getVersion()}`;
 const stableCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-cache");
 const stableCodeCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-code-cache");
-const updateManifestUrl =
-  process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || `${new URL(startUrl).origin}/desktop-update.json`;
+const manifestOverride = normalizeUrl(process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || "");
+const updateManifestUrl = manifestOverride
+  ? manifestOverride
+  : app.isPackaged
+  ? `${new URL(packagedHostedFallbackUrl).origin}/desktop-update.json`
+  : null;
 const updateCheckIntervalMs = 15 * 60 * 1000;
 const remindLaterDelayMs = 60 * 60 * 1000;
 const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
@@ -905,16 +952,20 @@ async function checkForUpdates(trigger = "manual") {
 
 function createSplashWindow() {
   markStartupTiming("splash-window-create");
+  const { workArea } = screen.getPrimaryDisplay();
   splashWindow = new BrowserWindow({
-    width: 980,
-    height: 560,
+    x: workArea.x,
+    y: workArea.y,
+    width: workArea.width,
+    height: workArea.height,
     frame: false,
     show: true,
     resizable: false,
-    movable: true,
+    movable: false,
     minimizable: false,
     maximizable: false,
-    fullscreenable: false,
+    fullscreenable: true,
+    fullscreen: true,
     backgroundColor: "#020617",
     icon: appIconPath,
     autoHideMenuBar: true,
@@ -1048,8 +1099,8 @@ function resolveWorkspacePath() {
   }
 
   const envWorkspace = process.env.NEXUSFORGE_WORKSPACE_PATH;
-  const hardcodedWorkspace = "D:\\NEXUSFORGE GAMGING APP";
-  const candidates = [envWorkspace, ...getDiscoveredWorkspaceCandidates(), hardcodedWorkspace].filter(Boolean);
+  const defaultWorkspace = path.resolve(__dirname, "..", "..");
+  const candidates = [envWorkspace, defaultWorkspace, ...getDiscoveredWorkspaceCandidates()].filter(Boolean);
   const seen = new Set();
   for (const candidate of candidates) {
     const normalizedCandidate = path.resolve(String(candidate));
@@ -1126,6 +1177,7 @@ function isTransientLoadError(error) {
 async function loadMainWindowUrlWithRetry(url, options = {}) {
   const attempts = Number(options.attempts || 1);
   const delayMs = Number(options.delayMs || 700);
+  const probeTimeoutMs = Number(options.probeTimeoutMs || 5000);
 
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -1134,6 +1186,16 @@ async function loadMainWindowUrlWithRetry(url, options = {}) {
     }
 
     try {
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        const reachable = await waitForUrlReachable(url, {
+          timeoutMs: probeTimeoutMs,
+          intervalMs: 500,
+        });
+        if (!reachable) {
+          throw new Error(`URL not reachable or returned bad status: ${url}`);
+        }
+      }
+
       await mainWindow.loadURL(url);
       return;
     } catch (error) {
@@ -1160,7 +1222,7 @@ async function waitForUrlReachable(url, options = {}) {
         cache: "no-store",
       });
 
-      if (response.status >= 200 && response.status < 500) {
+      if (response.status >= 200 && response.status < 400) {
         return true;
       }
     } catch {
@@ -1257,7 +1319,7 @@ async function tryHostedFallbackFromLocal() {
   let lastError = null;
 
   for (const target of hostedTargets) {
-    if (/localhost|127\.0\.0\.1/i.test(target)) {
+    if (isLocalHostTarget(target)) {
       continue;
     }
 
@@ -1307,6 +1369,11 @@ function loadFallbackPage(message) {
 
   const targetWindow = mainWindow;
   if (!targetWindow || targetWindow.isDestroyed()) {
+    return;
+  }
+
+  if (!fs.existsSync(fallbackPath)) {
+    console.warn("[NexusForge Desktop] Fallback file missing:", fallbackPath);
     return;
   }
 
@@ -1537,7 +1604,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target, or start local services on http://localhost:3000/app.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target, or start local services on http://127.0.0.1:3000/app.",
       );
     }
     return;
