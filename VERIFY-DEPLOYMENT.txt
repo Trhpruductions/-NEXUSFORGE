@@ -1,5 +1,5 @@
 ﻿Desktop release deployment bundle
-Generated: 2026-05-16T13:38:19
+Generated: 2026-05-17T20:53:22
 Version: 1.0.11
 
 Upload these files to your public download host root (same host as desktop-update.json and installer URLs):
