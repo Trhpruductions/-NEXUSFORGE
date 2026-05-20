@@ -19,12 +19,22 @@ type DesktopBridge = {
   runtime?: string;
   getUpdateState?: () => Promise<DesktopUpdateState>;
   checkUpdatesNow?: () => Promise<DesktopUpdateState>;
+  downloadUpdateNow?: () => Promise<DesktopUpdateState>;
   restartForUpdate?: () => Promise<{ restarting: boolean }>;
   onUpdateState?: (callback: (payload: DesktopUpdateState) => void) => () => void;
 };
 
 function statusMessage(state: DesktopUpdateState | null): string {
   if (!state) return "Desktop runtime initializing...";
+  const hasActionableUpdate =
+    state.forceRequired ||
+    state.downloading ||
+    state.downloaded ||
+    state.available ||
+    state.checking;
+  if (state.lastError && !hasActionableUpdate) {
+    return `Version ${state.currentVersion}`;
+  }
   if (state.lastError) return state.lastError;
   if (state.forceRequired && state.downloaded) {
     return `Required update ${state.latestVersion ?? ""} downloaded. Installing now.`;
@@ -78,15 +88,15 @@ export function DesktopUpdateBanner() {
   const toneClass = state?.lastError
     ? "border-rose-500/45 bg-rose-950/35 text-rose-100"
     : state?.downloaded
-      ? "border-emerald-500/45 bg-emerald-950/35 text-emerald-100"
+      ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
       : state?.available
-        ? "border-cyan-500/45 bg-cyan-950/35 text-cyan-100"
+        ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
         : "border-slate-700 bg-slate-900/75 text-slate-200";
 
   const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
 
   return (
-    <div className={`pointer-events-auto fixed right-4 top-4 z-[120] w-[min(90vw,420px)] rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
+    <div className={`pointer-events-auto fixed right-4 top-4 z-[140] w-[min(90vw,420px)] rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
       <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">Desktop Update Center</p>
       <p className="mt-1 text-sm font-medium">{statusMessage(state)}</p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -102,6 +112,18 @@ export function DesktopUpdateBanner() {
         >
           Check now
         </Button>
+        {state?.available && !state?.downloaded ? (
+          <Button
+            onClick={() => {
+              if (typeof bridge?.downloadUpdateNow === "function") {
+                void bridge.downloadUpdateNow().then(setState).catch(() => undefined);
+              }
+            }}
+            className="h-8 rounded-lg border border-amber-500/45 bg-amber-500/10 px-3 text-xs text-amber-100 hover:bg-amber-500/15"
+          >
+            Download update now
+          </Button>
+        ) : null}
         {state?.downloaded ? (
           <Button
             onClick={() => {
@@ -109,7 +131,7 @@ export function DesktopUpdateBanner() {
                 void bridge.restartForUpdate();
               }
             }}
-            className="h-8 rounded-lg border-emerald-500/55 bg-[linear-gradient(180deg,rgba(110,231,183,0.95),rgba(16,185,129,0.96)_45%,rgba(5,150,105,0.96))] px-3 text-xs text-slate-950 shadow-[0_14px_28px_rgba(16,185,129,0.24),inset_0_1px_0_rgba(255,255,255,0.28)]"
+            className="h-8 rounded-lg border-amber-500/55 bg-[linear-gradient(180deg,rgba(255,184,108,0.95),rgba(255,184,108,0.96)_45%,rgba(255,170,50,0.96))] px-3 text-xs text-slate-950 shadow-[0_14px_28px_rgba(255,121,63,0.24),inset_0_1px_0_rgba(255,255,255,0.28)]"
           >
             Install update now
           </Button>

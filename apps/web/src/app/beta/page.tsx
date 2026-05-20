@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 
 export default function BetaPage() {
   return (
@@ -8,22 +9,30 @@ export default function BetaPage() {
       title="Desktop-First Beta Access"
       subtitle="Welcome testers. Use this page as the starting point for account creation, login, and invite acceptance."
       metrics={[
-        { label: "Build Channel", value: "Beta", tone: "cyan" },
-        { label: "Platform", value: "Desktop-first web", tone: "emerald" },
+        { label: "Build Channel", value: "Beta", tone: "amber" },
+        { label: "Platform", value: "Desktop-first web", tone: "amber" },
         { label: "Status", value: "Open", tone: "amber" },
       ]}
       actions={[
         { label: "Open App", href: "/app", tone: "primary" },
+        { label: "Sign in", href: "/login?redirect=/beta", tone: "ghost" },
+        { label: "Create account", href: "/register?redirect=/beta", tone: "ghost" },
         { label: "Checklist", href: "/beta/checklist", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-5xl"
     >
+      <GuestAuthCallout
+        title="Welcome testers. Sign in or register to access the beta desktop command experience."
+        description="Create a beta account or login to join the early NexusForge desktop preview and start testing launch workflows."
+        loginHref="/login?redirect=/beta"
+        registerHref="/register?redirect=/beta"
+      />
       <section className="nexus-display-panel rounded-[28px] p-5 sm:p-6">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300">Tester Onboarding</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Tester Onboarding</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/register?redirect=%2Fapp"
-            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-cyan-500/45 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-amber-500/45 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
           >
             Create Beta Account
           </Link>
@@ -35,13 +44,13 @@ export default function BetaPage() {
           </Link>
           <Link
             href="/search"
-            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/80 px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
+            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/80 px-4 text-sm font-semibold text-slate-100 hover:border-amber-500/45"
           >
             Explore Community
           </Link>
           <Link
             href="/beta/feedback"
-            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-emerald-500/45 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300"
+            className="nexus-interactive-btn inline-flex h-11 items-center justify-center rounded-xl border border-amber-500/45 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
           >
             Report Feedback
           </Link>
@@ -60,13 +69,13 @@ export default function BetaPage() {
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <Link
             href="/beta/checklist"
-            className="nexus-interactive-btn rounded-2xl border border-cyan-500/30 bg-cyan-950/20 px-4 py-3 text-sm text-cyan-100 hover:border-cyan-300"
+            className="nexus-interactive-btn rounded-2xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-100 hover:border-amber-300"
           >
             Open Test Checklist
           </Link>
           <Link
             href="/beta/feedback"
-            className="nexus-interactive-btn rounded-2xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100 hover:border-emerald-300"
+            className="nexus-interactive-btn rounded-2xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-100 hover:border-amber-300"
           >
             Open Feedback Intake
           </Link>

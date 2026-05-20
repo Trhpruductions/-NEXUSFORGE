@@ -14,8 +14,11 @@ const orbitron = Orbitron({
   subsets: ["latin"],
 });
 
+// Use the public frontend origin for metadata and canonical URLs in production.
+const metadataBase = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : new URL("http://localhost:3000");
+
 export const metadata: Metadata = {
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase,
   title: {
     default: "NexusForge",
     template: "%s | NexusForge",
@@ -40,6 +43,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${exo.variable} ${orbitron.variable} h-full min-h-dvh w-full antialiased`}>
       <body className="m-0 flex min-h-dvh w-full flex-col overflow-x-hidden bg-background p-0 text-foreground">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <AppProviders>
           <RouteTransition>{children}</RouteTransition>
         </AppProviders>

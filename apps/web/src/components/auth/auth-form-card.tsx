@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
@@ -12,8 +12,12 @@ type AuthFormCardProps = {
 };
 
 export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCardProps) {
+  const titleId = useId();
+
   return (
     <motion.section
+      role="form"
+      aria-labelledby={titleId}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38, ease: "easeOut" }}
@@ -26,7 +30,7 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
         </div>
         <div className="relative mb-6 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="orbital-logo logo-throb relative h-12 w-12 overflow-hidden rounded-2xl border border-cyan-500/25 bg-slate-950/80 shadow-[0_14px_30px_rgba(8,47,73,0.24)]">
+            <div className="orbital-logo logo-throb relative h-12 w-12 overflow-hidden rounded-2xl border border-amber-400/20 bg-slate-950/80 shadow-[0_14px_30px_rgba(71,22,23,0.24)]">
               <Image
                 src="/brand/nexusforge-main-logo.png"
                 alt="NexusForge"
@@ -36,11 +40,13 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
               />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-cyan-400">NexusForge</p>
-              <h1 className="font-[family-name:var(--font-orbitron)] text-xl font-semibold tracking-tight text-white sm:text-2xl">{title}</h1>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-300">NEXUSFORGE</p>
+              <h1 id={titleId} className="font-[family-name:var(--font-orbitron)] text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                {title}
+              </h1>
             </div>
           </div>
-          <div className="hidden rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100 sm:inline-flex">
+          <div className="hidden rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 sm:inline-flex">
             Secure session
           </div>
         </div>
@@ -50,7 +56,7 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
             <span className="nexus-signal-dot" />
             Auth rail secured
           </span>
-          <span className="text-cyan-200">Session restore enabled</span>
+          <span className="text-amber-200">Session restore enabled</span>
         </div>
 
         <p className="relative mb-5 text-sm leading-6 text-slate-300">{subtitle}</p>

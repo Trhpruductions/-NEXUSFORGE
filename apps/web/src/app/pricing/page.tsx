@@ -20,8 +20,9 @@ export default async function PricingPage({
         { label: "Upgrade Momentum", value: "Optimized", tone: "amber" },
       ]}
       actions={[
-        { label: "Open Core+", href: "/core-plus", tone: "ghost" },
-        { label: "Open App", href: "/app", tone: "primary" },
+        { label: "Sign in", href: "/login?redirect=/pricing", tone: "ghost" },
+        { label: "Create account", href: "/register?redirect=/pricing", tone: "primary" },
+        { label: "Open App", href: "/app", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-[1300px]"
     >

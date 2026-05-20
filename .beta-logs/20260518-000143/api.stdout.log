@@ -1,0 +1,43 @@
+
+> nexusforge@1.0.11 beta:api
+> npm run dev -w server
+
+
+> server@1.0.0 dev
+> npm run dev:cleanup-port && npm run dev -w @nexusforge/server
+
+
+> server@1.0.0 dev:cleanup-port
+> powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/cleanup-server-port.ps1
+
+Stopped PID 22488 on port 4000
+
+> @nexusforge/server@1.0.11 dev
+> npm run dev:cleanup-port && npx --yes tsx watch src/index.ts
+
+
+> @nexusforge/server@1.0.11 dev:cleanup-port
+> powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1
+
+Stopped PID 48384 on port 4000
+◇ injected env (23) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from apps\server\.env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+NexusForge API running on http://localhost:4001
+[0mGET /api/health [32m200[0m 2.436 ms - 42[0m
+[discord] Logged in as VEXORA Bot#1026.
+[discord] Registered 4 global command(s).
+[0mGET /api/runtime/launch-mode [32m200[0m 28.220 ms - 143[0m
+[0mHEAD /api/health [32m200[0m 0.337 ms - 42[0m
+[0mHEAD /api/runtime/launch-mode [32m200[0m 1.887 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 1.626 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 24.578 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 1.501 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 23.733 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 1.854 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 1.265 ms - 143[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 25.092 ms - 143[0m
+[0mGET /api/health [32m200[0m 0.243 ms - 42[0m
+[0mGET /api/health [32m200[0m 0.217 ms - 42[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 24.771 ms - 143[0m
+[0mGET /api/health [32m200[0m 0.202 ms - 42[0m

@@ -150,10 +150,10 @@ function MetricSparkline({ points, tone }: MetricSparklineProps) {
   const max = Math.max(1, ...points);
   const toneClass =
     tone === "emerald"
-      ? "bg-emerald-300/85"
+      ? "bg-amber-300/85"
       : tone === "indigo"
         ? "bg-indigo-300/85"
-        : "bg-cyan-300/85";
+        : "bg-amber-300/85";
 
   const heightClassFromPoint = (point: number): string => {
     const heightPct = Math.max(18, Math.round((point / max) * 100));
@@ -175,10 +175,10 @@ function MetricSparkline({ points, tone }: MetricSparklineProps) {
 function LiveMetricChip({ label, value, tone, points }: LiveMetricChipProps) {
   const toneClass =
     tone === "emerald"
-      ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-200"
+      ? "border-amber-500/40 bg-amber-950/40 text-amber-200"
       : tone === "indigo"
         ? "border-indigo-500/35 bg-indigo-950/30 text-indigo-100"
-        : "border-cyan-500/35 bg-cyan-950/30 text-cyan-100";
+        : "border-amber-500/35 bg-amber-950/30 text-amber-100";
 
   return (
     <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 whitespace-nowrap ${toneClass}`}>
@@ -216,6 +216,8 @@ export function ForgeChatClient() {
   const [selectedForgeInviteCode, setSelectedForgeInviteCode] = useState("");
   const [selectedInviteShareSource, setSelectedInviteShareSource] = useState<(typeof inviteSourcePresets)[number]>("direct");
   const [selectedInviteQrCode, setSelectedInviteQrCode] = useState("");
+  const [forgeSearch, setForgeSearch] = useState("");
+  const [channelSearch, setChannelSearch] = useState("");
   const [botName, setBotName] = useState("");
   const [botDescription, setBotDescription] = useState("");
   const [botAvatar, setBotAvatar] = useState("");
@@ -585,7 +587,7 @@ export function ForgeChatClient() {
 
   const qualityScoreTone = useMemo(() => {
     const score = inviteAnalytics?.summary.qualityScore ?? 0;
-    if (score >= 75) return "text-emerald-300";
+    if (score >= 75) return "text-amber-300";
     if (score >= 45) return "text-amber-300";
     return "text-rose-300";
   }, [inviteAnalytics?.summary.qualityScore]);
@@ -596,7 +598,7 @@ export function ForgeChatClient() {
   const promotionLoop = inviteAnalytics?.promotionLoop;
   const campaignLoopTone =
     campaignLoop?.status === "improving"
-      ? "text-emerald-300"
+      ? "text-amber-300"
       : campaignLoop?.status === "collecting"
         ? "text-amber-300"
         : "text-rose-300";
@@ -608,11 +610,11 @@ export function ForgeChatClient() {
         : "Needs Attention";
   const promotionLoopTone =
     promotionLoop?.status === "profitable"
-      ? "text-emerald-300"
+      ? "text-amber-300"
       : promotionLoop?.status === "collecting"
         ? "text-amber-300"
         : promotionLoop?.status === "mixed"
-          ? "text-cyan-300"
+          ? "text-amber-300"
           : "text-rose-300";
   const promotionLoopLabel =
     promotionLoop?.status === "profitable"
@@ -713,15 +715,15 @@ export function ForgeChatClient() {
         ? creatorCampaignMutation.error.message
         : "";
 
-  useEffect(() => {
-    type DesktopBridge = {
-      runtime?: string;
-      getStartupHealth?: () => Promise<DesktopStartupHealth>;
-      runMaintenance?: () => Promise<DesktopStartupHealth>;
-      reloadWindow?: () => Promise<DesktopStartupHealth>;
-      restartCleanSession?: () => Promise<DesktopStartupHealth>;
-    };
+  type DesktopBridge = {
+    runtime?: string;
+    getStartupHealth?: () => Promise<DesktopStartupHealth>;
+    runMaintenance?: () => Promise<DesktopStartupHealth>;
+    reloadWindow?: () => Promise<DesktopStartupHealth>;
+    restartCleanSession?: () => Promise<DesktopStartupHealth>;
+  };
 
+  useEffect(() => {
     const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
     if (!bridge || bridge.runtime !== "electron" || typeof bridge.getStartupHealth !== "function") {
       setDesktopStartupHealth(null);
@@ -934,6 +936,32 @@ export function ForgeChatClient() {
     [forgeDetailQuery.data],
   );
 
+  const selectedForge = useMemo(
+    () => forgesQuery.data?.forges.find((forge) => forge.id === selectedForgeId) ?? null,
+    [forgesQuery.data, selectedForgeId],
+  );
+
+  const filteredTextChannels = useMemo(
+    () => textChannels.filter((channel) => channel.name.toLowerCase().includes(channelSearch.toLowerCase())),
+    [textChannels, channelSearch],
+  );
+
+  const filteredVoiceChannels = useMemo(
+    () => voiceChannels.filter((channel) => channel.name.toLowerCase().includes(channelSearch.toLowerCase())),
+    [voiceChannels, channelSearch],
+  );
+
+  const selectedChannel = useMemo(
+    () => [...textChannels, ...voiceChannels].find((channel) => channel.id === selectedChannelId) ?? null,
+    [textChannels, voiceChannels, selectedChannelId],
+  );
+
+  const visibleForges = useMemo(() => {
+    const allForges = forgesQuery.data?.forges ?? [];
+    if (!forgeSearch.trim()) return allForges;
+    return allForges.filter((forge) => forge.name.toLowerCase().includes(forgeSearch.toLowerCase()));
+  }, [forgesQuery.data, forgeSearch]);
+
   const acceptedFriends = useMemo(
     () =>
       (friendsQuery.data?.friends ?? []).filter((item) => item.status === "ACCEPTED"),
@@ -991,7 +1019,7 @@ export function ForgeChatClient() {
   }, [dmThreadsQuery.data?.threads]);
 
   const connectionChipClass = socketConnected
-    ? "border-emerald-500/40 bg-emerald-950/40 text-emerald-200"
+    ? "border-amber-500/40 bg-amber-950/40 text-amber-200"
     : "border-rose-500/45 bg-rose-950/35 text-rose-200";
 
   const sampleRef = useRef({
@@ -1569,9 +1597,9 @@ export function ForgeChatClient() {
   if (!hydrated) {
     return (
       <div className="flex min-h-[72vh] items-center justify-center px-2 py-8">
-        <div className="grid w-full max-w-4xl gap-4 rounded-3xl border border-cyan-500/30 bg-slate-950/70 p-5 text-cyan-100 shadow-[0_24px_80px_rgba(8,15,30,0.45)] backdrop-blur sm:p-8 lg:grid-cols-[1.25fr_0.95fr]">
+        <div className="grid w-full max-w-4xl gap-4 rounded-3xl border border-amber-500/30 bg-slate-950/70 p-5 text-amber-100 shadow-[0_24px_80px_rgba(8,15,30,0.45)] backdrop-blur sm:p-8 lg:grid-cols-[1.25fr_0.95fr]">
           <div className="space-y-4">
-            <p className="text-[11px] uppercase tracking-[0.26em] text-cyan-300">Secure Session</p>
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Secure Session</p>
             <h2 className="font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
               Restoring your desktop workspace.
             </h2>
@@ -1579,16 +1607,16 @@ export function ForgeChatClient() {
               We&apos;re checking your session and preparing the live workspace. If this takes longer than expected, sign in again to reload the latest state.
             </p>
             <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-              <span className="rounded-full border border-cyan-500/35 bg-cyan-950/35 px-3 py-1">Auth sync</span>
+              <span className="rounded-full border border-amber-500/35 bg-amber-950/35 px-3 py-1">Auth sync</span>
               <span className="rounded-full border border-slate-600 bg-slate-900/75 px-3 py-1">Permissions check</span>
-              <span className="rounded-full border border-emerald-500/35 bg-emerald-950/30 px-3 py-1">Workspace warm-up</span>
+              <span className="rounded-full border border-amber-500/35 bg-amber-950/30 px-3 py-1">Workspace warm-up</span>
             </div>
           </div>
           <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.18),transparent_42%),radial-gradient(circle_at_80%_70%,rgba(245,158,11,0.16),transparent_40%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,184,108,0.18),transparent_42%),radial-gradient(circle_at_80%_70%,rgba(245,158,11,0.16),transparent_40%)]" />
             <div className="relative space-y-3">
-              <div className="rounded-[22px] border border-cyan-500/20 bg-[linear-gradient(155deg,rgba(2,6,23,0.92),rgba(8,47,73,0.18))] p-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Live Fabric</p>
+              <div className="rounded-[22px] border border-amber-500/20 bg-[linear-gradient(155deg,rgba(2,6,23,0.92),rgba(8,47,73,0.18))] p-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Live Fabric</p>
                 <p className="mt-1 text-sm text-slate-200">Workspace sync, moderation lanes, and premium operations are standing by.</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -1625,14 +1653,14 @@ export function ForgeChatClient() {
               </Link>
               <Link
                 href="/register?redirect=%2Fapp"
-                className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+                className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
               >
                 Create account
               </Link>
             </div>
           </div>
           <div className="nexus-panel relative overflow-hidden rounded-2xl p-4 sm:p-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_36%),radial-gradient(circle_at_85%_75%,rgba(34,211,238,0.16),transparent_38%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.14),transparent_36%),radial-gradient(circle_at_85%_75%,rgba(255,184,108,0.16),transparent_38%)]" />
             <div className="relative space-y-3">
               <div className="rounded-[22px] border border-amber-500/20 bg-[linear-gradient(155deg,rgba(2,6,23,0.92),rgba(120,53,15,0.18))] p-4">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-amber-200">What you get</p>
@@ -1661,14 +1689,16 @@ export function ForgeChatClient() {
       <div className="nexus-panel-strong relative flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <motion.img
-            src="/brand/nexusforge-main-logo.png"
+            src="/brand/nexusforge-logo.png"
             alt="NexusForge"
-            className="logo-throb h-14 w-14 rounded-xl border border-amber-500/40 bg-black/85 object-contain p-1 shadow-[0_8px_20px_rgba(251,146,60,0.22)] ring-1 ring-cyan-400/25"
+            className="logo-throb h-12 w-12 rounded-xl border border-amber-500/40 bg-black/85 object-contain p-1 shadow-[0_8px_20px_rgba(251,146,60,0.22)] ring-1 ring-amber-300/25"
             animate={{ scale: [1, 1.04, 1] }}
             transition={{ repeat: Infinity, duration: 3.4, ease: "easeInOut" }}
           />
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Command Center</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Command Center</p>
+          </div>
+        </div>
 
         <div className="nexus-panel relative rounded-2xl border border-fuchsia-500/20 px-4 py-3">
           <div className="pointer-events-none absolute left-3 top-3 h-20 w-20 rounded-full bg-fuchsia-500/10 blur-2xl" />
@@ -1691,7 +1721,7 @@ export function ForgeChatClient() {
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Forge Boost Pack</p>
                   <p className="mt-1 text-sm text-slate-200">Inject temporary growth pressure and spotlight momentum into your active forge.</p>
                 </div>
-                <span className="rounded-full border border-cyan-500/35 bg-cyan-950/30 px-2 py-0.5 text-xs text-cyan-100">
+                <span className="rounded-full border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-100">
                   {forgeBoostEntitlement?.quantity ?? 0} ready
                 </span>
               </div>
@@ -1703,13 +1733,13 @@ export function ForgeChatClient() {
                   {forgeBoostMutation.isPending ? "Applying..." : "Apply Forge Boost"}
                 </Button>
                 {!hasForgeBoostPack ? (
-                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300">
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300">
                     Buy Boost Packs
                   </Link>
                 ) : null}
               </div>
               <p className="mt-2 text-xs text-slate-400">{selectedForgeId ? "Boost applies to your selected forge operations." : "Select a forge before applying a boost pack."}</p>
-              {forgeBoostMessage ? <p className="mt-2 text-xs text-cyan-100">{forgeBoostMessage}</p> : null}
+              {forgeBoostMessage ? <p className="mt-2 text-xs text-amber-100">{forgeBoostMessage}</p> : null}
             </div>
 
             <div className="glass-cut rounded-[20px] border border-slate-800/80 p-4">
@@ -1770,7 +1800,7 @@ export function ForgeChatClient() {
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Advanced Moderation AI</p>
                   <p className="mt-1 text-sm text-slate-200">Provision raid detection and behavior intelligence for the active forge.</p>
                 </div>
-                <span className="rounded-full border border-emerald-500/35 bg-emerald-950/30 px-2 py-0.5 text-xs text-emerald-100">
+                <span className="rounded-full border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-100">
                   {hasAdvancedModerationAI ? "Active" : "Locked"}
                 </span>
               </div>
@@ -1782,13 +1812,13 @@ export function ForgeChatClient() {
                   {advancedModerationMutation.isPending ? "Provisioning..." : "Activate AI Shield"}
                 </Button>
                 {!hasAdvancedModerationAI ? (
-                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-emerald-500/35 bg-emerald-950/25 px-4 text-sm font-semibold text-emerald-100 hover:border-emerald-300">
+                  <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300">
                     Unlock Moderation AI
                   </Link>
                 ) : null}
               </div>
               <p className="mt-2 text-xs text-slate-400">{selectedForgeId ? "Activation applies to your currently selected forge workflow." : "Select a forge before provisioning moderation AI."}</p>
-              {advancedModerationMessage ? <p className="mt-2 text-xs text-emerald-100">{advancedModerationMessage}</p> : null}
+              {advancedModerationMessage ? <p className="mt-2 text-xs text-amber-100">{advancedModerationMessage}</p> : null}
             </div>
           </div>
         </div>
@@ -1797,12 +1827,11 @@ export function ForgeChatClient() {
               <span className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100">
                 {user?.premium ? `Core+ ${user.premiumTier ?? "CORE"}` : "Core+ NONE"}
               </span>
-              <span className="rounded-full border border-cyan-500/35 bg-cyan-950/30 px-2 py-0.5 text-cyan-100">
+              <span className="rounded-full border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-amber-100">
                 Boost {user?.corePlusBoostLevel ?? 0}
               </span>
             </div>
           </div>
-        </div>
         <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-1 text-[11px]">
           <div className="flex items-center gap-2 rounded-full border border-slate-600/80 bg-slate-900/75 px-2 py-1 text-slate-100">
             {user.avatar ? (
@@ -1812,10 +1841,11 @@ export function ForgeChatClient() {
                 width={28}
                 height={28}
                 unoptimized
-                className="h-7 w-7 rounded-full border border-cyan-500/40 object-cover"
+                className="h-7 w-7 rounded-full border border-amber-500/40 object-cover"
+                style={{ width: "auto", height: "auto" }}
               />
             ) : (
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-cyan-500/35 bg-cyan-950/35 text-[10px] font-semibold text-cyan-100">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/35 bg-amber-950/35 text-[10px] font-semibold text-amber-100">
                 {userInitials(user.username)}
               </span>
             )}
@@ -1850,13 +1880,12 @@ export function ForgeChatClient() {
           <LiveMetricChip label="DM threads" value={dmThreadsQuery.data?.threads.length ?? 0} tone="indigo" points={dmHistory} />
           <LiveMetricChip label="voice live" value={activeVoiceCount} tone="cyan" points={voiceHistory} />
         </div>
-      </div>
 
       {desktopStartupHealth ? (
         <div
           className={`rounded-xl border px-3 py-2 text-xs ${
             desktopStartupHealth.storageResetSuccess
-              ? "border-emerald-500/35 bg-emerald-950/20 text-emerald-100"
+              ? "border-amber-500/35 bg-amber-950/20 text-amber-100"
               : "border-amber-500/35 bg-amber-950/25 text-amber-100"
           }`}
         >
@@ -1868,7 +1897,7 @@ export function ForgeChatClient() {
             <button
               type="button"
               onClick={() => setDesktopDiagnosticsOpen((current) => !current)}
-              className="rounded-md border border-slate-500/60 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:border-cyan-400/70"
+              className="rounded-md border border-slate-500/60 bg-slate-900/60 px-2 py-1 text-[11px] text-slate-100 hover:border-amber-400/70"
             >
               {desktopDiagnosticsOpen ? "Hide Diagnostics" : "Open Diagnostics"}
             </button>
@@ -1901,13 +1930,7 @@ export function ForgeChatClient() {
                   type="button"
                   disabled={desktopDiagnosticsPending}
                   onClick={async () => {
-                    const bridge = (
-                      window as {
-                        nexusforgeDesktop?: {
-                          runMaintenance?: () => Promise<DesktopStartupHealth>;
-                        };
-                      }
-                    ).nexusforgeDesktop;
+                    const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
 
                     if (!bridge?.runMaintenance) {
                       setDesktopDiagnosticsMessage("Maintenance bridge is unavailable.");
@@ -1927,7 +1950,7 @@ export function ForgeChatClient() {
                       setDesktopDiagnosticsPending(false);
                     }
                   }}
-                  className="rounded-md border border-cyan-500/45 bg-cyan-950/25 px-2 py-1 text-[11px] text-cyan-100 hover:border-cyan-300 disabled:opacity-60"
+                  className="rounded-md border border-amber-500/45 bg-amber-950/25 px-2 py-1 text-[11px] text-amber-100 hover:border-amber-300 disabled:opacity-60"
                 >
                   {desktopDiagnosticsPending ? "Running..." : "Run Cleanup + Reload"}
                 </button>
@@ -1935,14 +1958,7 @@ export function ForgeChatClient() {
                   type="button"
                   disabled={desktopDiagnosticsPending}
                   onClick={async () => {
-                    const bridge = (
-                      window as {
-                        nexusforgeDesktop?: {
-                          reloadWindow?: () => Promise<DesktopStartupHealth>;
-                        };
-                      }
-                    ).nexusforgeDesktop;
-
+                    const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
                     if (!bridge?.reloadWindow) {
                       setDesktopDiagnosticsMessage("Reload bridge is unavailable.");
                       return;
@@ -1969,14 +1985,7 @@ export function ForgeChatClient() {
                   type="button"
                   disabled={desktopDiagnosticsPending}
                   onClick={async () => {
-                    const bridge = (
-                      window as {
-                        nexusforgeDesktop?: {
-                          restartCleanSession?: () => Promise<DesktopStartupHealth>;
-                        };
-                      }
-                    ).nexusforgeDesktop;
-
+                    const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
                     if (!bridge?.restartCleanSession) {
                       setDesktopDiagnosticsMessage("Clean restart bridge is unavailable.");
                       return;
@@ -1999,7 +2008,7 @@ export function ForgeChatClient() {
                   Restart Clean Session
                 </button>
               </div>
-              {desktopDiagnosticsMessage ? <p className="text-cyan-200">{desktopDiagnosticsMessage}</p> : null}
+              {desktopDiagnosticsMessage ? <p className="text-amber-200">{desktopDiagnosticsMessage}</p> : null}
             </div>
           ) : null}
         </div>
@@ -2026,11 +2035,11 @@ export function ForgeChatClient() {
           </div>
           <div className="glass-cut rounded-xl px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Upgrades Today</p>
-            <p className="text-lg font-semibold text-cyan-100">{corePlusTelemetryQuery.data?.telemetry.upgradesToday ?? 0}</p>
+            <p className="text-lg font-semibold text-amber-100">{corePlusTelemetryQuery.data?.telemetry.upgradesToday ?? 0}</p>
           </div>
           <div className="glass-cut rounded-xl px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Avg Boost</p>
-            <p className="text-lg font-semibold text-emerald-100">{corePlusTelemetryQuery.data?.telemetry.avgBoostLevel ?? 0}</p>
+            <p className="text-lg font-semibold text-amber-100">{corePlusTelemetryQuery.data?.telemetry.avgBoostLevel ?? 0}</p>
           </div>
           <div className="glass-cut rounded-xl px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Peak Boost</p>
@@ -2048,7 +2057,7 @@ export function ForgeChatClient() {
         className="nexus-panel order-2 max-h-[72vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
       >
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
-          <Link href="/notifications" className="nexus-pill rounded-lg px-2 py-1 hover:border-cyan-300/70">
+          <Link href="/notifications" className="nexus-pill rounded-lg px-2 py-1 hover:border-amber-300/70">
             Signals
           </Link>
           {user?.isAdmin ? (
@@ -2056,19 +2065,32 @@ export function ForgeChatClient() {
               Admin
             </Link>
           ) : null}
-          <Link href="/settings" className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 px-2 py-1 text-cyan-100 hover:border-cyan-300">
+          <Link href="/settings" className="rounded-lg border border-amber-500/30 bg-amber-950/20 px-2 py-1 text-amber-100 hover:border-amber-300">
             Settings
           </Link>
           <button
             onClick={() => setIsCompactLayout((prev) => !prev)}
-            className="rounded-lg border border-slate-600/80 bg-slate-900/70 px-2 py-1 text-slate-100 hover:border-cyan-500/60"
+            className="rounded-lg border border-slate-600/80 bg-slate-900/70 px-2 py-1 text-slate-100 hover:border-amber-500/60"
           >
             {isCompactLayout ? "Expanded" : "Compact"}
           </button>
         </div>
         <h2 className="command-section-title mb-3">Your Forges</h2>
+        <div className="mb-3 rounded-2xl border border-slate-700/70 bg-slate-950/80 p-3 text-sm text-slate-300">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Selected Forge</p>
+          <p className="mt-2 text-base font-semibold text-white">{selectedForge?.name ?? "No forge selected"}</p>
+          <p className="mt-1 text-xs text-slate-500">{selectedForge ? `${selectedForge.inviteCode} · ${selectedForge.inviteJoinCount ?? 0} members` : "Pick a forge from the list below."}</p>
+        </div>
+        <div className="mb-4">
+          <input
+            value={forgeSearch}
+            onChange={(event) => setForgeSearch(event.target.value)}
+            placeholder="Filter forges"
+            className="h-10 w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
+          />
+        </div>
         <div className="space-y-2">
-          {forgesQuery.data?.forges.map((forge) => (
+          {visibleForges.map((forge) => (
             <button
               key={forge.id}
               onClick={() => {
@@ -2078,14 +2100,19 @@ export function ForgeChatClient() {
               }}
               className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
                 selectedForgeId === forge.id
-                  ? "border-cyan-400 bg-cyan-950/40 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
-                  : "border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/60"
+                  ? "border-amber-400 bg-amber-950/40 text-amber-100 shadow-[0_0_0_1px_rgba(255,184,108,0.25)]"
+                  : "border-slate-700 bg-slate-900 text-slate-200 hover:border-amber-500/60"
               }`}
             >
               <p>{forge.name}</p>
               <p className="text-xs text-slate-400">Invite: {forge.inviteCode}</p>
             </button>
           ))}
+          {!visibleForges.length ? (
+            <div className="rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-3 text-sm text-slate-500">
+              No forges match your filter.
+            </div>
+          ) : null}
         </div>
 
         <form
@@ -2118,8 +2145,8 @@ export function ForgeChatClient() {
                     onClick={() => setForgeTemplate(template.id)}
                     className={`rounded-lg border px-2.5 py-2 text-left transition ${
                       active
-                        ? "border-cyan-400/60 bg-cyan-950/35 text-cyan-100"
-                        : "border-slate-700/80 bg-slate-900/75 text-slate-300 hover:border-cyan-500/45"
+                        ? "border-amber-400/60 bg-amber-950/35 text-amber-100"
+                        : "border-slate-700/80 bg-slate-900/75 text-slate-300 hover:border-amber-500/45"
                     }`}
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em]">{template.label}</p>
@@ -2163,7 +2190,7 @@ export function ForgeChatClient() {
             <p
               className={`text-xs ${
                 createForgeInviteStatus?.tone === "emerald"
-                  ? "text-emerald-300"
+                  ? "text-amber-300"
                   : createForgeInviteStatus?.tone === "amber"
                     ? "text-amber-300"
                     : createForgeInviteStatus?.tone === "rose"
@@ -2182,7 +2209,7 @@ export function ForgeChatClient() {
                 <Link href="/pricing" className="inline-flex h-9 items-center rounded-lg border border-amber-400/45 bg-amber-400 px-3 text-xs font-semibold text-slate-950 hover:bg-amber-300">
                   Unlock Branding Kit
                 </Link>
-                <Link href="/core-plus" className="inline-flex h-9 items-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300">
+                <Link href="/core-plus" className="inline-flex h-9 items-center rounded-lg border border-amber-500/35 bg-amber-950/25 px-3 text-xs font-semibold text-amber-100 hover:border-amber-300">
                   Review Billing
                 </Link>
               </div>
@@ -2195,8 +2222,8 @@ export function ForgeChatClient() {
         </form>
 
         <div className="mt-4 grid gap-2">
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-3">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200">Selected Forge Invite Link</p>
+          <div className="rounded-xl border border-amber-500/20 bg-amber-950/10 p-3">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200">Selected Forge Invite Link</p>
             <div className="mt-2 grid gap-2">
               <Input
                 label="Server Invite"
@@ -2207,13 +2234,13 @@ export function ForgeChatClient() {
               {selectedForgeInviteUrl ? (
                 <div className="rounded-lg border border-slate-700/80 bg-slate-900/70 px-3 py-2">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Full Invite URL</p>
-                  <p className="mt-1 break-all text-xs text-cyan-100">{selectedForgeInviteUrl}</p>
+                  <p className="mt-1 break-all text-xs text-amber-100">{selectedForgeInviteUrl}</p>
                 </div>
               ) : null}
               {selectedForgeInviteUrl ? (
-                <div className="grid gap-2 rounded-lg border border-cyan-500/15 bg-slate-950/50 px-3 py-3">
+                <div className="grid gap-2 rounded-lg border border-amber-500/15 bg-slate-950/50 px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-cyan-200">Share Source</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">Share Source</p>
                     <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tagged link updates analytics</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -2225,8 +2252,8 @@ export function ForgeChatClient() {
                           onClick={() => setSelectedInviteShareSource(source)}
                           className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition ${
                             isActive
-                              ? "border-cyan-300/60 bg-cyan-400/15 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.2)]"
-                              : "border-slate-700 bg-slate-900/80 text-slate-400 hover:border-cyan-500/40 hover:text-cyan-100"
+                              ? "border-amber-300/60 bg-amber-400/15 text-amber-100 shadow-[0_0_0_1px_rgba(255,184,108,0.2)]"
+                              : "border-slate-700 bg-slate-900/80 text-slate-400 hover:border-amber-500/40 hover:text-amber-100"
                           }`}
                         >
                           {source}
@@ -2236,7 +2263,7 @@ export function ForgeChatClient() {
                   </div>
                   <div className="rounded-md border border-slate-700/80 bg-slate-950/70 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tagged Share URL</p>
-                    <p className="mt-1 break-all text-xs text-cyan-100">{selectedTaggedInviteUrl}</p>
+                    <p className="mt-1 break-all text-xs text-amber-100">{selectedTaggedInviteUrl}</p>
                   </div>
                 </div>
               ) : null}
@@ -2244,7 +2271,7 @@ export function ForgeChatClient() {
                 <p
                   className={`text-xs ${
                     selectedForgeInviteStatus?.tone === "emerald"
-                      ? "text-emerald-300"
+                      ? "text-amber-300"
                       : selectedForgeInviteStatus?.tone === "amber"
                         ? "text-amber-300"
                         : selectedForgeInviteStatus?.tone === "rose"
@@ -2272,14 +2299,14 @@ export function ForgeChatClient() {
               {selectedForgeInviteCode.trim() ? (
                 <Link
                   href={`/invite/${encodeURIComponent(selectedForgeInviteCode.trim().toLowerCase())}`}
-                  className="inline-flex h-9 items-center justify-center rounded-lg border border-cyan-500/35 bg-cyan-950/25 px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-500/35 bg-amber-950/25 px-3 text-xs font-semibold text-amber-100 hover:border-amber-300"
                 >
                   Open Invite Page
                 </Link>
               ) : null}
               <div className="grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Views</p>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Views</p>
                   <p className="mt-1 text-sm font-semibold text-slate-100">{forgeDetailQuery.data?.forge.inviteViewCount ?? 0}</p>
                   <p className="mt-1 text-[11px] text-slate-400">
                     Last view {forgeDetailQuery.data?.forge.inviteLastViewedAt ? new Date(forgeDetailQuery.data.forge.inviteLastViewedAt).toLocaleString() : "not yet"}
@@ -2299,8 +2326,8 @@ export function ForgeChatClient() {
                 <p className="text-[11px] text-slate-400">{forgeDetailQuery.data?.forge.inviteJoinCount ?? 0} joins from {forgeDetailQuery.data?.forge.inviteViewCount ?? 0} views.</p>
               </div>
               {inviteSourceStats.length ? (
-                <div className="grid gap-2 rounded-xl border border-cyan-500/20 bg-cyan-950/10 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">Source Breakdown</p>
+                <div className="grid gap-2 rounded-xl border border-amber-500/20 bg-amber-950/10 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Source Breakdown</p>
                   <div className="grid gap-1">
                     {inviteSourceStats.slice(0, 5).map((sourceStat) => {
                       const sourceRate = sourceStat.viewCount > 0 ? Math.round((sourceStat.joinCount / sourceStat.viewCount) * 100) : 0;
@@ -2315,15 +2342,15 @@ export function ForgeChatClient() {
                 </div>
               ) : null}
               {inviteAnalytics ? (
-                <div className="grid gap-2 rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-3">
+                <div className="grid gap-2 rounded-xl border border-amber-500/20 bg-amber-950/10 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200">Invite Growth Intelligence</p>
-                    <p className={`text-sm font-semibold ${qualityScoreTone}`}>Quality {inviteAnalytics.summary.qualityScore}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Invite Growth Intelligence</p>
+                    <p className={"text-sm font-semibold " + qualityScoreTone}>Quality {inviteAnalytics.summary.qualityScore}</p>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-lg border border-slate-700/80 bg-slate-950/70 px-3 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Best Source</p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-100">{bestSource?.source ?? "N/A"}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">{bestSource?.source ?? "N/A"}</p>
                       <p className="mt-1 text-[11px] text-slate-400">
                         {bestSource ? `${bestSource.joinCount} joins from ${bestSource.viewCount} views (${bestSource.sourceConversionRate}%)` : "No source data yet"}
                       </p>
@@ -2342,15 +2369,15 @@ export function ForgeChatClient() {
                 </div>
               ) : null}
               {campaignLoop ? (
-                <div className="grid gap-2 rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3">
+                <div className="grid gap-2 rounded-xl border border-amber-500/25 bg-amber-950/15 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">Campaign Loop Verification</p>
-                    <p className={`text-sm font-semibold ${campaignLoopTone}`}>{campaignLoopLabel}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Campaign Loop Verification</p>
+                    <p className={"text-sm font-semibold " + campaignLoopTone}>{campaignLoopLabel}</p>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-3">
                     <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Improved</p>
-                      <p className="mt-1 text-sm font-semibold text-emerald-200">{campaignLoop.improvedCount}</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-200">{campaignLoop.improvedCount}</p>
                     </div>
                     <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Collecting</p>
@@ -2369,7 +2396,7 @@ export function ForgeChatClient() {
                           <p
                             className={
                               entry.state === "improved"
-                                ? "text-emerald-300"
+                                ? "text-amber-300"
                                 : entry.state === "collecting"
                                   ? "text-amber-300"
                                   : "text-rose-300"
@@ -2385,14 +2412,14 @@ export function ForgeChatClient() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-cyan-200">Recommendation: {campaignLoop.recommendation}</p>
+                  <p className="text-[11px] text-amber-200">Recommendation: {campaignLoop.recommendation}</p>
                 </div>
               ) : null}
               {promotionLoop ? (
                 <div className="grid gap-2 rounded-xl border border-fuchsia-500/25 bg-fuchsia-950/15 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-200">Promotion ROI Loop</p>
-                    <p className={`text-sm font-semibold ${promotionLoopTone}`}>{promotionLoopLabel}</p>
+                    <p className={"text-sm font-semibold " + promotionLoopTone}>{promotionLoopLabel}</p>
                   </div>
                   <p className="text-[11px] text-slate-400">
                     Decision window closes {new Date(promotionLoop.expiresAt).toLocaleString()}.
@@ -2400,11 +2427,11 @@ export function ForgeChatClient() {
                   <div className="grid gap-2 sm:grid-cols-4">
                     <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Keep</p>
-                      <p className="mt-1 text-sm font-semibold text-emerald-200">{promotionLoop.keepCount}</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-200">{promotionLoop.keepCount}</p>
                     </div>
                     <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Hold</p>
-                      <p className="mt-1 text-sm font-semibold text-cyan-200">{promotionLoop.holdCount}</p>
+                      <p className="mt-1 text-sm font-semibold text-amber-200">{promotionLoop.holdCount}</p>
                     </div>
                     <div className="rounded-lg border border-slate-700/75 bg-slate-950/70 px-2.5 py-2">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Kill</p>
@@ -2423,9 +2450,9 @@ export function ForgeChatClient() {
                           <p
                             className={
                               entry.state === "keep"
-                                ? "text-emerald-300"
+                                ? "text-amber-300"
                                 : entry.state === "hold"
-                                  ? "text-cyan-300"
+                                  ? "text-amber-300"
                                   : entry.state === "kill"
                                     ? "text-rose-300"
                                     : "text-amber-300"
@@ -2466,14 +2493,20 @@ export function ForgeChatClient() {
                       return (
                         <div
                           key={task.id}
-                          className={`rounded-lg border px-2.5 py-2 text-[11px] ${
+                          className={
                             task.completed
-                              ? "border-emerald-500/35 bg-emerald-950/20"
-                              : "border-slate-700/75 bg-slate-950/75"
-                          }`}
+                              ? "rounded-lg border px-2.5 py-2 text-[11px] border-amber-500/35 bg-amber-950/20"
+                              : "rounded-lg border px-2.5 py-2 text-[11px] border-slate-700/75 bg-slate-950/75"
+                          }
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <p className={`font-semibold uppercase tracking-[0.14em] ${task.completed ? "text-emerald-200" : "text-slate-200"}`}>
+                            <p
+                              className={
+                                task.completed
+                                  ? "font-semibold uppercase tracking-[0.14em] text-amber-200"
+                                  : "font-semibold uppercase tracking-[0.14em] text-slate-200"
+                              }
+                            >
                               {task.completed ? "Complete" : "Pending"} · {task.label}
                             </p>
                             <p className="text-slate-400">{task.value}/{task.target}</p>
@@ -2498,7 +2531,7 @@ export function ForgeChatClient() {
                       );
                     })}
                   </div>
-                  <p className="text-[11px] text-cyan-200">Next action: {onboardingHealth.nextAction}</p>
+                  <p className="text-[11px] text-amber-200">Next action: {onboardingHealth.nextAction}</p>
                   {onboardingActionMutation.isError ? (
                     <p className="text-[11px] text-rose-300">
                       {axios.isAxiosError(onboardingActionMutation.error)
@@ -2508,12 +2541,12 @@ export function ForgeChatClient() {
                           : "Unable to run onboarding action."}
                     </p>
                   ) : null}
-                  {onboardingActionMutation.isSuccess ? <p className="text-[11px] text-emerald-300">{onboardingActionMutation.data.message}</p> : null}
+                  {onboardingActionMutation.isSuccess ? <p className="text-[11px] text-amber-300">{onboardingActionMutation.data.message}</p> : null}
                 </div>
               ) : null}
               {selectedInviteQrCode ? (
-                <div className="grid gap-2 rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-200">QR Preview</p>
+                <div className="grid gap-2 rounded-xl border border-amber-500/20 bg-amber-950/15 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">QR Preview</p>
                   <p className="text-[11px] text-slate-400">Scan this to open the tagged invite link on another device.</p>
                   <div className="flex items-center justify-start rounded-lg border border-slate-700/80 bg-slate-950/80 p-3">
                     <Image
@@ -2523,6 +2556,7 @@ export function ForgeChatClient() {
                       height={176}
                       unoptimized
                       className="h-44 w-44 rounded-md bg-white p-2"
+                      style={{ width: "auto", height: "auto" }}
                     />
                   </div>
                 </div>
@@ -2591,7 +2625,7 @@ export function ForgeChatClient() {
           </Button>
           {createBotErrorMessage ? <p className="text-xs text-rose-300">{createBotErrorMessage}</p> : null}
           {createBotMutation.data?.bot ? (
-            <p className="text-xs text-emerald-200">Bot invite code: {createBotMutation.data.bot.inviteCode}</p>
+            <p className="text-xs text-amber-200">Bot invite code: {createBotMutation.data.bot.inviteCode}</p>
           ) : null}
 
           <Input
@@ -2786,7 +2820,7 @@ export function ForgeChatClient() {
               >
                 {executeBotCommandMutation.isPending ? "Executing..." : "Execute Command"}
               </Button>
-              {executeCommandMessage ? <p className="text-emerald-200">{executeCommandMessage}</p> : null}
+              {executeCommandMessage ? <p className="text-amber-200">{executeCommandMessage}</p> : null}
             </div>
           </div>
         </div>
@@ -2798,32 +2832,44 @@ export function ForgeChatClient() {
         transition={{ duration: 0.36, delay: 0.16, ease: "easeOut" }}
         className="nexus-panel order-3 max-h-[72vh] overflow-y-auto rounded-2xl p-4 xl:order-none xl:max-h-none"
       >
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="command-section-title">Channels</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="command-section-title">Channels</h2>
+            <p className="text-xs text-slate-400">Filter text and voice channels for faster squad routing.</p>
+          </div>
           <span className="rounded-full border border-slate-600/80 bg-slate-900/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
-            {textChannels.length + voiceChannels.length} total
+            {filteredTextChannels.length + filteredVoiceChannels.length} visible
           </span>
+        </div>
+
+        <div className="mb-4">
+          <input
+            value={channelSearch}
+            onChange={(event) => setChannelSearch(event.target.value)}
+            placeholder="Search channels"
+            className="h-10 w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
+          />
         </div>
 
         <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Text</p>
         <div className="mb-4 space-y-1">
-          {textChannels.map((channel: Channel) => (
+          {filteredTextChannels.map((channel: Channel) => (
             <button
               key={channel.id}
               onClick={() => setSelectedChannelId(channel.id)}
-              className={`nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
+              className={
                 selectedChannelId === channel.id
-                  ? "border-cyan-500/45 bg-cyan-950/45 text-cyan-100"
-                  : "border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-cyan-500/35"
-              }`}
+                  ? "nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition border-amber-500/45 bg-amber-950/45 text-amber-100"
+                  : "nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-amber-500/35"
+              }
             >
               <span className="flex items-center justify-between gap-2">
                 <span className="truncate">
-                  <span className="mr-1 text-cyan-300/80">#</span>
+                  <span className="mr-1 text-amber-300/80">#</span>
                   {channel.name}
                 </span>
                 {(typingUsersByChannel[channel.id]?.length ?? 0) > 0 ? (
-                  <span className="rounded-full border border-cyan-500/35 bg-cyan-950/35 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                  <span className="rounded-full border border-amber-500/35 bg-amber-950/35 px-1.5 py-0.5 text-[10px] text-amber-100">
                     {typingUsersByChannel[channel.id]?.length} typing
                   </span>
                 ) : null}
@@ -2834,22 +2880,22 @@ export function ForgeChatClient() {
 
         <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">Voice</p>
         <div className="space-y-1">
-          {voiceChannels.map((channel: Channel) => (
+          {filteredVoiceChannels.map((channel: Channel) => (
             <button
               key={channel.id}
               onClick={() => setSelectedVoiceChannelId(channel.id)}
-              className={`nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
+              className={
                 selectedVoiceChannelId === channel.id
-                  ? "border-emerald-500/40 bg-emerald-950/45 text-emerald-100"
-                  : "border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-emerald-500/35"
-              }`}
+                  ? "nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition border-amber-500/40 bg-amber-950/45 text-amber-100"
+                  : "nexus-interactive-card w-full rounded-xl border px-3 py-2 text-left text-sm transition border-slate-700/70 bg-slate-900/70 text-slate-300 hover:border-amber-500/35"
+              }
             >
               <span className="flex items-center justify-between gap-2">
                 <span className="truncate">
-                  <span className="mr-1 text-emerald-300/80">{channel.type === "STAGE" ? "(stage)" : "(voice)"}</span>
+                  <span className="mr-1 text-amber-300/80">{channel.type === "STAGE" ? "(stage)" : "(voice)"}</span>
                   {channel.name}
                 </span>
-                <span className="rounded-full border border-emerald-500/30 bg-emerald-950/30 px-1.5 py-0.5 text-[10px] text-emerald-100">
+                <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-1.5 py-0.5 text-[10px] text-amber-100">
                   {voicePresenceByChannel[channel.id]?.length ?? 0} live
                 </span>
               </span>
@@ -2865,7 +2911,10 @@ export function ForgeChatClient() {
         className="nexus-panel-strong order-1 rounded-2xl p-4 xl:order-none"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-100">Forge Chat + Uploads</h2>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{selectedForge?.name ?? "Forge chat hub"}</p>
+            <h2 className="text-sm font-semibold text-slate-100">{selectedChannel ? "#" + selectedChannel.name : "Forge Chat + Uploads"}</h2>
+          </div>
           <div className="inline-flex items-center gap-2 text-[11px] text-slate-300">
             <span className="cyber-dot" />
             <span>{selectedChannelId ? "Live channel selected" : "No channel selected"}</span>
@@ -2877,16 +2926,22 @@ export function ForgeChatClient() {
             {messagesQuery.data?.messages.map((message) => (
               <article
                 key={message.id}
-                className={`relative overflow-hidden rounded-lg border px-3 py-2 ${
+                className={
                   message.optimistic
-                    ? "border-dashed border-cyan-600/60 bg-cyan-950/20"
-                    : "border-slate-700/80 bg-slate-900/85"
-                }`}
+                    ? "relative overflow-hidden rounded-lg border px-3 py-2 border-dashed border-amber-600/60 bg-amber-950/20"
+                    : "relative overflow-hidden rounded-lg border px-3 py-2 border-slate-700/80 bg-slate-900/85"
+                }
               >
-                <div className={`absolute inset-y-0 left-0 w-1 ${message.optimistic ? "bg-cyan-400/70" : message.authorId === user.id ? "bg-emerald-400/65" : "bg-indigo-400/60"}`} />
+                <div className={
+                  message.optimistic
+                    ? "absolute inset-y-0 left-0 w-1 bg-amber-400/70"
+                    : message.authorId === user.id
+                      ? "absolute inset-y-0 left-0 w-1 bg-amber-400/65"
+                      : "absolute inset-y-0 left-0 w-1 bg-indigo-400/60"
+                } />
                 <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
                   <span className="inline-flex items-center gap-2">
-                    <span className={`inline-block h-2 w-2 rounded-full ${message.botId ? "bg-fuchsia-400/80" : "bg-cyan-400/80"}`} />
+                    <span className={message.botId ? "inline-block h-2 w-2 rounded-full bg-fuchsia-400/80" : "inline-block h-2 w-2 rounded-full bg-amber-400/80"} />
                     {message.botName ?? message.author?.username ?? "Unknown"}
                     {message.botId ? (
                       <span className="rounded-full border border-fuchsia-500/40 bg-fuchsia-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-200">
@@ -2905,7 +2960,7 @@ export function ForgeChatClient() {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded-md border border-cyan-600/40 bg-cyan-950/40 px-2 py-1 text-cyan-200 hover:bg-cyan-900/50"
+                        className="rounded-md border border-amber-600/40 bg-amber-950/40 px-2 py-1 text-amber-200 hover:bg-amber-900/50"
                       >
                         Attachment
                       </a>
@@ -2923,7 +2978,7 @@ export function ForgeChatClient() {
         <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/80 bg-slate-950/92 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
           <div className="nexus-display-panel rounded-2xl border border-slate-700/70 p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-300">
-              <label className="nexus-interactive-btn cursor-pointer rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-1 hover:border-cyan-500/70">
+              <label className="nexus-interactive-btn cursor-pointer rounded-lg border border-slate-600 bg-slate-900/70 px-2 py-1 hover:border-amber-500/70">
               Attach Files
               <input
                 type="file"
@@ -2935,21 +2990,21 @@ export function ForgeChatClient() {
                 }}
               />
             </label>
-              {pendingFiles.length ? <span className="rounded-full border border-cyan-500/30 bg-cyan-950/30 px-2 py-0.5 text-cyan-100">{pendingFiles.length} file(s) queued</span> : null}
+              {pendingFiles.length ? <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-amber-100">{pendingFiles.length} file(s) queued</span> : null}
             </div>
 
-            <div className="mb-2 min-h-5 text-xs text-cyan-200">
+            <div className="mb-2 min-h-5 text-xs text-amber-200">
               {activeTypingUsers.length ? (
-                <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
+                <span className="inline-flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-950/20 px-2 py-0.5">
                   <motion.span
                     initial={{ opacity: 0.4 }}
                     animate={{ opacity: [0.35, 1, 0.35] }}
                     transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
                     className="inline-flex gap-1"
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
                   </motion.span>
                   {activeTypingUsers.join(", ")} typing...
                 </span>
@@ -2974,7 +3029,7 @@ export function ForgeChatClient() {
                     }
                   }}
                   placeholder={selectedChannelId ? "Broadcast to active channel or type / for automation" : "Select a channel to chat"}
-                  className="h-11 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                  className="h-11 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
                 />
                 {slashCommandSuggestions.length ? (
                   <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-xl border border-indigo-500/25 bg-slate-950/96 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
@@ -2985,11 +3040,11 @@ export function ForgeChatClient() {
                           key={command.id}
                           type="button"
                           onClick={() => insertSlashCommand(command.name)}
-                          className="nexus-interactive-card flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/75 px-3 py-2 text-left text-xs text-slate-200 hover:border-cyan-500/50"
+                          className="nexus-interactive-card flex w-full items-center justify-between rounded-lg border border-slate-800 bg-slate-900/75 px-3 py-2 text-left text-xs text-slate-200 hover:border-amber-500/50"
                         >
                           <span className="min-w-0">
-                            <span className="font-semibold text-cyan-100">/{command.name}</span>
-                            <span className="ml-2 text-slate-400">{command.description ?? `${command.botName} command`}</span>
+                            <span className="font-semibold text-amber-100">/{command.name}</span>
+                            <span className="ml-2 text-slate-400">{command.description ?? (command.botName + " command")}</span>
                           </span>
                           <span className="ml-3 shrink-0 rounded-full border border-indigo-500/30 bg-indigo-950/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-indigo-100">
                             {command.botName}
@@ -3089,19 +3144,19 @@ export function ForgeChatClient() {
               <button
                 key={thread.id}
                 onClick={() => selectDmThread(thread.id)}
-                className={`nexus-interactive-card w-full rounded-xl border px-2.5 py-2 text-left text-xs transition ${
+                className={
                   selectedDmThreadId === thread.id
-                    ? "border-cyan-500/50 bg-cyan-950/55 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.25)]"
-                    : "border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-cyan-500/40"
-                }`}
+                    ? "nexus-interactive-card w-full rounded-xl border px-2.5 py-2 text-left text-xs transition border-amber-500/50 bg-amber-950/55 text-amber-100 shadow-[0_0_0_1px_rgba(255,184,108,0.25)]"
+                    : "nexus-interactive-card w-full rounded-xl border px-2.5 py-2 text-left text-xs transition border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-amber-500/40"
+                }
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${selectedDmThreadId === thread.id ? "bg-cyan-300" : "bg-slate-500"}`} />
+                      <span className={selectedDmThreadId === thread.id ? "h-1.5 w-1.5 rounded-full bg-amber-300" : "h-1.5 w-1.5 rounded-full bg-slate-500"} />
                       <span className="truncate">{threadLabel(thread, user.id)}</span>
                       {(typingUsersByThread[thread.id]?.length ?? 0) > 0 ? (
-                        <span className="rounded-full border border-cyan-500/30 bg-cyan-950/30 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                        <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-1.5 py-0.5 text-[10px] text-amber-100">
                           typing
                         </span>
                       ) : null}
@@ -3115,7 +3170,7 @@ export function ForgeChatClient() {
                       initial={{ scale: 0.9, opacity: 0.8 }}
                       animate={{ scale: [1, 1.08, 1], opacity: [0.9, 1, 0.9] }}
                       transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
-                      className="rounded-full border border-cyan-500/45 bg-cyan-950/45 px-1.5 py-0.5 text-[10px] text-cyan-100"
+                      className="rounded-full border border-amber-500/45 bg-amber-950/45 px-1.5 py-0.5 text-[10px] text-amber-100"
                     >
                       {dmUnreadByThread[thread.id]}
                     </motion.span>
@@ -3132,7 +3187,7 @@ export function ForgeChatClient() {
               return (
                 <button
                   key={friend.id}
-                  className="nexus-interactive-card w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-left text-xs text-slate-200 hover:border-cyan-500/40"
+                  className="nexus-interactive-card w-full rounded-lg border border-slate-700/70 bg-slate-900/80 px-2 py-1 text-left text-xs text-slate-200 hover:border-amber-500/40"
                   onClick={() => createDmThreadMutation.mutate(peer.id)}
                 >
                   {peer.username}
@@ -3147,24 +3202,24 @@ export function ForgeChatClient() {
           <div className="mb-2 max-h-28 space-y-1 overflow-y-auto rounded border border-slate-700 bg-slate-900/70 p-2">
             {dmMessagesQuery.data?.messages.map((message) => (
               <div key={message.id} className="rounded-md border border-slate-700/70 bg-slate-900/65 px-2 py-1 text-xs text-slate-200">
-                <span className="mr-1 text-cyan-300">{message.author.username}:</span>
+                <span className="mr-1 text-amber-300">{message.author.username}:</span>
                 {message.content}
               </div>
             ))}
             {!dmMessagesQuery.data?.messages.length ? <p className="text-xs text-slate-500">Select a DM thread.</p> : null}
           </div>
-          <div className="mb-2 min-h-5 text-xs text-cyan-200">
+          <div className="mb-2 min-h-5 text-xs text-amber-200">
             {activeDmTypingUsers.length ? (
-              <span className="inline-flex items-center gap-2 rounded-md border border-cyan-500/30 bg-cyan-950/20 px-2 py-0.5">
+              <span className="inline-flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-950/20 px-2 py-0.5">
                 <motion.span
                   initial={{ opacity: 0.4 }}
                   animate={{ opacity: [0.35, 1, 0.35] }}
                   transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
                   className="inline-flex gap-1"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
                 </motion.span>
                 {activeDmTypingUsers.join(", ")} typing...
               </span>
@@ -3181,7 +3236,7 @@ export function ForgeChatClient() {
                 }
               }}
               placeholder="Message"
-              className="h-9 flex-1 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-cyan-500"
+              className="h-9 flex-1 rounded border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-amber-500"
             />
             <Button className="nexus-interactive-btn h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>
               Send
@@ -3189,7 +3244,7 @@ export function ForgeChatClient() {
           </div>
         </div>
 
-        {statusMessage ? <p className="mt-3 text-xs text-cyan-300">{statusMessage}</p> : null}
+        {statusMessage ? <p className="mt-3 text-xs text-amber-300">{statusMessage}</p> : null}
       </motion.aside>
       </div>
 
@@ -3200,11 +3255,11 @@ export function ForgeChatClient() {
         <Link href="/settings" className={dockLinkClass("/settings")}>Settings</Link>
         <button
           onClick={() => setIsCompactLayout((prev) => !prev)}
-          className={`mobile-action-chip ${isCompactLayout ? "active" : ""}`}
+          className={"mobile-action-chip " + (isCompactLayout ? "active" : "")}
         >
           {isCompactLayout ? "Expanded" : "Compact"}
         </button>
       </div>
-    </div>
+  </div>
   );
 }

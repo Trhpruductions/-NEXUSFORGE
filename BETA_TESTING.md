@@ -12,8 +12,10 @@ npm run beta:share
 
 This script will:
 - clean conflicting ports
-- start API + web
-- start API + web tunnels
+- start web + API services
+- expose both through public Cloudflare Tunnel URLs
+- configure server CORS and web API settings for remote access
+- restart web once the public API URL is known
 - write `apps/web/.env.local` with public API URL
 - print the final tester link
 - write all links to `BETA_LINKS.txt`
@@ -68,6 +70,8 @@ Send testers to:
 From there they can access:
 - `/beta/checklist`
 - `/beta/feedback`
+
+If you want desktop testers to use the remote app, set `NEXUSFORGE_DESKTOP_URL` to `https://<your web tunnel url>/app` when launching the desktop client.
 
 ## 5) Suggested Message To Testers
 Use this template:

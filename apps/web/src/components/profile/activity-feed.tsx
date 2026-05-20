@@ -50,7 +50,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
             {getActivityIcon(activity.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="truncate font-semibold text-cyan-300">
+            <div className="truncate font-semibold text-amber-300">
               {activity.title}
             </div>
             {activity.description && (

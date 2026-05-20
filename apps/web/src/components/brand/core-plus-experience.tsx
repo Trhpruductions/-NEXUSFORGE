@@ -120,11 +120,11 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
     user?.premiumTier === "INFINITE"
       ? "border-fuchsia-400/55 bg-fuchsia-950/25 text-fuchsia-100"
       : user?.premiumTier === "ELITE"
-        ? "border-emerald-400/55 bg-emerald-950/25 text-emerald-100"
+        ? "border-amber-400/55 bg-amber-950/25 text-amber-100"
         : user?.premiumTier === "PLUS"
           ? "border-amber-400/60 bg-amber-950/35 text-amber-100"
           : user?.premiumTier === "CORE"
-            ? "border-cyan-400/55 bg-cyan-950/25 text-cyan-100"
+            ? "border-amber-400/55 bg-amber-950/25 text-amber-100"
             : "border-slate-500/55 bg-slate-900/60 text-slate-200";
 
   const selectedPlan = tierCheckoutMeta[selectedTier];
@@ -183,7 +183,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Price</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-200">{displayedPrice}</p>
+                <p className="mt-1 text-sm font-semibold text-amber-200">{displayedPrice}</p>
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
@@ -191,7 +191,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
                 transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.1, ease: "easeInOut" }}
-                className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-300 via-cyan-300 to-emerald-300"
+                className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-300 via-amber-300 to-amber-300"
               />
             </div>
             <p className="mt-3 text-xs text-slate-400">Do not close the page while Core+ hands off to secure billing.</p>
@@ -204,10 +204,10 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="nexus-panel-strong relative overflow-hidden rounded-3xl p-5 sm:p-7 lg:col-span-2"
       >
-        <div className="pointer-events-none absolute -left-20 top-[-72px] h-56 w-56 rounded-full bg-cyan-500/12 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 top-[-72px] h-56 w-56 rounded-full bg-amber-500/12 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
         {checkoutState === "success" ? (
-          <div className="nexus-display-panel mb-3 rounded-[24px] p-3 text-sm text-emerald-100">
+          <div className="nexus-display-panel mb-3 rounded-[24px] p-3 text-sm text-amber-100">
             Checkout completed. Billing sync is now updating your Core+ access.
           </div>
         ) : null}
@@ -224,6 +224,33 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           Core+ combines visual prestige with operational advantages: queue priority, premium surfaces, and tiered
           progression mechanics tuned for creator-led ecosystems.
         </p>
+
+        <div className="nexus-panel-glass mt-6 rounded-[28px] border border-slate-700/70 bg-slate-950/80 p-4 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Core+ Snapshot</p>
+              <p className="mt-2 text-sm text-slate-300">Selected tier, billing cadence, and current membership posture at a glance.</p>
+            </div>
+            <div className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">
+              {billingReady ? "Checkout ready" : "Billing status pending"}
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Selected tier</p>
+              <p className="mt-2 text-lg font-semibold text-white">{selectedPlan.label}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Billing cadence</p>
+              <p className="mt-2 text-lg font-semibold text-white">{displayedPriceSuffix}</p>
+            </div>
+            <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Tier outcome</p>
+              <p className="mt-2 text-lg font-semibold text-white">{selectedPlan.outcome}</p>
+            </div>
+          </div>
+        </div>
+
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[20px] border border-amber-500/40 bg-amber-950/25 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
@@ -233,7 +260,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="glass-cut rounded-xl px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Queue Gain</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Queue Gain</p>
             <p className="mt-1 text-sm font-semibold text-slate-100">+32% priority lane</p>
           </div>
           <div className="glass-cut rounded-xl px-3 py-2">
@@ -241,7 +268,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             <p className="mt-1 text-sm font-semibold text-slate-100">Premium identity skin</p>
           </div>
           <div className="glass-cut rounded-xl px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-300">Boost Ladder</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Boost Ladder</p>
             <p className="mt-1 text-sm font-semibold text-slate-100">Progressive multipliers</p>
           </div>
         </div>
@@ -272,7 +299,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               transition={{ duration: 0.3, delay: 0.12 + index * 0.07, ease: "easeOut" }}
               className="nexus-metric-card nexus-interactive-card rounded-2xl border border-slate-700/70 p-3"
             >
-              <p className="text-sm font-semibold text-cyan-100">{perk.title}</p>
+              <p className="text-sm font-semibold text-amber-100">{perk.title}</p>
               <p className="mt-1 text-xs text-slate-400">{perk.detail}</p>
             </motion.div>
           ))}
@@ -296,7 +323,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onChange={(event) => setBillingInterval(event.target.value as "MONTHLY" | "YEARLY")}
             aria-label="Select billing interval"
             title="Select billing interval"
-            className="h-10 rounded-xl border border-cyan-500/45 bg-[linear-gradient(155deg,rgba(8,47,73,0.22),rgba(15,23,42,0.88))] px-3 text-sm text-cyan-100 outline-none transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-500/20"
+            className="h-10 rounded-xl border border-amber-500/45 bg-[linear-gradient(155deg,rgba(8,47,73,0.22),rgba(15,23,42,0.88))] px-3 text-sm text-amber-100 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
           >
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
@@ -312,13 +339,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onClick={() => portalMutation.mutate()}
             disabled={!accessToken || !csrfToken || portalMutation.isPending || !billingReady}
             variant="ghost"
-            className="h-10 rounded-xl border-emerald-500/35 px-4 text-sm text-emerald-100"
+            className="h-10 rounded-xl border-amber-500/35 px-4 text-sm text-amber-100"
           >
             {portalMutation.isPending ? "Opening portal..." : "Manage Billing"}
           </Button>
           <Link
             href="/app"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-cyan-500/35 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-amber-500/35 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
           >
             Return to Command Center
           </Link>
@@ -362,12 +389,12 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 <p className="text-xs text-slate-400">{displayedPriceSuffix}</p>
               </div>
             </div>
-            <div className="mt-3 inline-flex rounded-full border border-emerald-500/35 bg-emerald-950/25 px-3 py-1 text-xs text-emerald-100">
+            <div className="mt-3 inline-flex rounded-full border border-amber-500/35 bg-amber-950/25 px-3 py-1 text-xs text-amber-100">
               {selectedPlan.savings}
             </div>
           </div>
           <div className="nexus-display-panel rounded-[24px] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Checkout Summary</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Summary</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-300">
               <li>• Tier: {selectedPlan.label}</li>
               <li>• Billing: {billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</li>
@@ -378,8 +405,8 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 <p key={item}>• {item}</p>
               ))}
             </div>
-            <div className="mt-3 rounded-[20px] border border-emerald-500/20 bg-emerald-950/15 p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">Billing portal later</p>
+            <div className="mt-3 rounded-[20px] border border-amber-500/20 bg-amber-950/15 p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">Billing portal later</p>
               <div className="mt-2 space-y-1 text-xs text-slate-400">
                 {portalAssurances.map((item) => (
                   <p key={item}>• {item}</p>

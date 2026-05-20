@@ -127,12 +127,36 @@ export async function verifyAgeGateToken(token: string, nowMs = Date.now(), user
   return crypto.subtle.verify("HMAC", key, signatureBytes, encoder.encode(payload));
 }
 
-export function getAgeGateCookieName() {
-  return isProductionRuntime() ? AGE_GATE_COOKIE_NAME_HOST_PREFIXED : AGE_GATE_COOKIE_NAME_LEGACY;
+function isLoopbackHostname(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+export function getAgeGateCookieName(useSecureCookie = false, requestUrl?: string) {
+  const current = isProductionRuntime() ? AGE_GATE_COOKIE_NAME_HOST_PREFIXED : AGE_GATE_COOKIE_NAME_LEGACY;
+  if (!isProductionRuntime()) {
+    return AGE_GATE_COOKIE_NAME_LEGACY;
+  }
+
+  if (!useSecureCookie) {
+    return AGE_GATE_COOKIE_NAME_LEGACY;
+  }
+
+  if (requestUrl) {
+    try {
+      const url = new URL(requestUrl);
+      if (isLoopbackHostname(url.hostname)) {
+        return AGE_GATE_COOKIE_NAME_LEGACY;
+      }
+    } catch {
+      // If the URL cannot be parsed, fall back to the default secure cookie name when secure flag is requested.
+    }
+  }
+
+  return current;
 }
 
 export function getAgeGateCookieNamesForRead() {
-  const current = getAgeGateCookieName();
+  const current = getAgeGateCookieName(true);
   const names = [current, AGE_GATE_COOKIE_NAME_LEGACY, AGE_GATE_COOKIE_NAME_HOST_PREFIXED];
   return Array.from(new Set(names));
 }

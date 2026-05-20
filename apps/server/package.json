@@ -1,6 +1,6 @@
 {
   "name": "@nexusforge/server",
-  "version": "1.0.0",
+  "version": "1.0.11",
   "description": "NexusForge API service",
   "scripts": {
     "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1",
@@ -13,6 +13,7 @@
     "prisma:studio": "prisma studio",
     "seed:profiles": "npx --yes tsx prisma/seed-profiles.ts",
     "seed:users": "npx --yes tsx prisma/seed-user-groups.ts",
+    "seed:all": "npm run prisma:migrate && npm run seed:users && npm run seed:profiles",
     "discord:whoami": "node ./scripts/discord-token-whoami.mjs",
     "discord:verify": "node ./scripts/verify-discord-bot-config.mjs",
     "desktop:manifest:validate": "node ./scripts/validate-desktop-manifest.mjs",

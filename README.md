@@ -246,6 +246,11 @@ npm run desktop:full
 npm run desktop:open:hosted
 ```
 
+- If you want the desktop app to launch a specific hosted app origin, set:
+  - `NEXUSFORGE_DESKTOP_URL=https://app.your-domain.com/app`
+  - `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com`
+  - `NEXUSFORGE_UPDATE_MANIFEST_URL=https://downloads.your-domain.com/desktop-update.json`
+
 - To validate both desktop network paths automatically and record which one connected, use:
 
 ```bash
@@ -297,6 +302,7 @@ npm run smoke:release-gate
 	- `desktop:open:hosted` sets `NEXUSFORGE_ALLOW_HOSTED_DEV=true` and targets `https://www.nexusforge.app/app`.
 	- Electron currently accepts a scoped TLS bypass for `*.nexusforge.app` if the hosted certificate chain is invalid.
 	- To enforce strict hosted TLS after the public certificate chain is corrected, set `NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=false` before launching.
+	- For packaged installs, use `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` to derive the hosted app fallback origin and update manifest.
 
 ## Desktop Auto-Update (Installed Users)
 
@@ -305,6 +311,7 @@ npm run smoke:release-gate
 - First-time users still install with the public `.exe` link.
 - The desktop update manifest may include a `downloadUrls` list so the app can fall back to alternate installer locations.
 - When packaged, the app defaults to using the configured desktop host origin for the update manifest, or `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` if set.
+- If `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` is configured, packaged desktop also derives its hosted app fallback from `<base>/app`.
 
 Recommended environment variables for durable updates:
 

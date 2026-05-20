@@ -5,18 +5,20 @@ import { useAuthStore } from "@/store/auth-store";
 import { getPublicProfile, PublicProfile, getUserMedals, Medal, getUserActivity, UserActivity } from "@/lib/api";
 import { ActivityFeed } from "@/components/profile/activity-feed";
 import { MedalsDisplay } from "@/components/profile/medals-display";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import { format } from "date-fns";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { getProfileBadgesForUser } from "@/lib/brand-badges";
 import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
+import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 
 export default function PublicProfilePage() {
   const { user: currentUser, accessToken } = useAuthStore();
-  const router = useRouter();
   const params = useParams();
-  const userId = params.userId as string;
+  const userId = typeof params?.userId === "string" ? params.userId : "";
+  const isSignedIn = Boolean(currentUser && accessToken);
+  const loginRedirect = `/login?redirect=/profiles/${encodeURIComponent(userId)}`;
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [medals, setMedals] = useState<Medal[]>([]);
@@ -25,8 +27,12 @@ export default function PublicProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentUser || !accessToken) {
-      router.push("/login");
+    if (!isSignedIn) {
+      setLoading(false);
+      setProfile(null);
+      setMedals([]);
+      setActivities([]);
+      setError(null);
       return;
     }
 
@@ -34,9 +40,9 @@ export default function PublicProfilePage() {
       try {
         setLoading(true);
         const [profileData, medalsData, activitiesData] = await Promise.all([
-          getPublicProfile(accessToken, userId),
-          getUserMedals(accessToken, userId),
-          getUserActivity(accessToken, userId, 10, 0),
+          getPublicProfile(accessToken!, userId),
+          getUserMedals(accessToken!, userId),
+          getUserActivity(accessToken!, userId, 10, 0),
         ]);
 
         setProfile(profileData);
@@ -51,7 +57,33 @@ export default function PublicProfilePage() {
     };
 
     loadProfile();
-  }, [userId, currentUser, accessToken, router]);
+  }, [userId, accessToken, isSignedIn]);
+
+  if (!isSignedIn) {
+    return (
+      <ExperienceShell
+        eyebrow="Profile"
+        title="Sign in to view profiles"
+        subtitle="Public profile pages unlock when you authenticate and join the community."
+        metrics={[
+          { label: "Status", value: "Locked", tone: "amber" },
+          { label: "Profile", value: userId ? "Targeted" : "Pending", tone: "amber" },
+        ]}
+        actions={[
+          { label: "Sign in", href: loginRedirect, tone: "ghost" },
+          { label: "Create account", href: `/register?redirect=/profiles/${encodeURIComponent(userId)}`, tone: "primary" },
+        ]}
+        maxWidthClassName="max-w-6xl"
+      >
+        <GuestAuthCallout
+          title="Profiles are reserved for signed-in users."
+          description="Authenticate to browse reputation, medals, and recent activity for your crew."
+          loginHref={loginRedirect}
+          registerHref={`/register?redirect=/profiles/${encodeURIComponent(userId)}`}
+        />
+      </ExperienceShell>
+    );
+  }
 
   if (loading) {
     return (
@@ -59,10 +91,10 @@ export default function PublicProfilePage() {
         eyebrow="Profile"
         title="Loading profile"
         subtitle="Fetching account identity, activity, and reputation data."
-        metrics={[{ label: "Status", value: "Syncing", tone: "cyan" }]}
+        metrics={[{ label: "Status", value: "Syncing", tone: "amber" }]}
         maxWidthClassName="max-w-6xl"
       >
-        <div className="nexus-display-panel rounded-[24px] p-5 text-cyan-400">Loading profile...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-amber-300">Loading profile...</div>
       </ExperienceShell>
     );
   }
@@ -89,9 +121,9 @@ export default function PublicProfilePage() {
       title={profile.username}
       subtitle="View competitive reputation, boost progression, medals, and recent activity."
       metrics={[
-        { label: "Reputation", value: `${profile.reputation}`, tone: "cyan" },
+        { label: "Reputation", value: `${profile.reputation}`, tone: "amber" },
         { label: "App Rank", value: `#${profile.appRank}`, tone: "amber" },
-        { label: "Boost Rank", value: `#${profile.boostRank}`, tone: "emerald" },
+        { label: "Boost Rank", value: `#${profile.boostRank}`, tone: "amber" },
         { label: "Medals", value: `${medals.length}`, tone: "slate" },
       ]}
       actions={[
@@ -101,14 +133,14 @@ export default function PublicProfilePage() {
       maxWidthClassName="max-w-6xl"
     >
       {profile.banner ? (
-        <div className="nexus-panel relative h-40 w-full overflow-hidden rounded-3xl bg-slate-900 sm:h-48">
+        <div className="nexus-hero relative h-40 w-full overflow-hidden rounded-3xl bg-slate-900 sm:h-48">
           <Image src={profile.banner} alt="Banner" fill className="object-cover" sizes="(max-width: 768px) 100vw, 1200px" />
         </div>
       ) : (
-        <div className="nexus-panel h-40 w-full rounded-3xl bg-gradient-to-r from-cyan-900 to-slate-900 sm:h-48" />
+        <div className="nexus-hero h-40 w-full rounded-3xl bg-gradient-to-r from-amber-900 to-slate-900 sm:h-48" />
       )}
 
-      <div className="nexus-panel rounded-3xl px-4 py-6 md:px-8 md:py-8">
+      <div className="nexus-panel-glass rounded-3xl px-4 py-6 md:px-8 md:py-8">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <div className="-mt-24 relative z-10">
             {profile.avatar ? (
@@ -121,7 +153,7 @@ export default function PublicProfilePage() {
               />
             ) : (
               <div className="w-[120px] h-[120px] rounded-lg border-4 border-slate-950 bg-slate-800 flex items-center justify-center">
-                <span className="text-2xl font-bold text-cyan-400">{profile.username[0]}</span>
+                <span className="text-2xl font-bold text-amber-300">{profile.username[0]}</span>
               </div>
             )}
           </div>
@@ -129,7 +161,7 @@ export default function PublicProfilePage() {
           <div className="mt-4 flex-1 md:mt-24">
             <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
               <h1 className="text-2xl font-bold sm:text-3xl">{profile.username}</h1>
-              {profile.clanTag && <span className="text-cyan-400">[{profile.clanTag}]</span>}
+              {profile.clanTag && <span className="text-amber-300">[{profile.clanTag}]</span>}
               {profile.premium && (
                 <span className="px-2 py-1 bg-amber-900 text-amber-300 text-xs font-semibold rounded">
                   {profile.premiumTier}
@@ -152,29 +184,21 @@ export default function PublicProfilePage() {
             {profile.bio && <p className="text-slate-300 mb-4">{profile.bio}</p>}
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              <div className="nexus-metric-card rounded-xl p-4">
-                <div className="text-cyan-400 font-semibold">{profile.reputation}</div>
+              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+                <div className="text-amber-300 font-semibold">{profile.reputation}</div>
                 <div className="text-sm text-slate-400">Reputation</div>
               </div>
-              <div className="nexus-metric-card rounded-xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
                 <div className="text-amber-300 font-semibold">#{profile.appRank}</div>
                 <div className="text-sm text-slate-400">App Rank</div>
               </div>
-              <div className="nexus-metric-card rounded-xl p-4">
-                <div className="text-emerald-300 font-semibold">#{profile.boostRank}</div>
+              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+                <div className="text-amber-300 font-semibold">#{profile.boostRank}</div>
                 <div className="text-sm text-slate-400">Boost Rank</div>
               </div>
-              <div className="nexus-metric-card rounded-xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
                 <div className="text-violet-300 font-semibold">{medals.length}</div>
                 <div className="text-sm text-slate-400">Medals</div>
-              </div>
-              <div className="nexus-metric-card rounded-xl p-4">
-                <div className="text-blue-400 font-semibold">{profile.forgesOwned}</div>
-                <div className="text-sm text-slate-400">Forges Owned</div>
-              </div>
-              <div className="nexus-metric-card rounded-xl p-4">
-                <div className="text-purple-400 font-semibold">{profile.forgesMember}</div>
-                <div className="text-sm text-slate-400">Forges Member</div>
               </div>
             </div>
 
@@ -186,7 +210,7 @@ export default function PublicProfilePage() {
               {(profile.corePlusBoostLevel ?? 0) > 0 && (
                 <div>
                   <span className="text-slate-400">Boost Level:</span>
-                  <span className="ml-2 text-emerald-400 font-semibold">{profile.corePlusBoostLevel}</span>
+                  <span className="ml-2 text-amber-300 font-semibold">{profile.corePlusBoostLevel}</span>
                 </div>
               )}
               {(profile.corePlusStreakDays ?? 0) > 0 && (

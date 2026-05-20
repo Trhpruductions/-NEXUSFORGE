@@ -37,19 +37,35 @@ function main() {
   }
 
   const downloadUrl = String(manifest.downloadUrl || "").trim();
-  if (!/^https?:\/\//i.test(downloadUrl)) {
-    fail("downloadUrl must be an absolute http(s) URL");
+  if (!downloadUrl) {
+    fail("downloadUrl must be present");
   }
 
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(downloadUrl);
-  } catch {
-    fail("downloadUrl must be a valid URL");
+  const downloadUrls = [];
+  if (manifest.downloadUrls !== undefined) {
+    if (!Array.isArray(manifest.downloadUrls)) {
+      fail("downloadUrls must be an array if present");
+    }
+    for (const entry of manifest.downloadUrls) {
+      if (typeof entry !== "string" || !entry.trim()) {
+        fail("downloadUrls entries must be non-empty strings");
+      }
+      downloadUrls.push(entry.trim());
+    }
   }
 
-  if (!/\.exe($|[?#])/i.test(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash)) {
-    fail("downloadUrl must point to an .exe installer");
+  const urlCandidates = [downloadUrl, ...downloadUrls];
+  for (const candidate of urlCandidates) {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(candidate, "http://example.com");
+    } catch {
+      fail(`download URL '${candidate}' must be a valid URL or relative path`);
+    }
+
+    if (!/\.exe($|[?#])/i.test(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash)) {
+      fail(`download URL '${candidate}' must point to an .exe installer`);
+    }
   }
 
   const sha256 = String(manifest.sha256 || "").trim();

@@ -9,6 +9,7 @@ If you want host-specific setup steps, use DEPLOYMENT_PLATFORM_CHECKLIST.md.
 Set these in your deployed web app environment:
 
 ```bash
+NEXT_PUBLIC_APP_URL=https://app.your-domain.com
 NEXT_PUBLIC_API_URL=https://api.your-domain.com
 NEXUSFORGE_DESKTOP_ONLY=false
 ```

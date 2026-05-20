@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
-import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, getAdminAiInsights, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue, getBillingReadiness, setAdminLaunchMode } from "@/lib/api";
+import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, approveAdminAgeGateAudit, getAdminAiInsights, getAdminAgeGateAudit, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue, getBillingReadiness, rejectAdminAgeGateAudit, setAdminLaunchMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -85,6 +85,8 @@ export function AdminDashboard() {
   const [auditOffset, setAuditOffset] = useState<number>(0);
   const [desktopOnlyDraft, setDesktopOnlyDraft] = useState<boolean>(true);
   const [billingCopyState, setBillingCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [ageGateOffset] = useState<number>(0);
+  const [ageGateReviewNotes, setAgeGateReviewNotes] = useState<Record<string, string>>({});
   const auditPageSize = 30;
 
   const summaryQuery = useQuery({
@@ -138,6 +140,42 @@ export function AdminDashboard() {
         actorId: auditActorFilter === "all" ? undefined : auditActorFilter,
       }),
     enabled: Boolean(accessToken && csrfToken),
+  });
+
+  const ageGateAuditQuery = useQuery({
+    queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset],
+    queryFn: () =>
+      getAdminAgeGateAudit(accessToken!, csrfToken!, {
+        limit: 15,
+        offset: ageGateOffset,
+        status: "blocked",
+      }),
+    enabled: Boolean(accessToken && csrfToken),
+    staleTime: 10_000,
+  });
+
+  const approveAgeGateAudit = useMutation({
+    mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
+      approveAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset] });
+      setActionNote("Age gate event approved and allowlisted.");
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to approve age gate event."));
+    },
+  });
+
+  const rejectAgeGateAudit = useMutation({
+    mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
+      rejectAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset] });
+      setActionNote("Age gate event rejected and recorded.");
+    },
+    onError: (error) => {
+      setActionNote(extractAdminErrorNote(error, "Failed to reject age gate event."));
+    },
   });
 
   const profileToolsStatusQuery = useQuery({
@@ -380,7 +418,7 @@ export function AdminDashboard() {
   if (!accessToken || !csrfToken) {
     return (
       <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-300">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Authentication Required</p>
+        <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Authentication Required</p>
         <p className="mt-2">Sign in with an admin account to access moderation tools.</p>
       </div>
     );
@@ -393,7 +431,7 @@ export function AdminDashboard() {
         ? "text-amber-200"
         : aiInsightsQuery.data?.insights.riskLevel === "MEDIUM"
           ? "text-yellow-200"
-          : "text-emerald-200";
+          : "text-amber-200";
 
   const latestCompletedAtMs = profileToolsStatusQuery.data?.lastCompletedAt
     ? new Date(profileToolsStatusQuery.data.lastCompletedAt).getTime()
@@ -413,13 +451,13 @@ export function AdminDashboard() {
       ? "border-rose-500/35 bg-rose-950/30 text-rose-100"
       : latestJobStatus === "RUNNING"
         ? "border-amber-500/35 bg-amber-950/30 text-amber-100"
-        : "border-emerald-500/35 bg-emerald-950/30 text-emerald-100";
+        : "border-amber-500/35 bg-amber-950/30 text-amber-100";
   const billing = billingReadinessQuery.data?.billing ?? null;
   const billingReady = billing?.ready ?? false;
   const missingTierPrices = billing?.missing.tierPrices ?? [];
   const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
   const billingStatusToneClass = billingReady
-    ? "border-emerald-500/35 bg-emerald-950/20 text-emerald-100"
+    ? "border-amber-500/35 bg-amber-950/20 text-amber-100"
     : "border-amber-500/35 bg-amber-950/20 text-amber-100";
 
   const copyBillingEnvKeys = async () => {
@@ -477,6 +515,20 @@ export function AdminDashboard() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <div className="nexus-panel-glass flex flex-wrap items-center gap-3 rounded-[28px] border border-slate-700/70 bg-slate-950/85 p-4 shadow-[0_28px_70px_rgba(0,0,0,0.35)] lg:col-span-2">
+        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs uppercase tracking-[0.22em] text-amber-200">Admin Hub</span>
+        <Link href="/admin/age-gate-review" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+          Gate Review
+        </Link>
+        <Link href="/notifications" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+          Alerts
+        </Link>
+        <Link href="/app" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+          Back to App
+        </Link>
+        <span className="ml-auto rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">Governance live</span>
+      </div>
+
       <section className="nexus-display-panel relative overflow-hidden rounded-[28px] p-5">
         <div className="nexus-ambient" aria-hidden="true">
           <div className="nexus-ambient-orb nexus-ambient-orb-a" />
@@ -485,10 +537,10 @@ export function AdminDashboard() {
         <div className="relative">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Admin Summary</h2>
+              <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Admin Summary</h2>
               <p className="mt-2 text-sm text-slate-400">Live governance telemetry, billing posture, and launch-control state for the desktop command surface.</p>
             </div>
-            <div className="rounded-full border border-cyan-500/30 bg-cyan-950/25 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-100">
+            <div className="rounded-full border border-amber-500/30 bg-amber-950/25 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">
               Hardened
             </div>
           </div>
@@ -503,10 +555,10 @@ export function AdminDashboard() {
 
         <div className="mt-4 grid gap-2 text-sm text-slate-200">
           <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
-            Revenue 30d: <span className="font-semibold text-emerald-200">{formatUsd(revenueQuery.data?.revenue.last30DaysCents ?? 0)}</span>
+            Revenue 30d: <span className="font-semibold text-amber-200">{formatUsd(revenueQuery.data?.revenue.last30DaysCents ?? 0)}</span>
           </div>
           <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
-            Revenue Growth: <span className="font-semibold text-cyan-200">{revenueQuery.data?.revenue.growthPct ?? 0}%</span>
+            Revenue Growth: <span className="font-semibold text-amber-200">{revenueQuery.data?.revenue.growthPct ?? 0}%</span>
           </div>
           <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
             Failed Payments (30d): <span className="font-semibold text-rose-200">{revenueQuery.data?.revenue.failedPayments ?? 0}</span>
@@ -525,14 +577,14 @@ export function AdminDashboard() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
               variant="ghost"
-              className={`h-8 px-3 text-xs ${desktopOnlyDraft ? "border border-cyan-500/35 bg-cyan-950/25 text-cyan-100" : ""}`}
+              className={`h-8 px-3 text-xs ${desktopOnlyDraft ? "border border-amber-500/35 bg-amber-950/25 text-amber-100" : ""}`}
               onClick={() => setDesktopOnlyDraft(true)}
             >
               Desktop Only
             </Button>
             <Button
               variant="ghost"
-              className={`h-8 px-3 text-xs ${!desktopOnlyDraft ? "border border-emerald-500/35 bg-emerald-950/25 text-emerald-100" : ""}`}
+              className={`h-8 px-3 text-xs ${!desktopOnlyDraft ? "border border-amber-500/35 bg-amber-950/25 text-amber-100" : ""}`}
               onClick={() => setDesktopOnlyDraft(false)}
             >
               Enable Web Access
@@ -553,7 +605,7 @@ export function AdminDashboard() {
           {billingReadinessQuery.isLoading ? (
             <p className="mt-1 text-slate-300">Checking billing readiness...</p>
           ) : billingReady ? (
-            <p className="mt-1 text-emerald-100">Billing is ready. Checkout and portal actions are fully enabled.</p>
+            <p className="mt-1 text-amber-100">Billing is ready. Checkout and portal actions are fully enabled.</p>
           ) : (
             <>
               <p className="mt-1 text-slate-300">
@@ -571,7 +623,7 @@ export function AdminDashboard() {
                 <Button variant="ghost" className="h-8 px-3 text-xs" onClick={() => void copyMissingBillingEnvKeys()}>
                   Copy Missing Keys Only
                 </Button>
-                {billingCopyState === "copied" ? <p className="text-[11px] text-emerald-200">Copied</p> : null}
+                {billingCopyState === "copied" ? <p className="text-[11px] text-amber-200">Copied</p> : null}
                 {billingCopyState === "failed" ? <p className="text-[11px] text-rose-200">Copy failed</p> : null}
               </div>
             </>
@@ -583,7 +635,7 @@ export function AdminDashboard() {
       <section className="nexus-panel rounded-[28px] p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Moderation Queue</h2>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Moderation Queue</h2>
             <p className="mt-2 text-sm text-slate-400">Role escalation, access correction, and admin privilege changes in one queue.</p>
           </div>
           <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
@@ -596,7 +648,7 @@ export function AdminDashboard() {
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2">
                   <span>{entry.username}</span>
-                  <span className="rounded-full border border-cyan-500/35 bg-cyan-950/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-cyan-100">
+                  <span className="rounded-full border border-amber-500/35 bg-amber-950/25 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-amber-100">
                     {entry.appRole}
                   </span>
                 </p>
@@ -698,10 +750,10 @@ export function AdminDashboard() {
       <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Billing Mix (Last 30 Days)</h2>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Billing Mix (Last 30 Days)</h2>
             <p className="mt-2 text-sm text-slate-400">Revenue concentration, transaction density, and tier-distribution health.</p>
           </div>
-          <div className="rounded-full border border-emerald-500/30 bg-emerald-950/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-100">
+          <div className="rounded-full border border-amber-500/30 bg-amber-950/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">
             Finance live
           </div>
         </div>
@@ -718,7 +770,7 @@ export function AdminDashboard() {
               {(revenueQuery.data?.featureRevenue ?? []).map((row) => (
                 <tr key={row.featureCode} className="border-b border-slate-800/70 text-slate-200 transition-colors hover:bg-slate-900/45">
                   <td className="py-2 pr-3 font-medium text-slate-100">{row.featureCode}</td>
-                  <td className="py-2 pr-3 text-emerald-200">{formatUsd(row.revenueCents)}</td>
+                  <td className="py-2 pr-3 text-amber-200">{formatUsd(row.revenueCents)}</td>
                   <td className="py-2">{row.transactions}</td>
                 </tr>
               ))}
@@ -736,7 +788,7 @@ export function AdminDashboard() {
       <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Advanced Moderation AI</h2>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Advanced Moderation AI</h2>
             <p className="mt-2 text-sm text-slate-400">Pressure scoring, automation posture, and recommended response playbooks.</p>
           </div>
           <div className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${latestJobStatusToneClass}`}>
@@ -755,11 +807,11 @@ export function AdminDashboard() {
             </div>
             <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Recent Messages</p>
-              <p className="mt-2 text-3xl font-semibold text-cyan-100">{aiInsightsQuery.data?.insights.recentMessages ?? 0}</p>
+              <p className="mt-2 text-3xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.recentMessages ?? 0}</p>
             </div>
             <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">New Accounts 7d</p>
-              <p className="mt-2 text-3xl font-semibold text-emerald-100">{aiInsightsQuery.data?.insights.recentAccounts ?? 0}</p>
+              <p className="mt-2 text-3xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.recentAccounts ?? 0}</p>
             </div>
             <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200 md:col-span-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -769,7 +821,7 @@ export function AdminDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Incident Likelihood</p>
-                  <p className="mt-2 text-2xl font-semibold text-cyan-100">{aiInsightsQuery.data?.insights.incidentLikelihoodPct ?? 0}%</p>
+                  <p className="mt-2 text-2xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.incidentLikelihoodPct ?? 0}%</p>
                 </div>
               </div>
             </div>
@@ -788,7 +840,7 @@ export function AdminDashboard() {
               <div className="grid gap-2 md:grid-cols-3">
                 {(aiInsightsQuery.data?.insights.recommendedPlaybooks ?? []).map((playbook) => (
                   <div key={playbook.title} className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100">{playbook.title}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">{playbook.title}</p>
                     <p className="mt-1 text-[11px] text-slate-300">{playbook.detail}</p>
                     <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-500">Priority: {playbook.priority}</p>
                   </div>
@@ -814,7 +866,7 @@ export function AdminDashboard() {
       <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Profile Data Operations</h2>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Profile Data Operations</h2>
             <p className="mt-2 text-sm text-slate-400">Controlled generation, reputation balancing, and recovery paths for profile tooling.</p>
           </div>
           <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
@@ -868,7 +920,7 @@ export function AdminDashboard() {
         <div className="grid gap-3 md:grid-cols-3">
           <Button
             variant="ghost"
-            className="h-10 border border-cyan-500/35 bg-cyan-950/25 text-cyan-100"
+            className="h-10 border border-amber-500/35 bg-amber-950/25 text-amber-100"
             onClick={() => seedMedals.mutate()}
             disabled={seedMedals.isPending}
           >
@@ -876,7 +928,7 @@ export function AdminDashboard() {
           </Button>
           <Button
             variant="ghost"
-            className="h-10 border border-emerald-500/35 bg-emerald-950/25 text-emerald-100"
+            className="h-10 border border-amber-500/35 bg-amber-950/25 text-amber-100"
             onClick={() => generateSampleProfiles.mutate()}
             disabled={
               generateSampleProfiles.isPending ||
@@ -941,13 +993,13 @@ export function AdminDashboard() {
             </Button>
           </div>
         </div>
-        {actionNote ? <p className="mt-3 text-xs text-cyan-200">{actionNote}</p> : null}
+        {actionNote ? <p className="mt-3 text-xs text-amber-200">{actionNote}</p> : null}
       </section>
 
       <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-cyan-300">Profile Tools Audit Log</h2>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Profile Tools Audit Log</h2>
             <p className="mt-2 text-sm text-slate-400">Trace profile-tool mutations, actor history, and recovery operations.</p>
           </div>
           <Button
@@ -991,7 +1043,7 @@ export function AdminDashboard() {
           {(profileAuditQuery.data?.logs ?? []).map((entry) => (
             <article key={entry.id} className="rounded-[20px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-200">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-cyan-100">{entry.title}</p>
+                <p className="font-semibold text-amber-100">{entry.title}</p>
                 <p className="text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
               </div>
               {entry.description ? <p className="mt-1 text-slate-300">{entry.description}</p> : null}
@@ -1024,6 +1076,106 @@ export function AdminDashboard() {
               Next
             </Button>
           </div>
+        </div>
+      </section>
+
+      <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Age Gate Review Queue</h2>
+            <p className="mt-2 text-sm text-slate-400">Review suspicious age verification attempts flagged for manual review.</p>
+          </div>
+          <Button
+            variant="ghost"
+            className="h-8 px-2 text-xs"
+            onClick={() => ageGateAuditQuery.refetch()}
+            disabled={ageGateAuditQuery.isFetching}
+          >
+            {ageGateAuditQuery.isFetching ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+        <div className="grid gap-3">
+          {(ageGateAuditQuery.data?.logs ?? []).map((entry) => (
+            <article key={entry.id} className="rounded-[20px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-200">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-amber-100">{entry.action === "verify" ? "Verification attempt" : "Reject event"}</p>
+                <p className="text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
+              </div>
+              <p className="mt-1 text-slate-300">Status: {entry.status.toUpperCase()}</p>
+              <p className="mt-1 text-slate-300">Risk: {entry.risk.level.toUpperCase()} ({entry.risk.score})</p>
+              {entry.note ? <p className="mt-2 text-slate-400">{entry.note}</p> : null}
+              {entry.risk.reasons.length ? (
+                <ul className="mt-3 space-y-1 text-slate-400">
+                  {entry.risk.reasons.map((reason) => (
+                    <li key={reason} className="flex items-start gap-2 text-[11px]">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-500" />
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="mt-3 grid gap-2">
+                <textarea
+                  value={ageGateReviewNotes[entry.id] ?? ""}
+                  onChange={(event) =>
+                    setAgeGateReviewNotes((previous) => ({
+                      ...previous,
+                      [entry.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Reviewer note (optional)"
+                  className="min-h-[72px] w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                />
+                <div className="flex flex-wrap gap-2">
+                  {entry.status === "blocked" ? (
+                    <Button
+                      variant="ghost"
+                      className="h-8 px-2 text-xs"
+                      onClick={() =>
+                        approveAgeGateAudit.mutate({
+                          auditId: entry.id,
+                          note: ageGateReviewNotes[entry.id],
+                        })
+                      }
+                      disabled={approveAgeGateAudit.isPending || rejectAgeGateAudit.isPending}
+                    >
+                      {approveAgeGateAudit.isPending ? "Approving..." : "Approve device"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    className="h-8 px-2 text-xs"
+                    onClick={() =>
+                      rejectAgeGateAudit.mutate({
+                        auditId: entry.id,
+                        note: ageGateReviewNotes[entry.id],
+                      })
+                    }
+                    disabled={approveAgeGateAudit.isPending || rejectAgeGateAudit.isPending}
+                  >
+                    {rejectAgeGateAudit.isPending ? "Rejecting..." : "Reject"}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-2 text-[11px] text-slate-500">
+                <p>Fingerprint: {entry.fingerprint}</p>
+                <p>IP: {entry.ip}</p>
+                <p>User Agent: {entry.userAgent}</p>
+                {entry.deviceProfile ? (
+                  <div className="mt-2 grid gap-1 text-slate-400 sm:grid-cols-2">
+                    {Object.entries(entry.deviceProfile).slice(0, 6).map(([key, value]) => (
+                      <p key={key}>
+                        <span className="font-semibold text-slate-300">{key}:</span> {String(value)}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+          {ageGateAuditQuery.data && ageGateAuditQuery.data.logs.length === 0 ? (
+            <p className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">No pending age gate review items found.</p>
+          ) : null}
         </div>
       </section>
     </div>

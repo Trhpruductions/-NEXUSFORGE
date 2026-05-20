@@ -1,18 +1,19 @@
 ﻿NexusForge Desktop Release Links
-Generated: 2026-05-14T19:42:08
+Generated: 2026-05-16T16:28:34
 
-Download:   https://heather-patches-existence-parenting.trycloudflare.com/NexusForge%20Desktop%20Setup%201.0.11.exe
-DownloadStable: https://heather-patches-existence-parenting.trycloudflare.com/NexusForge%20Desktop%20Setup%20Latest.exe
-Directory:  https://heather-patches-existence-parenting.trycloudflare.com/
-SHA256:     c02a6d205552768685d5a2e630238f6e01d22d2a1a815d3be2e9565b791f09d9
+Download:   https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe
+DownloadStable: https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
+Directory:  https://trhpruductions.github.io/-NEXUSFORGE/
+SHA256:     87077abb31e96b9c152a4e68c7fd3875d40f2700c233dd5f7d9a15e67e8fbb0f
 Version:    1.0.11
 ForceUpdate: False
-Ephemeral:  True
+Ephemeral:  False
 
 Process IDs
 httpServer=
-httpServerExistingPid=22340
-tunnel=29236
+httpServerExistingPid=16008
+tunnel=
 
 Manifest: D:\NEXUSFORGE GAMGING APP\apps\web\public\desktop-update.json
-Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260514-194134
+ManifestUrl: https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json
+Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260516-162550

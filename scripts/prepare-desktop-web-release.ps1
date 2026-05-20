@@ -39,9 +39,25 @@ try {
   $bundleDir = Join-Path $repoRoot (Join-Path $OutputRoot ("desktop-release-{0}" -f $bundleId))
   New-Item -ItemType Directory -Path $bundleDir -Force | Out-Null
 
-  Copy-Item -Path $manifestPath -Destination (Join-Path $bundleDir "desktop-update.json") -Force
+  $bundleManifestPath = Join-Path $bundleDir "desktop-update.json"
+  Copy-Item -Path $manifestPath -Destination $bundleManifestPath -Force
   Copy-Item -Path $versionedInstallerPath -Destination (Join-Path $bundleDir $versionedInstallerName) -Force
   Copy-Item -Path $latestInstallerPath -Destination (Join-Path $bundleDir $latestInstallerName) -Force
+
+  $downloadPagePath = Join-Path $repoRoot "apps\web\public\download.html"
+  if (-not (Test-Path -Path $downloadPagePath)) {
+    throw ("Download page not found: {0}" -f $downloadPagePath)
+  }
+  Copy-Item -Path $downloadPagePath -Destination (Join-Path $bundleDir "download.html") -Force
+
+  # Rewrite the bundled manifest to use a root-relative installer URL for static host deployment.
+  $bundleManifest = Get-Content -Path $bundleManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $bundleManifest.downloadUrl = [System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe")
+  if ($bundleManifest.PSObject.Properties.Name -contains "downloadUrls") {
+    $bundleManifest.downloadUrls = @([System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe"))
+  }
+  $bundleManifestJson = $bundleManifest | ConvertTo-Json -Depth 10
+  [System.IO.File]::WriteAllText($bundleManifestPath, $bundleManifestJson, [System.Text.UTF8Encoding]::new($false))
 
   $nginxSnippet = @"
 # Serve desktop update manifest as real file (no SPA fallback)
@@ -70,7 +86,7 @@ Desktop release deployment bundle
 Generated: $(Get-Date -Format s)
 Version: $version
 
-Upload these files to your public web root (same host as desktop-update.json):
+Upload these files to your public download host root (same host as desktop-update.json and installer URLs):
 - desktop-update.json
 - $latestInstallerName
 - $versionedInstallerName

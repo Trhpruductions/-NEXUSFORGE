@@ -14,13 +14,13 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
 const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const https = require("node:https");
 const net = require("node:net");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 
 const localStartUrl = "http://127.0.0.1:3000/app";
-const packagedHostedFallbackUrl = "https://www.nexusforge.app/app";
 const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
 function isLocalHostTarget(value) {
   try {
@@ -61,9 +61,15 @@ function parseBooleanEnv(name, defaultValue = false) {
   }
   return ["1", "true", "yes", "y", "on"].includes(raw);
 }
-const configuredStartUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || "") || "";
+const configuredDesktopUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || "") || "";
+const configuredPersistentDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || "") || "";
+const configuredDownloadPageUrl = configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/download.html` : "";
+const configuredStartUrl = configuredDesktopUrl || (configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
+const defaultPackagedHostedFallbackUrl = "https://trhpruductions.github.io/-NEXUSFORGE/download.html";
+const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
-const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", false);
+const defaultHostedCertBypass = app.isPackaged || /(^|\.)nexusforge\.app$/i.test(new URL(configuredStartUrl || "https://www.nexusforge.app/app").hostname);
+const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", defaultHostedCertBypass);
 if (allowHostedCertBypass) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   app.commandLine.appendSwitch("ignore-certificate-errors");
@@ -82,9 +88,12 @@ const appIconPath =
 const fallbackPath = path.join(__dirname, "fallback.html");
 const splashPath = path.join(__dirname, "splash.html");
 const startupWaitTimeoutMs = 90000;
+const localStartUrlProbeTimeoutMs = 120000;
 const startupQuickRecoveryTimeoutMs = 15000;
 const startupProbeDelayMs = 1250;
 const startupSplashHoldMs = 2200;
+const startupUpdateCheckHoldMs = 12000;
+const startupUpdatePromptTimeoutMs = 18000;
 const desktopUaToken = "NexusForgeDesktop";
 const desktopUserAgentSuffix = ` ${desktopUaToken}/${app.getVersion()}`;
 const stableCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-cache");
@@ -92,6 +101,8 @@ const stableCodeCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-co
 const manifestOverride = normalizeUrl(process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || "");
 const updateManifestUrl = manifestOverride
   ? manifestOverride
+  : configuredPersistentDownloadBaseUrl
+  ? `${configuredPersistentDownloadBaseUrl.replace(/\/$/, "")}/desktop-update.json`
   : app.isPackaged
   ? `${new URL(packagedHostedFallbackUrl).origin}/desktop-update.json`
   : null;
@@ -116,6 +127,9 @@ let localStackProcess = null;
 let localStackLogPath = path.join(app.getPath("userData"), "local-stack.log");
 let updateCheckTimer = null;
 let startupRevealTimer = null;
+let startupUpdateCheckPromise = null;
+let startupUpdatePromptPromise = null;
+let startupUpdatePromptResolver = null;
 let installInProgress = false;
 let skipAutoInstallOnQuit = false;
 let isQuitting = false;
@@ -181,9 +195,15 @@ let localStackStatus = {
   started: false,
   running: false,
   autoStartEnabled: isLocalStartTarget,
-  localRecoveryEnabled: isLocalStartTarget,
+  localRecoveryEnabled: isLocalStartTarget || Boolean(process.env.NEXUSFORGE_WORKSPACE_PATH),
   port3000Open: false,
   port4000Open: false,
+  port4001Open: false,
+  port4000Bound: false,
+  port4001Bound: false,
+  portApiOpen: false,
+  apiPortCandidates: [4000, 4001],
+  preferredApiPort: 4000,
   processPid: null,
   lastError: null,
   message: isLocalStartTarget ? "Local stack not started yet." : "Desktop is running in hosted mode.",
@@ -896,6 +916,7 @@ async function checkForUpdates(trigger = "manual") {
     const forceRequired = hasUpdate && (payloadForceUpdate || forceUpdateByDefault);
     const sameAvailableVersion = hasUpdate && updateRuntime.latestVersion === latestVersion;
 
+    const promptPending = trigger === "startup" && hasUpdate && !forceRequired;
     updateRuntime = {
       ...updateRuntime,
       checking: false,
@@ -910,13 +931,19 @@ async function checkForUpdates(trigger = "manual") {
       downloadedVersion: hasUpdate ? (sameAvailableVersion ? updateRuntime.downloadedVersion : null) : null,
       downloadPercent: hasUpdate ? (sameAvailableVersion ? updateRuntime.downloadPercent : 0) : 0,
       installerPath: hasUpdate ? (sameAvailableVersion ? updateRuntime.installerPath : null) : null,
+      updatePromptPending: promptPending,
       lastCheckedAt: new Date().toISOString(),
       lastError: null,
     };
+    if (promptPending && !startupUpdatePromptPromise) {
+      createStartupUpdatePromptPromise();
+    }
     emitUpdateRuntime();
 
     if (hasUpdate && !updateRuntime.downloading && !updateRuntime.downloaded) {
-      void beginBackgroundUpdateDownload(forceRequired);
+      if (forceRequired || trigger !== "startup") {
+        void beginBackgroundUpdateDownload(forceRequired);
+      }
     }
 
     if (
@@ -933,7 +960,8 @@ async function checkForUpdates(trigger = "manual") {
       hasUpdate &&
       !forceRequired &&
       (updateRuntime.remindLaterUntil || 0) <= Date.now() &&
-      trigger !== "silent"
+      trigger !== "silent" &&
+      trigger !== "startup"
     ) {
       await showUpdateAvailableDialog();
     }
@@ -941,10 +969,15 @@ async function checkForUpdates(trigger = "manual") {
     updateRuntime = {
       ...updateRuntime,
       checking: false,
+      updatePromptPending: false,
       lastCheckedAt: new Date().toISOString(),
       lastError: `Update check failed: ${String(error)}`,
     };
     emitUpdateRuntime();
+  } finally {
+    if (trigger === "startup") {
+      startupUpdateCheckPromise = null;
+    }
   }
 
   return updateRuntime;
@@ -987,9 +1020,17 @@ function createSplashWindow() {
   });
 }
 
-function revealMainWindow() {
+async function revealMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
+  }
+
+  if (startupUpdateCheckPromise) {
+    await Promise.race([startupUpdateCheckPromise, wait(startupUpdateCheckHoldMs)]);
+  }
+
+  if (startupUpdatePromptPromise) {
+    await Promise.race([startupUpdatePromptPromise, wait(startupUpdatePromptTimeoutMs)]);
   }
 
   if (shouldStartHiddenOnLaunch) {
@@ -1119,6 +1160,52 @@ function resolveWorkspacePath() {
   return null;
 }
 
+function parseEnvFile(filePath) {
+  try {
+    const contents = fs.readFileSync(filePath, "utf8");
+    return contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .reduce((env, line) => {
+        const match = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.*)$/);
+        if (!match) {
+          return env;
+        }
+
+        const key = match[1];
+        let value = match[2] || "";
+        if (/^'.*'$/.test(value) || /^".*"$/.test(value)) {
+          value = value.slice(1, -1);
+        }
+        env[key] = value;
+        return env;
+      }, {});
+  } catch {
+    return {};
+  }
+}
+
+function resolveLocalApiPortCandidates(workspacePath) {
+  const candidates = [];
+  if (workspacePath) {
+    const envPath = path.join(workspacePath, "apps", "server", ".env");
+    const envValues = parseEnvFile(envPath);
+    const portValue = Number.parseInt(String(envValues.PORT || "").trim(), 10);
+    if (Number.isFinite(portValue) && portValue > 0 && portValue < 65536) {
+      candidates.push(portValue);
+    }
+  }
+
+  for (const fallbackPort of [4000, 4001]) {
+    if (!candidates.includes(fallbackPort)) {
+      candidates.push(fallbackPort);
+    }
+  }
+
+  return candidates;
+}
+
 function probePort(port) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -1141,30 +1228,100 @@ function probePort(port) {
   });
 }
 
-async function refreshLocalPortStatus() {
-  if (!isLocalStartTarget) {
-    return { port3000Open: false, port4000Open: false };
+async function probeApiHealth(port) {
+  try {
+    const url = `http://127.0.0.1:${port}/api/health`;
+    const response = await fetchWithTimeout(url, { method: "GET", cache: "no-store", redirect: "manual" }, 1200);
+    return response.status >= 200 && response.status < 400;
+  } catch {
+    return false;
   }
+}
+
+async function refreshLocalPortStatus() {
+  const workspacePath = localStackStatus.workspacePath || resolveWorkspacePath();
+  const apiPortCandidates = resolveLocalApiPortCandidates(workspacePath);
+  const apiPortLabel = apiPortCandidates.join(", ");
 
   updateStartupRuntime({
     stage: "Checking local services",
-    detail: "Verifying the app stack is reachable on ports 3000 and 4000.",
+    detail: `Verifying the app stack is reachable on ports 3000 and ${apiPortLabel}.`,
     progress: 34,
     accent: "checking",
   });
-  const [port3000Open, port4000Open] = await Promise.all([probePort(3000), probePort(4000)]);
-  updateLocalStackStatus({ port3000Open, port4000Open });
-  updateStartupRuntime({
-    stage: port3000Open && port4000Open ? "Local services ready" : "Preparing recovery path",
-    detail: port3000Open && port4000Open ? "The desktop stack answered on both ports." : "Waiting on the local stack to finish coming online.",
-    progress: port3000Open && port4000Open ? 66 : 46,
-    accent: port3000Open && port4000Open ? "ready" : "checking",
+
+  const [port3000Open, ...apiHealthResults] = await Promise.all([
+    probePort(3000),
+    ...apiPortCandidates.map((port) => probeApiHealth(port)),
+  ]);
+
+  const [port4000Bound, port4001Bound] = await Promise.all([
+    probePort(4000),
+    probePort(4001),
+  ]);
+
+  const port4000Healthy = apiPortCandidates.includes(4000)
+    ? apiHealthResults[apiPortCandidates.indexOf(4000)]
+    : false;
+  const port4001Healthy = apiPortCandidates.includes(4001)
+    ? apiHealthResults[apiPortCandidates.indexOf(4001)]
+    : false;
+  const port4000Open = port4000Healthy;
+  const port4001Open = port4001Healthy;
+  const portApiOpen = apiHealthResults.some(Boolean);
+  const preferredApiPort = apiPortCandidates[0] || 4000;
+
+  updateLocalStackStatus({
+    port3000Open,
+    port4000Open,
+    port4001Open,
+    port4000Bound,
+    port4001Bound,
+    portApiOpen,
+    apiPortCandidates,
+    preferredApiPort,
   });
-  return { port3000Open, port4000Open };
+
+  updateStartupRuntime({
+    stage: port3000Open && portApiOpen ? "Local services ready" : "Preparing recovery path",
+    detail: port3000Open && portApiOpen ? "The desktop stack answered on the expected ports." : "Waiting on the local stack to finish coming online.",
+    progress: port3000Open && portApiOpen ? 66 : 46,
+    accent: port3000Open && portApiOpen ? "ready" : "checking",
+  });
+
+  return { port3000Open, port4000Open, port4001Open, port4000Bound, port4001Bound, portApiOpen, apiPortCandidates, preferredApiPort };
 }
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createStartupUpdatePromptPromise() {
+  if (startupUpdatePromptPromise) {
+    return startupUpdatePromptPromise;
+  }
+
+  startupUpdatePromptPromise = new Promise((resolve) => {
+    startupUpdatePromptResolver = resolve;
+  });
+
+  return startupUpdatePromptPromise;
+}
+
+function resolveStartupUpdatePrompt(choice) {
+  if (!startupUpdatePromptResolver) {
+    return;
+  }
+
+  startupUpdatePromptResolver(String(choice || "skip"));
+  startupUpdatePromptResolver = null;
+  startupUpdatePromptPromise = null;
+
+  updateRuntime = {
+    ...updateRuntime,
+    updatePromptPending: false,
+  };
+  emitUpdateRuntime();
 }
 
 function isTransientLoadError(error) {
@@ -1215,11 +1372,24 @@ async function waitForUrlReachable(url, options = {}) {
   const intervalMs = Number(options.intervalMs || 500);
   const startedAt = Date.now();
 
+  const agent = (() => {
+    try {
+      const parsed = new URL(url);
+      if (allowHostedCertBypass && parsed.protocol === "https:" && /(^|\.)nexusforge\.app$/i.test(parsed.hostname)) {
+        return new https.Agent({ rejectUnauthorized: false });
+      }
+    } catch {
+      // Ignore malformed URL.
+    }
+    return undefined;
+  })();
+
   while (Date.now() - startedAt < timeoutMs) {
     try {
       const response = await fetch(url, {
         method: "GET",
         cache: "no-store",
+        agent,
       });
 
       if (response.status >= 200 && response.status < 400) {
@@ -1236,7 +1406,7 @@ async function waitForUrlReachable(url, options = {}) {
 }
 
 function resolveHostedStartTargets() {
-  const candidates = [startUrl, packagedHostedFallbackUrl, "https://nexusforge.app", "https://www.nexusforge.app/app", "https://www.nexusforge.app"];
+  const candidates = [startUrl, packagedHostedFallbackUrl, "https://www.nexusforge.app/app", "https://www.nexusforge.app"];
 
   const appendOriginTargets = (value) => {
     try {
@@ -1249,11 +1419,16 @@ function resolveHostedStartTargets() {
 
   appendOriginTargets(startUrl);
   appendOriginTargets(packagedHostedFallbackUrl);
+  if (configuredDownloadPageUrl) {
+    candidates.push(configuredDownloadPageUrl);
+    appendOriginTargets(configuredDownloadPageUrl);
+  }
 
   try {
     const manifestOrigin = new URL(updateManifestUrl).origin;
     candidates.push(`${manifestOrigin}/app`);
     candidates.push(manifestOrigin);
+    candidates.push(`${manifestOrigin}/download.html`);
   } catch {
     // Ignore malformed manifest URLs in target resolution.
   }
@@ -1273,9 +1448,15 @@ function isTrustedHostedDomain(candidateUrl) {
 async function waitForLocalStackReady(timeoutMs) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    const { port3000Open, port4000Open } = await refreshLocalPortStatus();
-    if (port3000Open && port4000Open) {
-      return true;
+    const { port3000Open, port4000Open, port4001Open, portApiOpen } = await refreshLocalPortStatus();
+    if (port3000Open && portApiOpen) {
+      const appReady = await waitForUrlReachable(localStartUrl, {
+        timeoutMs: Math.min(6000, timeoutMs - (Date.now() - startedAt)),
+        intervalMs: 500,
+      });
+      if (appReady) {
+        return true;
+      }
     }
     await wait(startupProbeDelayMs);
   }
@@ -1402,22 +1583,9 @@ async function startLocalStack(reason) {
     progress: 48,
     accent: "starting",
   });
-  if (!isLocalStartTarget) {
-    const hostedMessage = "Local stack controls are disabled in hosted mode.";
-    updateLocalStackStatus({
-      message: hostedMessage,
-      attempted: true,
-      started: false,
-      running: false,
-      lastError: null,
-    });
-    appendLocalStackHistory(hostedMessage);
-    return localStackStatus;
-  }
-
   const workspacePath = resolveWorkspacePath();
   if (!workspacePath) {
-    const message = "Local workspace was not found for desktop dev recovery.";
+    const message = "Local workspace was not found for desktop recovery.";
     try {
       fs.mkdirSync(path.dirname(localStackLogPath), { recursive: true });
       fs.appendFileSync(
@@ -1440,12 +1608,27 @@ async function startLocalStack(reason) {
   }
 
   const existingPorts = await refreshLocalPortStatus();
-  if (existingPorts.port3000Open && existingPorts.port4000Open) {
+  const apiAlreadyRunning = existingPorts.port4000Open || existingPorts.port4001Open;
+  const apiConflict = existingPorts.port4000Open === false && existingPorts.port4000Bound && !existingPorts.port4001Open;
+  if (apiConflict) {
+    const message = "Local API port 4000 is occupied by a non-NexusForge process and cannot be used. Close the conflicting process or disable the port 4000 listener and retry.";
+    updateLocalStackStatus({
+      attempted: true,
+      started: false,
+      running: false,
+      lastError: message,
+      message,
+    });
+    appendLocalStackHistory(message);
+    return localStackStatus;
+  }
+
+  if (existingPorts.port3000Open && apiAlreadyRunning) {
     updateLocalStackStatus({
       attempted: true,
       started: false,
       running: true,
-      message: "Local stack is already running on ports 3000 and 4000.",
+      message: `Local stack is already running on ports 3000 and ${existingPorts.port4000Open ? 4000 : 4001}.`,
       lastError: null,
     });
     appendLocalStackHistory("Stack already running; launch command skipped.");
@@ -1472,19 +1655,44 @@ async function startLocalStack(reason) {
   const logStream = fs.createWriteStream(localStackLogPath, { flags: "a" });
   logStream.write(`\n===== ${new Date().toISOString()} [${reason}] =====\n`);
 
-  const spawnCommand = process.platform === "win32" ? "cmd.exe" : "npm";
-  const spawnArgs = process.platform === "win32" ? ["/d", "/s", "/c", "npm run dev"] : ["run", "dev"];
+  const npmExecPath = String(process.env.npm_execpath || "").trim();
+  const isWin = process.platform === "win32";
+  let spawnCommand;
+  let spawnArgs;
+
+  if (isWin) {
+    if (npmExecPath && (npmExecPath.toLowerCase().endsWith(".js") || npmExecPath.toLowerCase().endsWith(".mjs"))) {
+      spawnCommand = process.execPath;
+      spawnArgs = [npmExecPath, "run", "dev"];
+    } else {
+      spawnCommand = "npm.cmd";
+      spawnArgs = ["run", "dev"];
+    }
+  } else {
+    spawnCommand = "npm";
+    spawnArgs = ["run", "dev"];
+    if (npmExecPath && !npmExecPath.toLowerCase().endsWith(".js") && !npmExecPath.toLowerCase().endsWith(".mjs")) {
+      spawnCommand = npmExecPath;
+    }
+  }
+
+  const apiPortCandidates = resolveLocalApiPortCandidates(workspacePath);
   logStream.write(
-    `workspace=${workspacePath}\ncommand=${spawnCommand} ${spawnArgs.join(" ")}\n`,
+    `workspace=${workspacePath}\ncommand=${spawnCommand} ${spawnArgs.join(" ")}\nnpm_execpath=${npmExecPath || "(none)"}\nprocess.execPath=${process.execPath}\ncomspec=${process.env.ComSpec || "(none)"}\nshell=${isWin}\napiPortCandidates=${apiPortCandidates.join(",")}\n`,
   );
+
+  const workspaceBinPath = path.join(workspacePath, "node_modules", ".bin");
+  const spawnEnv = {
+    ...process.env,
+    PATH: [workspaceBinPath, process.env.PATH || ""].filter(Boolean).join(path.delimiter),
+    NEXUSFORGE_DESKTOP_BOOTSTRAPPED: "true",
+  };
 
   const child = spawn(spawnCommand, spawnArgs, {
     cwd: workspacePath,
     windowsHide: true,
-    env: {
-      ...process.env,
-      NEXUSFORGE_DESKTOP_BOOTSTRAPPED: "true",
-    },
+    shell: false,
+    env: spawnEnv,
   });
 
   localStackProcess = child;
@@ -1494,8 +1702,10 @@ async function startLocalStack(reason) {
     running: true,
     processPid: child.pid ?? null,
     lastError: null,
-    message: "Local stack startup command launched. Waiting for ports 3000 and 4000.",
+    message: `Local stack startup command launched. Waiting for ports 3000 and ${apiPortCandidates.join("/")}.`,
     workspacePath,
+    apiPortCandidates,
+    preferredApiPort: apiPortCandidates[0] ?? 4000,
   });
   appendLocalStackHistory(`Started local stack process (PID ${child.pid ?? "n/a"}).`);
 
@@ -1509,6 +1719,7 @@ async function startLocalStack(reason) {
   child.on("exit", (code) => {
     const message = `Local stack process exited with code ${code ?? "unknown"}.`;
     updateLocalStackStatus({
+      started: false,
       running: false,
       processPid: null,
       message,
@@ -1523,6 +1734,7 @@ async function startLocalStack(reason) {
   child.on("error", (error) => {
     const message = `Local stack failed to spawn: ${String(error)}`;
     updateLocalStackStatus({
+      started: false,
       running: false,
       processPid: null,
       message,
@@ -1533,6 +1745,18 @@ async function startLocalStack(reason) {
     logStream.end();
     localStackProcess = null;
   });
+
+  void (async () => {
+    try {
+      const ready = await waitForLocalStackReady(localStartUrlProbeTimeoutMs);
+      if (ready) {
+        appendLocalStackHistory("Local stack became available; retrying desktop connection automatically.");
+        await ensureAppReachable("auto-retry-after-local-stack-start");
+      }
+    } catch (error) {
+      appendLocalStackHistory(`Local stack readiness monitor failed: ${String(error)}`);
+    }
+  })();
 
   return localStackStatus;
 }
@@ -1604,7 +1828,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target, or start local services on http://127.0.0.1:3000/app.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://trhpruductions.github.io/-NEXUSFORGE/download.html, or start local services on http://127.0.0.1:3000/app.",
       );
     }
     return;
@@ -1624,71 +1848,43 @@ async function ensureAppReachable(trigger) {
   bootRecoveryInFlight = true;
   try {
     const ports = await refreshLocalPortStatus();
-    if (!ports.port3000Open || !ports.port4000Open) {
-      loadFallbackPage("Local services are down. Starting recovery sequence.");
-      if (localStackStatus.autoStartEnabled) {
-        const startResult = await startLocalStack(`auto-${trigger}`);
-        const couldStartLocal = Boolean(startResult?.started || startResult?.running);
-        if (!couldStartLocal) {
-          updateStartupRuntime({
-            stage: "Switching to hosted fallback",
-            detail: "Local services could not start. Trying hosted NexusForge now.",
-            progress: 60,
-            accent: "checking",
+    if (!ports.port3000Open || !ports.portApiOpen) {
+      if (localStackStatus.autoStartEnabled && !localStackStatus.running) {
+        appendLocalStackHistory("Local services are offline at startup; attempting automatic stack launch.");
+        await startLocalStack("auto-startup");
+        const ready = await waitForLocalStackReady(localStartUrlProbeTimeoutMs);
+        if (ready) {
+          await loadMainWindowUrlWithRetry(startUrl, { attempts: 6, delayMs: 900 });
+          markStartupTiming("local-target-connected", `target=${startUrl}`, false);
+          revealMainWindow();
+          updateLocalStackStatus({
+            launchMode: "local-dev",
+            message: "Desktop is connected to local services.",
+            lastError: null,
+            running: true,
           });
-          const recoveredHosted = await tryHostedFallbackFromLocal();
-          if (recoveredHosted) {
-            return;
-          }
-        }
-      }
-      const ready = await waitForLocalStackReady(Math.min(startupWaitTimeoutMs, startupQuickRecoveryTimeoutMs));
-      if (!ready) {
-        updateStartupRuntime({
-          stage: "Local services unavailable",
-          detail: "Trying hosted fallback so users can still join from outside the local network.",
-          progress: 62,
-          accent: "checking",
-        });
-        const recoveredHosted = await tryHostedFallbackFromLocal();
-        if (recoveredHosted) {
+          updateStartupRuntime({
+            launchMode: "local-dev",
+          });
+          appendLocalStackHistory("Desktop reconnected to local services after auto-starting the local stack.");
           return;
         }
-        loadFallbackPage("Local services are still offline and hosted fallback was unavailable. Use Start Local Stack to retry.");
-        return;
       }
-    }
-
-    let reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
-    if (!reachable && localStackStatus.autoStartEnabled) {
-      updateStartupRuntime({
-        stage: "Starting local services",
-        detail: "Local URL is not reachable yet. Restarting local services and retrying launch.",
-        progress: 56,
-        accent: "starting",
-      });
-      appendStartupLog("[recovery] Local URL unreachable after port checks. Starting recovery restart.");
-      await startLocalStack(`url-unreachable-${trigger}`);
-      await waitForLocalStackReady(startupWaitTimeoutMs);
-      reachable = await waitForUrlReachable(startUrl, { timeoutMs: 20000, intervalMs: 600 });
-    }
-
-    if (!reachable) {
-      updateStartupRuntime({
-        stage: "Local URL unavailable",
-        detail: "Trying hosted fallback so users can still join from outside the local network.",
-        progress: 62,
-        accent: "checking",
-      });
-      const recoveredHosted = await tryHostedFallbackFromLocal();
-      if (recoveredHosted) {
-        return;
-      }
-      loadFallbackPage("Local app URL did not become reachable and hosted fallback was unavailable. Retry in a moment or restart local services.");
+      loadFallbackPage(
+        "Local services are not available. Start the web and API servers on http://127.0.0.1:3000 and reopen NexusForge Desktop.",
+      );
       return;
     }
 
-    await loadMainWindowUrlWithRetry(startUrl, { attempts: 4, delayMs: 900 });
+    const reachable = await waitForUrlReachable(startUrl, { timeoutMs: localStartUrlProbeTimeoutMs, intervalMs: 600 });
+    if (!reachable) {
+      loadFallbackPage(
+        "Local app URL is unreachable. Verify localhost:3000 is running and retry.",
+      );
+      return;
+    }
+
+    await loadMainWindowUrlWithRetry(startUrl, { attempts: 6, delayMs: 900 });
     markStartupTiming("local-target-connected", `target=${startUrl}`, false);
     revealMainWindow();
     updateLocalStackStatus({
@@ -1707,9 +1903,14 @@ async function ensureAppReachable(trigger) {
       lastError: message,
       message,
     });
-    const recoveredHosted = await tryHostedFallbackFromLocal();
-    if (!recoveredHosted) {
-      loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
+
+    if (!shouldForceLocalInDev) {
+      const recoveredHosted = await tryHostedFallbackFromLocal();
+      if (!recoveredHosted) {
+        loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
+      }
+    } else {
+      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3000 and reopen NexusForge Desktop.");
     }
   } finally {
     bootRecoveryInFlight = false;
@@ -1903,6 +2104,16 @@ function createWindow() {
     return { action: "deny" };
   });
 
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    appendStartupLog(`[renderer-console] level=${level} line=${line} source=${sourceId} msg=${message}`);
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    appendStartupLog(`[renderer-gone] reason=${details.reason} exitCode=${details.exitCode} exitStatus=${details.exitStatus}`);
+  });
+  mainWindow.webContents.on("crashed", () => {
+    appendStartupLog("[renderer-crashed] Renderer process crashed.");
+  });
+
   // Desktop-only launch guard: append token while preserving Chromium UA compatibility.
   const baseUserAgent = mainWindow.webContents.getUserAgent();
   if (!baseUserAgent.includes(desktopUaToken)) {
@@ -2000,6 +2211,11 @@ app.on("second-instance", () => {
 app.whenReady().then(async () => {
   markStartupTiming("app-when-ready");
   appendStartupLog(`[startup-timing] log-path="${startupLogPath}"`);
+  appendStartupLog(
+    updateManifestUrl
+      ? `[startup] updateManifestUrl=${updateManifestUrl}`
+      : "[startup] updateManifestUrl is not configured; auto-update is disabled."
+  );
   updateStartupRuntime({
     stage: "Booting desktop shell",
     detail: "Starting NexusForge Desktop.",
@@ -2008,6 +2224,14 @@ app.whenReady().then(async () => {
   });
   readPersistedUpdateState();
   readDesktopPreferences();
+
+  if (!app.isPackaged) {
+    desktopPreferences.minimizeToTray = false;
+    desktopPreferences.startMinimized = false;
+    desktopPreferences.launchOnStartup = false;
+    appendStartupLog("[startup] Dev mode detected: overriding tray/minimize preferences.");
+  }
+
   applyLaunchOnStartupPreference();
   shouldStartHiddenOnLaunch =
     requestedHiddenArg || (desktopPreferences.startMinimized && launchedFromStartupArg);
@@ -2055,6 +2279,18 @@ app.whenReady().then(async () => {
     return { ...desktopPreferences };
   });
   ipcMain.handle("nexusforge-desktop:check-updates-now", async () => checkForUpdates("manual"));
+  ipcMain.handle("nexusforge-desktop:download-update-now", async () => {
+    resolveStartupUpdatePrompt("accept");
+    await beginBackgroundUpdateDownload(false);
+    return updateRuntime;
+  });
+  ipcMain.handle("nexusforge-desktop:resolve-update-prompt", async (_event, choice) => {
+    resolveStartupUpdatePrompt(String(choice || "skip"));
+    return {
+      success: true,
+      choice: String(choice || "skip"),
+    };
+  });
   ipcMain.handle("nexusforge-desktop:restart-for-update", async () => {
     if (updateRuntime.downloaded && updateRuntime.installerPath) {
       await installDownloadedUpdate();
@@ -2065,6 +2301,27 @@ app.whenReady().then(async () => {
     return { restarting: true };
   });
   ipcMain.handle("nexusforge-desktop:start-local-stack", async () => startLocalStack("manual-ui"));
+  ipcMain.handle("nexusforge-desktop:set-workspace-path", async (_event, candidatePath) => {
+    const normalizedCandidate = String(candidatePath || "").trim();
+    if (!normalizedCandidate) {
+      return { success: false, reason: "Workspace path is empty." };
+    }
+
+    const resolvedPath = path.resolve(normalizedCandidate);
+    if (!isWorkspaceRoot(resolvedPath)) {
+      return { success: false, reason: "Provided path is not a valid NexusForge workspace root." };
+    }
+
+    updateLocalStackStatus({
+      workspacePath: resolvedPath,
+      autoStartEnabled: true,
+      localRecoveryEnabled: true,
+      message: `Local workspace path set to ${resolvedPath}`,
+      lastError: null,
+    });
+    appendLocalStackHistory(`Workspace path configured: ${resolvedPath}`);
+    return { success: true, workspacePath: resolvedPath };
+  });
   ipcMain.handle("nexusforge-desktop:retry-app-load", async () => {
     await ensureAppReachable("manual-retry");
     return localStackStatus;
@@ -2152,7 +2409,11 @@ app.whenReady().then(async () => {
     return startupHealth;
   });
 
-  createAppTray();
+  if (app.isPackaged && desktopPreferences.minimizeToTray) {
+    createAppTray();
+  } else {
+    appendStartupLog("[startup] Tray icon disabled for non-packaged dev mode or because minimizeToTray is off.");
+  }
   createSplashWindow();
   createWindow();
   updateStartupRuntime({
@@ -2161,8 +2422,8 @@ app.whenReady().then(async () => {
     progress: 72,
     accent: "checking",
   });
+  startupUpdateCheckPromise = checkForUpdates("startup");
   void ensureAppReachable("startup");
-  void checkForUpdates("startup");
 
   if (updateManifestUrl) {
     updateCheckTimer = setInterval(() => {

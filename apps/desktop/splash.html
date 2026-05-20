@@ -29,15 +29,17 @@
 
       body {
         margin: 0;
+        width: 100vw;
         min-height: 100vh;
         display: grid;
         place-items: center;
         overflow: hidden;
+        perspective: 1300px;
         background:
           radial-gradient(circle at 13% 16%, rgba(249, 115, 22, 0.24), transparent 28%),
           radial-gradient(circle at 84% 15%, rgba(125, 211, 252, 0.2), transparent 30%),
           radial-gradient(circle at 78% 84%, rgba(52, 211, 153, 0.14), transparent 28%),
-          linear-gradient(145deg, #0b1220 0%, #131c2f 52%, #1a273c 100%);
+          linear-gradient(145deg, #05090f 0%, #0c1629 48%, #111d31 100%);
         color: var(--text);
         font-family: "Bahnschrift", "Segoe UI Variable", "Trebuchet MS", sans-serif;
       }
@@ -46,8 +48,8 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
-        opacity: 0.22;
-        background-image: radial-gradient(rgba(255, 255, 255, 0.32) 0.4px, transparent 0.4px);
+        opacity: 0.24;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.26) 0.4px, transparent 0.4px);
         background-size: 3px 3px;
         mix-blend-mode: soft-light;
       }
@@ -69,6 +71,123 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        transform-style: preserve-3d;
+        transform: rotateX(14deg) rotateY(-20deg) translateZ(0);
+      }
+
+      .portal-glow {
+        position: absolute;
+        inset: 0;
+        opacity: 0.18;
+        pointer-events: none;
+        background: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.32), transparent 22%),
+          radial-gradient(circle at 30% 82%, rgba(249, 115, 22, 0.18), transparent 20%),
+          radial-gradient(circle at 76% 45%, rgba(16, 185, 129, 0.14), transparent 18%);
+        filter: blur(1px);
+      }
+
+      .orbit-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border-radius: 999px;
+        border: 1px solid rgba(59, 130, 246, 0.32);
+        transform-style: preserve-3d;
+      }
+
+      .orbit-ring.ring1 {
+        width: 360px;
+        height: 360px;
+        margin: -180px 0 0 -180px;
+        animation: orbit-spin 18s linear infinite;
+      }
+
+      .orbit-ring.ring2 {
+        width: 240px;
+        height: 240px;
+        margin: -120px 0 0 -120px;
+        animation: orbit-spin 14s reverse infinite;
+      }
+
+      .core-structure {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 180px;
+        height: 180px;
+        transform-style: preserve-3d;
+        transform: translate(-50%, -50%) rotateX(35deg) rotateY(40deg);
+        animation: core-pulse 4.2s ease-in-out infinite;
+      }
+
+      .core-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.5));
+        box-shadow: inset 0 0 40px rgba(56, 189, 248, 0.05), 0 0 32px rgba(59, 130, 246, 0.18);
+        border-radius: 24px;
+      }
+
+      .core-face::after {
+        content: "";
+        position: absolute;
+        inset: 20px;
+        border-radius: 16px;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        background: radial-gradient(circle at 45% 35%, rgba(56, 189, 248, 0.24), transparent 32%);
+      }
+
+      .core-face-front {
+        transform: translateZ(90px);
+      }
+
+      .core-face-back {
+        transform: rotateY(180deg) translateZ(90px);
+      }
+
+      .core-face-left {
+        width: 180px;
+        transform: rotateY(-90deg) translateZ(90px);
+      }
+
+      .core-face-right {
+        width: 180px;
+        transform: rotateY(90deg) translateZ(90px);
+      }
+
+      .core-face-top {
+        transform: rotateX(90deg) translateZ(90px);
+      }
+
+      .core-face-bottom {
+        transform: rotateX(-90deg) translateZ(90px);
+      }
+
+      @keyframes orbit-spin {
+        from {
+          transform: translate3d(-50%, -50%, 0) rotateZ(0deg);
+        }
+        to {
+          transform: translate3d(-50%, -50%, 0) rotateZ(360deg);
+        }
+      }
+
+      @keyframes core-pulse {
+        0%,
+        100% {
+          transform: translate(-50%, -50%) rotateX(35deg) rotateY(40deg) scale(1);
+        }
+        50% {
+          transform: translate(-50%, -50%) rotateX(35deg) rotateY(40deg) scale(1.03);
+        }
       }
 
       .particles-bg::before,
@@ -145,22 +264,133 @@
 
       .splash {
         position: relative;
-        width: min(920px, calc(100vw - 32px));
-        border: 1px solid var(--line);
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        max-height: none;
+        border: none;
+        border-radius: 0;
+        background:
+          linear-gradient(180deg, rgba(10, 16, 28, 0.92), rgba(6, 11, 21, 0.78)),
+          rgba(8, 13, 23, 0.78);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+        padding: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        transform-style: preserve-3d;
+        animation: splash-enter 560ms cubic-bezier(0.22, 1.12, 0.38, 1);
+      }
+
+      .splash-inner {
+        width: min(1320px, calc(100vw - 64px));
+        max-height: calc(100vh - 64px);
+        border: 1px solid rgba(56, 189, 248, 0.22);
         border-radius: 28px;
         background:
-          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68)),
-          var(--panel);
+          linear-gradient(180deg, rgba(10, 16, 28, 0.92), rgba(6, 11, 21, 0.78)),
+          rgba(8, 13, 23, 0.78);
         box-shadow:
-          0 30px 80px var(--shadow),
+          0 48px 180px rgba(0, 0, 0, 0.5),
           inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        -webkit-backdrop-filter: blur(18px);
-        backdrop-filter: blur(18px);
-        padding: 26px;
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+        padding: clamp(28px, 3vw, 40px);
         display: grid;
-        gap: 18px;
-        overflow: hidden;
-        animation: splash-enter 560ms cubic-bezier(0.22, 1.12, 0.38, 1);
+        gap: 20px;
+        overflow: auto;
+        transform-style: preserve-3d;
+      }
+
+      @media (max-width: 880px) {
+        .splash-inner {
+          width: calc(100vw - 32px);
+          max-height: calc(100vh - 32px);
+          border-radius: 22px;
+          padding: 20px;
+        }
+      }
+
+      .splash.ready {
+        border-color: rgba(56, 189, 248, 0.45);
+        box-shadow:
+          0 60px 200px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      }
+
+      .splash.ready .pulse {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.12);
+      }
+
+      .splash.ready .splash-logo {
+        filter: drop-shadow(0 16px 80px rgba(59, 130, 246, 0.38));
+      }
+
+      .splash.ready .phase {
+        color: #34d399;
+      }
+
+      .splash.ready .meter-fill {
+        box-shadow: 0 0 34px rgba(56, 189, 248, 0.38);
+      }
+
+      .splash.complete {
+        transform: scale(1.01);
+        outline: 1px solid rgba(56, 189, 248, 0.18);
+      }
+
+      .splash.complete .pulse {
+        transform: scale(1.35);
+        box-shadow: 0 0 0 18px rgba(56, 189, 248, 0.14);
+      }
+
+      .splash.complete .phase {
+        color: #a78bfa;
+      }
+
+      .splash.complete .meter-fill {
+        box-shadow: 0 0 48px rgba(123, 97, 255, 0.42);
+      }
+
+      .splash.complete .badge-dot {
+        background: #a78bfa;
+        box-shadow: 0 0 0 8px rgba(167, 139, 250, 0.14);
+      }
+
+      .launch-banner {
+        opacity: 0;
+        transform: translateY(18px);
+        transition: opacity 280ms ease, transform 280ms ease;
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+        padding: 16px 22px;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(167, 139, 250, 0.18);
+      }
+
+      .launch-banner strong {
+        color: #a78bfa;
+        font-size: 0.95rem;
+      }
+
+      .launch-banner span {
+        color: #cbd5e1;
+        font-size: 0.86rem;
+      }
+
+      .splash.complete .launch-banner {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .splash.exiting .launch-banner {
+        opacity: 0;
+        transform: translateY(24px);
       }
 
       .splash::before {
@@ -168,17 +398,22 @@
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 18% 16%, rgba(251, 146, 60, 0.16), transparent 20%),
-          radial-gradient(circle at 78% 22%, rgba(125, 211, 252, 0.16), transparent 18%);
+          radial-gradient(circle at 18% 16%, rgba(251, 146, 60, 0.18), transparent 18%),
+          radial-gradient(circle at 78% 22%, rgba(125, 211, 252, 0.18), transparent 16%),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 60px 60px, 60px 60px, 100% 100%, 100% 100%;
+        background-position: center;
         pointer-events: none;
+        opacity: 0.88;
       }
 
       .splash::after {
         content: "";
         position: absolute;
-        inset: -1px;
-        border-radius: 28px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        inset: 0;
+        border-radius: 0;
+        border: 0;
         pointer-events: none;
       }
 
@@ -206,10 +441,10 @@
         height: auto;
         -webkit-user-select: none;
         user-select: none;
-        filter: drop-shadow(0 6px 32px rgba(249, 115, 22, 0.13)) drop-shadow(0 1px 0 #fff2);
+        filter: drop-shadow(0 10px 44px rgba(59, 130, 246, 0.28));
         border-radius: 18px;
-        background: rgba(15, 23, 42, 0.12);
-        padding: 8px 12px;
+        background: rgba(15, 23, 42, 0.16);
+        padding: 10px 14px;
         box-sizing: border-box;
         opacity: 0;
         transform: scale(0.92);
@@ -309,6 +544,15 @@
         letter-spacing: 0.04em;
       }
 
+      .mode-chip {
+        transition: transform 220ms ease, box-shadow 220ms ease;
+      }
+
+      .mode-chip:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(56, 189, 248, 0.08);
+      }
+
       .badge-dot {
         width: 8px;
         height: 8px;
@@ -381,10 +625,13 @@
         font-size: clamp(42px, 6.6vw, 78px);
         line-height: 0.92;
         letter-spacing: -0.03em;
-        font-weight: 750;
+        font-weight: 800;
         overflow-wrap: anywhere;
         word-break: normal;
-        text-shadow: 0 10px 30px rgba(8, 14, 28, 0.42);
+        text-shadow: 0 10px 40px rgba(31, 41, 55, 0.42);
+        background: linear-gradient(90deg, #7dd3fc, #f97316, #34d399);
+        -webkit-background-clip: text;
+        color: transparent;
       }
 
       .subtitle {
@@ -495,6 +742,153 @@
         opacity: 0;
         transform: translateY(8px);
         animation: section-enter 460ms var(--ease-out) 290ms forwards;
+      }
+
+      .update-card {
+        display: none;
+        gap: 14px;
+        padding: 18px;
+        border-radius: 22px;
+        background: rgba(30, 41, 59, 0.82);
+        border: 1px solid rgba(248, 113, 113, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        animation: section-enter 460ms var(--ease-out) 290ms forwards;
+      }
+
+      .update-card.required {
+        background: rgba(220, 38, 38, 0.12);
+        border-color: rgba(248, 113, 113, 0.36);
+      }
+
+      .update-card.required .update-title,
+      .update-card.required .update-desc {
+        color: #fee2e2;
+      }
+
+      .update-card.active {
+        display: grid;
+      }
+
+      .update-label {
+        margin: 0;
+        color: #fb7185;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 11px;
+      }
+
+      .update-title {
+        margin: 0;
+        font-size: 1.15rem;
+        color: #f8fafc;
+        font-weight: 700;
+      }
+
+      .update-desc {
+        margin: 0;
+        color: #cbd5e1;
+        line-height: 1.6;
+      }
+
+      .update-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .update-button {
+        padding: 12px 18px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.88);
+        color: #e2e8f0;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+      }
+
+      .update-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(248, 113, 113, 0.4);
+        background: rgba(31, 41, 55, 0.95);
+      }
+
+      .update-button.primary {
+        background: linear-gradient(90deg, #fb923c, #f97316);
+        color: #0f172a;
+        border-color: transparent;
+      }
+
+      .update-button.secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fafc;
+      }
+
+      .update-button.disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .update-notes {
+        margin: 0 0 10px;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        max-height: 84px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+      }
+
+      .update-progress {
+        margin: 0 0 10px;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
+      .update-progress-bar {
+        position: relative;
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        margin: 0 0 14px;
+      }
+
+      .update-notes-detail {
+        max-height: 0;
+        overflow: hidden;
+        padding: 0 16px;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        margin-top: 0;
+        opacity: 0;
+        transition: max-height 280ms ease, opacity 280ms ease, margin-top 280ms ease, padding 280ms ease;
+      }
+
+      .update-notes-detail.visible {
+        max-height: 220px;
+        padding: 14px 16px;
+        margin-top: 12px;
+        opacity: 1;
+      }
+
+      .update-progress-fill {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #fb923c, #f97316);
+        box-shadow: 0 0 18px rgba(251, 146, 60, 0.28);
+        transition: width 300ms ease;
       }
 
       .status-label {
@@ -626,8 +1020,14 @@
         background: linear-gradient(90deg, #f97316, #fb923c);
         color: #1e293b;
         border: none;
-        box-shadow: 0 2px 12px #0003;
+        box-shadow: 0 20px 60px rgba(251, 115, 60, 0.18);
         cursor: pointer;
+        transition: transform 180ms ease, box-shadow 180ms ease;
+      }
+
+      .error-retry-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 26px 70px rgba(251, 115, 60, 0.22);
       }
 
       .error-retry-btn:focus-visible {
@@ -639,6 +1039,29 @@
         display: none;
         text-align: center;
         padding: 12px 0 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .splash.error {
+        border-color: rgba(248, 113, 113, 0.35);
+        box-shadow:
+          0 60px 200px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 111, 111, 0.12);
+      }
+
+      .splash.error .pulse {
+        animation: pulse 1.2s ease-in-out infinite;
+        background: #fb7185;
+        box-shadow: 0 0 0 12px rgba(251, 113, 113, 0.16);
+      }
+
+      .splash.error .phase {
+        color: #fb7185;
+      }
+
+      .splash.error .meter-fill {
+        background: linear-gradient(90deg, #fb7185, #f97316);
+        box-shadow: 0 0 30px rgba(251, 113, 113, 0.3);
       }
 
       .error-title {
@@ -746,12 +1169,26 @@
     <div class="halo one"></div>
     <div class="halo two"></div>
     <div class="particles-bg" aria-hidden="true"></div>
+    <div class="scene" aria-hidden="true">
+      <div class="orbit-ring ring1"></div>
+      <div class="orbit-ring ring2"></div>
+      <div class="core-structure">
+        <div class="core-face core-face-front"></div>
+        <div class="core-face core-face-back"></div>
+        <div class="core-face core-face-left"></div>
+        <div class="core-face core-face-right"></div>
+        <div class="core-face core-face-top"></div>
+        <div class="core-face core-face-bottom"></div>
+      </div>
+    </div>
+    <div class="portal-glow" aria-hidden="true"></div>
 
     <main class="splash" role="main" aria-label="NexusForge Desktop Loading Screen" aria-busy="true">
-      <div class="splash-logo-row">
-        <img src="../web/public/brand/nexusforge-main-logo.png" alt="NexusForge Logo" class="splash-logo" draggable="false" />
-        <span id="logoAltFallback" class="logo-alt-fallback">NexusForge</span>
-      </div>
+      <div class="splash-inner">
+        <div class="splash-logo-row">
+          <img src="../web/public/brand/nexusforge-main-logo.png" alt="NexusForge Logo" class="splash-logo" draggable="false" />
+          <span id="logoAltFallback" class="logo-alt-fallback">NexusForge</span>
+        </div>
 
       <div class="splash-top">
         <div class="brand">
@@ -765,23 +1202,23 @@
 
       <section class="content">
         <div class="hero">
-          <h1>Desktop handoff<br />warming up.</h1>
+          <h1>NexusForge is booting your desktop workspace.</h1>
           <p class="subtitle">
-            NexusForge is preparing a clean startup path, checking services, and staging your workspace before the full app takes over.
+            Establishing a secure shell, validating service readiness, and preparing the full workspace for handoff.
           </p>
 
           <div class="facts">
             <div class="fact">
               <strong>Secure session</strong>
-              <span id="factOneDesc">Resetting launch data and Chromium storage.</span>
+              <span id="factOneDesc">Securing the desktop shell and session bridge.</span>
             </div>
             <div class="fact">
               <strong>Service check</strong>
-              <span id="factTwoDesc">Verifying local ports and recovery readiness.</span>
+              <span id="factTwoDesc">Confirming local stack readiness before handoff.</span>
             </div>
             <div class="fact">
               <strong>Window handoff</strong>
-              <span id="factThreeDesc">Bringing NexusForge to the front when ready.</span>
+              <span id="factThreeDesc">The splash closes once the app window is ready.</span>
             </div>
           </div>
         </div>
@@ -815,12 +1252,35 @@
         </div>
       </section>
 
+      <section class="update-card" id="updateCard" aria-live="polite">
+        <p class="update-label">Update available</p>
+        <p class="update-title" id="updateTitle">A newer desktop version is ready.</p>
+        <p class="update-desc" id="updateDesc">Download the latest NexusForge Desktop installer before launch, or continue without updating.</p>
+        <p class="update-notes" id="updateNotesText" hidden></p>
+        <p class="update-progress" id="updateProgressText" hidden></p>
+        <div class="update-progress-bar" id="updateProgressBar" hidden>
+          <div class="update-progress-fill" id="updateProgressFill"></div>
+        </div>
+        <div class="update-actions">
+          <button id="updateInstallBtn" class="update-button primary">Update now</button>
+          <button id="updateDetailsBtn" class="update-button secondary" hidden>View details</button>
+          <button id="updateSkipBtn" class="update-button secondary">Continue without update</button>
+        </div>
+        <div class="update-notes-detail" id="updateNotesDetail" hidden></div>
+      </section>
+
       <div class="footer">
         <div class="footer-copy">
           <strong id="footerTitle">Getting ready to open NexusForge.</strong>
           <span id="latestVersionText">Checking for the newest build.</span>
         </div>
         <div>Desktop handoff is automatic once the workspace is live.</div>
+      </div>
+      </div>
+
+      <div class="launch-banner" id="launchBanner" aria-live="polite">
+        <strong>Launch complete</strong>
+        <span>Opening NexusForge now — the full workspace is ready.</span>
       </div>
 
       <button id="errorRetryBtn" class="error-retry-btn" aria-label="Retry loading app">Retry</button>
@@ -911,11 +1371,11 @@
         },
         "Opening app": {
           label: "Opening app",
-          footer: "Bringing the full workspace forward.",
+          footer: "Desktop handoff is automatic once the workspace is live.",
           facts: [
             "Connecting the desktop shell to NexusForge.",
             "The app window is loading and preparing to show.",
-            "The splash screen will close as soon as the window is ready.",
+            "The splash screen closes as soon as the window is ready.",
           ],
           activeStep: 3,
         },
@@ -961,6 +1421,18 @@
       const splashRoot = document.querySelector(".splash");
       const splashLogo = document.querySelector(".splash-logo");
       const logoFallback = document.getElementById("logoAltFallback");
+      const updateCard = document.getElementById("updateCard");
+      const updateLabel = document.getElementById("updateLabel");
+      const updateTitle = document.getElementById("updateTitle");
+      const updateDesc = document.getElementById("updateDesc");
+      const updateProgressText = document.getElementById("updateProgressText");
+      const updateProgressBar = document.getElementById("updateProgressBar");
+      const updateProgressFill = document.getElementById("updateProgressFill");
+      const updateNotesText = document.getElementById("updateNotesText");
+      const updateDetailsBtn = document.getElementById("updateDetailsBtn");
+      const updateNotesDetail = document.getElementById("updateNotesDetail");
+      const updateInstallBtn = document.getElementById("updateInstallBtn");
+      const updateSkipBtn = document.getElementById("updateSkipBtn");
 
       if (splashLogo && logoFallback) {
         splashLogo.addEventListener("error", () => {
@@ -991,6 +1463,154 @@
         }
       }
 
+      let updatePromptSkipped = false;
+      let lastPromptedVersion = null;
+
+      function showUpdatePrompt(state) {
+        if (!updateCard || !updateInstallBtn || !updateSkipBtn) {
+          return;
+        }
+
+        const latestVersion = String(state?.latestVersion || "").trim();
+        const hasAvailableUpdate = state?.available && !state?.downloaded;
+        const hasDownloadedUpdate = state?.available && state?.downloaded && state?.downloadedVersion === latestVersion;
+        const isDownloading = Boolean(state?.downloading);
+        const isForceRequired = Boolean(state?.forceRequired);
+        const isNewVersion = latestVersion && latestVersion !== lastPromptedVersion;
+
+        if (isNewVersion) {
+          updatePromptSkipped = false;
+          lastPromptedVersion = latestVersion;
+        }
+
+        const shouldShowPrompt = (hasAvailableUpdate || hasDownloadedUpdate || isDownloading) && (!updatePromptSkipped || isForceRequired || hasDownloadedUpdate);
+
+        if (shouldShowPrompt) {
+          updateCard.classList.add("active");
+          updateCard.classList.toggle("required", isForceRequired);
+
+          if (hasDownloadedUpdate) {
+            const trimmedNotes = String(state?.notes || "").trim();
+            if (updateLabel) {
+              updateLabel.textContent = isForceRequired ? "Required update ready" : "Update ready";
+            }
+            updateTitle.textContent = `Ready to install: ${formatVersion(latestVersion)}`;
+            updateDesc.textContent = "The latest desktop update has finished downloading. Restart now to apply it.";
+            if (updateNotesText) {
+              updateNotesText.hidden = !trimmedNotes;
+              updateNotesText.textContent = trimmedNotes ? trimmedNotes : "";
+            }
+            if (updateDetailsBtn) {
+              updateDetailsBtn.hidden = !trimmedNotes;
+              updateDetailsBtn.textContent = "View details";
+            }
+            if (updateNotesDetail) {
+              updateNotesDetail.hidden = true;
+              updateNotesDetail.classList.remove("visible");
+              updateNotesDetail.textContent = trimmedNotes ? trimmedNotes : "";
+            }
+            updateInstallBtn.textContent = isForceRequired ? "Install required update" : "Install update now";
+            updateInstallBtn.disabled = false;
+            updateInstallBtn.classList.remove("disabled");
+            updateSkipBtn.style.display = "inline-block";
+            updateSkipBtn.textContent = "Continue without update";
+            if (updateProgressText) {
+              updateProgressText.hidden = true;
+            }
+            if (updateProgressBar) {
+              updateProgressBar.hidden = true;
+              updateProgressFill.style.width = "0%";
+            }
+          } else if (isDownloading) {
+            if (updateLabel) {
+              updateLabel.textContent = isForceRequired ? "Required update" : "Downloading update";
+            }
+            updateTitle.textContent = `Downloading update: ${formatVersion(latestVersion)}`;
+            updateDesc.textContent = "Your update is downloading now. The splash will stay visible while the package downloads.";
+            const percent = Number(state?.downloadPercent || 0);
+            if (updateNotesText) {
+              updateNotesText.hidden = true;
+            }
+            if (updateDetailsBtn) {
+              updateDetailsBtn.hidden = true;
+            }
+            if (updateNotesDetail) {
+              updateNotesDetail.hidden = true;
+              updateNotesDetail.classList.remove("visible");
+            }
+            if (updateProgressText) {
+              updateProgressText.hidden = false;
+              updateProgressText.textContent = percent ? `Download progress: ${percent}%` : "Preparing download...";
+            }
+            if (updateProgressBar && updateProgressFill) {
+              updateProgressBar.hidden = false;
+              updateProgressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            }
+            updateInstallBtn.textContent = "Downloading...";
+            updateInstallBtn.disabled = true;
+            updateInstallBtn.classList.add("disabled");
+            updateSkipBtn.style.display = "inline-block";
+            updateSkipBtn.textContent = "Continue without update";
+          } else {
+            const trimmedNotes = String(state?.notes || "").trim();
+            if (updateLabel) {
+              updateLabel.textContent = isForceRequired ? "Required update" : "Update available";
+            }
+            updateTitle.textContent = isForceRequired
+              ? `Required update available: ${formatVersion(latestVersion)}`
+              : `Update available: ${formatVersion(latestVersion)}`;
+            updateDesc.textContent = isForceRequired
+              ? "A required update must be installed before the app can continue."
+              : "Download the latest NexusForge Desktop installer before launch, or continue without updating.";
+            if (updateNotesText) {
+              updateNotesText.hidden = !trimmedNotes;
+              updateNotesText.textContent = trimmedNotes ? trimmedNotes : "";
+            }
+            if (updateDetailsBtn) {
+              updateDetailsBtn.hidden = !trimmedNotes;
+              updateDetailsBtn.textContent = "View details";
+            }
+            if (updateNotesDetail) {
+              updateNotesDetail.hidden = true;
+              updateNotesDetail.classList.remove("visible");
+              updateNotesDetail.textContent = trimmedNotes ? trimmedNotes : "";
+            }
+            if (updateProgressText) {
+              updateProgressText.hidden = true;
+            }
+            if (updateProgressBar) {
+              updateProgressBar.hidden = true;
+              updateProgressFill.style.width = "0%";
+            }
+            updateInstallBtn.textContent = isForceRequired ? "Install required update" : "Update now";
+            updateInstallBtn.disabled = false;
+            updateInstallBtn.classList.remove("disabled");
+            updateSkipBtn.style.display = isForceRequired ? "none" : "inline-block";
+            updateSkipBtn.textContent = "Skip update";
+          }
+          return;
+        }
+
+        if (updateNotesText) {
+          updateNotesText.hidden = true;
+        }
+        if (updateDetailsBtn) {
+          updateDetailsBtn.hidden = true;
+        }
+        if (updateNotesDetail) {
+          updateNotesDetail.hidden = true;
+        }
+        if (updateProgressText) {
+          updateProgressText.hidden = true;
+        }
+        if (updateProgressBar) {
+          updateProgressBar.hidden = true;
+          updateProgressFill.style.width = "0%";
+        }
+        updateCard.classList.remove("active");
+        updateCard.classList.remove("required");
+      }
+
       function applyState(state) {
         const current = { ...defaultState, ...(state || {}) };
         const copy = stageCopy[current.stage] || stageCopy[defaultState.stage];
@@ -1006,7 +1626,15 @@
 
         meterLabel.textContent = copy.label;
         footerTitle.textContent = copy.footer;
-        badgeText.textContent = current.stage.includes("Opening") ? "Handing off" : "Launching";
+        const openingPhase = current.stage.includes("Opening") || current.stage === "Opening NexusForge Desktop";
+        if (current.stage === "Opening NexusForge Desktop") {
+          badgeText.textContent = "Ready";
+        } else if (openingPhase) {
+          badgeText.textContent = "Handing off";
+        } else {
+          badgeText.textContent = "Launching";
+        }
+
         if (launchMode === "hosted") {
           modeText.textContent = "Hosted";
         } else if (launchMode === "local-dev") {
@@ -1036,6 +1664,32 @@
         const [primary, secondary] = accentMap[current.accent] || accentMap.warmup;
         document.documentElement.style.setProperty("--accent", primary);
         document.documentElement.style.setProperty("--accent-strong", secondary);
+
+        const readyPhase = current.stage === "Opening NexusForge Desktop" || current.stage === "Opening app";
+        const completePhase = current.stage === "Opening NexusForge Desktop" && progress >= 96;
+        if (splashRoot) {
+          splashRoot.classList.toggle("ready", readyPhase);
+          splashRoot.classList.toggle("complete", completePhase);
+        }
+
+        if (splashRoot) {
+          if (completePhase) {
+            clearTimeout(window.__nexusforgeSplashExitTimeout);
+            window.__nexusforgeSplashExitTimeout = setTimeout(() => {
+              if (splashRoot) {
+                splashRoot.classList.add("exiting");
+              }
+            }, 1200);
+          } else {
+            if (splashRoot.classList.contains("exiting")) {
+              splashRoot.classList.remove("exiting");
+            }
+          }
+        }
+
+        if (window.__lastUpdateState) {
+          showUpdatePrompt(window.__lastUpdateState);
+        }
       }
 
       let timerStart = Date.now();
@@ -1050,6 +1704,11 @@
         errorState.style.display = visible ? "block" : "none";
         errorRetryBtn.style.display = visible ? "block" : "none";
         splashRoot.setAttribute("aria-busy", visible ? "false" : "true");
+        if (splashRoot) {
+          splashRoot.classList.toggle("error", visible);
+          splashRoot.classList.toggle("ready", !visible && splashRoot.classList.contains("ready"));
+          splashRoot.classList.toggle("complete", !visible && splashRoot.classList.contains("complete"));
+        }
       }
 
       applyState(defaultState);
@@ -1057,12 +1716,20 @@
       if (window.nexusforgeDesktop?.getUpdateState) {
         window.nexusforgeDesktop
           .getUpdateState()
-          .then((state) => renderVersionState(state))
+          .then((state) => {
+            window.__lastUpdateState = state;
+            renderVersionState(state);
+            showUpdatePrompt(state);
+          })
           .catch(() => {});
       }
 
       if (window.nexusforgeDesktop?.onUpdateState) {
-        window.nexusforgeDesktop.onUpdateState((state) => renderVersionState(state));
+        window.nexusforgeDesktop.onUpdateState((state) => {
+          window.__lastUpdateState = state;
+          renderVersionState(state);
+          showUpdatePrompt(state);
+        });
       }
 
       let startupFailed = false;
@@ -1082,6 +1749,77 @@
           window.location.reload();
         }
       });
+
+      if (updateInstallBtn) {
+        updateInstallBtn.addEventListener("click", () => {
+          if (!window.nexusforgeDesktop) {
+            return;
+          }
+
+          const currentState = window.__lastUpdateState || {};
+          const hasDownloadedUpdate = currentState?.available && currentState?.downloaded && currentState?.downloadedVersion === currentState?.latestVersion;
+          const isForceRequired = Boolean(currentState?.forceRequired);
+
+          if (hasDownloadedUpdate && window.nexusforgeDesktop.restartForUpdate) {
+            updateInstallBtn.disabled = true;
+            updateInstallBtn.classList.add("disabled");
+            badgeText.textContent = "Installing";
+            updateDesc.textContent = "Restarting the app to apply the downloaded update.";
+            window.nexusforgeDesktop.resolveUpdatePrompt?.("install");
+            window.nexusforgeDesktop.restartForUpdate?.();
+            return;
+          }
+
+          if (!window.nexusforgeDesktop.downloadUpdateNow) {
+            return;
+          }
+
+          updateInstallBtn.disabled = true;
+          updateInstallBtn.classList.add("disabled");
+          badgeText.textContent = "Updating";
+          updateDesc.textContent = "Downloading the latest installer now. Please wait.";
+
+          const downloadPromise = window.nexusforgeDesktop.downloadUpdateNow?.();
+          if (downloadPromise && typeof downloadPromise.then === "function") {
+            downloadPromise.catch(() => {
+              updateInstallBtn.disabled = false;
+              updateInstallBtn.classList.remove("disabled");
+              updateInstallBtn.textContent = hasDownloadedUpdate
+                ? isForceRequired
+                  ? "Install required update"
+                  : "Install update now"
+                : isForceRequired
+                ? "Install required update"
+                : "Update now";
+              badgeText.textContent = "Update stalled";
+              updateDesc.textContent = hasDownloadedUpdate
+                ? "The downloaded update is ready. Restart to install."
+                : "The download could not start. Please try again.";
+              showUpdatePrompt(window.__lastUpdateState || {});
+            });
+          }
+        });
+      }
+
+      if (updateSkipBtn) {
+        updateSkipBtn.addEventListener("click", () => {
+          updatePromptSkipped = true;
+          showUpdatePrompt(window.__lastUpdateState || {});
+          window.nexusforgeDesktop?.resolveUpdatePrompt?.("skip");
+        });
+      }
+
+      if (updateDetailsBtn) {
+        updateDetailsBtn.addEventListener("click", () => {
+          if (!updateNotesDetail || !updateDetailsBtn) {
+            return;
+          }
+
+          const isHidden = updateNotesDetail.hidden !== false;
+          updateNotesDetail.hidden = !isHidden;
+          updateDetailsBtn.textContent = isHidden ? "Hide details" : "View details";
+        });
+      }
 
       if (window.nexusforgeDesktop?.onStartupState) {
         window.nexusforgeDesktop.onStartupState((state) => {

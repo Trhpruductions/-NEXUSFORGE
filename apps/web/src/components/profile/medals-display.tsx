@@ -29,7 +29,7 @@ export function MedalsDisplay({ medals, compact = false }: MedalsDisplayProps) {
               {medal.icon}
             </div>
           )}
-          <div className="text-sm font-semibold text-cyan-300 transition group-hover:text-amber-200">
+          <div className="text-sm font-semibold text-amber-300 transition group-hover:text-amber-200">
             {medal.name}
           </div>
           {medal.description && (

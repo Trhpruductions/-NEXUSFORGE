@@ -1,15 +1,15 @@
 ﻿NexusForge Beta Links
-Generated: 2026-05-10T19:16:44
+Generated: 2026-05-18T00:02:27
 
-Tester Hub: https://abstract-weight-dicke-longest.trycloudflare.com/beta
-Checklist:  https://abstract-weight-dicke-longest.trycloudflare.com/beta/checklist
-Feedback:   https://abstract-weight-dicke-longest.trycloudflare.com/beta/feedback
-API Health: https://acre-airplane-authorities-midi.trycloudflare.com/api/health
+Tester Hub: https://developing-mazda-cat-msg.trycloudflare.com/beta
+Checklist:  https://developing-mazda-cat-msg.trycloudflare.com/beta/checklist
+Feedback:   https://developing-mazda-cat-msg.trycloudflare.com/beta/feedback
+API Health: https://examination-generated-solved-tournaments.trycloudflare.com/api/health
 
 Process IDs
-api=19020
-apiTunnel=9344
-web=13136
-webTunnel=29848
+api=7856
+apiTunnel=43872
+web=46536
+webTunnel=4648
 
-Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260510-191625
+Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260518-000143

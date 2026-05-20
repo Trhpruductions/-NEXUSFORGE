@@ -4,6 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Create a local `.env.local` from `.env.example` and set:
 
+- `NEXT_PUBLIC_APP_URL` for the deployed frontend origin used by metadata and canonical URLs.
 - `NEXT_PUBLIC_API_URL` for the API origin used by the web client.
 - `NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY` to enable browser push subscription for profile settings.
 - `NEXUSFORGE_AGE_GATE_SECRET` for server-signed 18+ verification cookies.
@@ -18,7 +19,8 @@ Age gate cookie note:
 
 Hosted access note:
 
-- For users outside your local network, `NEXT_PUBLIC_API_URL` must point to a public API origin (not localhost).
+- For users outside your local network, `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_API_URL` must both point to public origins (not localhost).
+- `NEXT_PUBLIC_APP_URL` is used by the web app for metadata and canonical URL generation.
 - Desktop clients can now auto-fallback between local and hosted app targets; for explicit hosted desktop validation from the repo root, use `npm run desktop:open:hosted`.
 - If hosted Electron launches depend on temporary certificate bypass during rollout, the desktop shell gates that behavior behind `NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS`.
 

@@ -44,7 +44,7 @@ export function DesktopLaunchModeBadge() {
   const [enabled, setEnabled] = useState(false);
   const [status, setStatus] = useState<LocalStackStatus | null>(null);
 
-  const isAppRoute = pathname === "/app" || pathname.startsWith("/app/");
+  const isAppRoute = pathname === "/app" || pathname?.startsWith("/app/");
 
   useEffect(() => {
     if (!isAppRoute) {
@@ -98,11 +98,11 @@ export function DesktopLaunchModeBadge() {
 
   const toneClass =
     mode === "local"
-      ? "border-emerald-500/45 bg-emerald-950/40 text-emerald-100"
+      ? "border-amber-500/45 bg-amber-950/40 text-amber-100"
       : mode === "hosted-fallback"
         ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
         : mode === "hosted"
-          ? "border-cyan-500/45 bg-cyan-950/35 text-cyan-100"
+          ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
           : "border-slate-700 bg-slate-900/75 text-slate-200";
 
   return (

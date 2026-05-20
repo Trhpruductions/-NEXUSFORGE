@@ -62,7 +62,7 @@ export function ProfileSettingsForm() {
     ...buildProfileFormState(user),
     ...draft,
   } satisfies ProfileFormState;
-  const intent = searchParams.get("intent") ?? undefined;
+  const intent = searchParams?.get("intent") ?? undefined;
 
   const updateDraft = <Key extends keyof ProfileFormState>(key: Key, value: ProfileFormState[Key]) => {
     setDraft((current) => ({
@@ -195,14 +195,14 @@ export function ProfileSettingsForm() {
         }}
       />
       {intent === "create-forge" ? (
-        <div className="mb-4 rounded-2xl border border-cyan-500/35 bg-cyan-950/20 p-4 text-sm text-cyan-100">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Quick Start Intent</p>
+        <div className="mb-4 rounded-2xl border border-amber-500/35 bg-amber-950/20 p-4 text-sm text-amber-100">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Quick Start Intent</p>
           <p className="mt-2">Create Forge was selected from the home command panel. Continue to the command center forge tools to launch your new community workspace.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/app" className="inline-flex h-10 items-center rounded-xl border border-cyan-500/45 bg-cyan-950/35 px-4 text-xs font-semibold text-cyan-100 hover:border-cyan-300">
+            <Link href="/app" className="inline-flex h-10 items-center rounded-xl border border-amber-500/45 bg-amber-950/35 px-4 text-xs font-semibold text-amber-100 hover:border-amber-300">
               Open Command Center
             </Link>
-            <Link href="/search?q=community" className="inline-flex h-10 items-center rounded-xl border border-slate-600/80 bg-slate-900/70 px-4 text-xs font-semibold text-slate-100 hover:border-cyan-500/45">
+            <Link href="/search?q=community" className="inline-flex h-10 items-center rounded-xl border border-slate-600/80 bg-slate-900/70 px-4 text-xs font-semibold text-slate-100 hover:border-amber-500/45">
               Explore Existing Communities
             </Link>
           </div>
@@ -219,17 +219,17 @@ export function ProfileSettingsForm() {
           <span className="rounded-full border border-amber-500/45 bg-amber-950/35 px-2 py-0.5 text-amber-100">
             {user.premium ? user.premiumTier ?? "CORE" : "NONE"}
           </span>
-          <span className="rounded-full border border-cyan-500/35 bg-cyan-950/25 px-2 py-0.5 text-cyan-100">
+          <span className="rounded-full border border-amber-500/35 bg-amber-950/25 px-2 py-0.5 text-amber-100">
             Boost {user.corePlusBoostLevel ?? 0}
           </span>
-          <span className="rounded-full border border-emerald-500/35 bg-emerald-950/25 px-2 py-0.5 text-emerald-100">
+          <span className="rounded-full border border-amber-500/35 bg-amber-950/25 px-2 py-0.5 text-amber-100">
             Streak {user.corePlusStreakDays ?? 0}d
           </span>
         </div>
 
-        <div className="relative grid gap-3 rounded-[24px] border border-cyan-500/20 bg-cyan-950/10 p-4 md:grid-cols-[1.2fr_auto] md:items-center">
+        <div className="relative grid gap-3 rounded-[24px] border border-amber-500/20 bg-amber-950/10 p-4 md:grid-cols-[1.2fr_auto] md:items-center">
           <div className="space-y-1 text-sm text-slate-200">
-            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Billing Control</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Billing Control</p>
             <p>
               Subscription: {billingQuery.data?.premium.subscription?.status ?? "NONE"}
               {billingQuery.data?.premium.subscription?.interval ? ` · ${billingQuery.data.premium.subscription.interval}` : ""}
@@ -245,7 +245,7 @@ export function ProfileSettingsForm() {
             <Button variant="ghost" onClick={() => billingPortalMutation.mutate()} disabled={billingPortalMutation.isPending || !billingQuery.data?.premium.subscription}>
               {billingPortalMutation.isPending ? "Opening Portal..." : "Manage Billing"}
             </Button>
-            <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300">
+            <Link href="/pricing" className="inline-flex h-11 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300">
               Open Pricing
             </Link>
           </div>
@@ -255,7 +255,7 @@ export function ProfileSettingsForm() {
           <div className="nexus-panel rounded-[24px] p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Identity Matrix</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Identity Matrix</p>
                 <p className="mt-1 text-sm text-slate-400">Refine your public identity, presence layer, and current activity feed.</p>
               </div>
               <div className="rounded-full border border-slate-700/80 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
@@ -275,7 +275,7 @@ export function ProfileSettingsForm() {
                 <textarea
                   value={form.bio}
                   onChange={(e) => updateDraft("bio", e.target.value)}
-                  className="min-h-28 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+                  className="min-h-28 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-slate-100 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
                   placeholder="Tell the community about you"
                 />
               </label>
@@ -286,7 +286,7 @@ export function ProfileSettingsForm() {
                   onChange={(e) => updateDraft("status", e.target.value as PresenceStatus)}
                   aria-label="Select presence status"
                   title="Select presence status"
-                  className="h-11 rounded-xl border border-slate-700 bg-slate-900/70 px-3 text-slate-100 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+                  className="h-11 rounded-xl border border-slate-700 bg-slate-900/70 px-3 text-slate-100 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
                 >
                   <option value="ONLINE">Online</option>
                   <option value="IDLE">Idle</option>
@@ -304,15 +304,15 @@ export function ProfileSettingsForm() {
             </div>
 
             <div className="nexus-metric-card rounded-2xl p-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Quick Summary</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Quick Summary</p>
               <div className="mt-3 grid gap-2 text-sm text-slate-300">
                 <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2">
                   <span>Presence</span>
-                  <span className="text-cyan-200">{form.status}</span>
+                  <span className="text-amber-200">{form.status}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2">
                   <span>Branding Kit</span>
-                  <span className={hasBrandingKit || isBetaCosmeticsBypass ? "text-emerald-200" : "text-amber-200"}>
+                  <span className={hasBrandingKit || isBetaCosmeticsBypass ? "text-amber-200" : "text-amber-200"}>
                     {hasBrandingKit ? "Unlocked" : isBetaCosmeticsBypass ? "Beta Override" : "Locked"}
                   </span>
                 </div>
@@ -333,7 +333,7 @@ export function ProfileSettingsForm() {
               <Link href="/pricing" className="inline-flex h-10 items-center rounded-xl border border-amber-400/45 bg-amber-400 px-4 text-sm font-semibold text-slate-950 hover:bg-amber-300">
                 Unlock Team Branding Kit
               </Link>
-              <Link href="/core-plus" className="inline-flex h-10 items-center rounded-xl border border-cyan-500/35 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300">
+              <Link href="/core-plus" className="inline-flex h-10 items-center rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300">
                 Review Billing
               </Link>
             </div>
@@ -349,7 +349,7 @@ export function ProfileSettingsForm() {
           </Button>
         </div>
 
-        {pushState ? <p className="text-xs text-cyan-300">{pushState}</p> : null}
+        {pushState ? <p className="text-xs text-amber-300">{pushState}</p> : null}
         {saveErrorMessage ? <p className="text-xs text-amber-300">{saveErrorMessage}</p> : null}
         {billingPortalMutation.error ? <p className="text-xs text-amber-300">Billing portal is unavailable until an active Stripe customer record exists.</p> : null}
       </div>

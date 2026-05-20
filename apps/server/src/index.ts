@@ -116,6 +116,12 @@ app.use("/api/runtime", runtimeRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
 
+app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("[server] Unhandled error:", error);
+  const message = error instanceof Error ? error.message : String(error);
+  res.status(500).json({ error: message });
+});
+
 io.use((socket, next) => {
   const raw = socket.handshake.auth?.token;
   if (typeof raw !== "string") {
