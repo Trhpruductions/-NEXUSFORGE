@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
+import { DesktopLaunchInstructions } from "@/components/beta/desktop-launch-instructions";
 
-export default function BetaPage() {
+export default async function BetaPage() {
+  const envAppUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/u, "") || undefined;
+
   return (
     <ExperienceShell
       eyebrow="NexusForge Beta"
@@ -80,6 +83,8 @@ export default function BetaPage() {
             Open Feedback Intake
           </Link>
         </div>
+
+        <DesktopLaunchInstructions envAppUrl={envAppUrl} />
       </section>
     </ExperienceShell>
   );
