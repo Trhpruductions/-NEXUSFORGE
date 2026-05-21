@@ -452,6 +452,7 @@ Bot runtime and issue-notification probe:
 
 - Run `npm run discord:probe` to verify the bot is connected and able to post status/error/alert messages.
 - You can optionally pass a guild/category/channel ID: `npm run discord:probe -- <targetId>`.
+- Run `npm run discord:read-channel -- <channelId> [limit]` to fetch recent messages from a Discord channel using the configured bot token.
 - Target resolution order: argv target, `DISCORD_REPORT_GUILD_ID`, `DISCORD_GUILD_ID`, then `DISCORD_DOWNLOAD_TARGET_ID`.
 - This probe checks `/api/health/discord` and posts test messages to:
 	- `DISCORD_REPORT_CHANNEL_STATUS` (default `bot-status`)

@@ -21,6 +21,7 @@ Hosted access note:
 
 - For users outside your local network, `NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_API_URL` must both point to public origins (not localhost).
 - `NEXT_PUBLIC_APP_URL` is used by the web app for metadata and canonical URL generation.
+- The beta page now computes and displays the correct desktop launch target from the request origin when `NEXT_PUBLIC_APP_URL` is not set.
 - Desktop clients can now auto-fallback between local and hosted app targets; for explicit hosted desktop validation from the repo root, use `npm run desktop:open:hosted`.
 - If hosted Electron launches depend on temporary certificate bypass during rollout, the desktop shell gates that behavior behind `NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS`.
 

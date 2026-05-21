@@ -73,6 +73,8 @@ From there they can access:
 
 If you want desktop testers to use the remote app, set `NEXUSFORGE_DESKTOP_URL` to `https://<your web tunnel url>/app` when launching the desktop client.
 
+> The beta page now displays the computed desktop launch target and PowerShell commands directly, and includes a copy button so testers can copy the launch commands from `/beta`.
+
 ## 5) Suggested Message To Testers
 Use this template:
 
