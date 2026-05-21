@@ -85,7 +85,7 @@ export function ProfileSettingsForm() {
   });
 
   const hasBrandingKit = billingQuery.data?.entitlements.some((item) => item.featureCode === "TEAM_BRANDING_KIT" && item.quantity > 0) ?? false;
-  const betaCosmeticsBypassUsers = new Set(["jacksongaming69", "vanillapea"]);
+  const betaCosmeticsBypassUsers = new Set(["jacksongaming69"]);
   const isBetaCosmeticsBypass = betaCosmeticsBypassUsers.has((user?.username ?? "").toLowerCase());
   const cosmeticFieldsFilled = Boolean(form.avatar.trim() || form.banner.trim());
   const cosmeticUpsellVisible = cosmeticFieldsFilled && !hasBrandingKit && !isBetaCosmeticsBypass;

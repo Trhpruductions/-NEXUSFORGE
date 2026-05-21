@@ -16,7 +16,6 @@ const medalCatalog = [
 // --- Beta tester list (usernames, case-insensitive) ---
 const betaTesters = [
   "jacksongaming69",
-  "vanillapea",
   "bbrosius",
 ];
 
@@ -572,11 +571,6 @@ async function main() {
       username: "JacksonGaming69",
       email: "jacksongaming69@nexusforge.local",
       password: "676769Jj$",
-    },
-    {
-      username: "vanillapea",
-      email: "vanillapea@nexusforge.local",
-      password: "Sammya04!",
     },
     {
       username: "bbrosius",
