@@ -65,6 +65,7 @@ const configuredDesktopUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || 
 const configuredPersistentDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || "") || "";
 const configuredDownloadPageUrl = configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/download.html` : "";
 const configuredStartUrl = configuredDesktopUrl || (configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
+const defaultPackagedHostedStartUrl = "https://www.nexusforge.app/app";
 const defaultPackagedHostedFallbackUrl = "https://trhpruductions.github.io/-NEXUSFORGE/download.html";
 const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
@@ -78,7 +79,7 @@ const shouldForceLocalInDev = !app.isPackaged && !allowHostedDevLaunch;
 const startUrl =
   shouldForceLocalInDev && configuredStartUrl && !isLocalHostTarget(configuredStartUrl)
     ? localStartUrl
-    : configuredStartUrl || (app.isPackaged ? packagedHostedFallbackUrl : localStartUrl);
+    : configuredStartUrl || (app.isPackaged ? defaultPackagedHostedStartUrl : localStartUrl);
 const isLocalStartTarget = isLocalHostTarget(startUrl);
 const desktopLaunchMode = isLocalStartTarget ? "local-dev" : "hosted";
 const appIconPath =
@@ -1406,7 +1407,18 @@ async function waitForUrlReachable(url, options = {}) {
 }
 
 function resolveHostedStartTargets() {
-  const candidates = [startUrl, packagedHostedFallbackUrl, "https://www.nexusforge.app/app", "https://www.nexusforge.app"];
+  const candidates = [
+    startUrl,
+    configuredDesktopUrl,
+    configuredStartUrl !== startUrl ? configuredStartUrl : null,
+    packagedHostedFallbackUrl,
+    "https://www.nexusforge.app/app",
+    "https://www.nexusforge.app",
+    "https://nexusforge.app/app",
+    "https://nexusforge.app",
+    "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
+    "https://trhpruductions.github.io/-NEXUSFORGE",
+  ];
 
   const appendOriginTargets = (value) => {
     try {
@@ -1434,6 +1446,17 @@ function resolveHostedStartTargets() {
   }
 
   return Array.from(new Set(candidates.filter(Boolean)));
+}
+
+function resolveHostedRecoveryTargets() {
+  const recoveryTargets = [
+    ...resolveHostedStartTargets(),
+    "https://www.nexusforge.app/login?redirect=/app",
+    "https://nexusforge.app/login?redirect=/app",
+    "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
+  ];
+
+  return Array.from(new Set(recoveryTargets.filter(Boolean)));
 }
 
 function isTrustedHostedDomain(candidateUrl) {
@@ -1482,6 +1505,7 @@ async function tryLocalFallbackFromHosted() {
   revealMainWindow();
   updateLocalStackStatus({
     launchMode: "local-dev",
+    startUrl: localStartUrl,
     message: "Hosted target was unreachable. Desktop switched to local services.",
     lastError: null,
     running: true,
@@ -1524,6 +1548,7 @@ async function tryHostedFallbackFromLocal() {
   revealMainWindow();
   updateLocalStackStatus({
     launchMode: "hosted",
+    startUrl: connectedTarget,
     message: `Local services unavailable. Desktop switched to hosted services (${connectedTarget}).`,
     lastError: null,
     running: false,
@@ -1767,6 +1792,41 @@ async function ensureAppReachable(trigger) {
     return;
   }
 
+  async function tryHostedLoginFallback() {
+    const recoveryTargets = resolveHostedRecoveryTargets();
+    let connectedTarget = null;
+    let lastError = null;
+
+    for (const target of recoveryTargets) {
+      try {
+        await loadMainWindowUrlWithRetry(target, { attempts: 3, delayMs: 900 });
+        connectedTarget = target;
+        markStartupTiming("hosted-login-fallback-connected", `target=${target}`, false);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!connectedTarget) {
+      if (lastError) {
+        appendStartupLog(`[recovery] Hosted login fallback failed: ${String(lastError)}`);
+      }
+      return false;
+    }
+
+    revealMainWindow();
+    updateLocalStackStatus({
+      launchMode: "hosted",
+      startUrl: connectedTarget,
+      message: `Desktop is connected to hosted services via recovery target (${connectedTarget}).`,
+      lastError: null,
+    });
+    updateStartupRuntime({ launchMode: "hosted" });
+    appendLocalStackHistory(`Desktop connected to hosted recovery target: ${connectedTarget}`);
+    return true;
+  }
+
   if (!isLocalStartTarget) {
     updateStartupRuntime({
       stage: "Connecting hosted workspace",
@@ -1797,6 +1857,7 @@ async function ensureAppReachable(trigger) {
       revealMainWindow();
       updateLocalStackStatus({
         launchMode: "hosted",
+        startUrl: connectedTarget,
         message: `Desktop is connected to hosted services (${connectedTarget}).`,
         lastError: null,
       });
@@ -1827,8 +1888,17 @@ async function ensureAppReachable(trigger) {
         appendStartupLog(`[recovery] Hosted->local fallback failed: ${String(fallbackError)}`);
       }
 
+      try {
+        const recoveredHosted = await tryHostedLoginFallback();
+        if (recoveredHosted) {
+          return;
+        }
+      } catch (recoveryError) {
+        appendStartupLog(`[recovery] Hosted login fallback failed: ${String(recoveryError)}`);
+      }
+
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://trhpruductions.github.io/-NEXUSFORGE/download.html, or start local services on http://127.0.0.1:3000/app.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://www.nexusforge.app/app, or start local services on http://127.0.0.1:3000/app. If the public production host is not yet published, use your available beta or tunnel URL.",
       );
     }
     return;
@@ -1859,6 +1929,7 @@ async function ensureAppReachable(trigger) {
           revealMainWindow();
           updateLocalStackStatus({
             launchMode: "local-dev",
+            startUrl,
             message: "Desktop is connected to local services.",
             lastError: null,
             running: true,
@@ -1870,6 +1941,16 @@ async function ensureAppReachable(trigger) {
           return;
         }
       }
+
+      try {
+        const recoveredHosted = await tryHostedFallbackFromLocal();
+        if (recoveredHosted) {
+          return;
+        }
+      } catch (fallbackError) {
+        appendStartupLog(`[recovery] Local->hosted fallback failed after local services were unavailable: ${String(fallbackError)}`);
+      }
+
       loadFallbackPage(
         "Local services are not available. Start the web and API servers on http://127.0.0.1:3000 and reopen NexusForge Desktop.",
       );
@@ -1878,6 +1959,15 @@ async function ensureAppReachable(trigger) {
 
     const reachable = await waitForUrlReachable(startUrl, { timeoutMs: localStartUrlProbeTimeoutMs, intervalMs: 600 });
     if (!reachable) {
+      try {
+        const recoveredHosted = await tryHostedFallbackFromLocal();
+        if (recoveredHosted) {
+          return;
+        }
+      } catch (fallbackError) {
+        appendStartupLog(`[recovery] Local->hosted fallback failed after local URL probe: ${String(fallbackError)}`);
+      }
+
       loadFallbackPage(
         "Local app URL is unreachable. Verify localhost:3000 is running and retry.",
       );
@@ -1889,6 +1979,7 @@ async function ensureAppReachable(trigger) {
     revealMainWindow();
     updateLocalStackStatus({
       launchMode: "local-dev",
+      startUrl,
       message: "Desktop is connected to local services.",
       lastError: null,
       running: true,

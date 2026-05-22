@@ -30,6 +30,43 @@ export default async function BetaPage() {
         loginHref="/login?redirect=/beta"
         registerHref="/register?redirect=/beta"
       />
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="nexus-panel-glass rounded-[32px] border border-amber-400/10 bg-slate-950/80 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.22)]">
+          <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Beta overview</p>
+          <h2 className="mt-4 text-2xl font-semibold text-white">Launch the desktop-first command center with a single step.</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            This page is your beta launchpad. Use the desktop launcher target below, then join test forges and send feedback directly from the command experience.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {[
+              { label: "Desktop protocol", value: "Native app + web shell" },
+              { label: "Invite workflow", value: "Fast join links" },
+              { label: "Feedback path", value: "In-app reports" },
+              { label: "Stability mode", value: "Observer friendly" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-3xl border border-slate-700/70 bg-slate-900/90 p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
+                <p className="mt-2 text-sm font-semibold text-white">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="nexus-panel-glass rounded-[32px] border border-slate-700/60 bg-slate-950/80 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.18)]">
+          <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Quick status</p>
+          <div className="mt-5 grid gap-3">
+            {[
+              { label: "Target readiness", value: "Configured" },
+              { label: "Desktop mode", value: "Preferred" },
+              { label: "App link", value: envAppUrl ? "/app" : "Using browser origin" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-3xl bg-slate-900/90 p-4">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
+                <p className="mt-2 text-sm font-semibold text-white">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       <section className="nexus-display-panel rounded-[28px] p-5 sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Tester Onboarding</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

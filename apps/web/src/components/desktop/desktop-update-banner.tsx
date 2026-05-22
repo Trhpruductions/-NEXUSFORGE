@@ -81,7 +81,15 @@ export function DesktopUpdateBanner() {
     };
   }, []);
 
-  if (!enabled) {
+  const shouldRenderBanner = enabled && Boolean(
+    state?.lastError ||
+      state?.forceRequired ||
+      state?.downloading ||
+      state?.downloaded ||
+      state?.available,
+  );
+
+  if (!shouldRenderBanner) {
     return null;
   }
 

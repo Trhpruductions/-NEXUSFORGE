@@ -248,7 +248,7 @@
             <button id="retry" class="secondary">Retry Connection</button>
             <button id="log" class="secondary">Open Stack Log</button>
             <button id="reload" class="danger">Reload Window</button>
-            <a class="button secondary" href="https://www.nexusforge.app/login?redirect=%2Fapp" target="_blank" rel="noopener noreferrer">Open hosted login</a>
+            <button id="openFallback" class="secondary">Open active target</button>
           </div>
 
           <div class="workspace-entry">
@@ -281,9 +281,25 @@
       const historyEl = document.getElementById("history");
       const startButton = document.getElementById("start");
       const logButton = document.getElementById("log");
+      const openFallbackButton = document.getElementById("openFallback");
       const actionButtons = ["start", "retry", "log", "reload", "set-workspace-path"].map((id) => document.getElementById(id));
       const recoveryStatusEl = document.getElementById("recovery-status");
       let autoRetryInFlight = false;
+      let currentTargetUrl = "https://www.nexusforge.app/app";
+
+      function normalizeHttpUrl(value) {
+        const candidate = String(value || "").trim();
+        if (!candidate) return null;
+        try {
+          const parsed = new URL(candidate);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return null;
+          }
+          return parsed.toString();
+        } catch {
+          return null;
+        }
+      }
 
       function setActionBusy(isBusy) {
         actionButtons.forEach((button) => {
@@ -328,6 +344,13 @@
               : `4001: ${apiFallbackOpen ? "open" : "closed"}`;
           }
           errorEl.textContent = status.lastError || "none";
+          const runtimeTarget = normalizeHttpUrl(status.startUrl);
+          if (runtimeTarget) {
+            currentTargetUrl = runtimeTarget;
+          }
+          if (openFallbackButton) {
+            openFallbackButton.textContent = inHostedMode ? "Open hosted app" : "Open local app";
+          }
           startButton.disabled = false;
           logButton.disabled = !status.workspacePath;
           subtitleEl.textContent = inHostedMode
@@ -337,6 +360,18 @@
           if (!inHostedMode && localStackDetected && !autoRetryInFlight) {
             autoRetryInFlight = true;
             statusEl.textContent = "Local stack detected. Reconnecting...";
+            try {
+              await window.nexusforgeDesktop.retryAppLoad();
+            } catch {
+              // retry failure is handled elsewhere.
+            } finally {
+              autoRetryInFlight = false;
+            }
+          }
+
+          if (inHostedMode && status.lastError && !autoRetryInFlight) {
+            autoRetryInFlight = true;
+            statusEl.textContent = "Hosted target unreachable. Retrying connection...";
             try {
               await window.nexusforgeDesktop.retryAppLoad();
             } catch {
@@ -423,6 +458,11 @@
         } finally {
           setActionBusy(false);
         }
+      });
+
+      document.getElementById("openFallback").addEventListener("click", () => {
+        const target = normalizeHttpUrl(currentTargetUrl) || "https://www.nexusforge.app/app";
+        window.open(target, "_blank", "noopener");
       });
 
       document.getElementById("reload").addEventListener("click", async () => {

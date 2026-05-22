@@ -1,15 +1,18 @@
 ﻿NexusForge Beta Links
-Generated: 2026-05-18T00:02:27
+Generated: 2026-05-21T16:03:44
 
-Tester Hub: https://developing-mazda-cat-msg.trycloudflare.com/beta
-Checklist:  https://developing-mazda-cat-msg.trycloudflare.com/beta/checklist
-Feedback:   https://developing-mazda-cat-msg.trycloudflare.com/beta/feedback
-API Health: https://examination-generated-solved-tournaments.trycloudflare.com/api/health
+Tester Hub: https://serious-measured-johnston-satisfactory.trycloudflare.com/beta
+Checklist:  https://serious-measured-johnston-satisfactory.trycloudflare.com/beta/checklist
+Feedback:   https://serious-measured-johnston-satisfactory.trycloudflare.com/beta/feedback
+API Health: https://dealing-thesaurus-speaks-lanka.trycloudflare.com/api/health
+
+Desktop launch target: https://serious-measured-johnston-satisfactory.trycloudflare.com/app
+Desktop launch env: NEXUSFORGE_DESKTOP_URL=https://serious-measured-johnston-satisfactory.trycloudflare.com/app
 
 Process IDs
-api=7856
-apiTunnel=43872
-web=46536
-webTunnel=4648
+api=35196
+apiTunnel=29376
+web=30144
+webTunnel=35144
 
-Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260518-000143
+Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260521-160304
