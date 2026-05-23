@@ -531,7 +531,7 @@ Discord release channel automation:
 
 Desktop packaging resilience details:
 
-- The build pipeline retries web build once only for known transient Next.js page-module lookup failures (such as `/favicon.ico` and `/_document`).
+- The build pipeline retries web build once only for known transient Next.js build failures, including page-module lookup issues and missing `.next-build` manifest files such as `next-font-manifest.json`.
 - The installer pipeline retries packaging once if `win-unpacked` is file-locked (`Access is denied` / `ERR_ELECTRON_BUILDER_CANNOT_EXECUTE`) after targeted Windows process cleanup.
 
 Admin badge smoke test auth inputs:
