@@ -12,6 +12,7 @@
                          "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
                          "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe"
                      ],
+    "downloadFolderUrl": "https://trhpruductions.github.io/-NEXUSFORGE/",
     "sha256":  "87077abb31e96b9c152a4e68c7fd3875d40f2700c233dd5f7d9a15e67e8fbb0f",
     "forceUpdate":  false
 }

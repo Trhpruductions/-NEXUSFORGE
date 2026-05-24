@@ -337,7 +337,7 @@ async function main() {
   const embed = {
     title: "NexusForge App Download + Updates",
     description:
-      "Use this message for the latest installer, launcher, and update manifest. Always use these links to stay on the correct version.",
+      "These are the official NexusForge release links. Download the desktop installer, open the launcher, or view the update manifest from this message.",
     color: 0x22d3ee,
     fields,
     footer: { text: `Source: ${manifest.path}` },
@@ -348,18 +348,18 @@ async function main() {
     {
       type: 1,
       components: [
-        { type: 2, style: ButtonStyle.Link, label: "Download Installer", url: manifest.downloadUrl },
+        { type: 2, style: ButtonStyle.Link, label: "Download installer", url: manifest.downloadUrl },
         ...(manifest.downloadFolderUrl
-          ? [{ type: 2, style: ButtonStyle.Link, label: "Download Folder", url: manifest.downloadFolderUrl }]
+          ? [{ type: 2, style: ButtonStyle.Link, label: "Browse downloads", url: manifest.downloadFolderUrl }]
           : []),
-        { type: 2, style: ButtonStyle.Link, label: "Open Launcher", url: launcherUrl },
-        { type: 2, style: ButtonStyle.Link, label: "Update Manifest", url: updateManifestUrl },
+        { type: 2, style: ButtonStyle.Link, label: "Open launcher", url: launcherUrl },
+        { type: 2, style: ButtonStyle.Link, label: "View manifest", url: updateManifestUrl },
       ],
     },
   ];
 
   const payload = {
-    content: "Official NexusForge release links.",
+    content: "Use these official NexusForge release links to install the desktop app, open the launcher, or load the latest update manifest.",
     embeds: [embed],
     components,
     allowed_mentions: { parse: [] },
