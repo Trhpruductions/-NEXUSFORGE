@@ -138,10 +138,10 @@
       <div class="hero">
         <p class="pill">NexusForge public download</p>
         <h1>Download NexusForge Desktop</h1>
-        <p>Open this page anytime for the latest installer, version notes, and update manifest. It refreshes automatically when a new release is published.</p>
+        <p>Use this page to download the latest NexusForge Desktop installer, view release notes, and access the update manifest. The page always shows the current published release.</p>
 
         <div class="status" id="status">
-          <div class="loader"><span class="pulse"></span>Loading latest release info…</div>
+          <div class="loader"><span class="pulse"></span>Loading release info…</div>
         </div>
 
         <div class="actions" id="actions"></div>
@@ -174,9 +174,9 @@
           const notes = Array.isArray(manifest.notes) ? manifest.notes : [];
           const knownUrls = Array.isArray(manifest.downloadUrls) ? manifest.downloadUrls : [];
 
-          statusEl.innerHTML = `<div class=\"pill\">Live version: ${version}</div><p style=\"margin:0;color:#cbd5e1;\">Release ID: ${version}</p>`;
+          statusEl.innerHTML = `<div class="pill">Live version: ${version}</div><p style="margin:0;color:#cbd5e1;">Use the buttons below to download or inspect the release manifest.</p>`;
           actionsEl.innerHTML = `
-            <a class=\"button button-primary\" href=\"${downloadUrl}\">Download Latest Installer</a>
+            <a class="button button-primary" href="${downloadUrl}">Download latest installer</a>
             <a class=\"button button-secondary\" href=\"${manifestUrl}\">View update manifest</a>
           `;
 
