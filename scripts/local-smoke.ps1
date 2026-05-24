@@ -50,7 +50,7 @@ function Get-EnvFileValue {
 function Invoke-NpmChecked {
   param(
     [Parameter(Mandatory = $true)] [string] $Label,
-    [Parameter(Mandatory = $true)] [string[]] $Arguments,
+    [Parameter(Mandatory = $true)] [string[]] $CommandArguments,
     [switch] $RetryOnTransientFavicon
   )
 
@@ -63,27 +63,39 @@ function Invoke-NpmChecked {
       Write-Host "[smoke] Retrying after transient favicon build module error (attempt $attempt of $maxAttempts)" -ForegroundColor Yellow
     }
 
-    $commandOutput = & npm.cmd @Arguments 2>&1
-    $commandOutput | ForEach-Object { Write-Host $_ }
-    $exitCode = $LASTEXITCODE
+      $npmOutputFile = Join-Path $env:TEMP ("nexusforge-smoke-npm.{0}.stdout.log" -f $runToken)
+      $npmErrorFile = Join-Path $env:TEMP ("nexusforge-smoke-npm.{0}.stderr.log" -f $runToken)
+      if (Test-Path $npmOutputFile) { Remove-Item $npmOutputFile -Force -ErrorAction SilentlyContinue }
+      if (Test-Path $npmErrorFile) { Remove-Item $npmErrorFile -Force -ErrorAction SilentlyContinue }
 
-    if ($exitCode -eq 0) {
-      return
-    }
+      $process = Start-Process -FilePath "npm.cmd" -ArgumentList $CommandArguments -WorkingDirectory $repoRoot -NoNewWindow -Wait -PassThru -RedirectStandardOutput $npmOutputFile -RedirectStandardError $npmErrorFile
+      $commandOutput = @()
+      if (Test-Path $npmOutputFile) { $commandOutput += Get-Content $npmOutputFile }
+      if (Test-Path $npmErrorFile) { $commandOutput += Get-Content $npmErrorFile }
+      $commandOutput | ForEach-Object { Write-Host $_ }
+      $exitCode = $process.ExitCode
 
-    $hasFaviconModuleError = ($commandOutput -match "Cannot find module for page: /favicon.ico") -or ($commandOutput -match "Failed to collect page data for /favicon.ico")
-    if ($RetryOnTransientFavicon -and $attempt -lt $maxAttempts -and $hasFaviconModuleError) {
-      $attempt++
-      continue
-    }
+      if ($exitCode -eq 0) {
+        return
+      }
 
-    throw "Command failed (exit $exitCode): npm $($Arguments -join ' ')"
+      $hasFaviconModuleError = ($commandOutput -match "Cannot find module for page: /favicon.ico") -or ($commandOutput -match "Failed to collect page data for /favicon.ico")
+      if ($RetryOnTransientFavicon -and $attempt -lt $maxAttempts -and $hasFaviconModuleError) {
+        $attempt++
+        continue
+      }
+
+    throw "Command failed (exit $exitCode): npm $($CommandArguments -join ' ')"
   }
 }
 
-Invoke-NpmChecked -Label "Build workspace" -Arguments @("run", "build") -RetryOnTransientFavicon
-Invoke-NpmChecked -Label "Lint web" -Arguments @("run", "lint", "-w", "web")
-Invoke-NpmChecked -Label "Run server tests" -Arguments @("run", "test", "-w", "server")
+$buildArgs = @("run", "build")
+$lintArgs = @("run", "lint", "-w", "web")
+$serverTestArgs = @("run", "test", "-w", "server")
+
+Invoke-NpmChecked -Label "Build workspace" -CommandArguments $buildArgs -RetryOnTransientFavicon
+Invoke-NpmChecked -Label "Lint web" -CommandArguments $lintArgs
+Invoke-NpmChecked -Label "Run server tests" -CommandArguments $serverTestArgs
 
 function Test-ApiProbe {
   param([Parameter(Mandatory = $true)] [string] $Url)
@@ -219,7 +231,8 @@ try {
     }
   }
 
-  Invoke-NpmChecked -Label "Validate age-gate security" -Arguments @("run", "age:gate:validate:local")
+  $validateAgeGateArgs = @("run", "age:gate:validate:local")
+  Invoke-NpmChecked -Label "Validate age-gate security" -CommandArguments $validateAgeGateArgs
 
   Write-Host "[smoke] Completed successfully." -ForegroundColor Green
 } finally {
@@ -232,7 +245,7 @@ try {
 
   if ($serverStartedBySmoke) {
     Write-Host "[smoke] Stopping temporary server instance" -ForegroundColor Cyan
-    powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" | Out-Null
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" | Out-Null
     if ($serverProcess -and -not $serverProcess.HasExited) {
       Stop-Process -Id $serverProcess.Id -Force -ErrorAction SilentlyContinue
     }
