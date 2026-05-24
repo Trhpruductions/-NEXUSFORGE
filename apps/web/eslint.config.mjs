@@ -22,6 +22,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local workspace temp artifacts that should not be linted.
+    "temp*",
+    "tmp*",
   ]),
 ]);
 

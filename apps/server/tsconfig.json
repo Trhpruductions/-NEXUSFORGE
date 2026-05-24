@@ -9,8 +9,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "declaration": true,
+    "composite": true,
     "outDir": "dist",
     "rootDir": "src",
+    "typeRoots": ["../../node_modules/@types"],
     "types": ["node"]
   },
   "include": ["src/**/*"],

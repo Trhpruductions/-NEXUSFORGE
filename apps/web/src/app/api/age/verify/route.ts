@@ -5,7 +5,10 @@ import {
   getAgeGateLegacyCookieNamesToClear,
   getAgeGateMaxAgeSeconds,
 } from "@/lib/age-gate-token";
-import { buildNoStoreHeaders, enforceSameOriginMutation } from "@/lib/age-gate-request";
+import { assessAgeGateRisk, type AgeGateDeviceProfile } from "@/lib/age-gate-risk";
+import { appendAgeGateAuditEvent } from "@/lib/age-gate-audit";
+import { isAgeGateFingerprintAllowed } from "@/lib/age-gate-allowlist";
+import { buildNoStoreHeaders, enforceSameOriginMutation, isSecureRequest } from "@/lib/age-gate-request";
 
 const WINDOW_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS_PER_WINDOW = 12;
@@ -78,15 +81,71 @@ export async function POST(request: Request) {
   }
 
   let confirmed = false;
+  let deviceProfile: AgeGateDeviceProfile | undefined;
+
   try {
-    const payload = (await request.json()) as { confirmed?: boolean };
+    const payload = (await request.json()) as { confirmed?: boolean; deviceProfile?: AgeGateDeviceProfile };
     confirmed = payload.confirmed === true;
+    deviceProfile = payload.deviceProfile;
   } catch {
     confirmed = false;
+    deviceProfile = undefined;
   }
 
   if (!confirmed) {
+    await appendAgeGateAuditEvent({
+      action: "verify",
+      status: "denied",
+      confirmed: false,
+      fingerprint: "unknown",
+      ip: request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown-ip",
+      userAgent: request.headers.get("user-agent") || "unknown-agent",
+      risk: { score: 0, level: "low", reasons: [] },
+      deviceProfile: deviceProfile ?? {},
+      note: "Age confirmation was not provided.",
+    });
+
     return NextResponse.json({ error: "Age confirmation required" }, { status: 400, headers: buildNoStoreHeaders() });
+  }
+
+  const risk = assessAgeGateRisk(deviceProfile ?? {}, request);
+  const allowedByReview = await isAgeGateFingerprintAllowed(risk.fingerprint);
+
+  if (allowedByReview) {
+    await appendAgeGateAuditEvent({
+      action: "verify",
+      status: "approved",
+      confirmed: true,
+      fingerprint: risk.fingerprint,
+      ip: request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown-ip",
+      userAgent: request.headers.get("user-agent") || "unknown-agent",
+      risk,
+      deviceProfile: deviceProfile ?? {},
+      note: "Verification allowed by manual review override.",
+    });
+  } else if (risk.level === "critical" || risk.level === "high") {
+    await appendAgeGateAuditEvent({
+      action: "verify",
+      status: "blocked",
+      confirmed: true,
+      fingerprint: risk.fingerprint,
+      ip: request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown-ip",
+      userAgent: request.headers.get("user-agent") || "unknown-agent",
+      risk,
+      deviceProfile: deviceProfile ?? {},
+      note: "Suspicious verification attempt blocked for manual review.",
+    });
+
+    console.warn("[age-gate] suspicious verification attempt", { risk });
+    return NextResponse.json(
+      {
+        error: "Suspicious verification behavior detected.",
+        riskScore: risk.score,
+        reason: risk.reasons,
+        manualReview: true,
+      },
+      { status: 403, headers: buildNoStoreHeaders() },
+    );
   }
 
   let token = "";
@@ -96,10 +155,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Age gate is not configured" }, { status: 503, headers: buildNoStoreHeaders() });
   }
 
-  const response = NextResponse.json({ ok: true }, { headers: buildNoStoreHeaders() });
-  response.cookies.set(getAgeGateCookieName(), token, {
+  await appendAgeGateAuditEvent({
+    action: "verify",
+    status: "approved",
+    confirmed: true,
+    fingerprint: risk.fingerprint,
+    ip: request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown-ip",
+    userAgent: request.headers.get("user-agent") || "unknown-agent",
+    risk,
+    deviceProfile: deviceProfile ?? {},
+    note: "Age verification succeeds and age gate token issued.",
+  });
+
+  const response = NextResponse.json(
+    { ok: true, risk: { level: risk.level, score: risk.score, reasons: risk.reasons } },
+    { headers: buildNoStoreHeaders() },
+  );
+  response.cookies.set(getAgeGateCookieName(isSecureRequest(request), request.url), token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && isSecureRequest(request),
     sameSite: "strict",
     path: "/",
     maxAge: getAgeGateMaxAgeSeconds(),

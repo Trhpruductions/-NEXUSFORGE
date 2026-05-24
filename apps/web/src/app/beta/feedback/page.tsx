@@ -45,8 +45,8 @@ export default function BetaFeedbackPage() {
       title="Feedback Intake"
       subtitle="Capture consistent bug reports so triage can move fast and fixes can be verified."
       metrics={[
-        { label: "Template", value: "Standardized", tone: "cyan" },
-        { label: "Triage Speed", value: "Faster", tone: "emerald" },
+        { label: "Template", value: "Standardized", tone: "amber" },
+        { label: "Triage Speed", value: "Faster", tone: "amber" },
         { label: "Coverage", value: "UX + Stability", tone: "amber" },
       ]}
       actions={[
@@ -56,7 +56,7 @@ export default function BetaFeedbackPage() {
       maxWidthClassName="max-w-5xl"
     >
       <section className="nexus-display-panel rounded-[28px] p-5 sm:p-6">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300">Report Template</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Report Template</p>
         <textarea
           aria-label="Beta feedback report template"
           title="Beta feedback report template"
@@ -69,13 +69,13 @@ export default function BetaFeedbackPage() {
           <button
             type="button"
             onClick={() => void copyTemplate()}
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-cyan-500/40 bg-cyan-950/25 px-4 text-sm font-semibold text-cyan-100 hover:border-cyan-300"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-amber-500/40 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
           >
             {copied ? "Copied" : "Copy Report Template"}
           </button>
           <Link
             href="/beta/checklist"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-cyan-500/45"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-amber-500/45"
           >
             Return to Checklist
           </Link>

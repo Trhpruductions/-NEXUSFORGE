@@ -15,7 +15,7 @@ export function NexusforgeBrandShowcase() {
       >
         <div className="absolute -top-24 right-[-72px] h-52 w-52 rounded-full bg-red-500/20 blur-3xl" />
         <div className="absolute -bottom-28 left-[-80px] h-56 w-56 rounded-full bg-amber-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(122deg,rgba(34,211,238,0.06),transparent_30%,rgba(251,146,60,0.08))]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(122deg,rgba(255,184,108,0.06),transparent_30%,rgba(251,146,60,0.08))]" />
         <p className="relative z-10 text-[11px] uppercase tracking-[0.26em] text-amber-200">NexusForge Identity</p>
         <h2 className="relative z-10 mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
           Branded visuals, alive in real time.
@@ -38,11 +38,11 @@ export function NexusforgeBrandShowcase() {
         >
           <div className="ember-frame holo-frame orbital-logo">
             <Image
-              src="/brand/nexusforge-main-logo.png"
+              src="/brand/nexusforge-logo.png"
               alt="NexusForge logo"
-              width={960}
-              height={320}
-              className="image-pan h-[280px] w-full rounded-2xl object-cover sm:h-[320px]"
+              width={720}
+              height={240}
+              className="image-pan h-[220px] w-full max-h-[240px] rounded-2xl object-contain sm:h-[240px]"
             />
           </div>
         </motion.div>
@@ -67,7 +67,7 @@ export function NexusforgeBrandShowcase() {
               className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
-          <p className="mt-3 text-xs text-cyan-100">Used as the canonical tier art across pricing and Core+ surfaces.</p>
+          <p className="mt-3 text-xs text-amber-100">Used as the canonical tier art across pricing and Core+ surfaces.</p>
         </motion.article>
 
         <motion.article
@@ -88,7 +88,7 @@ export function NexusforgeBrandShowcase() {
               className="image-pan h-auto w-full rounded-2xl object-cover"
             />
           </motion.div>
-          <p className="mt-3 text-xs text-emerald-100">Designed for visible progression and high-retention engagement loops.</p>
+          <p className="mt-3 text-xs text-amber-100">Designed for visible progression and high-retention engagement loops.</p>
         </motion.article>
       </div>
     </section>

@@ -83,6 +83,25 @@ async function withDiscordRetry(operationName, action, maxAttempts = 5) {
   throw new Error(`[discord:post:download] Unexpected retry state for ${operationName}`);
 }
 
+function getDownloadFolderUrl(downloadUrl) {
+  const rawUrl = String(downloadUrl || "").trim();
+  if (!rawUrl) {
+    return "";
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    url.pathname = url.pathname.replace(/\/[^/]*$/, "/");
+    return url.toString().replace(/\/+$/, "/");
+  } catch {
+    const index = rawUrl.lastIndexOf("/");
+    if (index < 0) {
+      return rawUrl;
+    }
+    return `${rawUrl.slice(0, index + 1)}`;
+  }
+}
+
 function loadDesktopManifest() {
   const candidates = [
     path.resolve(process.cwd(), "apps/web/public/desktop-update.json"),
@@ -96,36 +115,56 @@ function loadDesktopManifest() {
 
   const raw = fs.readFileSync(manifestPath, "utf8");
   const parsed = JSON.parse(raw);
+  const downloadUrl = String(parsed.downloadUrl || "").trim();
+  const downloadUrls = (Array.isArray(parsed.downloadUrls) ? parsed.downloadUrls : [])
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean);
+
   return {
     path: manifestPath,
     version: String(parsed.version || "").trim(),
-    downloadUrl: String(parsed.downloadUrl || "").trim(),
+    downloadUrl,
+    downloadUrls,
+    downloadFolderUrl: getDownloadFolderUrl(downloadUrl),
     sha256: String(parsed.sha256 || "").trim(),
     forceUpdate: Boolean(parsed.forceUpdate),
   };
 }
 
-function resolveLauncherUrl(downloadUrl) {
+function resolveConfiguredAppUrl() {
   const configured = String(process.env.APP_WEB_URL || "").trim();
-  if (configured && !/localhost|127\.0\.0\.1/i.test(configured)) {
-    return configured.endsWith("/app") ? configured : `${configured.replace(/\/+$/, "")}/app`;
+  if (!configured || /localhost|127\.0\.0\.1/i.test(configured)) {
+    return "";
   }
 
   try {
-    const origin = new URL(downloadUrl).origin;
-    return `${origin}/app`;
+    const url = new URL(configured);
+    return `${url.origin}`;
   } catch {
-    return "https://www.nexusforge.app/app";
+    return configured.replace(/\/+$/, "");
   }
 }
 
-function resolveManifestUrl(downloadUrl) {
-  try {
-    const origin = new URL(downloadUrl).origin;
-    return `${origin}/desktop-update.json`;
-  } catch {
-    return "https://www.nexusforge.app/desktop-update.json";
+function resolveLauncherUrl() {
+  const configured = resolveConfiguredAppUrl();
+  if (configured) {
+    return `${configured}/app`;
   }
+  return "https://www.nexusforge.app/app";
+}
+
+function resolveManifestUrl() {
+  const configured = resolveConfiguredAppUrl();
+  if (configured) {
+    return `${configured}/desktop-update.json`;
+  }
+
+  const manifestOverride = String(process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || process.env.DESKTOP_UPDATE_MANIFEST_URL || "").trim();
+  if (manifestOverride) {
+    return manifestOverride;
+  }
+
+  return "https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json";
 }
 
 function isReleaseMessage(message, meId) {
@@ -267,25 +306,40 @@ async function main() {
     throw new Error("desktop-update.json is missing required version/downloadUrl fields");
   }
 
-  const launcherUrl = resolveLauncherUrl(manifest.downloadUrl);
-  const updateManifestUrl = resolveManifestUrl(manifest.downloadUrl);
+  const launcherUrl = resolveLauncherUrl();
+  const updateManifestUrl = resolveManifestUrl();
 
   const rest = new REST({ version: "10" }).setToken(token);
   const { guildId, channelId } = await resolveGuildAndChannel(rest, targetId, channelName);
+
+  const fields = [
+    { name: "Version", value: manifest.version, inline: true },
+    { name: "Force Update", value: manifest.forceUpdate ? "Yes" : "No", inline: true },
+    { name: "SHA256", value: manifest.sha256 || "Not provided", inline: false },
+    { name: "Installer", value: manifest.downloadUrl, inline: false },
+  ];
+
+  if (manifest.downloadFolderUrl) {
+    fields.push({ name: "Download Folder", value: manifest.downloadFolderUrl, inline: false });
+  }
+
+  if (manifest.downloadUrls.length > 1) {
+    fields.push({
+      name: "Available installers",
+      value: manifest.downloadUrls.map((entry) => `• ${entry}`).join("\n"),
+      inline: false,
+    });
+  }
+
+  fields.push({ name: "Launcher", value: launcherUrl, inline: false });
+  fields.push({ name: "Update Manifest", value: updateManifestUrl, inline: false });
 
   const embed = {
     title: "NexusForge App Download + Updates",
     description:
       "Use this message for the latest installer, launcher, and update manifest. Always use these links to stay on the correct version.",
     color: 0x22d3ee,
-    fields: [
-      { name: "Version", value: manifest.version, inline: true },
-      { name: "Force Update", value: manifest.forceUpdate ? "Yes" : "No", inline: true },
-      { name: "SHA256", value: manifest.sha256 || "Not provided", inline: false },
-      { name: "Installer", value: manifest.downloadUrl, inline: false },
-      { name: "Launcher", value: launcherUrl, inline: false },
-      { name: "Update Manifest", value: updateManifestUrl, inline: false },
-    ],
+    fields,
     footer: { text: `Source: ${manifest.path}` },
     timestamp: new Date().toISOString(),
   };
@@ -295,6 +349,9 @@ async function main() {
       type: 1,
       components: [
         { type: 2, style: ButtonStyle.Link, label: "Download Installer", url: manifest.downloadUrl },
+        ...(manifest.downloadFolderUrl
+          ? [{ type: 2, style: ButtonStyle.Link, label: "Download Folder", url: manifest.downloadFolderUrl }]
+          : []),
         { type: 2, style: ButtonStyle.Link, label: "Open Launcher", url: launcherUrl },
         { type: 2, style: ButtonStyle.Link, label: "Update Manifest", url: updateManifestUrl },
       ],

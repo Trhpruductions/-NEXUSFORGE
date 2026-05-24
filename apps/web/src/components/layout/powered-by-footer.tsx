@@ -8,13 +8,14 @@ export function PoweredByFooter() {
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="flex flex-col items-center gap-6">
           {/* TRH Development Branding */}
-          <div className="flex items-center justify-center">
+          <div className="relative flex h-24 w-full max-w-[280px] items-center justify-center sm:h-32">
             <Image
               src="/brand/trh-powered-by.png"
               alt="Powered by TRH Development"
-              width={640}
-              height={256}
-              className="h-24 w-auto sm:h-32"
+              fill
+              loading="lazy"
+              className="object-contain"
+              sizes="(max-width: 640px) 100vw, 280px"
             />
           </div>
 
@@ -27,11 +28,11 @@ export function PoweredByFooter() {
 
           {/* Quick Links */}
           <div className="flex flex-wrap justify-center gap-4 text-xs">
-            <a href="/pricing" className="text-cyan-400 hover:text-cyan-300 transition">Pricing</a>
+            <a href="/pricing" className="text-amber-400 hover:text-amber-300 transition">Pricing</a>
             <span className="text-slate-700">•</span>
-            <a href="mailto:support@nexusforge.app" className="text-cyan-400 hover:text-cyan-300 transition">Support</a>
+            <a href="mailto:support@nexusforge.app" className="text-amber-400 hover:text-amber-300 transition">Support</a>
             <span className="text-slate-700">•</span>
-            <a href="https://trh.dev" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300 transition">TRH Development</a>
+            <a href="https://trh.dev" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 transition">TRH Development</a>
           </div>
         </div>
       </div>

@@ -36,6 +36,13 @@ export function enforceSameOriginMutation(request: Request) {
   return true;
 }
 
+export function isSecureRequest(request: Request) {
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol = forwardedProto ? forwardedProto.split(",")[0].trim().toLowerCase() : url.protocol;
+  return protocol === "https:";
+}
+
 export function buildNoStoreHeaders(extraHeaders?: HeadersInit) {
   return {
     "cache-control": "no-store, no-cache, must-revalidate, private",

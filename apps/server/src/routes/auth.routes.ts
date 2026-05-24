@@ -315,7 +315,7 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
     return;
   }
 
-  const betaCosmeticsBypassUsers = new Set(["jacksongaming69", "vanillapea"]);
+  const betaCosmeticsBypassUsers = new Set(["jacksongaming69"]);
   const requester = await prisma.user.findUnique({
     where: { id: req.user!.id },
     select: { username: true },

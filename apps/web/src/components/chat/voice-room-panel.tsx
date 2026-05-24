@@ -39,7 +39,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
   }, [participants]);
 
   const connectionTone = useMemo(() => {
-    if (connectionState === ConnectionState.Connected) return "border-emerald-400/50 bg-emerald-950/50 text-emerald-200";
+    if (connectionState === ConnectionState.Connected) return "border-amber-400/50 bg-amber-950/50 text-amber-200";
     if (connectionState === ConnectionState.Reconnecting) return "border-amber-400/50 bg-amber-950/40 text-amber-200";
     return "border-slate-600/80 bg-slate-900/70 text-slate-300";
   }, [connectionState]);
@@ -167,7 +167,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
       {participants.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {participants.map((participant) => (
-            <span key={participant} className="rounded-full border border-cyan-500/30 bg-cyan-950/30 px-2 py-0.5 text-[10px] text-cyan-100">
+            <span key={participant} className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] text-amber-100">
               {participant}
             </span>
           ))}
@@ -184,7 +184,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
         <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.screenSharing ? "border-violet-500/50 bg-violet-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("screenSharing")}>
           Screen: {voiceState.screenSharing ? "On" : "Off"}
         </button>
-        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.noiseSuppression ? "border-cyan-500/50 bg-cyan-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
+        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.noiseSuppression ? "border-amber-500/50 bg-amber-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
           Noise: {voiceState.noiseSuppression ? "On" : "Off"}
         </button>
       </div>

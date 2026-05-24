@@ -16,7 +16,7 @@ export function NotificationCenter() {
   const { accessToken, csrfToken } = useAuthStore();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const requestedFilter = (searchParams.get("filter") ?? "all") as NotificationFilter;
+  const requestedFilter = (searchParams?.get("filter") ?? "all") as NotificationFilter;
   const activeFilter: NotificationFilter = ["all", "unread", "activity"].includes(requestedFilter) ? requestedFilter : "all";
 
   const notificationsQuery = useQuery({
@@ -52,7 +52,7 @@ export function NotificationCenter() {
         </div>
         <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-400">Inbox</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-400">Inbox</p>
             <h1 className="font-[family-name:var(--font-orbitron)] text-2xl font-semibold tracking-tight text-white">Notifications</h1>
             <p className="mt-1 text-sm text-slate-400">Prioritize urgent signals, review activity bursts, and keep the live feed under control.</p>
           </div>
@@ -66,7 +66,7 @@ export function NotificationCenter() {
         <div className="grid grid-cols-3 gap-3">
           <div className="nexus-metric-card rounded-2xl px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Unread</p>
-            <p className="mt-1 text-xl font-semibold text-cyan-300">{notificationsQuery.data?.unreadCount ?? 0}</p>
+            <p className="mt-1 text-xl font-semibold text-amber-300">{notificationsQuery.data?.unreadCount ?? 0}</p>
           </div>
           <div className="nexus-metric-card rounded-2xl px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Visible</p>
@@ -74,12 +74,12 @@ export function NotificationCenter() {
           </div>
           <div className="nexus-metric-card rounded-2xl px-4 py-3">
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Feed</p>
-            <p className="mt-1 text-xl font-semibold text-emerald-300">{notificationsQuery.isFetching ? "Syncing" : "Live"}</p>
+            <p className="mt-1 text-xl font-semibold text-amber-300">{notificationsQuery.isFetching ? "Syncing" : "Live"}</p>
           </div>
         </div>
 
         <div className="nexus-signal-rail rounded-2xl px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-cyan-300">Filter Rail</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Filter Rail</p>
           <p className="mt-1 text-sm text-slate-300">Move between unread priority, all traffic, and event-driven activity without leaving the current feed.</p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function NotificationCenter() {
             href={`/notifications?filter=${filter}`}
             className={`rounded-full border px-4 py-1.5 text-xs font-medium capitalize transition ${
               activeFilter === filter
-                ? "border-cyan-500/50 bg-cyan-950/40 text-cyan-200 shadow-[0_0_0_1px_rgba(34,211,238,0.14)]"
+                ? "border-amber-500/50 bg-amber-950/40 text-amber-200 shadow-[0_0_0_1px_rgba(255,184,108,0.14)]"
                 : "border-slate-700/80 bg-slate-900/60 text-slate-400 hover:border-slate-600 hover:text-slate-300"
             }`}
           >
@@ -116,14 +116,14 @@ export function NotificationCenter() {
             className={`nexus-interactive-card relative overflow-hidden rounded-[24px] border px-4 py-4 ${
               item.read
                 ? "border-slate-700/80 bg-slate-900/80"
-                : "border-cyan-500/40 bg-[linear-gradient(145deg,rgba(8,47,73,0.38),rgba(15,23,42,0.84))] shadow-[0_0_0_1px_rgba(34,211,238,0.15)]"
+                : "border-amber-500/40 bg-[linear-gradient(145deg,rgba(8,47,73,0.38),rgba(15,23,42,0.84))] shadow-[0_0_0_1px_rgba(255,184,108,0.15)]"
             }`}
           >
-            {!item.read ? <div className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[24px] bg-gradient-to-b from-cyan-300 to-cyan-500" /> : null}
+            {!item.read ? <div className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[24px] bg-gradient-to-b from-amber-300 to-amber-500" /> : null}
             <div className="flex items-start justify-between gap-3 pl-1">
               <div className="min-w-0">
                 <div className="mb-1 flex items-center gap-2">
-                  {!item.read ? <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400" /> : null}
+                  {!item.read ? <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" /> : null}
                   <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{item.read ? "Archived" : "Priority"}</span>
                 </div>
                 <p className="text-sm font-semibold text-slate-100">{item.title}</p>

@@ -1,181 +1,118 @@
-"use client";
+﻿"use client";
 
-import { motion } from "framer-motion";
 import Image from "next/image";
-import {
-  Compass,
-  Home,
-  Plus,
-  Shield,
-  Settings,
-  Users,
-  Volume2,
-  Hash,
-  Video,
-  Radio,
-} from "lucide-react";
+import Link from "next/link";
+import { DynamicBackground } from "@/components/ui/dynamic-background";
+import { AppLeftDock } from "@/components/layout/app-left-dock";
 
-const forgeItems = ["Nexus Core", "RaidOps", "Arc Forge", "Pixel Syndicate"];
-const textChannels = ["general", "clips", "strategy", "trade-hub"];
-const voiceChannels = ["Squad Alpha", "Raid Room", "Stage Broadcast"];
-const liveEvents = [
-  { title: "Queue opens", detail: "Ranked push in 08:24", tone: "text-cyan-200" },
-  { title: "Boost multipliers", detail: "Core+ raid bonus active", tone: "text-amber-200" },
-  { title: "Moderation layer", detail: "AI guardrails synced", tone: "text-emerald-200" },
-];
-
-export function AppShell() {
+export function AppShell({ homeHeroSrc }: { homeHeroSrc: string }) {
   return (
-    <div className="relative grid h-full w-full grid-cols-1 gap-4 lg:min-h-[46rem] lg:grid-cols-[88px_minmax(0,1fr)] xl:grid-cols-[88px_288px_minmax(0,1fr)_288px]">
-      <aside className="nexus-display-panel rounded-[28px] p-3 lg:sticky lg:top-6">
-        <div className="grid h-full grid-rows-[auto_1fr_auto] gap-4">
-          <button
-            aria-label="User profile"
-            title="User profile"
-            className="orbital-logo slow-float relative grid h-14 place-items-center overflow-hidden rounded-2xl border border-cyan-500/25 bg-slate-950/85 p-1.5"
-          >
-            <Image
-              src="/brand/nexusforge-main-logo.png"
-              alt="NexusForge logo"
-              width={56}
-              height={56}
-              className="h-full w-full rounded-lg object-cover"
-            />
-          </button>
-          <div className="grid content-start gap-3">
-            {[Home, Users, Compass].map((Icon, index) => (
-              <motion.button
-                key={index}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.15 + index * 0.08 }}
-                className="nexus-interactive-btn grid h-12 place-items-center rounded-2xl border border-slate-700/80 bg-slate-900/85 text-slate-200 transition hover:-translate-y-0.5 hover:border-cyan-500/60 hover:text-cyan-50"
-              >
-                <Icon size={20} />
-              </motion.button>
-            ))}
-            <button
-              aria-label="Add forge"
-              title="Add forge"
-              className="nexus-interactive-btn grid h-12 place-items-center rounded-2xl border border-dashed border-slate-600 bg-slate-900/70 text-slate-300 hover:border-cyan-500/60"
+    <div className="relative grid gap-6 lg:grid-cols-[72px_minmax(0,1.05fr)_0.95fr]">
+      <AppLeftDock className="hidden lg:flex flex-col items-center gap-4 rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-4 shadow-[0_35px_100px_rgba(0,0,0,0.24)]" />
+      <div className="space-y-6">
+        <section className="relative overflow-hidden rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_35px_100px_rgba(0,0,0,0.35)]">
+          <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.9fr] lg:items-center">
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 text-sm uppercase tracking-[0.3em] text-amber-300">
+                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1">NEXUSFORGE Command</span>
+              </div>
+              <h1 className="text-5xl font-semibold leading-tight text-white sm:text-6xl">A refined command center for every squad and studio.</h1>
+              <p className="max-w-2xl text-base leading-8 text-slate-300">NexusForge brings your communities, voice rooms, and live feeds into one polished dashboard.</p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/app" className="nexus-button-primary inline-flex items-center rounded-3xl px-6 py-4 text-sm font-semibold">Open Command</Link>
+                <Link href="/pricing" className="nexus-button-secondary inline-flex items-center rounded-3xl px-6 py-4 text-sm font-semibold">Explore Core+</Link>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-300">
+                <div className="rounded-full border border-slate-700/70 bg-slate-900/70 px-4 py-2">Live sync ready</div>
+              </div>
+            </div>
+            <DynamicBackground
+              url={homeHeroSrc}
+              className="relative overflow-hidden rounded-[32px] border border-slate-700/70 bg-slate-900/90 shadow-[0_30px_80px_rgba(0,0,0,0.35)] bg-cover bg-center"
             >
-              <Plus size={20} />
-            </button>
+              <div className="absolute inset-0 bg-[#09040b]/75" />
+              <div className="absolute inset-x-0 bottom-0 rounded-b-[32px] bg-gradient-to-t from-slate-950/95 to-transparent px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-200">
+                  <span className="rounded-full bg-slate-900/80 px-3 py-2">Featured</span>
+                  <span className="rounded-full bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.18em] text-amber-100">Live</span>
+                </div>
+              </div>
+            </DynamicBackground>
           </div>
-          <button
-            aria-label="Settings"
-            title="Settings"
-            className="nexus-interactive-btn grid h-12 place-items-center rounded-2xl border border-slate-700 bg-slate-900 text-slate-200 hover:border-cyan-500/60"
-          >
-            <Settings size={20} />
-          </button>
+        </section>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="rounded-[28px] bg-slate-950/90 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Followers</p>
+            <p className="mt-3 text-3xl font-semibold text-white">1,245</p>
+          </div>
+          <div className="rounded-[28px] bg-slate-950/90 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Uploads</p>
+            <p className="mt-3 text-3xl font-semibold text-white">342</p>
+          </div>
+          <div className="rounded-[28px] bg-slate-950/90 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">Activity</p>
+            <p className="mt-3 text-3xl font-semibold text-white">8.4k</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-5 shadow-[0_26px_70px_rgba(0,0,0,0.28)]">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Discover</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Featured rooms</h2>
+            <div className="mt-5 grid gap-3">
+              {[
+                { title: 'Cosmic Realms', subtitle: 'Active raid hub' },
+                { title: 'Neon Ascent', subtitle: 'Competitive crew' },
+              ].map((server) => (
+                <div key={server.title} className="rounded-[28px] border border-slate-700/70 bg-slate-900/85 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-white">{server.title}</p>
+                      <p className="mt-1 text-sm text-slate-400">{server.subtitle}</p>
+                    </div>
+                    <span className="rounded-full bg-slate-950/75 px-3 py-2 text-xs uppercase tracking-[0.18em] text-slate-300">Live</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-5 shadow-[0_26px_70px_rgba(0,0,0,0.28)]">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Community</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Quick notes</h2>
+            <p className="mt-4 text-sm leading-7 text-slate-300">Stay connected to voice rooms, squad invites, and community goals without extra visual noise.</p>
+            <div className="mt-5 space-y-3 text-sm text-slate-300">
+              <div className="rounded-3xl border border-slate-700/70 bg-slate-900/85 px-4 py-3">Live rooms: 12</div>
+              <div className="rounded-3xl border border-slate-700/70 bg-slate-900/85 px-4 py-3">Active squads: 18</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside className="space-y-6">
+        <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-800 ring-1 ring-amber-500/20">
+              <Image
+                src="/brand/nexusforge-main-logo.png"
+                alt="NexusForge"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Profile</p>
+              <p className="text-lg font-semibold text-white">Astra Nova</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Creator</p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-3 text-sm text-slate-300">
+            <div className="rounded-3xl bg-slate-900/85 p-3">Followers 1,245</div>
+            <div className="rounded-3xl bg-slate-900/85 p-3">Sync status: active</div>
+          </div>
         </div>
       </aside>
-
-      <div className="grid gap-4 xl:contents">
-        <aside className="nexus-display-panel rounded-[28px] p-4 lg:sticky lg:top-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Forges</h2>
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-100">
-              <span className="nexus-signal-dot" />Live
-            </span>
-          </div>
-          <div className="mb-4 grid gap-2">
-            {forgeItems.map((forge, index) => (
-              <button key={forge} className="nexus-interactive-card rounded-2xl border border-slate-700/70 bg-slate-900/80 px-3 py-3 text-left text-sm text-slate-100 transition hover:border-cyan-500/60 hover:bg-cyan-950/20">
-                <div className="flex items-center justify-between gap-3">
-                  <span>{forge}</span>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">0{index + 1}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Text Channels</p>
-          <div className="mb-4 grid gap-1">
-            {textChannels.map((channel) => (
-              <button key={channel} className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-slate-300 transition hover:bg-slate-800/80 hover:text-slate-50">
-                <Hash size={15} /> {channel}
-              </button>
-            ))}
-          </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Voice Channels</p>
-          <div className="grid gap-1">
-            {voiceChannels.map((channel) => (
-              <button key={channel} className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-slate-300 transition hover:bg-slate-800/80 hover:text-slate-50">
-                <Volume2 size={15} /> {channel}
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <main className="nexus-display-panel nexus-grid-lines rounded-[28px] p-5 lg:min-h-[46rem]">
-          <div className="mb-5 flex items-center justify-between border-b border-slate-700/60 pb-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-300">Featured Lane</p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-50"># general</h3>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Video size={16} /> Live stream active
-            </div>
-          </div>
-
-          <div className="mb-5 grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[24px] border border-slate-700/70 bg-[linear-gradient(135deg,rgba(8,47,73,0.62),rgba(15,23,42,0.84),rgba(251,191,36,0.08))] p-4 shadow-[0_24px_40px_rgba(2,6,23,0.28)]">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-200">Command Broadcast</p>
-              <h4 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-white">Squad relay is green across every active forge.</h4>
-              <p className="mt-2 max-w-xl text-sm text-slate-200">Messages, voice traffic, and event prompts stay aligned in one operational lane instead of feeling scattered.</p>
-            </div>
-            <div className="nexus-signal-rail rounded-[24px] p-4">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">System Status</p>
-              <div className="mt-3 grid gap-2">
-                {liveEvents.map((event) => (
-                  <div key={event.title} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/65 px-3 py-2.5 text-sm text-slate-200">
-                    <div>
-                      <p className="font-medium text-slate-100">{event.title}</p>
-                      <p className="text-xs text-slate-400">{event.detail}</p>
-                    </div>
-                    <Shield size={16} className={event.tone} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3">
-            {["Welcome to NexusForge.", "Squad queue starts in 10 minutes.", "Upload your best clip in #clips."].map((message, idx) => (
-              <motion.article
-                key={message}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + idx * 0.1 }}
-                className="nexus-interactive-card rounded-2xl border border-slate-700/70 bg-slate-900/85 p-3 text-sm text-slate-200 shadow-[0_12px_24px_rgba(2,6,23,0.18)]"
-              >
-                {message}
-              </motion.article>
-            ))}
-          </div>
-        </main>
-
-        <aside className="nexus-display-panel rounded-[28px] p-4 lg:sticky lg:top-6">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Activity</h2>
-          <div className="nexus-display-panel mb-5 rounded-[22px] p-3 text-sm text-slate-200 shadow-[0_10px_24px_rgba(15,23,42,0.28)]">
-            <p className="mb-2 flex items-center gap-2 text-cyan-300">
-              <Radio size={15} /> Streaming now
-            </p>
-            <p>NovaCaster in Squad Alpha</p>
-          </div>
-
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Members Online</h3>
-          <div className="grid gap-2">
-            {["Astra", "Cipher", "Lynx", "Vektor"].map((member, index) => (
-              <div key={member} className="nexus-interactive-card flex items-center justify-between rounded-2xl border border-slate-700/80 bg-slate-900/75 px-3 py-2 text-sm text-slate-200">
-                <span>{member}</span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-slate-500">R0{index + 1}</span>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
     </div>
   );
 }

@@ -137,7 +137,22 @@ function Wait-ForWebHealthy {
   return $false
 }
 
-$apiBase = "http://localhost:4000"
+function Resolve-ServerPort {
+  $serverEnvPath = Join-Path $repoRoot "apps/server/.env"
+  if (Test-Path $serverEnvPath) {
+    $lines = Get-Content $serverEnvPath | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") }
+    foreach ($line in $lines) {
+      if ($line -match '^[Pp][Oo][Rr][Tt]\s*=\s*"?(\d+)"?$') {
+        return [int]$matches[1]
+      }
+    }
+  }
+
+  return 4000
+}
+
+$apiPort = Resolve-ServerPort
+$apiBase = "http://localhost:$apiPort"
 $webBase = "http://127.0.0.1:3000"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {

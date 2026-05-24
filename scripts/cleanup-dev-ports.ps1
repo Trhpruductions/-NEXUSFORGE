@@ -1,6 +1,6 @@
 $ErrorActionPreference = "SilentlyContinue"
 
-$ports = @(3000, 3001, 4000)
+$ports = @(3000, 3001, 3100, 4000, 4001)
 $stopped = @{}
 
 foreach ($port in $ports) {

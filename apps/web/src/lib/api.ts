@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "./config";
 
 export type User = {
@@ -21,6 +21,7 @@ export type User = {
   isAdmin?: boolean;
   currentActivity?: string | null;
   activityDetails?: string | null;
+  game?: string | null;
   lastSeenAt?: string | null;
   appRank?: number;
   boostRank?: number;
@@ -256,8 +257,8 @@ export type Friendship = {
   senderId: string;
   receiverId: string;
   status: "PENDING" | "ACCEPTED" | "BLOCKED";
-  sender: Pick<User, "id" | "username" | "avatar" | "status">;
-  receiver: Pick<User, "id" | "username" | "avatar" | "status">;
+  sender: Pick<User, "id" | "username" | "avatar" | "status" | "game">;
+  receiver: Pick<User, "id" | "username" | "avatar" | "status" | "game">;
 };
 
 export type DmParticipant = {
@@ -443,6 +444,31 @@ export type AdminProfileAuditResponse = {
   }>;
 };
 
+export type AgeGateAuditLogEntry = {
+  id: string;
+  createdAt: string;
+  action: "verify" | "reject";
+  status: "approved" | "denied" | "blocked" | "rejected" | "error";
+  confirmed: boolean;
+  fingerprint: string;
+  ip: string;
+  userAgent: string;
+  risk: {
+    score: number;
+    level: "low" | "medium" | "high" | "critical";
+    reasons: string[];
+  };
+  deviceProfile?: Record<string, unknown>;
+  note?: string;
+};
+
+export type AdminAgeGateAuditResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  logs: AgeGateAuditLogEntry[];
+};
+
 export type AdminProfileToolsStatus = {
   inProgress: boolean;
   startedAt: string | null;
@@ -492,10 +518,17 @@ export type LaunchModeState = {
   source: "env" | "runtime";
 };
 
+const LOCAL_API_BASE_URL = "http://127.0.0.1:4000";
+const LOCAL_API_FALLBACK_URL = "http://127.0.0.1:4001";
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
 });
+
+interface RetriableRequestConfig extends AxiosRequestConfig {
+  __retriedOnFallbackPort?: boolean;
+}
 
 let unauthorizedHandler: (() => void) | null = null;
 let lastUnauthorizedHandledAt = 0;
@@ -506,7 +539,22 @@ export function setApiUnauthorizedHandler(handler: (() => void) | null) {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config as RetriableRequestConfig | undefined;
+
+    if (
+      axios.isAxiosError(error) &&
+      !error.response &&
+      config?.baseURL === LOCAL_API_BASE_URL &&
+      !config.__retriedOnFallbackPort
+    ) {
+      return api.request({
+        ...(config as RetriableRequestConfig),
+        __retriedOnFallbackPort: true,
+        baseURL: LOCAL_API_FALLBACK_URL,
+      } as RetriableRequestConfig);
+    }
+
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const now = Date.now();
       if (unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
@@ -518,6 +566,27 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export function getApiErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const responseData = error.response?.data;
+    const serverMessage =
+      responseData && typeof responseData === "object" ? (responseData as { error?: string }).error : undefined;
+
+    return (
+      serverMessage ||
+      (typeof responseData === "string" ? responseData : undefined) ||
+      error.message ||
+      `Request failed with status code ${error.response?.status ?? "unknown"}`
+    );
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Request failed";
+}
 
 export function authHeaders(
   accessToken: string | null,
@@ -553,6 +622,18 @@ export async function login(payload: { email: string; password: string }) {
 
 export async function forgotPassword(payload: { email: string }) {
   const response = await api.post<{ message: string; token?: string }>("/api/auth/forgot-password", payload);
+  return response.data;
+}
+
+export async function verifyEmail(token: string) {
+  const response = await api.get<{ message: string }>("/api/auth/verify-email", {
+    params: { token },
+  });
+  return response.data;
+}
+
+export async function resetPassword(payload: { token: string; newPassword: string }) {
+  const response = await api.post<{ message: string }>("/api/auth/reset-password", payload);
   return response.data;
 }
 
@@ -1193,6 +1274,61 @@ export async function getAdminProfileAudit(
       },
       headers: authHeaders(accessToken, csrfToken),
     },
+  );
+  return response.data;
+}
+
+export async function getAdminAgeGateAudit(
+  accessToken: string,
+  csrfToken: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+    action?: "verify" | "reject";
+    status?: "approved" | "denied" | "blocked" | "rejected" | "error";
+    riskLevel?: "low" | "medium" | "high" | "critical";
+  },
+) {
+  const response = await api.get<AdminAgeGateAuditResponse>(
+    "/api/admin/age-gate/audit",
+    {
+      params: {
+        limit: options?.limit ?? 25,
+        offset: options?.offset ?? 0,
+        action: options?.action,
+        status: options?.status,
+        riskLevel: options?.riskLevel,
+      },
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function approveAdminAgeGateAudit(
+  accessToken: string,
+  csrfToken: string,
+  auditId: string,
+  note?: string,
+) {
+  const response = await api.post<{ ok: boolean; id: string; fingerprint: string }>(
+    `/api/admin/age-gate/audit/${auditId}/approve`,
+    { note },
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
+  return response.data;
+}
+
+export async function rejectAdminAgeGateAudit(
+  accessToken: string,
+  csrfToken: string,
+  auditId: string,
+  note?: string,
+) {
+  const response = await api.post<{ ok: boolean; id: string; fingerprint: string }>(
+    `/api/admin/age-gate/audit/${auditId}/reject`,
+    { note },
+    { headers: authHeaders(accessToken, csrfToken) },
   );
   return response.data;
 }
