@@ -1,3 +1,6 @@
+import { promises as fs } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -83,6 +86,99 @@ const sampleActivityTemplates = [
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const ageGateAuditFilePath = fileURLToPath(new URL("../../../../var/age-gate-audit.jsonl", import.meta.url));
+
+type AgeGateAuditStatus = "approved" | "denied" | "blocked" | "rejected" | "error";
+type AgeGateAuditAction = "verify" | "reject";
+
+type AgeGateAuditEntry = {
+  id: string;
+  createdAt: string;
+  action: AgeGateAuditAction;
+  status: AgeGateAuditStatus;
+  confirmed: boolean;
+  fingerprint: string;
+  ip: string;
+  userAgent: string;
+  risk: {
+    score: number;
+    level: "low" | "medium" | "high" | "critical";
+    reasons: string[];
+  };
+  deviceProfile: Record<string, unknown>;
+  note?: string;
+};
+
+async function loadAgeGateAuditEntries(): Promise<AgeGateAuditEntry[]> {
+  try {
+    const content = await fs.readFile(ageGateAuditFilePath, "utf8");
+    return content
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as AgeGateAuditEntry)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+
+    console.error("Age gate audit log read failed:", error);
+    return [];
+  }
+}
+
+const ageGateAllowlistFilePath = fileURLToPath(new URL("../../../../var/age-gate-allowlist.jsonl", import.meta.url));
+
+type AgeGateAllowlistEntry = {
+  id: string;
+  fingerprint: string;
+  createdAt: string;
+  approvedBy?: string;
+  note?: string;
+};
+
+async function loadAgeGateAllowlistEntries(): Promise<AgeGateAllowlistEntry[]> {
+  try {
+    const content = await fs.readFile(ageGateAllowlistFilePath, "utf8");
+    return content
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as AgeGateAllowlistEntry)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+
+    console.error("Age gate allowlist read failed:", error);
+    return [];
+  }
+}
+
+async function addAgeGateAllowlistEntry(fingerprint: string, approvedBy?: string, note?: string) {
+  const entry: AgeGateAllowlistEntry = {
+    id: typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    fingerprint,
+    createdAt: new Date().toISOString(),
+    approvedBy,
+    note,
+  };
+
+  try {
+    await fs.mkdir(path.dirname(ageGateAllowlistFilePath), { recursive: true });
+    await fs.appendFile(ageGateAllowlistFilePath, `${JSON.stringify(entry)}\n`, "utf8");
+  } catch (error) {
+    console.error("Age gate allowlist persist failed:", error);
+  }
+
+  return entry;
+}
+
+async function isAgeGateFingerprintAllowed(fingerprint: string) {
+  const entries = await loadAgeGateAllowlistEntries();
+  return entries.some((entry) => entry.fingerprint === fingerprint);
 }
 
 async function logAdminProfileAction(actorId: string, title: string, description: string, metadata: Record<string, unknown>) {
@@ -1036,6 +1132,135 @@ adminRouter.get("/profile-tools/audit", async (req, res) => {
       actor: entry.user,
     })),
   });
+});
+
+adminRouter.get("/age-gate/audit", async (req, res) => {
+  const schema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
+    action: z.enum(["verify", "reject"]).optional(),
+    status: z.enum(["approved", "denied", "blocked", "rejected", "error"]).optional(),
+    riskLevel: z.enum(["low", "medium", "high", "critical"]).optional(),
+  });
+
+  const parsed = schema.safeParse({
+    limit: req.query.limit ?? "25",
+    offset: req.query.offset ?? "0",
+    action: req.query.action,
+    status: req.query.status,
+    riskLevel: req.query.riskLevel,
+  });
+
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid query", details: parsed.error.flatten() });
+    return;
+  }
+
+  let logs = await loadAgeGateAuditEntries();
+
+  if (parsed.data.action) {
+    logs = logs.filter((entry) => entry.action === parsed.data.action);
+  }
+
+  if (parsed.data.status) {
+    logs = logs.filter((entry) => entry.status === parsed.data.status);
+  }
+
+  if (parsed.data.riskLevel) {
+    logs = logs.filter((entry) => entry.risk.level === parsed.data.riskLevel);
+  }
+
+  const total = logs.length;
+  const pagedLogs = logs.slice(parsed.data.offset, parsed.data.offset + parsed.data.limit);
+
+  res.json({
+    total,
+    limit: parsed.data.limit,
+    offset: parsed.data.offset,
+    logs: pagedLogs,
+  });
+});
+
+adminRouter.post("/age-gate/audit/:id/approve", async (req, res) => {
+  const parseBody = z.object({ note: z.string().optional() });
+  const parsed = parseBody.safeParse(req.body ?? {});
+
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
+    return;
+  }
+
+  const logs = await loadAgeGateAuditEntries();
+  const entry = logs.find((item) => item.id === req.params.id);
+
+  if (!entry) {
+    res.status(404).json({ error: "Age gate audit entry not found" });
+    return;
+  }
+
+  await addAgeGateAllowlistEntry(entry.fingerprint, req.user!.id, parsed.data.note);
+
+  try {
+    await prisma.userActivity.create({
+      data: {
+        userId: req.user!.id,
+        type: "CUSTOM",
+        title: "Approved age gate review",
+        description: `Approved age gate fingerprint ${entry.fingerprint} for manual review.`,
+        metadata: {
+          source: "admin-age-gate-review",
+          action: "approve",
+          auditEntryId: entry.id,
+          fingerprint: entry.fingerprint,
+          note: parsed.data.note ?? null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Admin age gate review audit failed:", error);
+  }
+
+  res.json({ ok: true, id: entry.id, fingerprint: entry.fingerprint });
+});
+
+adminRouter.post("/age-gate/audit/:id/reject", async (req, res) => {
+  const parseBody = z.object({ note: z.string().optional() });
+  const parsed = parseBody.safeParse(req.body ?? {});
+
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
+    return;
+  }
+
+  const logs = await loadAgeGateAuditEntries();
+  const entry = logs.find((item) => item.id === req.params.id);
+
+  if (!entry) {
+    res.status(404).json({ error: "Age gate audit entry not found" });
+    return;
+  }
+
+  try {
+    await prisma.userActivity.create({
+      data: {
+        userId: req.user!.id,
+        type: "CUSTOM",
+        title: "Rejected age gate review",
+        description: `Rejected age gate fingerprint ${entry.fingerprint}.`,
+        metadata: {
+          source: "admin-age-gate-review",
+          action: "reject",
+          auditEntryId: entry.id,
+          fingerprint: entry.fingerprint,
+          note: parsed.data.note ?? null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Admin age gate review audit failed:", error);
+  }
+
+  res.json({ ok: true, id: entry.id, fingerprint: entry.fingerprint });
 });
 
 adminRouter.post("/users/:id/toggle-admin", async (req, res) => {

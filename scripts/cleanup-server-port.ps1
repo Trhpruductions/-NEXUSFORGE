@@ -1,7 +1,12 @@
 $ErrorActionPreference = "SilentlyContinue"
 
-$listeners = Get-NetTCPConnection -LocalPort 4000 -State Listen | Select-Object -ExpandProperty OwningProcess -Unique
+$ports = @(4000, 4001)
 $stopped = $false
+$listeners = @()
+foreach ($port in $ports) {
+  $listeners += Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
+}
+$listeners = $listeners | Select-Object -Unique
 
 foreach ($pidNumber in $listeners) {
   if (-not $pidNumber) {

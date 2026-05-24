@@ -147,7 +147,9 @@ async function postChannelMessage(rest, channelId, content) {
 
 async function main() {
   const token = requiredEnv("DISCORD_BOT_TOKEN");
-  const apiBase = String(process.env.NEXUSFORGE_API_BASE || "http://127.0.0.1:4000").trim();
+  const configuredApiBase = String(process.env.NEXUSFORGE_API_BASE || "").trim();
+  const configuredPort = String(process.env.PORT || "").trim();
+  const apiBase = configuredApiBase || (configuredPort ? `http://127.0.0.1:${configuredPort}` : "http://127.0.0.1:4000");
   const runtime = await waitForConnectedRuntime(apiBase);
   const bot = runtime?.bot || runtime?.discord || {};
 

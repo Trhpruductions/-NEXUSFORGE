@@ -246,6 +246,11 @@ npm run desktop:full
 npm run desktop:open:hosted
 ```
 
+- If you want the desktop app to launch a specific hosted app origin, set:
+  - `NEXUSFORGE_DESKTOP_URL=https://app.your-domain.com/app`
+  - `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com`
+  - `NEXUSFORGE_UPDATE_MANIFEST_URL=https://downloads.your-domain.com/desktop-update.json`
+
 - To validate both desktop network paths automatically and record which one connected, use:
 
 ```bash
@@ -297,6 +302,7 @@ npm run smoke:release-gate
 	- `desktop:open:hosted` sets `NEXUSFORGE_ALLOW_HOSTED_DEV=true` and targets `https://www.nexusforge.app/app`.
 	- Electron currently accepts a scoped TLS bypass for `*.nexusforge.app` if the hosted certificate chain is invalid.
 	- To enforce strict hosted TLS after the public certificate chain is corrected, set `NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=false` before launching.
+	- For packaged installs, use `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` to derive the hosted app fallback origin and update manifest.
 
 ## Desktop Auto-Update (Installed Users)
 
@@ -305,6 +311,7 @@ npm run smoke:release-gate
 - First-time users still install with the public `.exe` link.
 - The desktop update manifest may include a `downloadUrls` list so the app can fall back to alternate installer locations.
 - When packaged, the app defaults to using the configured desktop host origin for the update manifest, or `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` if set.
+- If `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL` is configured, packaged desktop also derives its hosted app fallback from `<base>/app`.
 
 Recommended environment variables for durable updates:
 
@@ -445,6 +452,7 @@ Bot runtime and issue-notification probe:
 
 - Run `npm run discord:probe` to verify the bot is connected and able to post status/error/alert messages.
 - You can optionally pass a guild/category/channel ID: `npm run discord:probe -- <targetId>`.
+- Run `npm run discord:read-channel -- <channelId> [limit]` to fetch recent messages from a Discord channel using the configured bot token.
 - Target resolution order: argv target, `DISCORD_REPORT_GUILD_ID`, `DISCORD_GUILD_ID`, then `DISCORD_DOWNLOAD_TARGET_ID`.
 - This probe checks `/api/health/discord` and posts test messages to:
 	- `DISCORD_REPORT_CHANNEL_STATUS` (default `bot-status`)
@@ -523,7 +531,7 @@ Discord release channel automation:
 
 Desktop packaging resilience details:
 
-- The build pipeline retries web build once only for known transient Next.js page-module lookup failures (such as `/favicon.ico` and `/_document`).
+- The build pipeline retries web build once only for known transient Next.js build failures, including page-module lookup issues and missing `.next-build` manifest files such as `next-font-manifest.json`.
 - The installer pipeline retries packaging once if `win-unpacked` is file-locked (`Access is denied` / `ERR_ELECTRON_BUILDER_CANNOT_EXECUTE`) after targeted Windows process cleanup.
 
 Admin badge smoke test auth inputs:

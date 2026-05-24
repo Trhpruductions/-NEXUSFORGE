@@ -17,8 +17,8 @@ const tierCards = [
     monthly: "$3.99",
     yearly: "$39",
     yearlySavings: "Save 18%",
-    tone: "border-cyan-500/45 bg-cyan-950/30 text-cyan-100",
-    accent: "text-cyan-200",
+    tone: "border-amber-500/45 bg-amber-950/30 text-amber-100",
+    accent: "text-amber-200",
     badge: "Best entry",
     description: "For players who want premium identity without overcommitting.",
     cta: "Start Core",
@@ -44,8 +44,8 @@ const tierCards = [
     monthly: "$19.99",
     yearly: "$199",
     yearlySavings: "Save 17%",
-    tone: "border-emerald-500/45 bg-emerald-950/30 text-emerald-100",
-    accent: "text-emerald-200",
+    tone: "border-amber-500/45 bg-amber-950/30 text-amber-100",
+    accent: "text-amber-200",
     badge: "Creator growth",
     description: "Built for communities monetizing events, drops, and sponsor attention.",
     cta: "Go Elite",
@@ -306,8 +306,8 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/82 px-4 backdrop-blur-md"
         >
-          <div className="w-full max-w-xl rounded-3xl border border-cyan-500/35 bg-slate-950/95 p-6 shadow-[0_24px_80px_rgba(8,145,178,0.2)]">
-            <p className="text-[11px] uppercase tracking-[0.26em] text-cyan-300">Launching secure checkout</p>
+          <div className="w-full max-w-xl rounded-3xl border border-amber-500/35 bg-slate-950/95 p-6 shadow-[0_24px_80px_rgba(255,184,108,0.18)]">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Launching secure checkout</p>
             <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50">{checkoutPreview.label}</h3>
             <p className="mt-2 text-sm text-slate-300">{checkoutPreview.detail}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -321,7 +321,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-200">Redirecting now</p>
+                <p className="mt-1 text-sm font-semibold text-amber-200">Redirecting now</p>
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
@@ -329,7 +329,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
                 transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.1, ease: "easeInOut" }}
-                className="h-full w-1/2 rounded-full bg-gradient-to-r from-cyan-400 via-emerald-300 to-amber-300"
+                className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
               />
             </div>
             <p className="mt-3 text-xs text-slate-400">Do not close the page. NexusForge is securing your checkout session and handing off to billing.</p>
@@ -337,7 +337,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </motion.div>
       ) : null}
       {checkoutState === "success" ? (
-        <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-emerald-100">
+        <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-amber-100">
           Payment completed. Your subscription or entitlement is being activated now.
         </div>
       ) : null}
@@ -354,7 +354,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="nexus-panel-strong relative overflow-hidden rounded-3xl p-5 sm:p-7"
       >
-        <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-full bg-cyan-500/14 blur-3xl" />
+        <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-full bg-amber-500/14 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-[-70px] h-56 w-56 rounded-full bg-amber-500/16 blur-3xl" />
 
         <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Pricing + Payments</p>
@@ -365,6 +365,23 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
           better presence, and stronger community momentum than the price suggests.
         </p>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="rounded-[24px] border border-amber-400/25 bg-amber-950/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Estimated launch revenue</p>
+            <p className="mt-2 text-3xl font-semibold text-white">$28.7k</p>
+            <p className="mt-1 text-xs text-slate-400">Based on Core+, boost, and creator campaign adoption.</p>
+          </div>
+          <div className="rounded-[24px] border border-amber-500/25 bg-amber-950/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Premium adoption</p>
+            <p className="mt-2 text-3xl font-semibold text-white">18%</p>
+            <p className="mt-1 text-xs text-slate-400">Expected upgrade rate for engaged communities.</p>
+          </div>
+          <div className="rounded-[24px] border border-amber-500/25 bg-amber-950/20 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Average ARPU</p>
+            <p className="mt-2 text-3xl font-semibold text-white">$12.99</p>
+            <p className="mt-1 text-xs text-slate-400">Revenue per active paid user per month.</p>
+          </div>
+        </div>
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[20px] border border-amber-500/40 bg-amber-950/25 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
@@ -373,7 +390,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         ) : null}
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="nexus-display-panel rounded-[24px] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-200">Founder Window</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Founder Window</p>
             <p className="mt-2 text-lg font-semibold text-slate-50">Early pricing is intentionally aggressive while NexusForge scales up.</p>
             <p className="mt-1 text-sm text-slate-300">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
@@ -383,7 +400,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </div>
           </div>
           <div className="nexus-display-panel rounded-[24px] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Why users upgrade</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Why users upgrade</p>
             <p className="mt-2 text-sm text-slate-300">
               Better identity, faster access, stronger visibility, and operational tools that free communities from basic-chat limitations.
             </p>
@@ -395,7 +412,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <Button
               onClick={() => setInterval("MONTHLY")}
               variant="ghost"
-              className={`h-8 rounded-md px-3 text-xs ${interval === "MONTHLY" ? "border-cyan-500/55 text-cyan-100" : "text-slate-300"}`}
+              className={`h-8 rounded-md px-3 text-xs ${interval === "MONTHLY" ? "border-amber-500/55 text-amber-100" : "text-slate-300"}`}
             >
               Monthly
             </Button>
@@ -407,7 +424,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               Yearly
             </Button>
           </div>
-          <div className="rounded-full border border-emerald-500/35 bg-emerald-950/25 px-3 py-1 text-emerald-100">
+          <div className="rounded-full border border-amber-500/35 bg-amber-950/25 px-3 py-1 text-amber-100">
             {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
           </div>
         </div>
@@ -456,7 +473,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 <p className="text-3xl font-semibold text-slate-50">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
                 <p className="pb-1 text-xs text-slate-400">{interval === "YEARLY" ? "per year" : "per month"}</p>
               </div>
-              <p className="mt-1 text-xs text-emerald-200">{tier.yearlySavings}</p>
+              <p className="mt-1 text-xs text-amber-200">{tier.yearlySavings}</p>
               <ul className="mt-3 space-y-1.5 text-xs text-slate-200">
                 {tier.perks.map((perk) => (
                   <li key={perk}>• {perk}</li>
@@ -484,7 +501,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Tier Comparison</p>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Tier Comparison</p>
             <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-slate-50">See what actually gets better as users move up.</h3>
           </div>
           <div className="rounded-full border border-amber-500/35 bg-amber-950/20 px-3 py-1 text-xs text-amber-100">
@@ -526,7 +543,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         className="nexus-display-panel rounded-[28px] p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-cyan-300">Paid Feature Catalog</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Paid Feature Catalog</p>
           <p className="text-xs text-slate-400">Payments designed to feel clean, fast, and low-risk.</p>
         </div>
         <div className="mb-4 grid gap-2 md:grid-cols-4">
@@ -549,7 +566,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               {paidCatalog.map((row) => (
                 <tr key={row.item} className="border-b border-slate-800/70 align-top text-slate-200">
                   <td className="py-2 pr-3 font-medium text-slate-100">{row.item}</td>
-                  <td className="py-2 pr-3 text-cyan-100">{row.price}</td>
+                  <td className="py-2 pr-3 text-amber-100">{row.price}</td>
                   <td className="py-2 text-slate-300">{row.requiredFor}</td>
                 </tr>
               ))}
@@ -564,7 +581,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 onClick={() => handleCheckout({ featureCode: "FORGE_BOOST_PACK", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-lg border-emerald-500/40 px-3 text-xs text-emerald-100"
+                className="h-9 rounded-lg border-amber-500/40 px-3 text-xs text-amber-100"
               >
                 Buy Boost Pack
               </Button>
@@ -586,13 +603,13 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               </Button>
               <Link
                 href="/core-plus"
-                className="nexus-interactive-btn inline-flex h-9 items-center rounded-lg border border-cyan-500/40 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-3 text-xs font-semibold text-cyan-100 hover:border-cyan-300"
+                className="nexus-interactive-btn inline-flex h-9 items-center rounded-lg border border-amber-500/40 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-3 text-xs font-semibold text-amber-100 hover:border-amber-300"
               >
                 Manage Billing
               </Link>
             </div>
-            <div className="mt-4 grid gap-3 rounded-[24px] border border-emerald-500/25 bg-emerald-950/10 p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-200">Growth Revenue Estimator</p>
+            <div className="mt-4 grid gap-3 rounded-[24px] border border-amber-500/25 bg-amber-950/10 p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">Growth Revenue Estimator</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="text-[11px] text-slate-300">
                   Members
@@ -641,17 +658,17 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 </div>
                 <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected MRR</p>
-                  <p className="mt-1 text-sm font-semibold text-emerald-200">${projectedRevenue.monthly.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.monthly.toLocaleString()}</p>
                 </div>
                 <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected ARR</p>
-                  <p className="mt-1 text-sm font-semibold text-cyan-200">${projectedRevenue.annual.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.annual.toLocaleString()}</p>
                 </div>
               </div>
             </div>
           </div>
           <div className="nexus-display-panel rounded-[24px] p-4 text-sm text-slate-200">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Checkout Confidence</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Confidence</p>
             <ul className="mt-3 space-y-2 text-xs text-slate-300">
               <li>• You are redirected instantly to a live checkout session.</li>
               <li>• Subscription changes can be managed later from the billing portal.</li>

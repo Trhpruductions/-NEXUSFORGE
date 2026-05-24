@@ -1,7 +1,7 @@
 import { config as loadDotEnv } from "dotenv";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ChannelType, REST, Routes } from "discord.js";
+import { ChannelType, PermissionFlagsBits, REST, Routes } from "discord.js";
 
 const localEnvPath = fileURLToPath(new URL("../.env", import.meta.url));
 const envPaths = [
@@ -33,12 +33,84 @@ function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-async function ensureCategory(rest, guildId, channels) {
+const roleName = "NexusForge";
+const rolePermissionOverwriteBits =
+  PermissionFlagsBits.ViewChannel |
+  PermissionFlagsBits.SendMessages |
+  PermissionFlagsBits.ReadMessageHistory;
+
+function findRole(roles, name) {
+  return roles.find((role) => normalizeName(role.name) === normalizeName(name));
+}
+
+async function ensureRole(rest, guildId) {
+  const existingRoles = asArray(await rest.get(Routes.guildRoles(guildId)));
+  const existing = findRole(existingRoles, roleName);
+  if (existing) {
+    return { roleId: existing.id, created: false };
+  }
+
+  const created = await rest.post(Routes.guildRoles(guildId), {
+    body: {
+      name: roleName,
+      permissions: "0",
+      mentionable: true,
+      hoist: false,
+    },
+  });
+
+  return { roleId: created.id, created: true };
+}
+
+function buildCategoryPermissionOverwrites(guildId, roleId) {
+  return [
+    {
+      id: guildId,
+      type: 0,
+      deny: String(PermissionFlagsBits.ViewChannel),
+    },
+    {
+      id: roleId,
+      type: 0,
+      allow: String(rolePermissionOverwriteBits),
+    },
+  ];
+}
+
+async function ensureCategoryPermissions(rest, categoryId, guildId, roleId) {
+  const category = await rest.get(Routes.channel(categoryId));
+  const existingOverwrites = asArray(category.permission_overwrites ?? []);
+  const desired = buildCategoryPermissionOverwrites(guildId, roleId);
+
+  const needsUpdate = desired.some((expected) => {
+    const existing = existingOverwrites.find(
+      (overwrite) => String(overwrite.id) === String(expected.id),
+    );
+    return (
+      !existing ||
+      String(existing.allow || "") !== String(expected.allow || "") ||
+      String(existing.deny || "") !== String(expected.deny || "")
+    );
+  });
+
+  if (needsUpdate) {
+    await rest.patch(Routes.channel(categoryId), {
+      body: {
+        permission_overwrites: desired,
+      },
+    });
+  }
+}
+
+async function ensureCategory(rest, guildId, channels, roleId) {
   const existing = channels.find(
     (channel) => channel.type === ChannelType.GuildCategory && normalizeName(channel.name) === normalizeName(categoryName),
   );
 
   if (existing) {
+    if (roleId) {
+      await ensureCategoryPermissions(rest, existing.id, guildId, roleId);
+    }
     return { categoryId: existing.id, created: false };
   }
 
@@ -47,6 +119,7 @@ async function ensureCategory(rest, guildId, channels) {
       name: categoryName,
       type: ChannelType.GuildCategory,
       position: 0,
+      permission_overwrites: buildCategoryPermissionOverwrites(guildId, roleId),
     },
   });
 
@@ -107,28 +180,39 @@ async function main() {
     }
 
     if (!guild) {
-      const channel = await rest.get(Routes.channel(targetId));
+      let channel = null;
+      try {
+        channel = await rest.get(Routes.channel(targetId));
+      } catch {
+        channel = null;
+      }
+
       if (!channel?.guild_id) {
-        throw new Error(`Target ${targetId} is not a guild or guild channel.`);
+        throw new Error(`Target ${targetId} is not a guild or resolvable channel.`);
       }
-      if (channel.type !== ChannelType.GuildCategory) {
-        throw new Error(`Target channel ${targetId} is not a category channel.`);
-      }
+
       guildId = String(channel.guild_id);
-      parentCategoryId = String(channel.id);
+      if (channel.type === ChannelType.GuildCategory) {
+        parentCategoryId = String(channel.id);
+      }
+
       guild = await rest.get(Routes.guild(guildId));
     }
 
     const guildName = guild?.name || guildId;
+
+    const roleResult = await ensureRole(rest, guildId);
 
     const existingChannels = asArray(await rest.get(Routes.guildChannels(guildId)));
 
     let categoryId = parentCategoryId;
     let categoryCreated = false;
     if (!categoryId) {
-      const categoryResult = await ensureCategory(rest, guildId, existingChannels);
+      const categoryResult = await ensureCategory(rest, guildId, existingChannels, roleResult.roleId);
       categoryId = categoryResult.categoryId;
       categoryCreated = categoryResult.created;
+    } else if (roleResult.roleId) {
+      await ensureCategoryPermissions(rest, categoryId, guildId, roleResult.roleId);
     }
 
     const refreshedChannels = asArray(await rest.get(Routes.guildChannels(guildId)));
@@ -148,6 +232,9 @@ async function main() {
     }
 
     console.log(`[discord:setup:channels] OK: ${guildName} (${guildId})`);
+    console.log(
+      `[discord:setup:channels] Role: ${roleName} (${roleResult.roleId}) (${roleResult.created ? "created" : "exists"})`,
+    );
     const resolvedCategory = refreshedChannels.find((channel) => String(channel.id) === String(categoryId));
     const resolvedCategoryName = resolvedCategory?.name || categoryName;
     console.log(

@@ -29,6 +29,33 @@ function hasExpectedAgeCookie(setCookieHeader) {
   return normalized.includes("nexusforge_age18=") || normalized.includes("__Host-nexusforge_age18=");
 }
 
+function getBrowserLikeDeviceProfile() {
+  return {
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6423.93 Safari/537.36",
+    platform: "Windows",
+    vendor: "Google Inc.",
+    language: "en-US",
+    languages: ["en-US", "en"],
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    cookieEnabled: true,
+    webdriver: false,
+    screenWidth: 1920,
+    screenHeight: 1080,
+    colorDepth: 24,
+    touchPoints: 0,
+    timezone: "America/Los_Angeles",
+    timezoneOffset: new Date().getTimezoneOffset(),
+    browserFeatures: {
+      hasWebGPU: true,
+      hasGpu: true,
+      hasFlash: false,
+    },
+    pluginCount: 1,
+  };
+}
+
 async function postJson(url, payload, headers) {
   const response = await fetch(url, {
     method: "POST",
@@ -73,7 +100,7 @@ async function main() {
 
   const sameOriginVerify = await postJson(
     verifyUrl,
-    { confirmed: true },
+    { confirmed: true, deviceProfile: getBrowserLikeDeviceProfile() },
     {
       origin: baseOrigin,
       "sec-fetch-site": "same-origin",
@@ -91,7 +118,7 @@ async function main() {
   for (let attempt = 1; attempt <= 25; attempt += 1) {
     const rateResponse = await postJson(
       verifyUrl,
-      { confirmed: true },
+      { confirmed: true, deviceProfile: getBrowserLikeDeviceProfile() },
       {
         origin: baseOrigin,
         "sec-fetch-site": "same-origin",

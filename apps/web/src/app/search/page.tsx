@@ -1,16 +1,19 @@
 "use client";
 
-import { Suspense } from "react";
-import { useEffect, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { Suspense, useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { getUserGroups, searchProfiles, User } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ExperienceShell } from "@/components/layout/experience-shell";
+import { Search, Sparkles, Play, Users } from "lucide-react";
+import { getCustomDesignImageUrl } from "@/lib/custom-design-client";
 import { getProfileBadgesForUser } from "@/lib/brand-badges";
 import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
-
+import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
+import { DynamicBackground } from "@/components/ui/dynamic-background";
 type SearchGroup = {
   tag: string;
   name: string;
@@ -97,7 +100,9 @@ function SearchContent() {
   const { user: currentUser, accessToken } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") || "";
+  const query = searchParams?.get("q") || "";
+  const isSignedIn = Boolean(currentUser && accessToken);
+  const loginRedirect = `/login?redirect=${encodeURIComponent(`/search${query ? `?q=${encodeURIComponent(query)}` : ""}`)}`;
 
   const [searchQuery, setSearchQuery] = useState(query);
   const [results, setResults] = useState<SearchProfileUser[]>([]);
@@ -107,17 +112,19 @@ function SearchContent() {
   const premiumResults = results.filter((profile) => profile.premium).length;
   const highestReputation = results.reduce((highest, profile) => Math.max(highest, profile.reputation), 0);
   const activeGroup = groups.find((group) => group.tag.toLowerCase() === searchQuery.trim().toLowerCase());
+  const heroImage = getCustomDesignImageUrl(["app-search-desktop.jpg"], "/home-hero.png");
 
   useEffect(() => {
     setSearchQuery(query);
   }, [query]);
 
   useEffect(() => {
-    if (!currentUser || !accessToken) {
-      router.push("/login");
-      return;
+    if (!accessToken) {
+      setGroups(fallbackGroups);
+      setResults([]);
+      setTotal(0);
     }
-  }, [currentUser, accessToken, router]);
+  }, [accessToken]);
 
   useEffect(() => {
     const loadGroups = async () => {
@@ -175,194 +182,253 @@ function SearchContent() {
   };
 
   return (
-    <ExperienceShell
-      eyebrow="Discovery"
-      title="Search Users"
-      subtitle="Find players, clan identities, and high-reputation profiles without leaving the command surface."
-      metrics={[
-        { label: "Query", value: searchQuery.trim() ? "Active" : "Idle", tone: searchQuery.trim() ? "cyan" : "slate" },
-        { label: "Results", value: String(total), tone: "emerald" },
-        { label: "Status", value: loading ? "Scanning" : "Ready", tone: loading ? "amber" : "cyan" },
-      ]}
-      actions={[
-        { label: "Back to App", href: "/app", tone: "ghost" },
-        { label: "Open Notifications", href: "/notifications", tone: "primary" },
-      ]}
-      maxWidthClassName="max-w-4xl"
-    >
-      <div className="space-y-4">
-        <div className="nexus-display-panel relative overflow-hidden rounded-[28px] p-5">
-          <div className="nexus-ambient" aria-hidden="true">
-            <div className="nexus-ambient-orb nexus-ambient-orb-a" />
-            <div className="nexus-ambient-orb nexus-ambient-orb-c" />
-          </div>
-          <div className="relative space-y-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-300">Discovery Matrix</p>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">Scan usernames, clan identities, and reputation signals from a single live query rail.</p>
+    <div className="relative min-h-screen overflow-hidden bg-[#09040b] text-foreground">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(255,167,38,0.14),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-[radial-gradient(circle_at_bottom,rgba(255,121,198,0.1),transparent_40%)]" />
+
+      <div className="mx-auto grid max-w-[1600px] gap-6 px-4 py-6 sm:px-6 lg:px-8 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="space-y-6">
+          <DynamicBackground
+            url={heroImage}
+            className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-slate-700/70 bg-slate-950/85 shadow-[0_30px_80px_rgba(0,0,0,0.35)] bg-cover bg-center"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-[#09040b]/95 via-[#09040b]/20 to-[#09040b]/95" />
+            <div className="absolute inset-0 bg-[#09040b]/60" />
+            <div className="relative p-6 text-slate-100">
+              <p className="text-[10px] uppercase tracking-[0.32em] text-amber-300">Search design</p>
+              <h2 className="mt-2 text-3xl font-semibold text-white">Discover live listening hubs with the custom search UI.</h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">This page now reflects your new app visuals while you search live rooms, audio communities, and shared listening sessions.</p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {groups.map((group) => (
-                <button
-                  key={group.tag}
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery(group.tag);
-                    router.replace(`/search?q=${encodeURIComponent(group.tag)}`);
-                  }}
-                  className={`nexus-interactive-card rounded-2xl border px-3 py-3 text-left ${
-                    activeGroup?.tag === group.tag
-                      ? "border-cyan-500/65 bg-[linear-gradient(145deg,rgba(8,47,73,0.3),rgba(15,23,42,0.98))]"
-                      : "border-slate-800 bg-[linear-gradient(145deg,rgba(8,47,73,0.18),rgba(15,23,42,0.92))]"
-                  }`}
-                >
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">[{group.tag}]</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{group.name}</p>
-                  <p className="mt-1 text-xs text-slate-400">{group.totalUsers} users · {group.onlineUsers} online</p>
-                </button>
-              ))}
-            </div>
+          </DynamicBackground>
 
-            {activeGroup ? (
-              <div className="rounded-2xl border border-cyan-500/35 bg-cyan-950/10 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">Active Cohort [{activeGroup.tag}]</p>
-                    <p className="mt-1 text-sm font-semibold text-white">{activeGroup.name}</p>
-                    <p className="mt-1 text-xs text-slate-400">{activeGroup.description ?? "Cohort view enabled."}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      router.replace("/search");
-                    }}
-                    className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-200"
-                  >
-                    Clear filter
-                  </button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full border border-slate-700 px-2 py-1 text-slate-300">{activeGroup.totalUsers} users</span>
-                  <span className="rounded-full border border-slate-700 px-2 py-1 text-emerald-300">{activeGroup.onlineUsers} online</span>
-                  {typeof activeGroup.premiumUsers === "number" ? <span className="rounded-full border border-slate-700 px-2 py-1 text-amber-300">{activeGroup.premiumUsers} premium</span> : null}
-                  {typeof activeGroup.avgReputation === "number" ? <span className="rounded-full border border-slate-700 px-2 py-1 text-cyan-200">avg rep {activeGroup.avgReputation}</span> : null}
-                </div>
-                {activeGroup.sampleUsers && activeGroup.sampleUsers.length > 0 ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {activeGroup.sampleUsers.map((member) => (
-                      <div key={member.id} className="rounded-xl border border-slate-800 bg-slate-950/55 px-3 py-2">
-                        <p className="text-xs font-semibold text-slate-100">{member.username}</p>
-                        <p className="mt-1 text-[11px] text-slate-400">{member.premiumTier ?? "NONE"} · {member.reputation} rep</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="relative">
-              <svg className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.197 5.197a7.5 7.5 0 0 0 10.606 10.606Z" />
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearch}
-                placeholder="Search by username or clan tag..."
-                className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/70 py-3 pl-11 pr-4 text-slate-100 placeholder-slate-500 shadow-[inset_0_1px_0_rgba(148,163,184,0.06)] transition focus:border-cyan-500/60 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-              />
-            </div>
+          <div className="rounded-[28px] border border-slate-700/70 bg-slate-950/85 p-6">
+            <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Discover</p>
+            <p className="text-lg font-semibold text-white">Listening Hub</p>
           </div>
-        </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Matched Profiles</p>
-            <p className="mt-1 text-xl font-semibold text-cyan-300">{total}</p>
-          </div>
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Premium Hits</p>
-            <p className="mt-1 text-xl font-semibold text-amber-300">{premiumResults}</p>
-          </div>
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Peak Reputation</p>
-            <p className="mt-1 text-xl font-semibold text-emerald-300">{highestReputation}</p>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="nexus-display-panel rounded-[24px] p-5 text-center text-sm text-slate-400">Searching...</div>
-        ) : null}
-
-        {!loading && searchQuery && results.length === 0 ? (
-          <div className="nexus-display-panel rounded-[24px] p-8 text-center">
-            <p className="text-sm font-medium text-slate-300">No results for &ldquo;{searchQuery}&rdquo;</p>
-            <p className="mt-1 text-xs text-slate-500">Try a different username or clan tag</p>
-          </div>
-        ) : null}
-
-        {!loading && !searchQuery ? (
-          <div className="nexus-display-panel rounded-[24px] p-8 text-center">
-            <p className="text-sm text-slate-400">Start typing to discover players</p>
-          </div>
-        ) : null}
-
-        {!loading && results.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">{total} result{total !== 1 ? "s" : ""}</p>
-            {results.map((user) => {
-              const rowBadges = getProfileBadgesForUser({
-                premiumTier: (user.premiumTier as "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ?? "NONE",
-                appRole: undefined,
-                isAdmin: false,
-                corePlusBoostLevel: undefined,
-              });
-
-              return (
-              <Link
-                key={user.id}
-                href={`/profiles/${user.id}`}
-                className="nexus-interactive-card relative flex items-center gap-4 overflow-hidden rounded-[24px] border border-slate-800 bg-[linear-gradient(145deg,rgba(8,47,73,0.16),rgba(15,23,42,0.9))] px-4 py-4"
+          <div className="mt-6 space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Listening hubs</p>
+            {groups.map((group) => (
+              <button
+                key={group.tag}
+                type="button"
+                onClick={() => {
+                  setSearchQuery(group.tag);
+                  router.replace(`/search?q=${encodeURIComponent(group.tag)}`);
+                }}
+                className={`w-full rounded-3xl border px-4 py-3 text-left text-sm transition ${
+                  activeGroup?.tag === group.tag
+                    ? "border-amber-400/70 bg-amber-500/10 text-amber-100"
+                    : "border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-amber-500/60"
+                }`}
               >
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-300 via-cyan-500 to-blue-600" />
-                {user.avatar ? (
-                  <Image
-                    src={user.avatar}
-                    alt={user.username}
-                    width={44}
-                    height={44}
-                    className="rounded-xl object-cover"
-                  />
-                ) : (
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-base font-bold text-slate-300">
-                    {user.username[0]?.toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Profile</span>
-                    {user.premium ? (
-                      <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300">{user.premiumTier}</span>
-                    ) : null}
-                  </div>
-                  <ProfileBadgeStrip badges={rowBadges} containerClassName="mb-2" />
-                  <p className="truncate text-sm font-semibold text-slate-100">{user.username}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                    {user.clanTag ? <p className="truncate text-cyan-400">[{user.clanTag}]</p> : null}
-                    <span className="text-slate-500">Joined {new Date(user.createdAt).toLocaleDateString()}</span>
-                  </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>{group.name}</span>
+                  <span className="text-xs text-slate-400">{group.tag}</span>
                 </div>
-                <div className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-right">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Reputation</p>
-                  <p className="mt-1 text-sm font-semibold text-emerald-300">{user.reputation} rep</p>
-                </div>
-              </Link>
-              );
-            })}
+                <p className="mt-1 text-xs text-slate-500">{group.onlineUsers} online</p>
+              </button>
+            ))}
           </div>
-        ) : null}
+
+          <div className="mt-6 rounded-[28px] border border-slate-700/70 bg-slate-900/80 p-5">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Quick Actions</p>
+            <div className="mt-4 space-y-3">
+              <button className="nexus-button-secondary w-full rounded-3xl px-4 py-3 text-sm font-semibold">Featured</button>
+              <button className="nexus-button-secondary w-full rounded-3xl px-4 py-3 text-sm font-semibold">New rooms</button>
+              <button className="nexus-button-secondary w-full rounded-3xl px-4 py-3 text-sm font-semibold">Top raids</button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="space-y-6">
+          <section className="rounded-[32px] border border-slate-700/70 bg-slate-950/85 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Discover Listenings</p>
+                <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">Find the next community listening room.</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">Browse immersive audio spaces, social listening lounges, and active community events built for shared sound.</p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative w-full sm:w-[300px]">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    placeholder="Search servers, tags, live rooms..."
+                    className="h-14 w-full rounded-3xl border border-slate-700/80 bg-slate-900/80 px-12 text-sm text-slate-100 outline-none focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.replace(`/search?q=${encodeURIComponent(searchQuery.trim())}`)}
+                  className="nexus-button-primary inline-flex h-14 items-center justify-center rounded-3xl px-6 text-sm font-semibold"
+                  disabled={!searchQuery.trim() || loading}
+                >
+                  {loading ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 text-sm text-slate-200">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Premium profiles</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{premiumResults}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 text-sm text-slate-200">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Top reputation</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{highestReputation}</p>
+              </div>
+              <div className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4 text-sm text-slate-200">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-500">Search state</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{loading ? "Searching" : "Ready"}</p>
+              </div>
+            </div>
+          </section>
+
+          {!isSignedIn && (
+            <GuestAuthCallout
+              title="Sign in to unlock the live search experience."
+              description="Beta testers and members can search active rooms, join communities, and save their query state across devices."
+              loginHref={loginRedirect}
+              registerHref="/register?redirect=/search"
+            />
+          )}
+
+          <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+            <div className="space-y-6">
+              <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/85 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Featured</p>
+                    <h2 className="mt-2 text-2xl font-semibold text-white">Live Server Picks</h2>
+                  </div>
+                  <button className="rounded-full border border-slate-700/70 bg-slate-900/80 px-4 py-2 text-xs uppercase tracking-[0.18em] text-slate-200">View all</button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {groups.slice(0, 6).map((group) => (
+                    <div key={group.tag} className="group relative overflow-hidden rounded-[28px] border border-slate-700/70 bg-slate-900/90 p-5 transition hover:-translate-y-1 hover:border-amber-400/50">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.22em] text-slate-400">{group.tag}</p>
+                          <h3 className="mt-2 text-lg font-semibold text-white">{group.name}</h3>
+                        </div>
+                        <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-amber-200">{group.onlineUsers} live</span>
+                      </div>
+                      <div className="h-36 rounded-[24px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950" />
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-xs text-slate-400">
+                          <p>{group.totalUsers} members</p>
+                          <p>{group.sampleUsers?.length ?? 0} hosts</p>
+                        </div>
+                        <button className="rounded-full bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/25">
+                          Join
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {results.length > 0 && (
+                <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/85 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Search Results</p>
+                      <h2 className="mt-2 text-2xl font-semibold text-white">Profiles found</h2>
+                    </div>
+                    <span className="rounded-full border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-xs text-slate-200">{total} results</span>
+                  </div>
+                  <div className="grid gap-3">
+                    {results.map((user) => {
+                      const rowBadges = getProfileBadgesForUser({
+                        premiumTier: (user.premiumTier as "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ?? "NONE",
+                        appRole: undefined,
+                        isAdmin: false,
+                        corePlusBoostLevel: undefined,
+                      });
+
+                      return (
+                        <Link
+                          key={user.id}
+                          href={`/profiles/${user.id}`}
+                          className="relative flex items-center gap-4 overflow-hidden rounded-[24px] border border-slate-800 bg-[linear-gradient(145deg,rgba(8,47,73,0.16),rgba(15,23,42,0.9))] px-4 py-4"
+                        >
+                          <div className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-300 via-amber-500 to-rose-600" />
+                          {user.avatar ? (
+                            <Image
+                              src={user.avatar}
+                              alt={user.username}
+                              width={44}
+                              height={44}
+                              className="rounded-xl object-cover"
+                              style={{ width: "auto", height: "auto" }}
+                            />
+                          ) : (
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-base font-bold text-slate-300">
+                              {user.username[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Profile</span>
+                              {user.premium ? (
+                                <span className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold text-amber-300">{user.premiumTier}</span>
+                              ) : null}
+                            </div>
+                            <ProfileBadgeStrip badges={rowBadges} containerClassName="mb-2" />
+                            <p className="truncate text-sm font-semibold text-slate-100">{user.username}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                              {user.clanTag ? <p className="truncate text-amber-300">[{user.clanTag}]</p> : null}
+                              <span className="text-slate-500">Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-right">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Reputation</p>
+                            <p className="mt-1 text-sm font-semibold text-amber-300">{user.reputation} rep</p>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <aside className="space-y-6">
+              <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/85 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Hot Picks</p>
+                    <p className="mt-2 text-lg font-semibold text-white">AI-driven recommendations</p>
+                  </div>
+                  <Sparkles className="h-5 w-5 text-amber-300" />
+                </div>
+                <div className="mt-4 space-y-3">
+                  {groups.slice(0, 3).map((group) => (
+                    <div key={group.tag} className="rounded-3xl border border-slate-700/70 bg-slate-900/80 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{group.name}</p>
+                      <p className="mt-1 text-sm text-slate-200">{group.onlineUsers} live · {group.totalUsers} members</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-[32px] border border-slate-700/70 bg-slate-950/85 p-6 shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Launch Control</p>
+                <button className="mt-4 flex w-full items-center justify-between rounded-3xl border border-slate-700/70 bg-slate-900/80 px-4 py-3 text-sm text-slate-200 hover:border-amber-500/60">
+                  <span>Live mission</span>
+                  <Play className="h-4 w-4 text-amber-300" />
+                </button>
+                <button className="mt-3 flex w-full items-center justify-between rounded-3xl border border-slate-700/70 bg-slate-900/80 px-4 py-3 text-sm text-slate-200 hover:border-amber-500/60">
+                  <span>Members feed</span>
+                  <Users className="h-4 w-4 text-amber-300" />
+                </button>
+              </div>
+            </aside>
+          </section>
+        </main>
       </div>
-    </ExperienceShell>
+    </div>
   );
 }
 

@@ -16,7 +16,6 @@ const medalCatalog = [
 // --- Beta tester list (usernames, case-insensitive) ---
 const betaTesters = [
   "jacksongaming69",
-  "vanillapea",
   "bbrosius",
 ];
 
@@ -185,6 +184,29 @@ const groupDefinitions = [
         activityDetails: "Usually responds after edits finish exporting.",
         bio: "Creative producer and premium media contributor.",
         medals: ["signal-booster"],
+      },
+    ],
+  },
+  {
+    key: "TRH",
+    name: "TRH Development",
+    tag: "TRH",
+    description: "Official TRH Development demo account for fast login testing.",
+    members: [
+      {
+        username: "trhdevelopment",
+        email: "trhdevelopment@nexusforge.local",
+        displayName: "TRH Development",
+        status: "ONLINE",
+        premiumTier: "INFINITE",
+        appRole: "USER",
+        premium: true,
+        corePlusBoostLevel: 15,
+        reputation: 999,
+        currentActivity: "Reviewing live desktop login",
+        activityDetails: "One-tap login demo user active.",
+        bio: "The demo development account for quick app access and testing.",
+        medals: ["founding-member", "forge-commander"],
       },
     ],
   },
@@ -549,11 +571,6 @@ async function main() {
       username: "JacksonGaming69",
       email: "jacksongaming69@nexusforge.local",
       password: "676769Jj$",
-    },
-    {
-      username: "vanillapea",
-      email: "vanillapea@nexusforge.local",
-      password: "Sammya04!",
     },
     {
       username: "bbrosius",

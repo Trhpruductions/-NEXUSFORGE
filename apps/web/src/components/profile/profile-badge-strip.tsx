@@ -27,7 +27,7 @@ function rarityClass(rarity: BrandBadge["rarity"]) {
   }
 
   if (rarity === "rare") {
-    return "border-cyan-400/65 shadow-[0_0_10px_rgba(34,211,238,0.2)]";
+    return "border-amber-400/65 shadow-[0_0_10px_rgba(255,184,108,0.2)]";
   }
 
   return "border-slate-700/80";

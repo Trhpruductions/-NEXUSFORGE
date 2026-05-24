@@ -127,6 +127,20 @@ function Read-TextFile {
   }
 }
 
+function Resolve-ServerPort {
+  $serverEnvPath = Join-Path $repoRoot "apps/server/.env"
+  if (Test-Path $serverEnvPath) {
+    $lines = Get-Content $serverEnvPath | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") }
+    foreach ($line in $lines) {
+      if ($line -match '^[Pp][Oo][Rr][Tt]\s*=\s*"?(\d+)"?$') {
+        return [int]$matches[1]
+      }
+    }
+  }
+
+  return 4000
+}
+
 function Wait-ForStartupMarker {
   param(
     [Parameter(Mandatory = $true)] [string] $Path,
@@ -181,8 +195,10 @@ function Invoke-DesktopModeValidation {
       throw ("API entrypoint not found for local-mode validation: {0}" -f $apiEntry)
     }
 
-    if (-not (Test-PortOpen -Port 4000)) {
-      Write-Host "[desktop-network] Local API is down; starting temporary API service." -ForegroundColor Yellow
+    $apiPort = Resolve-ServerPort
+
+    if (-not (Test-PortOpen -Port $apiPort)) {
+      Write-Host "[desktop-network] Local API is down; starting temporary API service on port $apiPort." -ForegroundColor Yellow
       $apiStdOut = Join-Path $supportLogRoot "api-stdout.log"
       $apiStdErr = Join-Path $supportLogRoot "api-stderr.log"
       $apiProcess = Start-BackgroundProcess -WorkingDirectory $serverRoot -CommandLine "node dist/index.js" -StdOutPath $apiStdOut -StdErrPath $apiStdErr
@@ -197,8 +213,8 @@ function Invoke-DesktopModeValidation {
       $supportProcesses.Add($webProcess) | Out-Null
     }
 
-    if (-not (Wait-ForPorts -Ports @(3000, 4000) -Deadline $serviceDeadline)) {
-      throw "Timed out waiting for local services on ports 3000 and 4000."
+    if (-not (Wait-ForPorts -Ports @(3000, $apiPort) -Deadline $serviceDeadline)) {
+      throw "Timed out waiting for local services on ports 3000 and $apiPort."
     }
   }
 

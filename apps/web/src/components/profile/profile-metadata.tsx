@@ -44,11 +44,11 @@ export function ProfileMetadata({ user }: { user: User }) {
     <section className="nexus-display-panel mb-8 rounded-[28px] p-5 sm:p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-300">Account Profile</p>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Account Profile</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-50">{user.username}</h2>
           <p className="mt-1 text-sm text-slate-400">{user.email}</p>
         </div>
-        <div className="inline-flex items-center rounded-full border border-cyan-500/30 bg-cyan-950/25 px-3 py-1 text-xs text-cyan-100">
+        <div className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-950/25 px-3 py-1 text-xs text-amber-100">
           Joined {joinDateFormatted}
         </div>
       </div>
@@ -77,7 +77,7 @@ export function ProfileMetadata({ user }: { user: User }) {
 
         <article className="nexus-metric-card nexus-interactive-card rounded-2xl px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Core+ Boost</p>
-          <p className={`mt-1 text-sm font-semibold ${user.corePlusBoostLevel && user.corePlusBoostLevel > 0 ? "text-emerald-300" : "text-slate-400"}`}>{getBoostLevel()}</p>
+          <p className={`mt-1 text-sm font-semibold ${user.corePlusBoostLevel && user.corePlusBoostLevel > 0 ? "text-amber-300" : "text-slate-400"}`}>{getBoostLevel()}</p>
           {user.corePlusStreakDays && user.corePlusStreakDays > 0 ? <p className="mt-1 text-[11px] text-slate-500">Streak: {user.corePlusStreakDays} days</p> : null}
         </article>
 
@@ -95,7 +95,7 @@ export function ProfileMetadata({ user }: { user: User }) {
       {user.clanTag ? (
         <div className="nexus-display-panel mt-4 rounded-[22px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Clan Tag</p>
-          <p className="mt-1 text-sm font-mono font-bold text-cyan-300">[{user.clanTag}]</p>
+          <p className="mt-1 text-sm font-mono font-bold text-amber-300">[{user.clanTag}]</p>
         </div>
       ) : null}
 

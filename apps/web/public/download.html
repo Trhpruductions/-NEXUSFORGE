@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NexusForge Desktop Download</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #050812;
+        color: #f8fafc;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.12), transparent 28%),
+          #050812;
+      }
+      .card {
+        width: min(100%, 980px);
+        border-radius: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        background: rgba(15, 23, 42, 0.92);
+        box-shadow: 0 40px 120px rgba(15, 23, 42, 0.5);
+        overflow: hidden;
+      }
+      .hero {
+        padding: 32px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 3.4rem);
+        line-height: 1.05;
+      }
+      p {
+        margin: 16px 0 0;
+        color: #cbd5e1;
+        max-width: 52rem;
+        line-height: 1.7;
+      }
+      .status {
+        display: grid;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 10px 16px;
+        background: rgba(34, 197, 94, 0.12);
+        color: #a7f3d0;
+        font-size: 0.95rem;
+        border: 1px solid rgba(34, 197, 94, 0.2);
+      }
+      .actions {
+        margin-top: 32px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px 24px;
+        border-radius: 18px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: transform 160ms ease, background-color 160ms ease;
+      }
+      .button-primary {
+        background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+        color: #fff;
+      }
+      .button-secondary {
+        background: rgba(148, 163, 184, 0.12);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      .button:hover {
+        transform: translateY(-1px);
+      }
+      .notes {
+        padding: 32px;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+      }
+      .notes h2 {
+        margin: 0 0 16px;
+        font-size: 1.25rem;
+      }
+      ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #cbd5e1;
+      }
+      li {
+        margin-bottom: 10px;
+        line-height: 1.65;
+      }
+      .footer {
+        padding: 24px 32px;
+        border-top: 1px solid rgba(148, 163, 184, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        color: #94a3b8;
+        font-size: 0.95rem;
+      }
+      .loader {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #38bdf8;
+        animation: pulse 1s infinite ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="hero">
+        <p class="pill">NexusForge public download</p>
+        <h1>Download NexusForge Desktop</h1>
+        <p>Open this page anytime for the latest installer, version notes, and update manifest. It refreshes automatically when a new release is published.</p>
+
+        <div class="status" id="status">
+          <div class="loader"><span class="pulse"></span>Loading latest release info…</div>
+        </div>
+
+        <div class="actions" id="actions"></div>
+      </div>
+      <div class="notes" id="notes"></div>
+      <div class="footer">Latest manifest: <span id="manifest-url">desktop-update.json</span></div>
+    </div>
+    <script>
+      const statusEl = document.getElementById("status");
+      const actionsEl = document.getElementById("actions");
+      const notesEl = document.getElementById("notes");
+      const manifestUrlEl = document.getElementById("manifest-url");
+
+      function renderError(message) {
+        statusEl.innerHTML = `<div class=\"pill\">Unable to load version info</div><p style=\"margin:12px 0 0;color:#fca5a5;\">${message}</p>`;
+      }
+
+      async function loadManifest() {
+        try {
+          const response = await fetch("desktop-update.json", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const manifest = await response.json();
+          manifestUrlEl.textContent = new URL("desktop-update.json", location.href).toString();
+
+          const version = manifest.version || "unknown";
+          const downloadUrl = manifest.downloadUrl || "";
+          const manifestUrl = new URL("desktop-update.json", location.href).toString();
+          const notes = Array.isArray(manifest.notes) ? manifest.notes : [];
+          const knownUrls = Array.isArray(manifest.downloadUrls) ? manifest.downloadUrls : [];
+
+          statusEl.innerHTML = `<div class=\"pill\">Live version: ${version}</div><p style=\"margin:0;color:#cbd5e1;\">Release ID: ${version}</p>`;
+          actionsEl.innerHTML = `
+            <a class=\"button button-primary\" href=\"${downloadUrl}\">Download Latest Installer</a>
+            <a class=\"button button-secondary\" href=\"${manifestUrl}\">View update manifest</a>
+          `;
+
+          const allLinks = [downloadUrl, ...knownUrls.filter((url) => url && url !== downloadUrl)];
+          notesEl.innerHTML = `
+            <h2>Release notes</h2>
+            <ul>${notes.map((note) => `<li>${note}</li>`).join("")}</ul>
+            ${allLinks.length > 1 ? `<h2>Alternate installers</h2><ul>${allLinks
+              .map((url) => `<li><a href=\"${url}\">${url}</a></li>`)
+              .join("")}</ul>` : ""}
+          `;
+        } catch (error) {
+          renderError(error instanceof Error ? error.message : String(error));
+        }
+      }
+
+      loadManifest();
+    </script>
+  </body>
+</html>

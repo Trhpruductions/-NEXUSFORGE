@@ -156,12 +156,12 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                       whileTap={{ scale: 0.98 }}
                       className={`rounded-[20px] border-2 p-4 text-left transition-all ${
                         isSelected
-                          ? "border-cyan-500 bg-cyan-950/30 shadow-[0_0_16px_rgba(34,211,238,0.3)]"
+                          ? "border-amber-500 bg-amber-950/30 shadow-[0_0_16px_rgba(255,184,108,0.3)]"
                           : "border-slate-700 bg-slate-900/50 hover:border-slate-600"
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <Icon size={24} className={isSelected ? "text-cyan-400" : "text-slate-400"} />
+                        <Icon size={24} className={isSelected ? "text-amber-400" : "text-slate-400"} />
                         <div>
                           <p className="font-semibold text-white">{template.label}</p>
                           <p className="mt-1 text-xs text-slate-400">{template.description}</p>
@@ -193,7 +193,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                 <Button
                   onClick={() => setStep("details")}
                   disabled={!selectedTemplate}
-                  className="rounded-lg bg-cyan-600 hover:bg-cyan-700"
+                  className="rounded-lg bg-amber-600 hover:bg-amber-700"
                 >
                   Next: Configure
                 </Button>
@@ -217,7 +217,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     onChange={(e) => setServerName(e.target.value)}
                     placeholder="e.g., Apex Legion"
                     maxLength={80}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-2 text-slate-100 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none"
+                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
                   />
                   <p className="mt-1 text-xs text-slate-500">{serverName.length}/80</p>
                 </div>
@@ -230,7 +230,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     placeholder="Tell members what your forge is about"
                     maxLength={300}
                     rows={3}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-2 text-slate-100 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none"
+                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-2 text-slate-100 placeholder:text-slate-600 focus:border-amber-500 focus:outline-none"
                   />
                   <p className="mt-1 text-xs text-slate-500">{serverDescription.length}/300</p>
                 </div>
@@ -244,7 +244,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     {templates
                       .find((t) => t.id === selectedTemplate)
                       ?.channels.map((ch) => (
-                        <span key={ch} className="rounded px-2 py-1 text-xs bg-slate-800/60 text-cyan-300">
+                        <span key={ch} className="rounded px-2 py-1 text-xs bg-slate-800/60 text-amber-300">
                           #{ch}
                         </span>
                       ))}
@@ -270,7 +270,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                   <Button
                     onClick={handleCreate}
                     disabled={!serverName.trim() || !selectedTemplate || createMutation.isPending}
-                    className="rounded-lg bg-emerald-600 hover:bg-emerald-700"
+                    className="rounded-lg bg-amber-600 hover:bg-amber-700"
                   >
                     {createMutation.isPending ? "Creating..." : "Create Forge"}
                   </Button>

@@ -171,15 +171,22 @@ function Wait-ForWebHealthy {
   return $false
 }
 
-$serverEnvPath = Join-Path $repoRoot "apps\server\.env"
-$apiPort = 4000
-$portValue = Get-EnvFileValue -Path $serverEnvPath -Key "PORT"
-if ($portValue -and [int]::TryParse($portValue, [ref]$apiPort)) {
-  Write-Host "[smoke] Using server port from apps/server/.env: $apiPort" -ForegroundColor Cyan
-} else {
-  Write-Host "[smoke] Using default server port: $apiPort" -ForegroundColor Cyan
+function Resolve-ServerPort {
+  $serverEnvPath = Join-Path $repoRoot "apps/server/.env"
+  if (Test-Path $serverEnvPath) {
+    $lines = Get-Content $serverEnvPath | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") }
+    foreach ($line in $lines) {
+      if ($line -match '^[Pp][Oo][Rr][Tt]\s*=\s*"?(\d+)"?$') {
+        return [int]$matches[1]
+      }
+    }
+  }
+
+  return 4000
 }
-$apiBase = "http://127.0.0.1:$apiPort"
+
+$apiPort = Resolve-ServerPort
+$apiBase = "http://localhost:$apiPort"
 $webBase = "http://127.0.0.1:3000"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {

@@ -1,493 +1,271 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexusForge Desktop Startup</title>
+    <title>NexusForge Recovery</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg-a: #0b1220;
-        --bg-b: #131c2f;
-        --bg-c: #1f1234;
-        --panel: rgba(13, 20, 36, 0.76);
-        --panel-border: rgba(125, 211, 252, 0.26);
-        --text: #e6edf7;
+        --bg-1: #05080f;
+        --bg-2: #0a1525;
+        --bg-3: #111d33;
+        --panel: rgba(11, 17, 32, 0.88);
+        --panel-strong: rgba(7, 14, 27, 0.96);
+        --border: rgba(56, 189, 248, 0.18);
+        --text: #e7effa;
         --muted: #9fb3cc;
-        --accent: #f97316;
+        --accent: #38bdf8;
         --accent-strong: #fb923c;
-        --ok: #34d399;
-        --warn: #f59e0b;
+        --good: #34d399;
+        --warn: #fbbf24;
         --danger: #f87171;
-        --ease-out: cubic-bezier(0.22, 1.12, 0.38, 1);
+        --ease: cubic-bezier(0.22, 1.12, 0.38, 1);
       }
 
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        height: 100%;
-      }
-
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Bahnschrift", "Segoe UI Variable", "Trebuchet MS", sans-serif;
-        background:
-          radial-gradient(circle at 12% 14%, rgba(249, 115, 22, 0.24), transparent 31%),
-          radial-gradient(circle at 84% 16%, rgba(125, 211, 252, 0.2), transparent 35%),
-          radial-gradient(circle at 76% 84%, rgba(52, 211, 153, 0.14), transparent 30%),
-          linear-gradient(145deg, var(--bg-a) 0%, var(--bg-b) 52%, var(--bg-c) 100%);
+        font-family: "Segoe UI Variable", "Trebuchet MS", sans-serif;
         color: var(--text);
+        background: radial-gradient(circle at 12% 16%, rgba(249,115,22,0.22), transparent 24%),
+                    radial-gradient(circle at 84% 14%, rgba(56,189,248,0.16), transparent 28%),
+                    linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+        overflow: hidden;
         display: grid;
         place-items: center;
-        padding: 20px;
-        overflow: hidden;
       }
 
-      .noise {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        opacity: 0.2;
-        background-image: radial-gradient(rgba(255, 255, 255, 0.3) 0.4px, transparent 0.4px);
+      .noise { position: fixed; inset: 0; pointer-events: none; opacity: 0.18;
+        background-image: radial-gradient(rgba(255,255,255,0.22) 0.4px, transparent 0.4px);
         background-size: 3px 3px;
-        mix-blend-mode: soft-light;
       }
 
-      .backdrop-grid {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        background-image:
-          linear-gradient(rgba(159, 179, 204, 0.06) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(159, 179, 204, 0.06) 1px, transparent 1px);
-        background-size: 68px 68px;
-        opacity: 0.45;
-        -webkit-mask-image: radial-gradient(circle at center, black 34%, transparent 84%);
-        mask-image: radial-gradient(circle at center, black 34%, transparent 84%);
+      .grid { position: fixed; inset: 0; pointer-events: none;
+        background-image: linear-gradient(rgba(159,179,204,0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(159,179,204,0.05) 1px, transparent 1px);
+        background-size: 72px 72px;
+        -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 84%);
+        mask-image: radial-gradient(circle at center, black 40%, transparent 84%);
       }
 
-      .shell {
-        position: relative;
-        width: min(1080px, 100%);
-        border: 1px solid var(--panel-border);
-        border-radius: 28px;
-        background:
-          linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68)),
-          var(--panel);
-        box-shadow:
-          0 38px 86px rgba(5, 9, 18, 0.6),
-          inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        padding: 26px;
+      .page { position: relative; width: min(1120px, calc(100vw - 40px)); }
+      .hero {
         display: grid;
-        gap: 20px;
+        grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+        gap: 24px;
+      }
+
+      .panel {
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 30px;
+        background: linear-gradient(180deg, rgba(7, 16, 30, 0.95), rgba(10, 18, 34, 0.88));
+        box-shadow: 0 40px 90px rgba(0,0,0,0.32);
         overflow: hidden;
-        animation: shell-enter 560ms cubic-bezier(0.22, 1.12, 0.38, 1);
       }
 
-      .shell::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-          radial-gradient(circle at 18% 10%, rgba(251, 146, 60, 0.18), transparent 22%),
-          radial-gradient(circle at 84% 18%, rgba(125, 211, 252, 0.16), transparent 20%);
-        pointer-events: none;
-      }
-
-      .shell::after {
-        content: "";
-        position: absolute;
-        inset: -1px;
-        border-radius: 28px;
-        border: 1px solid rgba(148, 163, 184, 0.12);
-        pointer-events: none;
-      }
-
-      @keyframes shell-enter {
-        from {
-          opacity: 0;
-          transform: translateY(8px) scale(0.992);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-
-      .header {
-        position: relative;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 18px;
-        align-items: start;
-        opacity: 0;
-        transform: translateY(8px);
-        animation: section-enter 420ms var(--ease-out) 90ms forwards;
-      }
-
-      .eyebrow {
-        margin: 0;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.18em;
-        color: #7dd3fc;
-      }
-
-      h1 {
-        margin: 8px 0 10px;
-        font-size: clamp(34px, 4.8vw, 62px);
-        line-height: 0.9;
-        letter-spacing: -0.03em;
-        font-weight: 750;
-        overflow-wrap: anywhere;
-        word-break: normal;
-        text-shadow: 0 10px 30px rgba(8, 14, 28, 0.44);
-      }
-
-      .subtitle {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.6;
-        max-width: 74ch;
-        letter-spacing: 0.01em;
-      }
-
-      .status-wrap {
-        display: grid;
-        gap: 8px;
-      }
-
-      .status-label {
-        margin: 0;
-        color: #9fb3cc;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        font-size: 12px;
-      }
+      .hero-card { padding: 38px 40px; display: grid; gap: 24px; }
+      .hero-label { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2em; color: #7dd3fc; }
+      .hero-title { margin: 4px 0 0; font-size: clamp(40px, 5.4vw, 66px); line-height: 0.92; letter-spacing: -0.04em; }
+      .hero-copy { margin: 0; color: var(--muted); max-width: 48rem; line-height: 1.7; }
+      .hero-note { margin: 0; color: rgba(159,179,204,0.9); font-size: 0.92rem; }
 
       .status-chip {
-        border: 1px solid rgba(245, 158, 11, 0.46);
-        color: #fef3c7;
-        background: rgba(245, 158, 11, 0.16);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border: 1px solid rgba(56,189,248,0.3);
         border-radius: 16px;
-        padding: 12px 14px;
+        background: rgba(56,189,248,0.08);
+        color: #d0efff;
         font-size: 13px;
-        line-height: 1.4;
-        text-transform: uppercase;
-        max-width: min(52vw, 420px);
+        max-width: fit-content;
       }
 
-      .layout {
-        position: relative;
+      .hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-        gap: 18px;
-        opacity: 0;
-        transform: translateY(8px);
-        animation: section-enter 460ms var(--ease-out) 180ms forwards;
-      }
-
-      .meta {
-        display: grid;
+        gap: 16px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        font-size: 13px;
       }
 
-      .meta-card {
-        border: 1px solid rgba(148, 163, 184, 0.2);
+      .info-card {
+        border-radius: 20px;
+        padding: 20px;
+        background: rgba(7, 14, 26, 0.86);
+        border: 1px solid rgba(255,255,255,0.04);
+        display: grid;
+        gap: 12px;
+      }
+      .info-card.full-span { grid-column: span 2; }
+      .panel.no-padding { padding: 0; }
+      .history-heading { margin: 0 0 12px 0; font-weight: 700; }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
         border-radius: 14px;
-        padding: 14px;
-        background: rgba(2, 6, 23, 0.54);
-        min-height: 86px;
-        display: grid;
-        align-content: start;
-        gap: 6px;
-      }
-
-      .meta-card b {
-        display: block;
-        color: #9fb3cc;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        font-size: 11px;
-        text-transform: uppercase;
-      }
-
-      .value {
-        color: #e6edf7;
-        font-size: 14px;
-        line-height: 1.45;
-        word-break: break-word;
-      }
-
-      .actions-pane {
-        display: grid;
-        gap: 14px;
-        align-content: start;
-      }
-
-      .actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      button {
-        border: 0;
-        border-radius: 13px;
-        padding: 12px 14px;
-        font-size: 13px;
-        color: #1b1207;
-        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-        cursor: pointer;
+        border: 1px solid transparent;
+        padding: 0 18px;
+        font: inherit;
         font-weight: 700;
-        transition:
-          transform 180ms ease,
-          box-shadow 220ms ease,
-          filter 180ms ease;
+        cursor: pointer;
+        transition: transform 180ms ease, opacity 180ms ease, background-color 180ms ease, border-color 180ms ease;
       }
-
-      button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 30px rgba(249, 115, 22, 0.28);
-        filter: saturate(1.08);
+      .button.primary,
+      .primary {
+        background: linear-gradient(135deg, #38bdf8, #6366f1);
+        color: #ffffff;
+        border-color: rgba(56,189,248,0.4);
       }
-
-      button:disabled {
-        opacity: 0.62;
-        cursor: wait;
-        transform: none;
-        box-shadow: none;
-      }
-
-      button:focus-visible {
-        outline: 2px solid #e6edf7;
-        outline-offset: 3px;
-      }
-
-      button.secondary {
-        background: #2a354b;
+      .button.secondary,
+      .secondary {
+        background: rgba(255,255,255,0.06);
         color: var(--text);
       }
-
-      button.danger {
-        background: #782029;
-        color: #fff1f2;
+      .button.danger,
+      .danger {
+        background: linear-gradient(135deg, #fb7185, #f97316);
+        color: #0f172a;
+      }
+      .button[disabled],
+      button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
       }
 
-      button.secondary:hover {
-        box-shadow: 0 12px 26px rgba(59, 130, 246, 0.2);
+      .workspace-entry { display: grid; gap: 10px; }
+      .workspace-entry label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; }
+      .workspace-entry input { width: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: var(--text); padding: 14px 16px; }
+
+      .history-card { background: rgba(15, 25, 44, 0.82); border-radius: 22px; padding: 18px; border: 1px solid rgba(255,255,255,0.05); margin-top: 18px; overflow: auto; max-height: 260px; font-size: 13px; color: #cbd5e1; }
+      .history-card pre { margin: 0; white-space: pre-wrap; word-break: break-word; line-height: 1.55; }
+
+      .portal {
+        position: relative;
+        width: 100%;
+        min-height: 320px;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 50% 40%, rgba(56,189,248,0.16), transparent 28%),
+                    radial-gradient(circle at 50% 80%, rgba(248,113,113,0.12), transparent 20%);
+        border: 1px solid rgba(56,189,248,0.16);
+        border-radius: 28px;
+        overflow: hidden;
       }
 
-      button.danger:hover {
-        box-shadow: 0 12px 26px rgba(248, 113, 113, 0.24);
+      .portal::before {
+        content: "";
+        position: absolute;
+        inset: -30px;
+        background: radial-gradient(circle at 50% 50%, rgba(56,189,248,0.24), transparent 35%);
+        filter: blur(28px);
       }
 
-      .history {
-        white-space: pre-wrap;
-        font-size: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 12px;
-        padding: 12px;
-        background: rgba(2, 6, 23, 0.6);
-        max-height: 250px;
-        overflow: auto;
-        line-height: 1.45;
-        margin: 0;
-        color: #dce8f8;
+      .portal-core {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(56,189,248,0.96), rgba(59,130,246,0.08) 38%);
+        box-shadow: 0 0 80px rgba(56,189,248,0.32), inset 0 0 30px rgba(255,255,255,0.18);
+        animation: pulse 4s ease-in-out infinite;
       }
 
-      .legend {
-        opacity: 0;
-        transform: translateY(6px);
-        animation: section-enter 420ms var(--ease-out) 130ms forwards;
+      .portal-core::after {
+        content: "";
+        position: absolute;
+        inset: 24px;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.14);
+        box-shadow: inset 0 0 18px rgba(255,255,255,0.08);
       }
 
-      @keyframes section-enter {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.08); }
       }
 
-      .history-title {
-        margin: 0;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-        color: #93c5fd;
-      }
-
-      .legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .legend-pill {
-        font-size: 11px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        padding: 7px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(15, 23, 42, 0.65);
-        color: #bdd2e9;
-      }
-
-      .legend-pill.live {
-        border-color: rgba(52, 211, 153, 0.35);
-        color: #d1fae5;
-      }
-
-      .legend-pill.warn {
-        border-color: rgba(245, 158, 11, 0.42);
-        color: #fef3c7;
-      }
-
-      @media (max-width: 900px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
-
-        .actions {
-          grid-template-columns: 1fr;
-        }
-
-        .header {
-          grid-template-columns: 1fr;
-        }
-
-        .status-chip {
-          max-width: 100%;
-        }
-
-        .meta {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 620px) {
-        body {
-          padding: 10px;
-        }
-
-        .shell {
-          border-radius: 20px;
-          padding: 14px;
-          gap: 14px;
-        }
-
-        h1 {
-          font-size: clamp(30px, 10.5vw, 42px);
-          line-height: 0.95;
-        }
-
-        .subtitle,
-        .value {
-          font-size: 13px;
-        }
-
-        .status-chip {
-          font-size: 12px;
-          padding: 10px 12px;
-        }
-
-        .meta-card {
-          min-height: 74px;
-          padding: 12px;
-        }
-
-        .history {
-          max-height: 190px;
-        }
-      }
-
-      @media (prefers-contrast: more) {
-        :root {
-          --panel-border: rgba(191, 219, 254, 0.72);
-          --muted: #c6d6ee;
-        }
-
-        .shell,
-        .meta-card,
-        .history,
-        .legend-pill,
-        .status-chip,
-        button {
-          border-color: rgba(226, 232, 240, 0.58);
-        }
-
-        .subtitle,
-        .value,
-        .history,
-        .legend-pill {
-          color: #e2ecfa;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation-duration: 0.01ms !important;
-          animation-iteration-count: 1 !important;
-          transition-duration: 0.01ms !important;
-          scroll-behavior: auto !important;
-        }
+      @media (max-width: 980px) {
+        .hero { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
-    <div class="backdrop-grid"></div>
     <div class="noise" aria-hidden="true"></div>
-    <main class="shell">
-      <header class="header">
-        <div>
-          <p class="eyebrow">NexusForge Desktop Recovery</p>
-          <h1>NexusForge Desktop Is Warming Up</h1>
-          <p id="subtitle" class="subtitle">
-            The app is still connecting. Use the controls below to inspect status and retry without closing desktop.
+    <div class="grid" aria-hidden="true"></div>
+    <main class="page">
+      <section class="hero">
+        <article class="panel hero-card">
+          <p class="hero-label">NexusForge Desktop Recovery</p>
+          <h1 class="hero-title">Your desktop is recovering.</h1>
+          <p class="hero-copy" id="subtitle">
+            The app is still connecting. Use the controls below to inspect status, retry safely, or recover with local services.
           </p>
-        </div>
-        <div class="status-wrap">
-          <p class="status-label">Live Status</p>
-          <div id="status" class="status-chip">Checking local stack...</div>
-        </div>
-      </header>
+          <p class="hero-note">
+            Local recovery will automatically retry when your workspace services become available.
+          </p>
 
-      <div class="legend" aria-hidden="true">
-        <span class="legend-pill live">Auto recovery enabled</span>
-        <span class="legend-pill warn">Manual controls available</span>
-      </div>
+          <div class="status-chip" id="status">Checking local stack...</div>
 
-      <section class="layout">
-        <div class="meta">
-          <div class="meta-card"><b>Network Mode</b><span id="mode" class="value">-</span></div>
-          <div class="meta-card"><b>Target URL</b><span id="target" class="value">-</span></div>
-          <div class="meta-card"><b>Workspace</b><span id="workspace" class="value">-</span></div>
-          <div class="meta-card"><b>Ports</b><span id="ports" class="value">-</span></div>
-          <div class="meta-card"><b>Last Error</b><span id="error" class="value">-</span></div>
-        </div>
+          <div class="hero-grid">
+            <div class="info-card">
+              <b>Network Mode</b>
+              <div class="value" id="mode">-</div>
+            </div>
+            <div class="info-card">
+              <b>Target URL</b>
+              <div class="value" id="target">-</div>
+            </div>
+            <div class="info-card">
+              <b>Workspace</b>
+              <div class="value" id="workspace">-</div>
+            </div>
+            <div class="info-card">
+              <b>Recovery</b>
+              <div class="value" id="recovery-status">-</div>
+            </div>
+            <div class="info-card">
+              <b>Ports</b>
+              <div class="value" id="ports">-</div>
+            </div>
+            <div class="info-card">
+              <b>API Port Fallback</b>
+              <div class="value" id="api-port-fallback">-</div>
+            </div>
+            <div class="info-card full-span">
+              <b>Last Error</b>
+              <div class="value" id="error">-</div>
+            </div>
+          </div>
 
-        <aside class="actions-pane">
-          <section class="actions">
-            <button id="start">Start Local Stack</button>
+          <div class="actions">
+            <button id="start" class="primary">Start Local Stack</button>
             <button id="retry" class="secondary">Retry Connection</button>
             <button id="log" class="secondary">Open Stack Log</button>
             <button id="reload" class="danger">Reload Window</button>
-          </section>
-          <p class="history-title">Recovery Timeline</p>
-          <pre id="history" class="history">History: none</pre>
+            <button id="openFallback" class="secondary">Open active target</button>
+          </div>
+
+          <div class="workspace-entry">
+            <label for="workspace-path-input">Local workspace path</label>
+            <input id="workspace-path-input" type="text" placeholder="C:\\Path\\To\\NexusForge Workspace" />
+            <button id="set-workspace-path" class="secondary">Set Workspace Path</button>
+          </div>
+        </article>
+
+        <aside class="panel no-padding">
+          <div class="portal">
+            <div class="portal-core"></div>
+          </div>
+          <div class="history-card">
+            <p class="history-heading">Recovery Timeline</p>
+            <pre id="history">History: none</pre>
+          </div>
         </aside>
       </section>
     </main>
@@ -503,11 +281,29 @@
       const historyEl = document.getElementById("history");
       const startButton = document.getElementById("start");
       const logButton = document.getElementById("log");
-      const actionButtons = ["start", "retry", "log", "reload"].map((id) => document.getElementById(id));
+      const openFallbackButton = document.getElementById("openFallback");
+      const actionButtons = ["start", "retry", "log", "reload", "set-workspace-path"].map((id) => document.getElementById(id));
+      const recoveryStatusEl = document.getElementById("recovery-status");
+      let autoRetryInFlight = false;
+      let currentTargetUrl = "https://www.nexusforge.app/app";
+
+      function normalizeHttpUrl(value) {
+        const candidate = String(value || "").trim();
+        if (!candidate) return null;
+        try {
+          const parsed = new URL(candidate);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return null;
+          }
+          return parsed.toString();
+        } catch {
+          return null;
+        }
+      }
 
       function setActionBusy(isBusy) {
         actionButtons.forEach((button) => {
-          button.disabled = isBusy;
+          if (button) button.disabled = isBusy;
         });
       }
 
@@ -516,21 +312,77 @@
           const status = await window.nexusforgeDesktop.getLocalStackStatus();
           const localRecoveryEnabled = Boolean(status.localRecoveryEnabled);
           const inHostedMode = status.launchMode === "hosted" || !localRecoveryEnabled;
+          const apiFallbackOpen = Boolean(status.port4001Open);
+          const localStackDetected = status.port3000Open && (status.port4000Open || status.port4001Open);
           modeEl.textContent = inHostedMode ? "hosted" : "local";
           targetEl.textContent = status.startUrl || "-";
           workspaceEl.textContent = inHostedMode ? "not required in hosted mode" : status.workspacePath || "not detected";
+          const port4000Label = status.port4000Open
+            ? "open"
+            : status.port4000Bound
+              ? "bound but unhealthy"
+              : "closed";
+          const port4001Label = status.port4001Open
+            ? "open"
+            : status.port4001Bound
+              ? "bound but unhealthy"
+              : "closed";
           portsEl.textContent = inHostedMode
             ? "not applicable in hosted mode"
-            : `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${status.port4000Open ? "open" : "closed"}`;
+            : `3000: ${status.port3000Open ? "open" : "closed"}, 4000: ${port4000Label}, 4001: ${port4001Label}`;
+          if (recoveryStatusEl) {
+            recoveryStatusEl.textContent = inHostedMode
+              ? "hosted only"
+              : status.localRecoveryEnabled
+                ? "enabled"
+                : "disabled";
+          }
+          const apiFallbackEl = document.getElementById("api-port-fallback");
+          if (apiFallbackEl) {
+            apiFallbackEl.textContent = inHostedMode
+              ? "not applicable in hosted mode"
+              : `4001: ${apiFallbackOpen ? "open" : "closed"}`;
+          }
           errorEl.textContent = status.lastError || "none";
-          statusEl.textContent = status.message || "Waiting for local stack.";
-          startButton.disabled = inHostedMode;
-          logButton.disabled = inHostedMode;
+          const runtimeTarget = normalizeHttpUrl(status.startUrl);
+          if (runtimeTarget) {
+            currentTargetUrl = runtimeTarget;
+          }
+          if (openFallbackButton) {
+            openFallbackButton.textContent = inHostedMode ? "Open hosted app" : "Open local app";
+          }
+          startButton.disabled = false;
+          logButton.disabled = !status.workspacePath;
           subtitleEl.textContent = inHostedMode
-            ? "The desktop app is trying to reach hosted NexusForge services. Retry while network and service availability are restored."
+            ? "The desktop app is trying to reach hosted NexusForge services. If a local workspace is available, you can still start the local stack for recovery."
             : "The app could not reach local services yet. Use local recovery controls to restart and reconnect.";
+
+          if (!inHostedMode && localStackDetected && !autoRetryInFlight) {
+            autoRetryInFlight = true;
+            statusEl.textContent = "Local stack detected. Reconnecting...";
+            try {
+              await window.nexusforgeDesktop.retryAppLoad();
+            } catch {
+              // retry failure is handled elsewhere.
+            } finally {
+              autoRetryInFlight = false;
+            }
+          }
+
+          if (inHostedMode && status.lastError && !autoRetryInFlight) {
+            autoRetryInFlight = true;
+            statusEl.textContent = "Hosted target unreachable. Retrying connection...";
+            try {
+              await window.nexusforgeDesktop.retryAppLoad();
+            } catch {
+              // retry failure is handled elsewhere.
+            } finally {
+              autoRetryInFlight = false;
+            }
+          }
+
           const hasError = Boolean(status.lastError);
-          const allPortsOnline = Boolean(status.port3000Open && status.port4000Open);
+          const allPortsOnline = Boolean(status.port3000Open && (status.port4000Open || status.port4001Open));
           if (hasError) {
             statusEl.style.borderColor = "rgba(248,113,113,0.45)";
             statusEl.style.background = "rgba(248,113,113,0.16)";
@@ -540,9 +392,9 @@
             statusEl.style.background = "rgba(16,185,129,0.16)";
             statusEl.style.color = "#d1fae5";
           } else {
-            statusEl.style.borderColor = "rgba(245,158,11,0.46)";
-            statusEl.style.background = "rgba(245,158,11,0.16)";
-            statusEl.style.color = "#fef3c7";
+            statusEl.style.borderColor = "rgba(56,189,248,0.3)";
+            statusEl.style.background = "rgba(56,189,248,0.08)";
+            statusEl.style.color = "#d0efff";
           }
 
           const history = status.history && status.history.length ? status.history.join("\n") : "History: none";
@@ -567,6 +419,27 @@
         }
       });
 
+      document.getElementById("set-workspace-path").addEventListener("click", async () => {
+        const input = document.getElementById("workspace-path-input");
+        if (!input) return;
+        const pathValue = input.value.trim();
+        if (!pathValue) {
+          errorEl.textContent = "Please enter a local workspace path.";
+          return;
+        }
+        setActionBusy(true);
+        statusEl.textContent = "Setting workspace path...";
+        try {
+          const result = await window.nexusforgeDesktop.setWorkspacePath(pathValue);
+          if (!result || !result.success) {
+            errorEl.textContent = result?.reason || "Unable to set workspace path.";
+          }
+          await refreshStatus();
+        } finally {
+          setActionBusy(false);
+        }
+      });
+
       document.getElementById("retry").addEventListener("click", async () => {
         setActionBusy(true);
         statusEl.textContent = "Retrying local connection...";
@@ -585,6 +458,11 @@
         } finally {
           setActionBusy(false);
         }
+      });
+
+      document.getElementById("openFallback").addEventListener("click", () => {
+        const target = normalizeHttpUrl(currentTargetUrl) || "https://www.nexusforge.app/app";
+        window.open(target, "_blank", "noopener");
       });
 
       document.getElementById("reload").addEventListener("click", async () => {

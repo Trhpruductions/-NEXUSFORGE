@@ -88,7 +88,18 @@ Expected launch-mode body includes:
 
 Then open https://app.your-domain.com and confirm login requests go to https://api.your-domain.com.
 
-### 5) Critical: Prevent SPA fallback rewrites for desktop update files
+### 5) Critical: Durable desktop update hosting
+
+- Configure a stable public download host for release binaries and update manifests.
+- Free durable hosting options include GitHub Pages, Cloudflare Pages, or GitHub Releases for installer assets.
+- On GitHub Pages, publish `/desktop-update.json` and `/NexusForge Desktop Setup Latest.exe` directly to the Pages root and set `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://<username>.github.io/<repo>`.
+- When deploying a release bundle, `desktop-update.json` may reference installer paths as root-relative filenames instead of absolute URLs. Upload the `.exe` installers to the same host root so the updater can resolve them.
+- If using GitHub Releases for binaries, host `desktop-update.json` on Pages or another static host and set `downloadUrl` to the release asset URL.
+- Set `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com` when publishing desktop releases.
+- If your app web host does not serve `/desktop-update.json` from the app root, also set `NEXUSFORGE_UPDATE_MANIFEST_URL` to the public manifest URL.
+- The desktop updater will use the manifest from `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL/desktop-update.json` when configured.
+
+### 6) Critical: Prevent SPA fallback rewrites for desktop update files
 
 Your web host must serve these two paths as real files, never HTML fallback:
 

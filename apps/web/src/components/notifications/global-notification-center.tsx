@@ -1,20 +1,27 @@
 "use client";
 
 import { X, AlertCircle, CheckCircle, Info } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useGlobalNotifications } from "@/context/global-notifications";
 import { Button } from "@/components/ui/button";
 
 export function GlobalNotificationCenter() {
   const { updateState, notifications, removeNotification } = useGlobalNotifications();
+  const [desktopUpdateBannerActive, setDesktopUpdateBannerActive] = useState(false);
+
+  useEffect(() => {
+    const bridge = (window as { nexusforgeDesktop?: { runtime?: string } }).nexusforgeDesktop;
+    setDesktopUpdateBannerActive(Boolean(bridge?.runtime === "electron"));
+  }, []);
 
   const getIcon = (type: string) => {
     switch (type) {
       case "error":
         return <AlertCircle size={18} className="text-rose-400" />;
       case "success":
-        return <CheckCircle size={18} className="text-emerald-400" />;
+        return <CheckCircle size={18} className="text-amber-400" />;
       case "update":
-        return <AlertCircle size={18} className="text-cyan-400" />;
+        return <AlertCircle size={18} className="text-amber-400" />;
       default:
         return <Info size={18} className="text-slate-400" />;
     }
@@ -25,9 +32,9 @@ export function GlobalNotificationCenter() {
       case "error":
         return "border-rose-500/45 bg-rose-950/35 text-rose-100";
       case "success":
-        return "border-emerald-500/45 bg-emerald-950/35 text-emerald-100";
+        return "border-amber-500/45 bg-amber-950/35 text-amber-100";
       case "update":
-        return "border-cyan-500/45 bg-cyan-950/35 text-cyan-100";
+        return "border-amber-500/45 bg-amber-950/35 text-amber-100";
       default:
         return "border-slate-700 bg-slate-900/75 text-slate-200";
     }
@@ -35,6 +42,15 @@ export function GlobalNotificationCenter() {
 
   const updateStatusMessage = (): string | null => {
     if (!updateState) return null;
+    const hasActionableUpdate =
+      updateState.forceRequired ||
+      updateState.downloading ||
+      updateState.downloaded ||
+      updateState.available ||
+      updateState.checking;
+    if (updateState.lastError && !hasActionableUpdate) {
+      return null;
+    }
     if (updateState.lastError) return updateState.lastError;
     if (updateState.forceRequired && updateState.downloaded) {
       return `Required update ${updateState.latestVersion ?? ""} downloaded. Installing now.`;
@@ -56,11 +72,11 @@ export function GlobalNotificationCenter() {
   const updateMessage = updateStatusMessage();
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[120] flex max-h-screen w-[min(90vw,420px)] flex-col gap-2 overflow-y-auto">
-      {updateMessage && (
+    <div className="pointer-events-none fixed right-4 top-24 z-[120] flex max-h-screen w-[min(90vw,420px)] flex-col gap-2 overflow-y-auto">
+      {updateMessage && !desktopUpdateBannerActive && (
         <div className={`pointer-events-auto rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors("update")}`}>
           <div className="flex items-start gap-3">
-            <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-cyan-400" />
+            <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-amber-400" />
             <div className="flex-1">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">Desktop Update Center</p>
               <p className="mt-1 text-sm font-medium">{updateMessage}</p>

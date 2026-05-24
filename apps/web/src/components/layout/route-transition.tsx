@@ -11,15 +11,17 @@ type RouteTransitionProps = {
 
 export function RouteTransition({ children }: RouteTransitionProps) {
   const pathname = usePathname();
-  const themeMode = pathname.startsWith("/core-plus")
+  const themeMode = pathname?.startsWith("/core-plus")
     ? "premium"
-    : pathname.startsWith("/app")
+    : pathname?.startsWith("/app")
       ? "command"
-      : pathname.startsWith("/notifications")
+      : pathname?.startsWith("/notifications")
         ? "signals"
-        : pathname.startsWith("/admin")
+        : pathname?.startsWith("/admin")
           ? "admin"
           : "nexus";
+
+  const routeAnnouncement = pathname ? `Navigated to ${pathname}` : "Navigated to NexusForge";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme-mode", themeMode);
@@ -27,6 +29,9 @@ export function RouteTransition({ children }: RouteTransitionProps) {
 
   return (
     <div className="flex min-h-dvh w-full flex-col overflow-x-hidden transition-colors duration-300">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {routeAnnouncement}
+      </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={pathname}
