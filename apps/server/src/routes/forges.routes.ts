@@ -195,7 +195,10 @@ function parsePromotionSnapshot(content: string): PromotionSnapshot | null {
 }
 
 function isInviteCodeTakenError(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error as any).code === "P2002"
+  );
 }
 
 async function getInviteAvailability(inviteCode: string, currentForgeId?: string) {
@@ -275,7 +278,7 @@ forgesRouter.get("/public/:inviteCode", async (req, res) => {
         },
       },
     },
-  }).catch((error: unknown) => {
+  }).catch((error: any) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       return null;
     }

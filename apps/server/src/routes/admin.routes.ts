@@ -309,7 +309,7 @@ async function createSampleGenerationJobIfAvailable(
         });
       },
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        isolationLevel: "Serializable",
       },
     );
   } catch (error) {
@@ -1075,7 +1075,7 @@ adminRouter.get("/profile-tools/audit", async (req, res) => {
     return;
   }
 
-  const whereClause: Prisma.UserActivityWhereInput = {
+  const whereClause: any = {
     type: "CUSTOM",
     metadata: {
       path: ["source"],
