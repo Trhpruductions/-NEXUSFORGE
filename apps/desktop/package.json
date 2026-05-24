@@ -40,12 +40,11 @@
     }
   },
   "devDependencies": {
-    "@electron/packager": "^18.3.6",
+    "@electron/packager": "^20.0.0",
     "7zip-bin": "^5.2.0",
-    "electron": "^42.0.1",
-    "electron-builder": "^24.13.3",
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
-    "wait-on": "^8.0.5"
+    "wait-on": "^9.0.10"
   }
 }
-
