@@ -11,14 +11,18 @@
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "typeRoots": ["../../node_modules/@types"],
+    "typeRoots": [
+      "../../node_modules/@types"
+    ],
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -38,7 +42,9 @@
     ".next-dev/types/**/*.ts",
     ".next-build/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    ".next-dev/dev/types/**/*.ts",
+    ".next-build/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

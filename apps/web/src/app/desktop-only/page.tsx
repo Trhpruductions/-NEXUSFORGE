@@ -5,7 +5,7 @@ import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 export const dynamic = "force-static";
 
 export default function DesktopOnlyPage() {
-  const desktopOnlyEnabled = process.env.NEXUSFORGE_DESKTOP_ONLY !== "false";
+  const desktopOnlyEnabled = String(process.env.NEXUSFORGE_DESKTOP_ONLY || "").toLowerCase() === "true";
 
   return (
     <ExperienceShell

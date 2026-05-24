@@ -15,6 +15,7 @@ const nextConfig = (phase: string): NextConfig => ({
   ...baseConfig,
   // Keep dev and production build artifacts isolated to prevent cross-mode chunk corruption.
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next-build",
+  turbopack: {},
 });
 
 export default nextConfig;
