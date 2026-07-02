@@ -67,14 +67,14 @@ NexusForge Gaming App transitioned from **0% release readiness → 91% productio
 ### Installer & Distribution
 - **Build:** NexusForge Desktop Setup 1.0.11.exe (103.5 MB)
 - **Signature:** Signed with code signing certificate
-- **SHA256:** 2d7bb808228a3f331372a1caf2adcbf61181a0b2663b990f87ebb55a91ea396a
+- **SHA256:** c204f8eeed65e3f76a222118ef3be1b390308602158d5daeb7e54da52a649117
 - **Latest Alias:** NexusForge Desktop Setup Latest.exe (→ v1.0.11)
 - **Update Manifest:** desktop-update.json configured for GitHub Pages
 - **Block Map:** 109.5 KB (enables efficient delta updates)
 - **Rollback:** v1.0.10 preserved for emergency rollback
 
 ### Distribution Channels
-- **Primary:** https://trhpruductions.github.io/-NEXUSFORGE
+- **Primary:** https://Trhpructions.github.io/-NEXUSFORGE
 - **Installer Endpoint:** NexusForge%20Desktop%20Setup%20Latest.exe
 - **Update Endpoint:** desktop-update.json (manifest-driven)
 - **Network Modes:** Local (127.0.0.1:3000) + Hosted + Persistent (all tested)

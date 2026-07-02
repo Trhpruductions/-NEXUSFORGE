@@ -8,9 +8,9 @@
 ## Deployment Completion
 
 ### Production URL Active
-- **Primary:** https://trhpructions.github.io/-NEXUSFORGE/
-- **Installer:** https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
-- **Manifest:** https://trhpructions.github.io/-NEXUSFORGE/desktop-update.json
+- **Primary:** https://Trhpructions.github.io/-NEXUSFORGE/
+- **Installer:** https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
+- **Manifest:** https://Trhpructions.github.io/-NEXUSFORGE/desktop-update.json
 - **Status:** ✅ Verified & Accessible
 
 ### Final Scorecard
@@ -165,7 +165,7 @@
 
 ### GitHub Pages (Primary)
 
-- **URL:** https://trhpructions.github.io/-NEXUSFORGE/
+- **URL:** https://Trhpructions.github.io/-NEXUSFORGE/
 - **Branch:** gh-pages (commit f1fa725)
 - **Files:** NexusForge Desktop Setup 1.0.11.exe, desktop-update.json, blockmap
 - **Status:** ✅ LIVE & VERIFIED
@@ -178,8 +178,8 @@
 
 ### Direct Download
 
-- **Latest:** https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
-- **Specific:** https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe
+- **Latest:** https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
+- **Specific:** https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe
 - **Status:** ✅ LIVE
 
 ---

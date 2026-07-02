@@ -257,7 +257,7 @@ Will be determined based on:
 - **Current Scorecard:** [BETA_GO_LIVE_SCORECARD.md](BETA_GO_LIVE_SCORECARD.md)
 - **Release Notes:** [RELEASE_NOTE_DRAFT.md](RELEASE_NOTE_DRAFT.md)
 - **GitHub Repo:** https://github.com/Trhpructions/-NEXUSFORGE
-- **Distribution:** https://trhpructions.github.io/-NEXUSFORGE/
+- **Distribution:** https://Trhpructions.github.io/-NEXUSFORGE/
 
 ---
 

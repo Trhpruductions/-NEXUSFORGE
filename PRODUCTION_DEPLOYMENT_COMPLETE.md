@@ -46,16 +46,16 @@ internal-beta-gates-pass-2026-07-02  a3d21ce Internal beta gates PASS
 
 | Endpoint | URL | Type | Status |
 |---|---|---|---|
-| Latest Installer | https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe | Stable alias | ✅ Published |
-| v1.0.11 Installer | https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe | Version-specific | ✅ Published |
-| Update Manifest | https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json | Configuration | ✅ Published |
-| Directory | https://trhpruductions.github.io/-NEXUSFORGE/ | Browse | ✅ Available |
+| Latest Installer | https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe | Stable alias | ✅ Published |
+| v1.0.11 Installer | https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe | Version-specific | ✅ Published |
+| Update Manifest | https://Trhpructions.github.io/-NEXUSFORGE/desktop-update.json | Configuration | ✅ Published |
+| Directory | https://Trhpructions.github.io/-NEXUSFORGE/ | Browse | ✅ Available |
 
 ### Artifact Details
 
 | File | Size | SHA256 | Signed | Location |
 |---|---|---|---|---|
-| NexusForge Desktop Setup 1.0.11.exe | 103.5 MB (98.71 MB) | 353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a | ✅ signtool | GitHub Pages |
+| NexusForge Desktop Setup 1.0.11.exe | 103.5 MB (98.71 MB) | c204f8eeed65e3f76a222118ef3be1b390308602158d5daeb7e54da52a649117 | ✅ signtool | GitHub Pages |
 | desktop-update.json | ~2 KB | N/A (manifest) | — | GitHub Pages |
 | Block Map | 109.5 KB | N/A (delta) | — | GitHub Pages |
 
@@ -67,13 +67,13 @@ internal-beta-gates-pass-2026-07-02  a3d21ce Internal beta gates PASS
   "releaseDate": "2026-07-02",
   "files": [
     {
-      "url": "https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
-      "sha256": "353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a",
+      "url": "https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
+      "sha256": "c204f8eeed65e3f76a222118ef3be1b390308602158d5daeb7e54da52a649117",
       "size": 103554392
     }
   ],
   "path": "NexusForge Desktop Setup 1.0.11.exe",
-  "sha256": "353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a",
+  "sha256": "c204f8eeed65e3f76a222118ef3be1b390308602158d5daeb7e54da52a649117",
   "releaseNotes": "Production release v1.0.11 with full hard gate validation",
   "releaseNotesUrl": "https://github.com/Trhpruductions/-NEXUSFORGE/releases/tag/production-ready-2026-07-02",
   "forceUpdate": true,
@@ -210,7 +210,7 @@ Status: Successfully pushed to origin/gh-pages ✅
 - **Timestamp:** 2026-07-02T03:15:41 UTC
 - **Confidence:** 91% (all hard gates PASS, zero blockers)
 - **Distribution:** GitHub Pages (f1fa725)
-- **Primary URL:** https://trhpructions.github.io/-NEXUSFORGE/
+- **Primary URL:** https://Trhpructions.github.io/-NEXUSFORGE/
 
 ---
 
@@ -218,7 +218,7 @@ Status: Successfully pushed to origin/gh-pages ✅
 
 ### 1. Announce Production Wave ✅
 Users can now download v1.0.11 from GitHub Pages:
-- https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
+- https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
 - Auto-updates enabled via manifest-driven protocol
 
 ### 2. Monitor Production KPIs (Starting Now)
@@ -285,5 +285,5 @@ Users can now download v1.0.11 from GitHub Pages:
 
 **All systems deployed. Zero blockers. Full confidence. Ready for user access.**
 
-Download: https://trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
+Download: https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
 
