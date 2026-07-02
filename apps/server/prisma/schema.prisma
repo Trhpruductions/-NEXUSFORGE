@@ -214,32 +214,40 @@ model EconomyAccount {
 
 model EconomyTransaction {
   id               String   @id @default(uuid())
-  accountId        String
+  userId           String   // Direct user reference for queries
+  accountId        String?  // Optional reference to account
   amount           BigInt
-  type             String   // CREDIT, DEBIT, FREEZE, UNFREEZE
+  type             String   // CREDIT, DEBIT, FREEZE, UNFREEZE, MINING_RIG_PURCHASE, MINING_RIG_REFUND, MINING_HARVEST, etc.
   reason           String?
+  balanceBefore    BigInt?  // Balance before transaction (for audit trail)
+  balanceAfter     BigInt?  // Balance after transaction (for audit trail)
   metadata         Json?
-  referenceId      String?  @unique
+  referenceId      String?  @unique // For duplicate prevention
   timestamp        DateTime @default(now())
-  account          EconomyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  account          EconomyAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  user             User     @relation("EconomyTransactions", fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, timestamp])
   @@index([accountId, timestamp])
+  @@index([type])
 }
 
 model MiningRig {
   id               String   @id @default(uuid())
   userId           String
-  slug             String   @unique
   name             String
-  tier             Int      @default(1)
-  hashRate         Float    @default(0.0)
-  efficiency       Float    @default(1.0)
-  status           String   @default("IDLE") // IDLE, ACTIVE, OVERHEAT, MAINTENANCE
+  tier             String   @default("BASIC") // BASIC, STANDARD, ADVANCED, ELITE
+  hashRate         Float    @default(0.0)    // MH/s
+  efficiency       Float    @default(1.0)     // 0.0-1.0
+  status           String   @default("ACTIVE") // IDLE, ACTIVE, PAUSED, MAINTENANCE
+  totalYield       BigInt   @default(0)      // Lifetime yield from this rig
   lastHarvestAt    DateTime @default(now())
-  installedAt      DateTime @default(now())
+  purchasedAt      DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
+  @@index([userId, purchasedAt])
 }
 
 model ProgressiveJackpot {
