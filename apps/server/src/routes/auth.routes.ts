@@ -8,6 +8,8 @@ import { requireAuth } from "../middleware/auth.js";
 import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
+import { AuditOperation, AuditStatus } from "@prisma/client";
+import { getAuditLogger } from "../utils/audit-logger.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -106,6 +108,36 @@ async function issueTokens(user: { id: string; username: string; email: string; 
   });
 
   return { accessToken, refreshToken };
+}
+
+async function logSessionRevocation(input: {
+  sessionId: string;
+  userId: string;
+  reason: string;
+  req: any;
+  metadata?: Record<string, unknown>;
+}) {
+  try {
+    const auditLogger = getAuditLogger();
+    await auditLogger.log({
+      operation: AuditOperation.DELETE,
+      resourceType: "Session",
+      resourceId: input.sessionId,
+      actorId: input.userId,
+      status: AuditStatus.SUCCESS,
+      ipAddress: anonymizeIP(input.req.ip || "unknown"),
+      userAgent: input.req.get?.("user-agent") || undefined,
+      endpoint: input.req.originalUrl || input.req.url,
+      method: input.req.method,
+      metadata: {
+        reason: input.reason,
+        sessionRevokedAt: new Date().toISOString(),
+        ...input.metadata,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to log session revocation:", error);
+  }
 }
 
 authRouter.post("/register", async (req, res) => {
@@ -272,6 +304,17 @@ authRouter.post("/refresh", async (req, res) => {
     data: { revokedAt: new Date() },
   });
 
+  await logSessionRevocation({
+    sessionId: session.id,
+    userId: session.userId,
+    reason: "refresh_rotation",
+    req,
+    metadata: {
+      flow: "refresh",
+      tokenRotation: true,
+    },
+  });
+
   const tokens = await issueTokens(session.user);
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
@@ -284,10 +327,27 @@ authRouter.post("/logout", async (req, res) => {
 
   if (refreshToken) {
     const tokenHash = sha256(refreshToken);
+    const session = await prisma.refreshToken.findFirst({
+      where: { tokenHash },
+      select: { id: true, userId: true },
+    });
+
     await prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+
+    if (session) {
+      await logSessionRevocation({
+        sessionId: session.id,
+        userId: session.userId,
+        reason: "logout",
+        req,
+        metadata: {
+          flow: "logout",
+        },
+      });
+    }
   }
 
   res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
@@ -548,10 +608,30 @@ authRouter.post("/reset-password", async (req, res) => {
     },
   });
 
+  const revokedSessions = await prisma.refreshToken.findMany({
+    where: { userId: user.id, revokedAt: null },
+    select: { id: true, userId: true },
+  });
+
   await prisma.refreshToken.updateMany({
     where: { userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+
+  await Promise.all(
+    revokedSessions.map((session) =>
+      logSessionRevocation({
+        sessionId: session.id,
+        userId: user.id,
+        reason: "password_reset",
+        req,
+        metadata: {
+          flow: "reset-password",
+          batchInvalidation: true,
+        },
+      }),
+    ),
+  );
 
   res.status(200).json({ message: "Password reset successful" });
 });

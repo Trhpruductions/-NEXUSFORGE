@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { getAuditLogger } from '../utils/audit-logger';
+import { getAuditLogger } from '../utils/audit-logger.js';
 import { AuditOperation, AuditStatus } from '@prisma/client';
-import { requireRole } from '../middleware/auth'; // Adjust path based on your auth
+import { requireAuth } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 const router = Router();
 const auditLogger = getAuditLogger();
+
+router.use(requireAuth);
+router.use(requireAdmin);
 
 /**
  * GET /api/admin/audit-logs
@@ -13,10 +17,10 @@ const auditLogger = getAuditLogger();
  */
 router.get(
   '/audit-logs',
-  requireRole(['ADMIN', 'EXEC', 'OWNER']),
   async (req: Request, res: Response) => {
     try {
       const {
+        eventType,
         resourceType,
         resourceId,
         actorId,
@@ -28,11 +32,15 @@ router.get(
         offset = '0',
       } = req.query;
 
+      const sessionRevocationFilter = eventType === 'session_revoked'
+        ? { resourceType: 'Session', operation: 'DELETE' as AuditOperation }
+        : {};
+
       const filters = {
-        resourceType: resourceType as string | undefined,
+        resourceType: (resourceType as string | undefined) || sessionRevocationFilter.resourceType,
         resourceId: resourceId as string | undefined,
         actorId: actorId as string | undefined,
-        operation: operation as AuditOperation | undefined,
+        operation: (operation as AuditOperation | undefined) || sessionRevocationFilter.operation,
         status: status as AuditStatus | undefined,
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
@@ -55,7 +63,6 @@ router.get(
  */
 router.get(
   '/audit-logs/stats',
-  requireRole(['ADMIN', 'EXEC', 'OWNER']),
   async (req: Request, res: Response) => {
     try {
       const { startDate, endDate } = req.query;
@@ -79,7 +86,6 @@ router.get(
  */
 router.get(
   '/audit-logs/export',
-  requireRole(['ADMIN', 'EXEC', 'OWNER']),
   async (req: Request, res: Response) => {
     try {
       const {
@@ -153,7 +159,6 @@ router.get(
  */
 router.post(
   '/audit-logs/archive',
-  requireRole(['EXEC', 'OWNER']),
   async (req: Request, res: Response) => {
     try {
       const { daysRetention = 90 } = req.body;
@@ -178,7 +183,6 @@ router.post(
  */
 router.post(
   '/audit-logs/cleanup',
-  requireRole(['OWNER']),
   async (req: Request, res: Response) => {
     try {
       const { archivedDaysAgo = 180 } = req.body;
@@ -203,7 +207,6 @@ router.post(
  */
 router.get(
   '/audit-logs/:logId',
-  requireRole(['ADMIN', 'EXEC', 'OWNER']),
   async (req: Request, res: Response) => {
     try {
       const { logId } = req.params;

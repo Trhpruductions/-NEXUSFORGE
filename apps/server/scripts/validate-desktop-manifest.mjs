@@ -15,11 +15,45 @@ function resolveManifestPath() {
   return candidates.find((candidate) => fs.existsSync(candidate)) || "";
 }
 
+function resolveRootManifestPath() {
+  const candidates = [
+    path.resolve(process.cwd(), "desktop-update.json"),
+    path.resolve(process.cwd(), "../desktop-update.json"),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) || "";
+}
+
+function areManifestsAligned(publicManifest, rootManifest) {
+  const fields = [
+    "version",
+    "notes",
+    "downloadUrl",
+    "downloadUrls",
+    "downloadFolderUrl",
+    "sha256",
+    "forceUpdate",
+  ];
+
+  return fields.every((field) => {
+    const publicValue = publicManifest[field];
+    const rootValue = rootManifest[field];
+
+    if (Array.isArray(publicValue) || Array.isArray(rootValue)) {
+      return JSON.stringify(publicValue) === JSON.stringify(rootValue);
+    }
+
+    return publicValue === rootValue;
+  });
+}
+
 function main() {
   const manifestPath = resolveManifestPath();
   if (!manifestPath) {
     fail("desktop-update.json not found in workspace");
   }
+
+  const rootManifestPath = resolveRootManifestPath();
 
   const raw = fs.readFileSync(manifestPath, "utf8");
   let manifest;
@@ -84,6 +118,21 @@ function main() {
   for (const note of manifest.notes) {
     if (typeof note !== "string") {
       fail("every notes entry must be a string");
+    }
+  }
+
+  if (rootManifestPath && path.resolve(rootManifestPath) !== path.resolve(manifestPath)) {
+    let rootManifest;
+
+    try {
+      rootManifest = JSON.parse(fs.readFileSync(rootManifestPath, "utf8"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      fail(`root desktop-update.json is not valid JSON: ${message}`);
+    }
+
+    if (!areManifestsAligned(manifest, rootManifest)) {
+      fail("root desktop-update.json and apps/web/public/desktop-update.json are out of sync");
     }
   }
 

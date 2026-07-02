@@ -1,18 +1,12 @@
-import { Request, Response, NextFunction } from 'express';
-import { getAuditLogger } from '../utils/audit-logger';
+import { randomUUID } from 'node:crypto';
+import { NextFunction, Request, Response } from 'express';
 import { AuditOperation, AuditStatus } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
+import { getAuditLogger } from '../utils/audit-logger.js';
 
-/**
- * Extract user ID from request (adjust based on your auth implementation)
- */
 function extractUserId(req: any): string | undefined {
   return req.user?.id || req.session?.userId;
 }
 
-/**
- * Map HTTP method to audit operation
- */
 function httpMethodToAuditOperation(method: string): AuditOperation {
   switch (method.toUpperCase()) {
     case 'POST':
@@ -30,34 +24,18 @@ function httpMethodToAuditOperation(method: string): AuditOperation {
   }
 }
 
-/**
- * Extract resource type and ID from request path
- */
-function extractResourceInfo(
-  path: string,
-): { resourceType: string; resourceId: string | null } {
-  // Example patterns:
-  // /api/users/:id -> Users, :id
-  // /api/guilds/:guildId/messages/:messageId -> Messages, :messageId
-  // /api/payments -> Payments, null
-
-  const parts = path.split('/').filter(p => p);
+function extractResourceInfo(path: string): { resourceType: string; resourceId: string | null } {
+  const parts = path.split('/').filter((part) => part);
   let resourceType = 'Unknown';
   let resourceId: string | null = null;
 
-  // Get the primary resource type
   if (parts.length > 1) {
     resourceType = parts[1].charAt(0).toUpperCase() + parts[1].slice(1).replace(/-/g, '');
   }
 
-  // Extract the last numeric/UUID-like ID
   for (let i = parts.length - 1; i >= 0; i--) {
     const part = parts[i];
-    // Check if it looks like an ID (UUID or numeric)
-    if (
-      part.match(/^[0-9a-f]{8}-[0-9a-f]{4}/i) ||
-      part.match(/^\d+$/)
-    ) {
+    if (part.match(/^[0-9a-f]{8}-[0-9a-f]{4}/i) || part.match(/^\d+$/)) {
       resourceId = part;
       break;
     }
@@ -66,19 +44,43 @@ function extractResourceInfo(
   return { resourceType, resourceId };
 }
 
+function shouldLogRequest(path: string, method: string): boolean {
+  const ignorePaths = ['/health', '/metrics', '/status', '/ping'];
+
+  if (ignorePaths.some((ignorePath) => path.startsWith(ignorePath))) {
+    return false;
+  }
+
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    return true;
+  }
+
+  if (method === 'GET' && path.includes('?')) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractIpAddress(req: Request): string | undefined {
+  return (
+    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    (req.socket?.remoteAddress as string)
+  );
+}
+
 /**
  * Middleware to capture request/response for audit logging
  */
 export function auditLoggingMiddleware() {
   return async (req: Request, res: Response, next: NextFunction) => {
     const auditLogger = getAuditLogger();
-    const requestId = uuidv4();
+    const requestId = randomUUID();
     const startTime = Date.now();
     const { resourceType, resourceId } = extractResourceInfo(req.path);
     const operation = httpMethodToAuditOperation(req.method);
     const userId = extractUserId(req);
 
-    // Store original response methods
     const originalSend = res.send;
     const originalJson = res.json;
 
@@ -86,7 +88,6 @@ export function auditLoggingMiddleware() {
     let responseStatus: AuditStatus = AuditStatus.SUCCESS;
     let errorMessage: string | undefined;
 
-    // Capture response
     res.send = function (data) {
       responseBody = data;
       responseStatus = res.statusCode >= 400 ? AuditStatus.FAILURE : AuditStatus.SUCCESS;
@@ -105,14 +106,11 @@ export function auditLoggingMiddleware() {
       return originalJson.call(this, data);
     };
 
-    // Log on response finish
     res.on('finish', async () => {
       try {
         const duration = Date.now() - startTime;
-
-        // Only log operations on specific endpoints (avoid logging middleware noise)
         const shouldLog = shouldLogRequest(req.path, req.method);
-        
+
         if (shouldLog && resourceId) {
           await auditLogger.log({
             operation,
@@ -144,63 +142,20 @@ export function auditLoggingMiddleware() {
 }
 
 /**
- * Determine if a request should be logged
- */
-function shouldLogRequest(path: string, method: string): boolean {
-  // Don't log health checks, metrics, etc.
-  const ignorePaths = [
-    '/health',
-    '/metrics',
-    '/status',
-    '/ping',
-  ];
-
-  if (ignorePaths.some(p => path.startsWith(p))) {
-    return false;
-  }
-
-  // Log all state-changing operations
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    return true;
-  }
-
-  // Log important GET operations (queries with filters)
-  if (method === 'GET' && path.includes('?')) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Extract client IP address
- */
-function extractIpAddress(req: Request): string | undefined {
-  return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    (req.socket?.remoteAddress as string)
-  );
-}
-
-/**
  * Higher-order middleware for operation-specific audit logging
  * Use when you want more control over what gets logged
  */
-export function auditOperation(
-  resourceType: string,
-  operation: AuditOperation,
-) {
+export function auditOperation(resourceType: string, operation: AuditOperation) {
   return (req: Request, res: Response, next: NextFunction) => {
     const auditLogger = getAuditLogger();
     const startTime = Date.now();
     const userId = extractUserId(req);
     const resourceId = req.params.id || req.body?.id;
 
-    // Store original response methods
     const originalSend = res.send;
     const originalJson = res.json;
 
-    let responseStatus = AuditStatus.SUCCESS;
+    let responseStatus: AuditStatus = AuditStatus.SUCCESS;
     let errorMessage: string | undefined;
 
     res.send = function (data) {
@@ -236,7 +191,7 @@ export function auditOperation(
               duration: Date.now() - startTime,
               statusCode: res.statusCode,
             },
-            requestId: (req as any).requestId || uuidv4(),
+            requestId: (req as any).requestId || randomUUID(),
           });
         }
       } catch (error) {

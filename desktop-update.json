@@ -7,14 +7,14 @@
                   "Premium diagnostics panel redesign for recovery mode",
                   "Installed-launch resolver and startup telemetry hardening"
               ],
-    "downloadUrl":  "https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+    "downloadUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
     "downloadUrls":  [
-                         "https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-                         "https://Trhpructions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
+                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
                          "https://github.com/Trhpructions/-NEXUSFORGE/releases/download/v1.0.11/NexusForge%20Desktop%20Setup%201.0.11.exe",
                          "https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/NexusForge%20Desktop%20Setup%20Latest.exe"
                      ],
-    "downloadFolderUrl":  "https://Trhpructions.github.io/-NEXUSFORGE/",
+    "downloadFolderUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/",
     "sha256":  "353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a",
     "forceUpdate":  true
 }

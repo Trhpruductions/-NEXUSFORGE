@@ -1,16 +1,24 @@
 #!/usr/bin/env pwsh
 # Phase 1 Production Daily Validation Script
-# Validates all production systems hourly
+# Validates all production systems daily
 
 param([string]$LogPath = "C:\Users\hankh\.pm2\logs\phase1-validation.log")
 
 $ErrorActionPreference = "Continue"
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC"
+$timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
 $results = @()
+$passCount = 0
+$failCount = 0
+$warnCount = 0
 
 function Log-Result {
     param([string]$Test, [string]$Result, [string]$Status, [string]$Details = "")
-    $results += @{ Timestamp=$timestamp; Test=$Test; Result=$Result; Status=$Status; Details=$Details }
+    $script:results += [pscustomobject]@{ Timestamp=$script:timestamp; Test=$Test; Result=$Result; Status=$Status; Details=$Details }
+    switch ($Status) {
+        'PASS' { $script:passCount++ }
+        'FAIL' { $script:failCount++ }
+        'WARN' { $script:warnCount++ }
+    }
     $color = if ($Status -match "PASS") { "Green" } else { "Red" }
     Write-Host "[$Status] $Test : $Result" -ForegroundColor $color
 }
@@ -46,16 +54,20 @@ try {
 # Installer Integrity
 try {
     $path = "D:\NEXUSFORGE GAMGING APP\apps\desktop\release\NexusForge Desktop Setup 1.0.11.exe"
-    if (Test-Path $path) {
+    $manifestPath = Join-Path $PSScriptRoot "..\desktop-update.json"
+    if (-not (Test-Path $path)) {
+        Log-Result "Installer SHA256" "File not found" "FAIL" ""
+    } elseif (-not (Test-Path $manifestPath)) {
+        Log-Result "Installer SHA256" "Manifest not found" "FAIL" ""
+    } else {
         $hash = Get-FileHash $path -Algorithm SHA256
-        $expected = "c204f8eeed65e3f76a222118ef3be1b390308602158d5daeb7e54da52a649117"
+        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $expected = $manifest.sha256
         if ($hash.Hash -eq $expected) {
             Log-Result "Installer SHA256" "Match" "PASS" ""
         } else {
             Log-Result "Installer SHA256" "Mismatch" "FAIL" ""
         }
-    } else {
-        Log-Result "Installer SHA256" "File not found" "FAIL" ""
     }
 } catch {
     Log-Result "Installer SHA256" "Error" "FAIL" ""
@@ -63,7 +75,7 @@ try {
 
 # GitHub Pages Distribution
 try {
-    $r = Invoke-WebRequest -Uri "https://Trhpructions.github.io/-NEXUSFORGE/desktop-update.json" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+    $r = Invoke-WebRequest -Uri "https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
     if ($r.StatusCode -eq 200) {
         Log-Result "GitHub Pages" "HTTP 200" "PASS" ""
     } else {
@@ -89,9 +101,9 @@ try {
 Log-Result "Discord Bot" "Assumed connected" "PASS" ""
 
 # Summary
-$pass = ($results | Where-Object { $_.Status -eq "PASS" }).Count
-$fail = ($results | Where-Object { $_.Status -eq "FAIL" }).Count
-$warn = ($results | Where-Object { $_.Status -eq "WARN" }).Count
+$pass = $passCount
+$fail = $failCount
+$warn = $warnCount
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan
 Write-Host "Tests: $($results.Count) | [PASS] $pass | [FAIL] $fail | [WARN] $warn"

@@ -37,6 +37,7 @@ import { reportDiscordAlert, startDiscordBot, stopDiscordBot } from "./lib/disco
 import { discordInteractionHandler } from "./routes/discord.routes.js";
 import { globalErrorHandler } from "./middleware/error-handler.js";
 import { anonymizeIP } from "./lib/ip-security.js";
+import { initializeAuditLogger } from "./utils/audit-logger.js";
 
 // Custom morgan token for anonymized IP
 morgan.token('remote-addr-masked', (req: any) => {
@@ -45,6 +46,8 @@ morgan.token('remote-addr-masked', (req: any) => {
 
 const app = express();
 const httpServer = createServer(app);
+
+initializeAuditLogger(prisma);
 
 const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 

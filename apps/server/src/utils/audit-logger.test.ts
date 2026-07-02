@@ -61,6 +61,27 @@ describe('AuditLogger', () => {
       expect(log?.actorId).toBeNull();
     });
 
+    it('should persist session revocation metadata for support queries', async () => {
+      await auditLogger.log({
+        operation: AuditOperation.DELETE,
+        resourceType: 'Session',
+        resourceId: 'session-abc',
+        actorId: 'user-123',
+        metadata: {
+          reason: 'logout',
+          flow: 'logout',
+        },
+      });
+
+      const log = await prisma.auditLog.findFirst();
+      expect(log?.resourceType).toBe('Session');
+      expect(log?.operation).toBe(AuditOperation.DELETE);
+      expect(log?.metadata).toMatchObject({
+        reason: 'logout',
+        flow: 'logout',
+      });
+    });
+
     it('should handle logging errors gracefully', async () => {
       // Should not throw
       await expect(

@@ -53,7 +53,7 @@ PRODUCTION SCORECARD (12/12)
 
  5. ✅ 3-CHANNEL DISTRIBUTION READY
     Status: Multi-fallback distribution architecture deployed
-    - Channel 1: GitHub Pages (https://Trhpructions.github.io/-NEXUSFORGE/)
+    - Channel 1: GitHub Pages (https://trhpruductions.github.io/-NEXUSFORGE/)
     - Channel 2: GitHub Releases (https://github.com/Trhpructions/-NEXUSFORGE/releases/v1.0.11/)
     - Channel 3: Raw GitHub CDN (https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/)
     - Client: Auto-failover with escalating timeouts (5s → 10s → 15s)
