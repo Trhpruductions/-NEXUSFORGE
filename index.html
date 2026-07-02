@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NexusForge - Gaming Platform</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // Auto-redirect to desktop update manifest
+        fetch('desktop-update.json')
+            .then(r => r.json())
+            .then(data => console.log('NexusForge Distribution Ready:', data))
+            .catch(e => console.error('Distribution not ready:', e));
+    </script>
+</head>
+<body>
+    <h1>NexusForge Distribution Center</h1>
+    <p>Latest Version: <span id="version">Loading...</span></p>
+    <p><a href="desktop-update.json">View Manifest</a></p>
+    <script>
+        fetch('desktop-update.json')
+            .then(r => r.json())
+            .then(data => document.getElementById('version').textContent = data.latest_version)
+            .catch(e => document.getElementById('version').textContent = 'Error loading version');
+    </script>
+</body>
+</html>
