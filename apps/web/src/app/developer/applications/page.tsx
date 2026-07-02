@@ -100,37 +100,37 @@ export default function DeveloperApplicationsPage() {
       maxWidthClassName="max-w-5xl"
     >
       {!isSignedIn ? (
-        <div className="rounded-none border border-slate-700/70 bg-slate-950/95 p-8 text-slate-300">Please sign in to manage your applications.</div>
+        <div className="rounded-[28px] border border-slate-900/10 bg-white/85 p-8 text-slate-600 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">Please sign in to manage your applications.</div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Create new app</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">New bot application</h2>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Create new app</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">New bot application</h2>
             <div className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-2 text-sm text-slate-600">
                 Bot name
                 <input
                   value={botName}
                   onChange={(event) => setBotName(event.target.value)}
                   placeholder="NexusForge Assistant"
-                  className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-2 text-sm text-slate-600">
                 Description
                 <textarea
                   value={botDescription}
                   onChange={(event) => setBotDescription(event.target.value)}
                   rows={3}
                   placeholder="A short description of the bot"
-                  className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
               </label>
               <button
                 type="button"
                 disabled={!botName.trim() || createBotMutation.isPending}
                 onClick={() => void createBotMutation.mutateAsync()}
-                className="inline-flex h-12 items-center justify-center rounded-none bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {createBotMutation.isPending ? "Creating..." : "Create application"}
               </button>
@@ -140,12 +140,12 @@ export default function DeveloperApplicationsPage() {
             </div>
           </section>
 
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Your applications</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Existing bot apps</h2>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Your applications</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Existing bot apps</h2>
             <div className="mt-6 space-y-3">
               {myBotsQuery.isLoading ? (
-                <p className="text-sm text-slate-400">Loading your apps...</p>
+                <p className="text-sm text-slate-600">Loading your apps...</p>
               ) : myBotsQuery.data?.bots.length ? (
                 myBotsQuery.data.bots.map((bot) => {
                   const isEditing = editingBotId === bot.id;
@@ -156,37 +156,37 @@ export default function DeveloperApplicationsPage() {
                   };
 
                   return (
-                    <div key={bot.id} className="rounded-none border border-slate-700/80 bg-slate-900/80 p-4">
+                    <div key={bot.id} className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-4">
                       {isEditing ? (
                         <div className="space-y-4">
-                          <label className="grid gap-2 text-sm text-slate-300">
+                          <label className="grid gap-2 text-sm text-slate-600">
                             Bot name
                             <input
                               value={editingState.name}
                               onChange={(event) => updateEditingField(bot.id, "name", event.target.value)}
-                              className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                              className="w-full rounded-[20px] border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                             />
                           </label>
-                          <label className="grid gap-2 text-sm text-slate-300">
+                          <label className="grid gap-2 text-sm text-slate-600">
                             Description
                             <textarea
                               value={editingState.description}
                               onChange={(event) => updateEditingField(bot.id, "description", event.target.value)}
                               rows={3}
-                              className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                              className="w-full rounded-[20px] border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                             />
                           </label>
                           <div className="flex flex-wrap items-center gap-3">
-                            <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+                            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
                               <input
                                 type="checkbox"
                                 checked={editingState.isPublic}
                                 onChange={(event) => updateEditingField(bot.id, "isPublic", event.target.checked)}
-                                className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-amber-400 focus:ring-amber-400"
+                                className="h-4 w-4 rounded border-slate-300 bg-white text-amber-500 focus:ring-amber-300"
                               />
                               Public listing
                             </label>
-                            <span className="rounded-none border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs uppercase tracking-[0.24em] text-amber-200">
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs uppercase tracking-[0.24em] text-amber-700">
                               {editingState.isPublic ? "Public" : "Private"}
                             </span>
                           </div>
@@ -204,14 +204,14 @@ export default function DeveloperApplicationsPage() {
                                   },
                                 })
                               }
-                              className="inline-flex h-11 items-center justify-center rounded-none bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex h-11 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {updateBotMutation.isPending ? "Saving..." : "Save changes"}
                             </button>
                             <button
                               type="button"
                               onClick={cancelEditing}
-                              className="inline-flex h-11 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-5 text-sm font-semibold text-slate-200 transition hover:border-amber-400"
+                              className="inline-flex h-11 items-center justify-center rounded-full border border-slate-900/10 bg-white px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                             >
                               Cancel
                             </button>
@@ -224,13 +224,13 @@ export default function DeveloperApplicationsPage() {
                         <>
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
-                              <p className="font-semibold text-slate-100">{bot.name}</p>
-                              <p className="mt-1 text-sm text-slate-400">{bot.description ?? "No description provided."}</p>
+                              <p className="font-semibold text-slate-950">{bot.name}</p>
+                              <p className="mt-1 text-sm text-slate-600">{bot.description ?? "No description provided."}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => beginEditingBot(bot)}
-                              className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-sm font-semibold text-slate-200 transition hover:border-amber-400 hover:text-white"
+                              className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                             >
                               Edit
                             </button>
@@ -241,7 +241,7 @@ export default function DeveloperApplicationsPage() {
                                   void deleteBotMutation.mutateAsync(bot.id);
                                 }
                               }}
-                              className="inline-flex h-10 items-center justify-center rounded-none border border-rose-500 bg-rose-500/10 px-4 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                              className="inline-flex h-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
                             >
                               Delete
                             </button>
@@ -252,7 +252,7 @@ export default function DeveloperApplicationsPage() {
                               <button
                                 type="button"
                                 onClick={() => void copyText(bot.inviteCode, bot.id)}
-                                className="inline-flex h-8 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-3 text-[11px] font-semibold text-slate-200 transition hover:border-amber-400"
+                                className="inline-flex h-8 items-center justify-center rounded-full border border-slate-900/10 bg-white px-3 text-[11px] font-semibold text-slate-900 transition hover:bg-slate-50"
                               >
                                 {inviteCopyStatuses[bot.id] === "copied"
                                   ? "Copied"
@@ -261,7 +261,7 @@ export default function DeveloperApplicationsPage() {
                                   : "Copy"}
                               </button>
                             </div>
-                            <span className="inline-flex items-center justify-center rounded-none border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-200">
+                            <span className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
                               {bot.isPublic ? "Public" : "Private"}
                             </span>
                           </div>
@@ -271,7 +271,7 @@ export default function DeveloperApplicationsPage() {
                   );
                 })
               ) : (
-                <p className="text-sm text-slate-400">You haven&apos;t created any bot applications yet.</p>
+                <p className="text-sm text-slate-600">You haven&apos;t created any bot applications yet.</p>
               )}
             </div>
           </section>

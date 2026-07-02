@@ -45,50 +45,48 @@ const participants = [
 
 export function VoiceRoomView({ heroImageSrc, chatPreviewSrc }: { heroImageSrc: string; chatPreviewSrc: string }) {
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: AUDIO COMMAND */}
-      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+    <div className="flex flex-col gap-4 text-slate-900">
+      <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-900/10 bg-white/80 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Audio_Arena_v4.2</span>
+               <div className="h-1 w-8 rounded-full bg-amber-400" />
+               <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">Voice</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
-               Comm_Array_Surface
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+               Voice rooms and live audio
             </h1>
          </div>
          <div className="flex gap-2">
-            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Global_Latency</span>
-               <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">22ms STABLE</span>
+            <div className="flex flex-col items-end rounded-2xl border border-slate-900/10 bg-slate-50 px-4 py-2">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Global latency</span>
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">22ms stable</span>
             </div>
-            <div className="h-12 w-px bg-white/10 mx-2" />
-            <button className="px-6 py-3 bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 transition-all flex items-center gap-2">
-               Initialize_Broadcast
+            <div className="mx-2 h-12 w-px bg-slate-300/40" />
+            <button className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white px-6 py-3 text-[10px] font-semibold uppercase tracking-widest text-slate-700 transition-colors hover:bg-slate-50">
+               Initialize broadcast
             </button>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* PARTICIPANT GRID */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-12 lg:col-span-9 space-y-1">
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-4">
                {participants.map((p, idx) => (
-                  <div key={idx} className="p-8 border border-white/10 bg-black/40 space-y-8 group hover:bg-white/5 transition-all relative overflow-hidden">
+                  <div key={idx} className="group relative overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 p-8 shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition-colors hover:bg-white space-y-8">
                      <div className="flex justify-between items-start relative z-10">
                         <div className="space-y-1">
-                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{p.role}_NODE</span>
-                           <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">{p.name}</h3>
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">{p.role}</span>
+                           <h3 className="text-3xl font-semibold tracking-tight text-slate-950">{p.name}</h3>
                         </div>
-                        <div className={`px-3 py-1 border ${p.status === 'LIVE' ? 'border-amber-500/20 bg-amber-500/10 text-amber-500' : 'border-white/5 bg-white/5 text-slate-600'} text-[9px] font-black uppercase tracking-widest`}>
+                        <div className={`rounded-full border px-3 py-1 text-[9px] font-semibold uppercase tracking-widest ${p.status === 'LIVE' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                            {p.status}
                         </div>
                      </div>
 
                      <div className="space-y-4 relative z-10">
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-widest text-slate-500">
                            <span>Freq_Spectrum</span>
-                           <span className="text-white">{p.freq}</span>
+                           <span className="text-slate-900">{p.freq}</span>
                         </div>
                         <div className="flex gap-1 h-12 items-end">
                            {[...Array(24)].map((_, i) => (
@@ -100,19 +98,19 @@ export function VoiceRoomView({ heroImageSrc, chatPreviewSrc }: { heroImageSrc: 
                      <div className="flex gap-2 relative z-10">
                         <button 
                            title="Toggle Microphone"
-                           className="p-3 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:border-white/20 transition-all"
+                           className="rounded-full border border-slate-900/10 bg-white p-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-900"
                         >
                            <Mic className="w-4 h-4" />
                         </button>
                         <button 
                            title="Toggle Output"
-                           className="p-3 border border-white/10 bg-white/5 text-slate-400 hover:text-white hover:border-white/20 transition-all"
+                           className="rounded-full border border-slate-900/10 bg-white p-3 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-900"
                         >
                            <Volume2 className="w-4 h-4" />
                         </button>
-                        <div className="flex-1 px-4 py-3 border border-white/10 bg-white/5 flex items-center justify-between">
-                           <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Stream_ID</span>
-                           <span className="text-[9px] text-white font-mono">0x4F...3B</span>
+                        <div className="flex flex-1 items-center justify-between rounded-2xl border border-slate-900/10 bg-slate-50 px-4 py-3">
+                           <span className="text-[8px] font-semibold uppercase tracking-widest text-slate-500">Stream ID</span>
+                           <span className="font-mono text-[9px] text-slate-900">0x4F...3B</span>
                         </div>
                      </div>
                   </div>
@@ -120,13 +118,12 @@ export function VoiceRoomView({ heroImageSrc, chatPreviewSrc }: { heroImageSrc: 
             </div>
          </div>
 
-         {/* AUDIO ENGINE MONITOR */}
          <div className="col-span-12 lg:col-span-3 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/40 space-y-8">
+            <div className="space-y-8 rounded-[28px] border border-slate-900/10 bg-white/80 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                      <Radio className="w-4 h-4 text-amber-500" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Array_Diagnostics</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-700">Diagnostics</span>
                   </div>
                   <div className="grid gap-2">
                      {[
@@ -134,9 +131,9 @@ export function VoiceRoomView({ heroImageSrc, chatPreviewSrc }: { heroImageSrc: 
                         { label: "Codec", val: "OPUS_HQ" },
                         { label: "Channels", val: "SPATIAL_8CH" },
                      ].map(stat => (
-                        <div key={stat.label} className="p-4 border border-white/5 bg-white/2 flex justify-between items-center">
-                           <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{stat.label}</span>
-                           <span className="text-[10px] text-white font-black">{stat.val}</span>
+                        <div key={stat.label} className="flex items-center justify-between rounded-2xl border border-slate-900/5 bg-slate-50 p-4">
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">{stat.label}</span>
+                           <span className="text-[10px] font-semibold text-slate-900">{stat.val}</span>
                         </div>
                      ))}
                   </div>
@@ -145,25 +142,25 @@ export function VoiceRoomView({ heroImageSrc, chatPreviewSrc }: { heroImageSrc: 
                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-emerald-500">
                      <Activity className="w-4 h-4" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Network_Stability</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-700">Stability</span>
                   </div>
-                  <div className="p-4 bg-slate-950 border border-white/5 space-y-4">
+                  <div className="space-y-4 rounded-2xl border border-slate-900/5 bg-slate-50 p-4">
                      <div className="h-20 flex items-end gap-1">
                         {[...Array(20)].map((_, i) => (
                            <NetworkBar key={i} />
                         ))}
                      </div>
-                     <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Jitter: 0.4ms | Loss: 0.00%</p>
+                     <p className="text-[8px] font-semibold uppercase tracking-widest text-slate-500">Jitter: 0.4ms | Loss: 0.00%</p>
                   </div>
                </div>
             </div>
 
-            <div className="p-8 border border-white/10 bg-black/40 space-y-4">
-               <button className="w-full py-4 border border-white/10 text-white text-[9px] font-black uppercase tracking-[0.3em] hover:bg-white/5 transition-all flex items-center justify-center gap-2">
-                  <Settings className="w-3 h-3" /> Audio_Settings
+            <div className="space-y-4 rounded-[28px] border border-slate-900/10 bg-white/80 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+               <button className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-900/10 bg-white py-4 text-[9px] font-semibold uppercase tracking-[0.3em] text-slate-700 transition-colors hover:bg-slate-50">
+                  <Settings className="w-3 h-3" /> Audio settings
                </button>
-               <button className="w-full py-4 border border-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-[0.3em] hover:bg-rose-500 hover:text-white transition-all">
-                  Disconnect_Array
+               <button className="w-full rounded-full border border-rose-200 bg-rose-50 py-4 text-[9px] font-semibold uppercase tracking-[0.3em] text-rose-600 transition-colors hover:bg-rose-100">
+                  Disconnect array
                </button>
             </div>
          </div>

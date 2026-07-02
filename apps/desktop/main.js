@@ -54,6 +54,31 @@ function normalizeUrl(value) {
 
   return null;
 }
+
+function resolvePricingCatalogUrl() {
+  const normalizedStartUrl = normalizeUrl(startUrl) || localStartUrl;
+  try {
+    const parsed = new URL(normalizedStartUrl);
+    return `${parsed.origin}/api/pricing/catalog`;
+  } catch {
+    return "http://127.0.0.1:3000/api/pricing/catalog";
+  }
+}
+
+async function fetchPricingCatalog(timeoutMs = 6000) {
+  const response = await fetchWithTimeout(resolvePricingCatalogUrl(), {
+    method: "GET",
+    headers: {
+      accept: "application/json",
+    },
+  }, timeoutMs);
+
+  if (!response.ok) {
+    throw new Error(`Pricing catalog request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
 function parseBooleanEnv(name, defaultValue = false) {
   const raw = String(process.env[name] ?? "").trim().toLowerCase();
   if (raw === "" || raw === undefined) {
@@ -2369,6 +2394,22 @@ app.whenReady().then(async () => {
     return localStackStatus;
   });
   ipcMain.handle("nexusforge-desktop:get-update-state", async () => updateRuntime);
+  ipcMain.handle("nexusforge-desktop:get-pricing-catalog", async () => {
+    try {
+      const catalog = await fetchPricingCatalog();
+      return {
+        ok: true,
+        catalog,
+        source: resolvePricingCatalogUrl(),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to load pricing catalog",
+        source: resolvePricingCatalogUrl(),
+      };
+    }
+  });
   ipcMain.handle("nexusforge-desktop:get-desktop-preferences", async () => ({ ...desktopPreferences }));
   ipcMain.handle("nexusforge-desktop:update-desktop-preferences", async (_event, patch = {}) => {
     const next = {

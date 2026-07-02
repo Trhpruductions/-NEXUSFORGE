@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { AppRouteShell } from "@/components/layout/app-route-shell";
 
 export const metadata: Metadata = {
-  title: "NexusForge Command Center",
-  description: "Premium NexusForge app experience for live raids, chat, voice, and community operations.",
+  title: "NexusForge Workspace",
+  description: "A calmer NexusForge workspace for teams, updates, and community coordination.",
 };
 
 export default function AppSegmentLayout({ children }: { children: ReactNode }) {

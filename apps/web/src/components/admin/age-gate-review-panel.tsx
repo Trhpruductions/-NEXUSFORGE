@@ -44,11 +44,11 @@ export function AgeGateReviewPanel() {
 
   return (
     <div className="grid gap-6">
-      <div className="nexus-panel rounded-none p-5">
+      <div className="nexus-panel rounded-[24px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm uppercase tracking-[0.24em] text-amber-300">Age Gate Review</h2>
-            <p className="mt-2 text-sm text-slate-400">Inspect flagged verifications and apply manual overrides for trusted devices.</p>
+            <h2 className="text-sm uppercase tracking-[0.24em] text-amber-700">Age Gate Review</h2>
+            <p className="mt-2 text-sm text-slate-600">Inspect flagged verifications and apply manual overrides for trusted devices.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -62,12 +62,12 @@ export function AgeGateReviewPanel() {
           </div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs text-slate-300">
+          <label className="block text-xs text-slate-600">
             Status filter
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-              className="mt-2 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="mt-2 w-full rounded-[14px] border border-slate-900/10 bg-slate-50 px-3 py-2 text-sm text-slate-900"
             >
               <option value="blocked">Blocked</option>
               <option value="denied">Denied</option>
@@ -76,12 +76,12 @@ export function AgeGateReviewPanel() {
               <option value="rejected">Rejected</option>
             </select>
           </label>
-          <label className="block text-xs text-slate-300">
+          <label className="block text-xs text-slate-600">
             Action filter
             <select
               value={actionFilter}
               onChange={(event) => setActionFilter(event.target.value as typeof actionFilter)}
-              className="mt-2 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="mt-2 w-full rounded-[14px] border border-slate-900/10 bg-slate-50 px-3 py-2 text-sm text-slate-900"
             >
               <option value="verify">Verify</option>
               <option value="reject">Reject</option>
@@ -92,28 +92,28 @@ export function AgeGateReviewPanel() {
 
       <div className="grid gap-4">
         {(ageGateAuditQuery.data?.logs ?? []).map((entry) => (
-          <article key={entry.id} className="rounded-none border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-5 text-sm text-slate-200">
+          <article key={entry.id} className="rounded-[22px] border border-slate-900/10 bg-white/85 p-5 text-sm text-slate-700 shadow-[0_14px_36px_rgba(15,23,42,0.06)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-amber-100">{entry.action === "verify" ? "Age verification attempt" : "Age verification reject"}</p>
+                <p className="text-amber-700">{entry.action === "verify" ? "Age verification attempt" : "Age verification reject"}</p>
                 <p className="mt-1 text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.status.toUpperCase()}</span>
-                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.risk.level.toUpperCase()}</span>
-                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.action}</span>
+              <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                <span className="rounded-full border border-slate-900/10 bg-slate-50 px-2 py-1">{entry.status.toUpperCase()}</span>
+                <span className="rounded-full border border-slate-900/10 bg-slate-50 px-2 py-1">{entry.risk.level.toUpperCase()}</span>
+                <span className="rounded-full border border-slate-900/10 bg-slate-50 px-2 py-1">{entry.action}</span>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
               <div className="space-y-2">
-                <p className="text-slate-300">Fingerprint: <span className="font-mono text-[11px] text-slate-400">{entry.fingerprint}</span></p>
-                <p className="text-slate-300">IP: <span className="text-slate-400">{entry.ip}</span></p>
-                <p className="text-slate-300">User Agent: <span className="text-slate-400 break-words">{entry.userAgent}</span></p>
+                <p className="text-slate-600">Fingerprint: <span className="font-mono text-[11px] text-slate-500">{entry.fingerprint}</span></p>
+                <p className="text-slate-600">IP: <span className="text-slate-500">{entry.ip}</span></p>
+                <p className="text-slate-600">User Agent: <span className="text-slate-500 break-words">{entry.userAgent}</span></p>
                 {entry.note ? <p className="text-slate-400">Note: {entry.note}</p> : null}
                 {entry.risk.reasons.length ? (
                   <div className="space-y-2 text-slate-400">
-                    <p className="text-sm text-slate-300">Risk drivers:</p>
+                    <p className="text-sm text-slate-600">Risk drivers:</p>
                     <ul className="list-disc space-y-1 pl-5 text-slate-500">
                       {entry.risk.reasons.map((reason) => (
                         <li key={reason}>{reason}</li>
@@ -127,7 +127,7 @@ export function AgeGateReviewPanel() {
                     <div className="grid gap-1 text-xs text-slate-500 sm:grid-cols-2">
                       {Object.entries(entry.deviceProfile).slice(0, 6).map(([key, value]) => (
                         <p key={key}>
-                          <span className="font-semibold text-slate-300">{key}:</span> {String(value)}
+                          <span className="font-semibold text-slate-600">{key}:</span> {String(value)}
                         </p>
                       ))}
                     </div>
@@ -146,7 +146,7 @@ export function AgeGateReviewPanel() {
                   }))
                 }
                 placeholder="Reviewer note (optional)"
-                className="min-h-[88px] w-full rounded-none border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="min-h-[88px] w-full rounded-[14px] border border-slate-900/10 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-amber-400 focus:outline-none"
               />
               <div className="flex flex-wrap gap-2">
                 {entry.status === "blocked" ? (
@@ -173,7 +173,7 @@ export function AgeGateReviewPanel() {
         ))}
 
         {ageGateAuditQuery.data && ageGateAuditQuery.data.logs.length === 0 ? (
-          <div className="rounded-none border border-slate-700/80 bg-slate-900/80 p-5 text-sm text-slate-400">
+          <div className="rounded-[20px] border border-slate-900/10 bg-slate-50 p-5 text-sm text-slate-600">
             No review entries found for the selected filters.
           </div>
         ) : null}

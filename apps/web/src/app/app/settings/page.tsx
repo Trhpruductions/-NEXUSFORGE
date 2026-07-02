@@ -12,54 +12,51 @@ const sections = [
 
 export default function SettingsPage() {
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: CONFIG CONTROL */}
-      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+    <div className="flex flex-col gap-4 text-slate-100">
+      <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">System_Config_Manifold_v0.8</span>
+               <div className="h-1 w-8 rounded-full bg-amber-400" />
+               <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">Settings</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
-               Core_Environment_Variables
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
+               Core environment
             </h1>
          </div>
          <div className="flex gap-4">
-            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">System_Uptime</span>
-               <span className="text-[10px] text-white font-black uppercase tracking-widest">14D : 22H : 11M</span>
+            <div className="flex flex-col items-end rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">System uptime</span>
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-100">14d : 22h : 11m</span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* SECTIONS GRID */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-12 lg:col-span-9 space-y-1">
-            <div className="grid grid-cols-1 gap-1">
+            <div className="grid grid-cols-1 gap-4">
                {sections.map((section, idx) => (
-                  <div key={idx} className="p-8 border border-white/10 bg-black/40 group hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between">
+                  <div key={idx} className="group flex cursor-pointer items-center justify-between rounded-[28px] border border-slate-700/70 bg-slate-900/80 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition-colors hover:bg-slate-900">
                      <div className="flex items-center gap-8">
-                        <div className="w-16 h-16 border border-white/10 bg-slate-950 flex items-center justify-center group-hover:border-amber-500/50 transition-all">
-                           <section.icon className="w-6 h-6 text-slate-500 group-hover:text-amber-500" />
+                        <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-slate-700/70 bg-slate-900/70 transition-colors group-hover:border-amber-200">
+                           <section.icon className="w-6 h-6 text-slate-500 group-hover:text-amber-600" />
                         </div>
                         <div className="space-y-1">
-                           <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{section.label}</h3>
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">{section.desc}</p>
+                           <h3 className="text-xl font-semibold tracking-tight text-slate-100">{section.label}</h3>
+                           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{section.desc}</p>
                         </div>
                      </div>
-                     <ChevronRight className="w-6 h-6 text-slate-700 group-hover:text-amber-500 transition-all" />
+                     <ChevronRight className="w-6 h-6 text-slate-400 transition-colors group-hover:text-amber-600" />
                   </div>
                ))}
             </div>
          </div>
 
-         {/* DIAGNOSTICS ASIDE */}
          <div className="col-span-12 lg:col-span-3 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/40 space-y-8">
+            <div className="space-y-8 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                      <Binary className="w-4 h-4 text-amber-500" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Build_Manifest</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Build manifest</span>
                   </div>
                   <div className="space-y-4">
                      {[
@@ -67,9 +64,9 @@ export default function SettingsPage() {
                         { label: "Branch", val: "STABLE-MAIN" },
                         { label: "Compiler", val: "RUST-NG-1.8" },
                      ].map(stat => (
-                        <div key={stat.label} className="p-4 border border-white/5 bg-white/2 flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                        <div key={stat.label} className="flex items-center justify-between rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4 text-[10px] font-semibold uppercase tracking-widest">
                            <span className="text-slate-500">{stat.label}</span>
-                           <span className="text-white font-mono">{stat.val}</span>
+                           <span className="font-mono text-slate-100">{stat.val}</span>
                         </div>
                      ))}
                   </div>
@@ -78,27 +75,27 @@ export default function SettingsPage() {
                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                      <RefreshCcw className="w-4 h-4 text-emerald-500" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Sync_Status</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Sync status</span>
                   </div>
-                  <div className="p-6 border border-white/5 bg-white/2 space-y-4">
+                  <div className="space-y-4 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6">
                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-emerald-500" />
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Node_Connected</span>
+                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">Node connected</span>
                      </div>
-                     <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
-                        Local environment is 100% synchronized with Nexus_Primary_Forge.
+                     <p className="text-[9px] font-semibold uppercase tracking-widest leading-relaxed text-slate-500">
+                        Local environment is synchronized and ready.
                      </p>
                   </div>
                </div>
             </div>
 
-            <div className="p-8 border border-rose-500/20 bg-rose-500/5 space-y-6 text-center">
+            <div className="space-y-6 rounded-[28px] border border-rose-200 bg-rose-50 p-8 text-center">
                <div className="space-y-2">
-                  <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Destructive_Overrides</h4>
-                  <p className="text-[8px] text-rose-300 font-bold uppercase tracking-widest">Authorized_Personnel_Only</p>
+                  <h4 className="text-[10px] font-semibold uppercase tracking-widest text-rose-600">Destructive actions</h4>
+                  <p className="text-[8px] font-semibold uppercase tracking-widest text-rose-400">Authorized personnel only</p>
                </div>
-               <button className="w-full py-4 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase tracking-[0.3em] hover:bg-rose-500 hover:text-white transition-all">
-                  TERMINATE_SESSION
+               <button className="w-full rounded-full border border-rose-200 bg-slate-900 py-4 text-[9px] font-semibold uppercase tracking-[0.3em] text-rose-600 transition-colors hover:bg-rose-100">
+                  Terminate session
                </button>
             </div>
          </div>

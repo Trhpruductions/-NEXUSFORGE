@@ -11,81 +11,79 @@ const downloads = [
 
 export default function DownloadsPage() {
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: RESOURCE ALLOCATION */}
-      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+    <div className="flex flex-col gap-4 text-slate-100">
+      <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Payload_Manager_v1.2</span>
+               <div className="h-1 w-8 rounded-full bg-amber-400" />
+               <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">Downloads</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
-               Resource_Deployment
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
+               Downloads and updates
             </h1>
          </div>
          <div className="flex gap-4">
-            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Global_Status</span>
-               <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-amber-500 animate-pulse" /> Active_Downlink
+            <div className="flex flex-col items-end rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Sync status</span>
+               <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
+                  <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" /> Active downlink
                </span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* ACTIVE PAYLOADS */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-8 space-y-1">
             {downloads.map((dl, idx) => (
-               <div key={idx} className="p-8 border border-white/10 bg-black/40 space-y-6 group">
-                  <div className="flex justify-between items-start">
+               <div key={idx} className="group space-y-6 rounded-[28px] border border-slate-700/70 bg-slate-900/80 p-8 shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition-transform hover:-translate-y-[2px]">
+                  <div className="flex items-start justify-between">
                      <div className="space-y-1">
                         <div className="flex items-center gap-2">
                            <Box className="w-3 h-3 text-amber-500" />
-                           <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Package_Identifier</span>
+                           <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Package</span>
                         </div>
-                        <h3 className="text-2xl font-black text-white uppercase italic tracking-wider">{dl.title}</h3>
+                        <h3 className="text-2xl font-semibold tracking-tight text-slate-100">{dl.title}</h3>
                      </div>
                      <div className="flex flex-col items-end gap-1">
-                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${dl.status === 'STABLE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                        <span className={`rounded-full px-3 py-1 text-[9px] font-semibold uppercase tracking-widest ${dl.status === 'STABLE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                            {dl.status}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{dl.speed}</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{dl.speed}</span>
                      </div>
                   </div>
 
                   <div className="space-y-3">
-                     <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                     <div className="flex justify-between text-[10px] font-semibold uppercase tracking-widest text-slate-500">
                         <span>Deployment_Progress</span>
-                        <span className="text-white">{dl.progress}%</span>
+                        <span className="text-slate-100">{dl.progress}%</span>
                      </div>
-                     <div className="h-2 bg-white/5 relative overflow-hidden">
+                     <div className="relative h-2 overflow-hidden bg-slate-200">
                         <TacticalBar 
                            value={dl.progress}
                            className="h-full"
                            color={dl.status === 'STABLE' ? 'bg-emerald-500' : 'bg-amber-500'}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent w-full animate-[shimmer_2s_infinite]" />
+                        <div className="absolute inset-0 w-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                      </div>
                   </div>
 
-                  <div className="flex gap-4 pt-4 border-t border-white/5">
+                  <div className="flex gap-4 border-t border-slate-700/60 pt-4">
                      <div className="flex-1 grid grid-cols-2 gap-4">
                         <div className="flex flex-col">
-                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Allocated_Size</span>
-                           <span className="text-[11px] text-white font-bold uppercase">{dl.size}</span>
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Allocated size</span>
+                           <span className="text-[11px] font-semibold uppercase text-slate-100">{dl.size}</span>
                         </div>
                         <div className="flex flex-col">
-                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Verify_Status</span>
-                           <span className="text-[11px] text-emerald-500 font-bold uppercase">CHECKSUM_OK</span>
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Verify status</span>
+                           <span className="text-[11px] font-semibold uppercase text-emerald-600">Checksum ok</span>
                         </div>
                      </div>
                      <div className="flex gap-2">
-                        <button className="px-6 py-2 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-black transition-all">
-                           Manage_FS
+                        <button className="rounded-full border border-slate-700/70 bg-slate-900 px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-900/70">
+                           Manage
                         </button>
                         {dl.progress < 100 && dl.progress > 0 && (
-                           <button className="px-6 py-2 border border-rose-500/20 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">
+                           <button className="rounded-full border border-rose-200 bg-rose-50 px-6 py-2 text-[10px] font-semibold uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-100">
                               Abort
                            </button>
                         )}
@@ -95,22 +93,21 @@ export default function DownloadsPage() {
             ))}
          </div>
 
-         {/* STORAGE METRICS */}
          <div className="col-span-4 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/40 space-y-8">
+            <div className="space-y-8 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                      <HardDrive className="w-4 h-4 text-amber-500" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Storage_Interface</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Storage</span>
                   </div>
                   <div className="space-y-6">
                      <div className="space-y-2">
-                        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <div className="flex justify-between text-[9px] font-semibold uppercase tracking-widest text-slate-500">
                            <span>Allocated_Volume</span>
-                           <span className="text-white">428.4 GB / 1024 GB</span>
+                           <span className="text-slate-100">428.4 GB / 1024 GB</span>
                         </div>
-                        <div className="h-1 bg-white/5">
-                           <div className="h-full bg-amber-500/50 w-[42%]" />
+                        <div className="h-1 bg-slate-200">
+                           <div className="h-full w-[42%] bg-amber-400" />
                         </div>
                      </div>
                   </div>
@@ -119,7 +116,7 @@ export default function DownloadsPage() {
                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                      <Cpu className="w-4 h-4 text-amber-500" />
-                     <span className="text-[10px] font-black text-white uppercase tracking-widest">System_Integrity</span>
+                     <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">System health</span>
                   </div>
                   <div className="grid gap-2">
                      {[
@@ -127,24 +124,24 @@ export default function DownloadsPage() {
                         { label: "Downlink_Lock", status: "STABLE", icon: Zap },
                         { label: "Checksum_Acc", status: "99.9%", icon: Database },
                      ].map(item => (
-                        <div key={item.label} className="p-4 border border-white/5 bg-white/5 flex items-center justify-between">
+                        <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4">
                            <div className="flex items-center gap-3">
                               <item.icon className="w-3 h-3 text-slate-500" />
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{item.label}</span>
                            </div>
-                           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{item.status}</span>
+                           <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">{item.status}</span>
                         </div>
                      ))}
                   </div>
                </div>
             </div>
 
-            <div className="p-8 border border-white/10 bg-slate-900 space-y-4">
-               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-loose">
-                  NexusForge uses automated delta-patching. Only modified binary blocks are synchronized during payload updates.
+            <div className="space-y-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+               <p className="text-[10px] font-medium uppercase tracking-[0.2em] leading-loose text-slate-500">
+                  NexusForge uses automated delta patching so only the parts that changed need to move.
                </p>
-               <button className="w-full py-4 border border-amber-500 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-amber-500 hover:text-black transition-all">
-                  Run_Integrity_Check
+               <button className="w-full rounded-full border border-slate-700/70 bg-slate-900 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-100 transition-colors hover:bg-slate-900/70">
+                  Run integrity check
                </button>
             </div>
          </div>

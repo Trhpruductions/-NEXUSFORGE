@@ -30,7 +30,7 @@ function rarityClass(rarity: BrandBadge["rarity"]) {
     return "border-amber-400/65 shadow-[0_0_10px_rgba(255,184,108,0.2)]";
   }
 
-  return "border-slate-700/80";
+  return "border-slate-900/10";
 }
 
 export function ProfileBadgeStrip({
@@ -59,7 +59,7 @@ export function ProfileBadgeStrip({
           key={badge.key}
           title={`${badge.label} (${badge.rarity.toUpperCase()}) - ${badge.description}`}
           className={cx(
-            "overflow-hidden rounded-none border bg-slate-900/75",
+            "overflow-hidden rounded-[12px] border bg-white",
             rarityClass(badge.rarity),
             itemClassName,
           )}
@@ -75,7 +75,7 @@ export function ProfileBadgeStrip({
             }}
             sizes={showLabel ? "(max-width: 640px) 100vw, 320px" : "24px"}
           />
-          {showLabel ? <div className={cx("px-3 py-2 text-xs font-semibold text-slate-200", labelClassName)}>{badge.label}</div> : null}
+          {showLabel ? <div className={cx("px-3 py-2 text-xs font-semibold text-slate-700", labelClassName)}>{badge.label}</div> : null}
         </div>
       ))}
     </div>

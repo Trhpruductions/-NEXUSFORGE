@@ -7,16 +7,17 @@ import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCheckoutSession, getBillingReadiness, type PaidFeatureCode } from "@/lib/api";
+import { CORE_PLUS_TIER_PRICING, PAID_FEATURE_PRICE_LABELS } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 
 const tierCards = [
   {
     id: "CORE",
-    name: "Starter Core",
-    monthly: "$3.99",
-    yearly: "$39",
-    yearlySavings: "Save 18%",
+    name: CORE_PLUS_TIER_PRICING.CORE.label,
+    monthly: CORE_PLUS_TIER_PRICING.CORE.monthly,
+    yearly: CORE_PLUS_TIER_PRICING.CORE.yearly,
+    yearlySavings: CORE_PLUS_TIER_PRICING.CORE.yearlySavings,
     tone: "border-amber-500/45 bg-amber-950/30 text-amber-100",
     accent: "text-amber-200",
     badge: "Best entry",
@@ -26,10 +27,10 @@ const tierCards = [
   },
   {
     id: "PLUS",
-    name: "Plus Command",
-    monthly: "$9.99",
-    yearly: "$99",
-    yearlySavings: "Save 17%",
+    name: CORE_PLUS_TIER_PRICING.PLUS.label,
+    monthly: CORE_PLUS_TIER_PRICING.PLUS.monthly,
+    yearly: CORE_PLUS_TIER_PRICING.PLUS.yearly,
+    yearlySavings: CORE_PLUS_TIER_PRICING.PLUS.yearlySavings,
     tone: "border-amber-500/50 bg-amber-950/30 text-amber-100",
     accent: "text-amber-200",
     badge: "Most popular",
@@ -40,10 +41,10 @@ const tierCards = [
   },
   {
     id: "ELITE",
-    name: "Elite Creator",
-    monthly: "$19.99",
-    yearly: "$199",
-    yearlySavings: "Save 17%",
+    name: CORE_PLUS_TIER_PRICING.ELITE.label,
+    monthly: CORE_PLUS_TIER_PRICING.ELITE.monthly,
+    yearly: CORE_PLUS_TIER_PRICING.ELITE.yearly,
+    yearlySavings: CORE_PLUS_TIER_PRICING.ELITE.yearlySavings,
     tone: "border-amber-500/45 bg-amber-950/30 text-amber-100",
     accent: "text-amber-200",
     badge: "Creator growth",
@@ -53,10 +54,10 @@ const tierCards = [
   },
   {
     id: "INFINITE",
-    name: "Infinite League",
-    monthly: "$39.99",
-    yearly: "$399",
-    yearlySavings: "Save 17%",
+    name: CORE_PLUS_TIER_PRICING.INFINITE.label,
+    monthly: CORE_PLUS_TIER_PRICING.INFINITE.monthly,
+    yearly: CORE_PLUS_TIER_PRICING.INFINITE.yearly,
+    yearlySavings: CORE_PLUS_TIER_PRICING.INFINITE.yearlySavings,
     tone: "border-fuchsia-500/45 bg-fuchsia-950/30 text-fuchsia-100",
     accent: "text-fuchsia-200",
     badge: "Full power",
@@ -81,32 +82,32 @@ const tierLogoById = Object.fromEntries(boostTierLogos.map((tier) => [tier.id, t
 const paidCatalog = [
   {
     item: "Core+ subscription",
-    price: "Tier-based monthly or yearly",
+    price: PAID_FEATURE_PRICE_LABELS.CORE_PLUS,
     requiredFor: "Premium identity, routing priority, boost scaling, member prestige features",
   },
   {
     item: "Forge Boost Packs",
-    price: "$3 / $8 / $19",
+    price: PAID_FEATURE_PRICE_LABELS.FORGE_BOOST_PACK,
     requiredFor: "XP acceleration, spotlight priority, momentum pushes during events",
   },
   {
     item: "Creator Campaign Slot",
-    price: "$29 per campaign",
+    price: PAID_FEATURE_PRICE_LABELS.CREATOR_CAMPAIGN_SLOT,
     requiredFor: "Featured placement, audience discovery, premium homepage exposure",
   },
   {
     item: "Event Ticket Pass",
-    price: "$2 to $9 per event",
+    price: PAID_FEATURE_PRICE_LABELS.EVENT_TICKET_PASS,
     requiredFor: "Premium tournaments, gated drops, exclusive stage and reward access",
   },
   {
     item: "Team Branding Kit",
-    price: "$12 one-time",
+    price: PAID_FEATURE_PRICE_LABELS.TEAM_BRANDING_KIT,
     requiredFor: "Custom team badge pack, premium identity art, advanced profile cosmetics",
   },
   {
     item: "Advanced Moderation AI",
-    price: "$9 per forge / month",
+    price: PAID_FEATURE_PRICE_LABELS.ADVANCED_MODERATION_AI,
     requiredFor: "Behavior scoring, raid-shield automation, incident replay intelligence",
   },
 ];
@@ -304,45 +305,45 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/82 px-4 backdrop-blur-md"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-700/35 px-4 backdrop-blur-md"
         >
-          <div className="w-full max-w-xl rounded-none border border-amber-500/35 bg-slate-950/95 p-6 shadow-[0_24px_80px_rgba(255,184,108,0.18)]">
-            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Launching secure checkout</p>
-            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50">{checkoutPreview.label}</h3>
-            <p className="mt-2 text-sm text-slate-300">{checkoutPreview.detail}</p>
+          <div className="w-full max-w-xl rounded-[28px] border border-slate-900/10 bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-600">Launching secure checkout</p>
+            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950">{checkoutPreview.label}</h3>
+            <p className="mt-2 text-sm text-slate-600">{checkoutPreview.detail}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-none border border-slate-800 bg-slate-900/80 p-3">
+              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
-                <p className="mt-1 text-sm font-semibold text-slate-100">{pendingTierName ?? "One-time purchase"}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{pendingTierName ?? "One-time purchase"}</p>
               </div>
-              <div className="rounded-none border border-slate-800 bg-slate-900/80 p-3">
+              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Billing</p>
-                <p className="mt-1 text-sm font-semibold text-slate-100">{pendingBillingLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{pendingBillingLabel}</p>
               </div>
-              <div className="rounded-none border border-slate-800 bg-slate-900/80 p-3">
+              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
-                <p className="mt-1 text-sm font-semibold text-amber-200">Redirecting now</p>
+                <p className="mt-1 text-sm font-semibold text-amber-600">Redirecting now</p>
               </div>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-none bg-slate-800">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
               <motion.div
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
                 transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.1, ease: "easeInOut" }}
-                className="h-full w-1/2 rounded-none bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
+                className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
               />
             </div>
-            <p className="mt-3 text-xs text-slate-400">Do not close the page. NexusForge is securing your checkout session and handing off to billing.</p>
+            <p className="mt-3 text-xs text-slate-500">Do not close the page. NexusForge is securing your checkout session and handing off to billing.</p>
           </div>
         </motion.div>
       ) : null}
       {checkoutState === "success" ? (
-        <div className="nexus-display-panel rounded-none p-4 text-sm text-amber-100">
+        <div className="nexus-display-panel rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Payment completed. Your subscription or entitlement is being activated now.
         </div>
       ) : null}
       {checkoutState === "cancelled" ? (
-        <div className="nexus-display-panel rounded-none p-4 text-sm text-amber-100">
+        <div className="nexus-display-panel rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           Checkout was canceled. Your current access remains unchanged.
         </div>
       ) : null}
@@ -352,88 +353,88 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="nexus-panel-strong relative overflow-hidden rounded-none p-5 sm:p-7"
+        className="nexus-panel-strong relative overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-7"
       >
-        <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-none bg-amber-500/14 blur-3xl" />
-        <div className="pointer-events-none absolute -right-12 bottom-[-70px] h-56 w-56 rounded-none bg-amber-500/16 blur-3xl" />
+        <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-full bg-amber-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-12 bottom-[-70px] h-56 w-56 rounded-full bg-amber-500/12 blur-3xl" />
 
-        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Pricing + Payments</p>
-        <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-slate-50 sm:text-4xl">
+        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-600">Pricing + Payments</p>
+        <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950 sm:text-4xl">
           Premium tiers that feel worth upgrading into.
         </h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
+        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
           Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
           better presence, and stronger community momentum than the price suggests.
         </p>
         <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-none border border-amber-400/25 bg-amber-950/20 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Estimated launch revenue</p>
-            <p className="mt-2 text-3xl font-semibold text-white">$28.7k</p>
-            <p className="mt-1 text-xs text-slate-400">Based on Core+, boost, and creator campaign adoption.</p>
+          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Estimated launch revenue</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">$28.7k</p>
+            <p className="mt-1 text-xs text-slate-600">Based on Core+, boost, and creator campaign adoption.</p>
           </div>
-          <div className="rounded-none border border-amber-500/25 bg-amber-950/20 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Premium adoption</p>
-            <p className="mt-2 text-3xl font-semibold text-white">18%</p>
-            <p className="mt-1 text-xs text-slate-400">Expected upgrade rate for engaged communities.</p>
+          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Premium adoption</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">18%</p>
+            <p className="mt-1 text-xs text-slate-600">Expected upgrade rate for engaged communities.</p>
           </div>
-          <div className="rounded-none border border-amber-500/25 bg-amber-950/20 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Average ARPU</p>
-            <p className="mt-2 text-3xl font-semibold text-white">$12.99</p>
-            <p className="mt-1 text-xs text-slate-400">Revenue per active paid user per month.</p>
+          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Average ARPU</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">$12.99</p>
+            <p className="mt-1 text-xs text-slate-600">Revenue per active paid user per month.</p>
           </div>
         </div>
         {billingStatusMessage ? (
-          <div className="nexus-display-panel mt-4 rounded-none border border-amber-500/40 bg-amber-950/25 p-3 text-xs text-amber-100">
+          <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             <p>{billingStatusMessage}</p>
-            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-200/90">{billingStatusDetail}</p> : null}
+            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-none p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Founder Window</p>
-            <p className="mt-2 text-lg font-semibold text-slate-50">Early pricing is intentionally aggressive while NexusForge scales up.</p>
-            <p className="mt-1 text-sm text-slate-300">
+          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Founder Window</p>
+            <p className="mt-2 text-lg font-semibold text-slate-950">Early pricing is intentionally aggressive while NexusForge scales up.</p>
+            <p className="mt-1 text-sm text-slate-600">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
             </p>
-            <div className="mt-3 inline-flex items-center rounded-none border border-amber-400/40 bg-amber-950/30 px-3 py-1 text-xs font-semibold text-amber-100">
+            <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
               Founder pricing countdown: {founderCountdown}
             </div>
           </div>
-          <div className="nexus-display-panel rounded-none p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Why users upgrade</p>
-            <p className="mt-2 text-sm text-slate-300">
+          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Why users upgrade</p>
+            <p className="mt-2 text-sm text-slate-600">
               Better identity, faster access, stronger visibility, and operational tools that free communities from basic-chat limitations.
             </p>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-none border border-slate-700/70 bg-slate-950/45 px-3 py-3 text-xs text-slate-200">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-3 text-xs text-slate-600">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-400">Billing Interval</span>
+            <span className="text-slate-500">Billing Interval</span>
             <Button
               onClick={() => setInterval("MONTHLY")}
               variant="ghost"
-              className={`h-8 rounded-none px-3 text-xs ${interval === "MONTHLY" ? "border-amber-500/55 text-amber-100" : "text-slate-300"}`}
+              className={`h-8 rounded-full px-3 text-xs ${interval === "MONTHLY" ? "border-amber-500/55 text-amber-700" : "text-slate-500"}`}
             >
               Monthly
             </Button>
             <Button
               onClick={() => setInterval("YEARLY")}
               variant="ghost"
-              className={`h-8 rounded-none px-3 text-xs ${interval === "YEARLY" ? "border-amber-500/55 text-amber-100" : "text-slate-300"}`}
+              className={`h-8 rounded-full px-3 text-xs ${interval === "YEARLY" ? "border-amber-500/55 text-amber-700" : "text-slate-500"}`}
             >
               Yearly
             </Button>
           </div>
-          <div className="rounded-none border border-amber-500/35 bg-amber-950/25 px-3 py-1 text-amber-100">
+          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
             {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
           </div>
         </div>
 
         <div className="mt-4 grid gap-3">
-          <article className="nexus-display-panel rounded-none p-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Boost Pack Emblem</p>
-            <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
-            <div className="mt-3 overflow-hidden rounded-none border border-slate-700/80 bg-slate-950/65">
+          <article className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Boost Pack Emblem</p>
+            <p className="mt-1 text-xs text-slate-600">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
+            <div className="mt-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
               <Image
                 src="/brand/boost-pack-icon.png"
                 alt="NexusForge boost pack icon"
@@ -453,9 +454,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
-              className={`nexus-interactive-card rounded-none border bg-slate-950/55 p-4 ${tier.spotlight ? "border-amber-400/70 shadow-[0_18px_50px_rgba(251,191,36,0.16)]" : "border-slate-700/70"}`}
+              className={`nexus-interactive-card rounded-[28px] border bg-white/85 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(251,191,36,0.12)]" : "border-slate-900/10"}`}
             >
-              <div className="mb-3 overflow-hidden rounded-none border border-slate-700/80 bg-slate-950/65">
+              <div className="mb-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
                 <Image
                   src={tierLogoById[tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE"].src}
                   alt={`${tier.name} tier artwork`}
@@ -465,16 +466,16 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 />
               </div>
               <div className="flex items-center justify-between gap-2">
-                <div className={`inline-flex rounded-none border px-2 py-0.5 text-[11px] ${tier.tone}`}>{tier.name}</div>
-                <div className={`text-[11px] font-semibold ${tier.accent}`}>{tier.badge}</div>
+                <div className="inline-flex rounded-full border border-slate-900/10 bg-white/85 px-2 py-0.5 text-[11px] text-slate-700">{tier.name}</div>
+                <div className="text-[11px] font-semibold text-amber-600">{tier.badge}</div>
               </div>
-              <p className="mt-3 text-xs text-slate-400">{tier.description}</p>
+              <p className="mt-3 text-xs text-slate-600">{tier.description}</p>
               <div className="mt-3 flex items-end gap-2">
-                <p className="text-3xl font-semibold text-slate-50">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
-                <p className="pb-1 text-xs text-slate-400">{interval === "YEARLY" ? "per year" : "per month"}</p>
+                <p className="text-3xl font-semibold text-slate-950">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
+                <p className="pb-1 text-xs text-slate-500">{interval === "YEARLY" ? "per year" : "per month"}</p>
               </div>
-              <p className="mt-1 text-xs text-amber-200">{tier.yearlySavings}</p>
-              <ul className="mt-3 space-y-1.5 text-xs text-slate-200">
+              <p className="mt-1 text-xs text-amber-600">{tier.yearlySavings}</p>
+              <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
                 {tier.perks.map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
@@ -482,7 +483,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               <Button
                 onClick={() => handleCheckout({ featureCode: "CORE_PLUS", tier: tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE" })}
                 disabled={checkoutMutation.isPending || !billingReady}
-                className={`mt-4 h-10 w-full rounded-none px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.26)]" : ""}`}
+                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.16)]" : "border-slate-900/10 bg-white/85 text-slate-900"}`}
               >
                 {checkoutMutation.isPending ? "Opening..." : tier.cta}
               </Button>
@@ -497,21 +498,21 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.04 }}
-        className="nexus-display-panel rounded-none p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Tier Comparison</p>
-            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-slate-50">See what actually gets better as users move up.</h3>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600">Tier Comparison</p>
+            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-slate-950">See what actually gets better as users move up.</h3>
           </div>
-          <div className="rounded-none border border-amber-500/35 bg-amber-950/20 px-3 py-1 text-xs text-amber-100">
+          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
             Plus Command is the strongest value-to-price tier
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] border-collapse text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-700/75 text-slate-300">
+              <tr className="border-b border-slate-900/10 text-slate-500">
                 <th className="py-2 pr-3 font-semibold">Feature</th>
                 <th className="py-2 pr-3 font-semibold">Starter Core</th>
                 <th className="py-2 pr-3 font-semibold text-amber-200">Plus Command</th>
@@ -521,10 +522,10 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {comparisonRows.map((row) => (
-                <tr key={row.label} className="border-b border-slate-800/70 text-slate-200">
-                  <td className="py-2 pr-3 font-medium text-slate-100">{row.label}</td>
+                <tr key={row.label} className="border-b border-slate-900/10 text-slate-600">
+                  <td className="py-2 pr-3 font-medium text-slate-950">{row.label}</td>
                   {row.values.map((value, index) => (
-                    <td key={`${row.label}-${index}`} className={`py-2 pr-3 ${index === 1 ? "text-amber-100" : "text-slate-300"}`}>
+                    <td key={`${row.label}-${index}`} className={`py-2 pr-3 ${index === 1 ? "text-amber-700" : "text-slate-600"}`}>
                       {value}
                     </td>
                   ))}
@@ -540,15 +541,15 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
-        className="nexus-display-panel rounded-none p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Paid Feature Catalog</p>
-          <p className="text-xs text-slate-400">Payments designed to feel clean, fast, and low-risk.</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600">Paid Feature Catalog</p>
+          <p className="text-xs text-slate-600">Payments designed to feel clean, fast, and low-risk.</p>
         </div>
         <div className="mb-4 grid gap-2 md:grid-cols-4">
           {trustSignals.map((signal) => (
-            <div key={signal} className="glass-cut rounded-none px-3 py-2 text-xs text-slate-200">
+            <div key={signal} className="glass-cut rounded-full border border-slate-900/10 bg-white/85 px-3 py-2 text-xs text-slate-600">
               {signal}
             </div>
           ))}
@@ -556,7 +557,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] border-collapse text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-700/75 text-slate-300">
+              <tr className="border-b border-slate-900/10 text-slate-500">
                 <th className="py-2 pr-3 font-semibold">Paid Item</th>
                 <th className="py-2 pr-3 font-semibold">Price</th>
                 <th className="py-2 font-semibold">Required For</th>
@@ -564,24 +565,24 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {paidCatalog.map((row) => (
-                <tr key={row.item} className="border-b border-slate-800/70 align-top text-slate-200">
-                  <td className="py-2 pr-3 font-medium text-slate-100">{row.item}</td>
-                  <td className="py-2 pr-3 text-amber-100">{row.price}</td>
-                  <td className="py-2 text-slate-300">{row.requiredFor}</td>
+                <tr key={row.item} className="border-b border-slate-900/10 align-top text-slate-600">
+                  <td className="py-2 pr-3 font-medium text-slate-950">{row.item}</td>
+                  <td className="py-2 pr-3 text-amber-700">{row.price}</td>
+                  <td className="py-2 text-slate-600">{row.requiredFor}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-none p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Quick Buy Paths</p>
+          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Quick Buy Paths</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 onClick={() => handleCheckout({ featureCode: "FORGE_BOOST_PACK", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-none border-amber-500/40 px-3 text-xs text-amber-100"
+                className="h-9 rounded-full border-amber-500/40 px-3 text-xs text-amber-700"
               >
                 Buy Boost Pack
               </Button>
@@ -589,7 +590,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 onClick={() => handleCheckout({ featureCode: "CREATOR_CAMPAIGN_SLOT", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-none border-fuchsia-500/40 px-3 text-xs text-fuchsia-100"
+                className="h-9 rounded-full border-fuchsia-500/40 px-3 text-xs text-fuchsia-700"
               >
                 Buy Campaign Slot
               </Button>
@@ -597,21 +598,21 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 onClick={() => handleCheckout({ featureCode: "ADVANCED_MODERATION_AI", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-none border-rose-500/40 px-3 text-xs text-rose-100"
+                className="h-9 rounded-full border-rose-500/40 px-3 text-xs text-rose-700"
               >
                 Buy Moderation AI
               </Button>
               <Link
                 href="/core-plus"
-                className="nexus-interactive-btn inline-flex h-9 items-center rounded-none border border-amber-500/40 bg-[linear-gradient(155deg,rgba(8,47,73,0.24),rgba(15,23,42,0.9))] px-3 text-xs font-semibold text-amber-100 hover:border-amber-300"
+                className="nexus-interactive-btn inline-flex h-9 items-center rounded-full border border-slate-900/10 bg-white/85 px-3 text-xs font-semibold text-slate-900 hover:border-amber-300"
               >
                 Manage Billing
               </Link>
             </div>
-            <div className="mt-4 grid gap-3 rounded-none border border-amber-500/25 bg-amber-950/10 p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">Growth Revenue Estimator</p>
+            <div className="mt-4 grid gap-3 rounded-[24px] border border-slate-900/10 bg-slate-50 p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-600">Growth Revenue Estimator</p>
               <div className="grid gap-2 sm:grid-cols-3">
-                <label className="text-[11px] text-slate-300">
+                <label className="text-[11px] text-slate-600">
                   Members
                   <input
                     type="range"
@@ -622,9 +623,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setProjectedMembers(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-400">{projectedMembers.toLocaleString()}</span>
+                  <span className="mt-1 block text-slate-600">{projectedMembers.toLocaleString()}</span>
                 </label>
-                <label className="text-[11px] text-slate-300">
+                <label className="text-[11px] text-slate-600">
                   Paid adoption
                   <input
                     type="range"
@@ -635,9 +636,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setProjectedAdoptionPct(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-400">{projectedAdoptionPct}%</span>
+                  <span className="mt-1 block text-slate-600">{projectedAdoptionPct}%</span>
                 </label>
-                <label className="text-[11px] text-slate-300">
+                <label className="text-[11px] text-slate-600">
                   Avg paid ARPU
                   <input
                     type="range"
@@ -648,28 +649,28 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setEstimatedArpu(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-400">${estimatedArpu.toFixed(2)}</span>
+                  <span className="mt-1 block text-slate-600">${estimatedArpu.toFixed(2)}</span>
                 </label>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-none border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Paid Members</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-100">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-950">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
                 </div>
-                <div className="rounded-none border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected MRR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.monthly.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-700">${projectedRevenue.monthly.toLocaleString()}</p>
                 </div>
-                <div className="rounded-none border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected ARR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.annual.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-700">${projectedRevenue.annual.toLocaleString()}</p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="nexus-display-panel rounded-none p-4 text-sm text-slate-200">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Confidence</p>
-            <ul className="mt-3 space-y-2 text-xs text-slate-300">
+          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4 text-sm text-slate-600">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Checkout Confidence</p>
+            <ul className="mt-3 space-y-2 text-xs text-slate-600">
               <li>• You are redirected instantly to a live checkout session.</li>
               <li>• Subscription changes can be managed later from the billing portal.</li>
               <li>• Successful payments activate subscriptions or entitlements automatically.</li>
@@ -679,9 +680,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {upgradeOutcomes.map((outcome) => (
-            <div key={outcome.title} className="glass-cut rounded-none p-4">
-              <p className="text-sm font-semibold text-slate-100">{outcome.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{outcome.detail}</p>
+            <div key={outcome.title} className="glass-cut rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
+              <p className="text-sm font-semibold text-slate-950">{outcome.title}</p>
+              <p className="mt-1 text-xs text-slate-600">{outcome.detail}</p>
             </div>
           ))}
         </div>

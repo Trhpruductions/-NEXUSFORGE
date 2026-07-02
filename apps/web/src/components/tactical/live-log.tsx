@@ -49,46 +49,46 @@ export function LiveTacticalLog() {
   }, []);
 
   return (
-    <div className="bg-black/40 border border-white/5 rounded-none overflow-hidden flex flex-col h-48 group">
-      <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/5">
+    <div className="flex h-48 flex-col overflow-hidden rounded-[24px] border border-slate-900/10 bg-white/80 shadow-[0_18px_45px_rgba(15,23,42,0.07)] group">
+      <div className="flex items-center justify-between border-b border-slate-900/5 bg-slate-50 px-3 py-2">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tactical Telemetry</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tactical telemetry</span>
         </div>
         <div className="flex items-center gap-1.5">
-           <div className="h-1.5 w-1.5 rounded-none bg-emerald-500 animate-pulse" />
-           <span className="text-[9px] font-bold text-emerald-500/80 uppercase">Streaming</span>
+           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+           <span className="text-[9px] font-semibold uppercase text-emerald-600">Streaming</span>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-2 font-mono space-y-1.5 scrollbar-none" ref={scrollRef}>
+      <div className="flex-1 space-y-1.5 overflow-y-auto p-2 font-mono scrollbar-none" ref={scrollRef}>
         {logs.length === 0 && (
-           <div className="h-full flex items-center justify-center opacity-20 italic text-[10px] text-slate-400">
+           <div className="flex h-full items-center justify-center text-[10px] italic text-slate-400 opacity-30">
               Awaiting data stream...
            </div>
         )}
         {logs.map((log) => (
           <div key={log.id} className="text-[9px] flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-             <span className="text-slate-600 shrink-0">[{log.timestamp}]</span>
+             <span className="shrink-0 text-slate-500">[{log.timestamp}]</span>
              <span className={cn(
-               "font-black shrink-0",
-               log.level === "success" ? "text-emerald-500" :
-               log.level === "warn" ? "text-amber-500" : "text-rose-500"
+               "shrink-0 font-semibold",
+               log.level === "success" ? "text-emerald-600" :
+               log.level === "warn" ? "text-amber-600" : "text-rose-600"
              )}>[{log.module}]</span>
-             <span className="text-slate-300 truncate">{log.message}</span>
+             <span className="truncate text-slate-600">{log.message}</span>
           </div>
         ))}
       </div>
 
-      <div className="px-3 py-1.5 bg-black/40 border-t border-white/5 flex items-center justify-between">
+      <div className="flex items-center justify-between border-t border-slate-900/5 bg-slate-50 px-3 py-1.5">
          <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
                <Cpu className="w-2.5 h-2.5 text-slate-500" />
-               <span className="text-[8px] text-slate-500 font-bold">4.2GHz</span>
+               <span className="text-[8px] font-semibold text-slate-500">4.2GHz</span>
             </div>
             <div className="flex items-center gap-1">
                <Shield className="w-2.5 h-2.5 text-emerald-500" />
-               <span className="text-[8px] text-slate-500 font-bold">SECURED</span>
+               <span className="text-[8px] font-semibold text-slate-500">Secured</span>
             </div>
          </div>
          <Activity className="w-2.5 h-2.5 text-amber-500 animate-pulse" />

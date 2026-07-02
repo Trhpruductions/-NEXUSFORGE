@@ -43,9 +43,9 @@ export function LaunchCountdown() {
   return (
     <div className="launch-countdown-grid mt-6 grid grid-cols-4 gap-3 text-center" role="status" aria-live="polite">
       {countdown.map((item) => (
-        <div key={item.label} className="countdown-card rounded-none border border-slate-700/60 bg-slate-950/85 p-4 shadow-[0_12px_24px_rgba(2,6,23,0.25)]">
+        <div key={item.label} className="countdown-card rounded-[16px] border border-slate-900/10 bg-white/85 p-4 shadow-[0_12px_24px_rgba(15,23,42,0.08)]">
           <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{item.label}</p>
-          <p className="countdown-value mt-2 text-3xl font-semibold text-white">{item.value}</p>
+          <p className="countdown-value mt-2 text-3xl font-semibold text-slate-900">{item.value}</p>
         </div>
       ))}
     </div>

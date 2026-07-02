@@ -439,6 +439,8 @@ export type AdminRevenue = {
   };
   featureRevenue: Array<{
     featureCode: PaidFeatureCode;
+    featureLabel?: string;
+    priceLabel?: string | null;
     revenueCents: number;
     transactions: number;
   }>;

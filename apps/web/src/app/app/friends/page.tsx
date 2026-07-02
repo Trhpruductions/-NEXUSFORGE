@@ -12,70 +12,68 @@ const friends = [
 
 export default function FriendsPage() {
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: SQUAD COMMAND */}
-      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+    <div className="flex flex-col gap-4 text-slate-100">
+      <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Node_Roster_v2.0</span>
+               <div className="h-1 w-8 rounded-full bg-amber-400" />
+               <span className="text-[10px] font-semibold uppercase tracking-[0.35em] text-slate-500">Friends</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
-               Squad_Initialization
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
+               People you keep in reach
             </h1>
          </div>
          <div className="flex gap-2">
-            <button className="px-6 py-3 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center gap-2">
-               <UserPlus className="w-3 h-3" /> Link_New_Node
+            <button className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 px-6 py-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-900/70">
+               <UserPlus className="w-3 h-3" /> Add friend
             </button>
-            <div className="h-12 w-px bg-white/10 mx-2" />
-            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Active_Comms</span>
-               <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">18 SYNCHRONIZED</span>
+            <div className="mx-2 h-12 w-px bg-slate-300/40" />
+            <div className="flex flex-col items-end rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Active comms</span>
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-600">18 online</span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* FRIEND LISTING GRID */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-9 space-y-1">
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-4">
                {friends.map((friend, idx) => (
-                  <div key={idx} className="p-8 border border-white/10 bg-black/40 space-y-8 group hover:bg-white/5 transition-all relative overflow-hidden">
-                     <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div key={idx} className="group relative overflow-hidden rounded-[28px] border border-slate-700/70 bg-slate-900/80 p-8 shadow-[0_18px_45px_rgba(15,23,42,0.07)] transition-transform hover:-translate-y-[2px] space-y-8">
+                     <div className="absolute top-0 left-0 h-full w-1 bg-amber-400 opacity-0 transition-opacity group-hover:opacity-100" />
                      
-                     <div className="flex justify-between items-start">
+                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
-                           <div className="w-12 h-12 border border-white/10 bg-slate-950 flex items-center justify-center text-[11px] font-black text-amber-500">
+                           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700/70 bg-slate-900/80 text-[11px] font-semibold text-amber-700">
                               {friend.name[0]}
                            </div>
                            <div>
-                              <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">{friend.name}</h3>
+                              <h3 className="text-2xl font-semibold tracking-tight text-slate-100">{friend.name}</h3>
                               <div className="flex items-center gap-2 mt-1">
-                                 <span className={`text-[9px] font-black uppercase tracking-widest ${friend.status === 'IDLE_THROTTLE' ? 'text-slate-500' : 'text-emerald-500'}`}>
+                                 <span className={`text-[9px] font-semibold uppercase tracking-widest ${friend.status === 'IDLE_THROTTLE' ? 'text-slate-500' : 'text-emerald-600'}`}>
                                     {friend.status}
                                  </span>
-                                 <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest px-2 border border-white/5 bg-white/5">
+                                 <span className="border border-slate-700/60 bg-slate-900/70 px-2 text-[8px] font-semibold uppercase tracking-widest text-slate-500">
                                     {friend.node}
                                  </span>
                               </div>
                            </div>
                         </div>
                         <div className="flex flex-col items-end text-right">
-                           <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest">Sector</span>
-                           <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest">{friend.game}</span>
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Game</span>
+                           <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-600">{friend.game}</span>
                         </div>
                      </div>
 
-                     <div className="grid grid-cols-3 gap-2 pt-6 border-t border-white/5">
-                        <button className="py-2 border border-white/10 bg-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2">
-                           <MessageSquare className="w-3 h-3" /> COMM
+                     <div className="grid grid-cols-3 gap-2 border-t border-slate-700/60 pt-6">
+                        <button className="flex items-center justify-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 py-2 text-[9px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-900/70">
+                           <MessageSquare className="w-3 h-3" /> Message
                         </button>
-                        <button className="py-2 border border-white/10 bg-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2">
-                           <Zap className="w-3 h-3 text-amber-500" /> INVITE
+                        <button className="flex items-center justify-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 py-2 text-[9px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-900/70">
+                           <Zap className="w-3 h-3 text-amber-500" /> Invite
                         </button>
-                        <button className="py-2 border border-white/10 bg-white/5 text-[9px] font-black text-white uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2">
-                           <Shield className="w-3 h-3 text-slate-500" /> IDENT
+                        <button className="flex items-center justify-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 py-2 text-[9px] font-semibold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-900/70">
+                           <Shield className="w-3 h-3 text-slate-500" /> View
                         </button>
                      </div>
                   </div>
@@ -83,41 +81,40 @@ export default function FriendsPage() {
             </div>
          </div>
 
-         {/* SOCIAL LOGS & RECENT INVITES */}
          <div className="col-span-3 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/40 space-y-6">
+            <div className="space-y-6 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-amber-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Interlink_Events</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Recent activity</span>
                </div>
                <div className="space-y-4">
                   {[
-                     { msg: "Incoming Link from VOID_X", type: "INVITE" },
-                     { msg: "ARCTICWOLF joined ARENA_1", type: "SYNC" },
-                     { msg: "Requesting PERM: LUNA", type: "ACCESS" },
+                     { msg: "Incoming link from Void X", type: "Invite" },
+                     { msg: "ArcticWolf joined Arena 1", type: "Sync" },
+                     { msg: "Permission requested for Luna", type: "Access" },
                   ].map((event, i) => (
-                     <div key={i} className="flex flex-col gap-1 border-l border-white/10 pl-4 py-1">
-                        <p className="text-[9px] text-white font-bold uppercase tracking-wider">{event.msg}</p>
-                        <p className="text-[8px] text-amber-500 uppercase font-black">{event.type}</p>
+                     <div key={i} className="flex flex-col gap-1 border-l border-slate-700/70 pl-4 py-1">
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-100">{event.msg}</p>
+                        <p className="text-[8px] font-semibold uppercase text-amber-600">{event.type}</p>
                      </div>
                   ))}
                </div>
             </div>
 
-            <div className="p-8 border border-white/10 bg-black/40 space-y-4">
+            <div className="space-y-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="flex items-center gap-2">
                   <Target className="w-4 h-4 text-emerald-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Global_Presence</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Presence</span>
                </div>
-               <div className="p-4 bg-slate-950 border border-white/5 flex flex-col items-center justify-center gap-2 text-center">
-                  <span className="text-[11px] text-white font-black uppercase tracking-widest italic">COMMANDER_VISIBLE</span>
-                  <div className="w-full h-1 bg-white/5 overflow-hidden">
-                     <div className="h-full bg-emerald-500 w-full animate-pulse" />
+               <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-4 text-center">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-100">Visible</span>
+                  <div className="h-1 w-full overflow-hidden bg-slate-200">
+                     <div className="h-full w-full animate-pulse bg-emerald-500" />
                   </div>
-                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em]">BROADCASTING NODE STATUS</span>
+                  <span className="text-[8px] font-semibold uppercase tracking-[0.2em] text-slate-500">Broadcasting status</span>
                </div>
-               <button className="w-full py-4 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">
-                  Go_Offline_Mask
+               <button className="w-full rounded-full border border-slate-700/70 bg-slate-900 py-4 text-[9px] font-semibold uppercase tracking-widest text-slate-300 transition-colors hover:bg-slate-900/70">
+                  Go offline
                </button>
             </div>
          </div>

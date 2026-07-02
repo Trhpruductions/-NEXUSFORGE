@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("nexusforgeDesktop", {
   getStartupHealth: () => ipcRenderer.invoke("nexusforge-desktop:get-startup-health"),
   getLocalStackStatus: () => ipcRenderer.invoke("nexusforge-desktop:get-local-stack-status"),
   getUpdateState: () => ipcRenderer.invoke("nexusforge-desktop:get-update-state"),
+  getPricingCatalog: () => ipcRenderer.invoke("nexusforge-desktop:get-pricing-catalog"),
   getDesktopPreferences: () => ipcRenderer.invoke("nexusforge-desktop:get-desktop-preferences"),
   updateDesktopPreferences: (patch) => ipcRenderer.invoke("nexusforge-desktop:update-desktop-preferences", patch),
   checkUpdatesNow: () => ipcRenderer.invoke("nexusforge-desktop:check-updates-now"),

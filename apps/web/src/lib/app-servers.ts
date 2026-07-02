@@ -11,6 +11,7 @@ export const appServerLinks: AppServerLink[] = [
   { label: "M", href: "/app/mining", title: "Industrial Mining", color: "text-nexus-cyan", glow: "shadow-nexus-cyan" },
   { label: "K", href: "/app/crypto", title: "Industrial Terminal", color: "text-nexus-purple", glow: "shadow-nexus-purple" },
   { label: "C", href: "/app/server", title: "Community Hub" },
+  { label: "CH", href: "/app/chat", title: "Forge Chat" },
   { label: "V", href: "/app/voice", title: "Voice Arena" },
   { label: "J", href: "/app/join", title: "Join Rooms" },
 ];

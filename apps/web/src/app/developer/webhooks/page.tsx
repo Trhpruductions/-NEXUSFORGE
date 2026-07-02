@@ -86,40 +86,40 @@ export default function DeveloperWebhooksPage() {
       maxWidthClassName="max-w-5xl"
     >
       {!isSignedIn ? (
-        <div className="rounded-none border border-slate-700/70 bg-slate-950/95 p-8 text-slate-300">Please sign in to configure webhooks.</div>
+        <div className="rounded-[28px] border border-slate-900/10 bg-white/85 p-8 text-slate-600 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">Please sign in to configure webhooks.</div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Register endpoint</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Create a webhook</h2>
-            <p className="mt-3 text-sm leading-7 text-slate-300">Enter your endpoint URL and choose the events you want delivered.</p>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Register endpoint</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Create a webhook</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600">Enter your endpoint URL and choose the events you want delivered.</p>
 
             <div className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-2 text-sm text-slate-600">
                 Endpoint URL
                 <input
                   value={url}
                   onChange={(event) => setUrl(event.target.value)}
                   placeholder="https://example.com/webhooks/nexusforge"
-                  className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-2 text-sm text-slate-600">
                 Description
                 <input
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="Bot command audit webhook"
-                  className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-300">
+              <label className="grid gap-2 text-sm text-slate-600">
                 Events
                 <input
                   value={events}
                   onChange={(event) => setEvents(event.target.value)}
                   placeholder="bot.command.executed, forge.joined"
-                  className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                  className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
                 <span className="text-xs text-slate-500">Comma-separated event names. Leave blank to receive all events.</span>
               </label>
@@ -127,17 +127,17 @@ export default function DeveloperWebhooksPage() {
                 type="button"
                 disabled={!url.trim() || createWebhookMutation.isPending}
                 onClick={() => void createWebhookMutation.mutateAsync()}
-                className="inline-flex h-12 items-center justify-center rounded-none bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {createWebhookMutation.isPending ? "Creating webhook..." : "Register webhook"}
               </button>
               {createdSecret ? (
-                <div className="rounded-none border border-emerald-500/20 bg-emerald-400/5 p-4 text-sm text-emerald-200">
+                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-emerald-100">Webhook secret</p>
-                      <p className="mt-2 break-all text-slate-100">{createdSecret}</p>
-                      <p className="mt-2 text-xs text-slate-400">Copy this secret now. It will not be shown again.</p>
+                      <p className="font-semibold text-emerald-900">Webhook secret</p>
+                      <p className="mt-2 break-all text-slate-900">{createdSecret}</p>
+                      <p className="mt-2 text-xs text-slate-500">Copy this secret now. It will not be shown again.</p>
                     </div>
                     <button
                       type="button"
@@ -151,7 +151,7 @@ export default function DeveloperWebhooksPage() {
                           window.setTimeout(() => setCreatedSecretCopyStatus("idle"), 2000);
                         }
                       }}
-                      className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                      className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                     >
                       {createdSecretCopyStatus === "copied"
                         ? "Copied"
@@ -168,36 +168,36 @@ export default function DeveloperWebhooksPage() {
             </div>
           </section>
 
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Registered webhooks</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Your webhook endpoints</h2>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Registered webhooks</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Your webhook endpoints</h2>
             <div className="mt-6 space-y-3">
               {webhooksQuery.isLoading ? (
-                <p className="text-sm text-slate-400">Loading your webhooks...</p>
+                <p className="text-sm text-slate-600">Loading your webhooks...</p>
               ) : webhooksQuery.data?.webhooks.length ? (
                 webhooksQuery.data.webhooks.map((webhook) => (
-                  <div key={webhook.id} className="rounded-none border border-slate-700/80 bg-slate-900/80 p-4">
+                  <div key={webhook.id} className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="font-semibold text-slate-100">{webhook.url}</p>
-                        <p className="mt-1 text-sm text-slate-400">{webhook.description ?? "No description provided."}</p>
+                        <p className="font-semibold text-slate-950">{webhook.url}</p>
+                        <p className="mt-1 text-sm text-slate-600">{webhook.description ?? "No description provided."}</p>
                         <p className="mt-2 text-xs text-slate-500">Events: {webhook.events.length ? webhook.events.join(", ") : "All events"}</p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-none px-3 py-1 text-xs uppercase tracking-[0.24em] ${webhook.enabled ? "bg-emerald-400/10 text-emerald-200 border border-emerald-400/20" : "bg-slate-800 text-slate-300 border border-slate-700/70"}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.24em] ${webhook.enabled ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-slate-900/10 bg-white text-slate-600"}`}>
                           {webhook.enabled ? "Enabled" : "Disabled"}
                         </span>
                         <button
                           type="button"
                           onClick={() => void toggleWebhookMutation.mutateAsync({ webhookId: webhook.id, enabled: !webhook.enabled })}
-                          className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                         >
                           {webhook.enabled ? "Disable" : "Enable"}
                         </button>
                         <button
                           type="button"
                           onClick={() => void testWebhookMutation.mutateAsync(webhook.id)}
-                          className="inline-flex h-10 items-center justify-center rounded-none border border-sky-500 bg-sky-500/10 px-4 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/20"
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-sky-200 bg-sky-50 px-4 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
                         >
                           Test
                         </button>
@@ -208,7 +208,7 @@ export default function DeveloperWebhooksPage() {
                               void deleteWebhookMutation.mutateAsync(webhook.id);
                             }
                           }}
-                          className="inline-flex h-10 items-center justify-center rounded-none border border-rose-500 bg-rose-500/10 px-4 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
                         >
                           Delete
                         </button>
@@ -216,12 +216,12 @@ export default function DeveloperWebhooksPage() {
                     </div>
                     <p className="mt-3 text-xs text-slate-500">Last updated {new Date(webhook.updatedAt).toLocaleString()}</p>
                     {testResults[webhook.id] ? (
-                      <p className="mt-2 text-xs text-slate-300">Test result: {testResults[webhook.id]}</p>
+                      <p className="mt-2 text-xs text-slate-600">Test result: {testResults[webhook.id]}</p>
                     ) : null}
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-400">No webhooks registered yet. Add one above to begin event delivery.</p>
+                  <p className="text-sm text-slate-600">No webhooks registered yet. Add one above to begin event delivery.</p>
               )}
             </div>
           </section>

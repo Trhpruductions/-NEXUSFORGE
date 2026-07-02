@@ -21,6 +21,7 @@ import {
   resolveEffectiveRole,
 } from "../lib/app-roles.js";
 import { getLaunchMode, setLaunchModeDesktopOnly } from "../lib/launch-mode.js";
+import { getRemotePricingCatalog } from "../lib/pricing-catalog-client.js";
 import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
@@ -450,6 +451,10 @@ adminRouter.get("/revenue", async (_req, res) => {
     }
   }
 
+  const pricingCatalog = await getRemotePricingCatalog();
+  const paidFeatureLabels = pricingCatalog?.paidFeatureLabels ?? {};
+  const paidFeaturePrices = pricingCatalog?.paidFeaturePrices ?? {};
+
   res.json({
     revenue: {
       last30DaysCents: revenueCents,
@@ -461,6 +466,8 @@ adminRouter.get("/revenue", async (_req, res) => {
     tierDistribution,
     featureRevenue: transactionByFeature.map((row) => ({
       featureCode: row.featureCode,
+      featureLabel: paidFeatureLabels[row.featureCode] ?? row.featureCode,
+      priceLabel: paidFeaturePrices[row.featureCode] ?? null,
       revenueCents: row._sum.amountCents ?? 0,
       transactions: row._count._all,
     })),

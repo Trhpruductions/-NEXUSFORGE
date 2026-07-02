@@ -45,7 +45,7 @@ export default function AdminPage() {
         ]}
         maxWidthClassName="max-w-7xl"
       >
-        <div className="nexus-display-panel rounded-none p-5 text-slate-200">Loading authentication status...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading authentication status...</div>
       </ExperienceShell>
     );
   }
@@ -85,8 +85,8 @@ export default function AdminPage() {
         actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]}
         maxWidthClassName="max-w-7xl"
       >
-        <div className="nexus-display-panel rounded-none p-5 text-sm text-slate-300">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Restricted Access</p>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-600">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Restricted Access</p>
           <p className="mt-2">Your current account lacks admin privileges.</p>
         </div>
       </ExperienceShell>
@@ -104,7 +104,7 @@ export default function AdminPage() {
         { label: "Pending Reviews", value: String(pendingAgeGateCount), tone: pendingAgeGateCount > 0 ? "amber" : "emerald" },
       ]}
       actions={[
-        { label: "Open Command Center", href: "/app", tone: "ghost" },
+        { label: "Open Workspace", href: "/app", tone: "ghost" },
         { label: `Age Gate Review${pendingAgeGateCount > 0 ? ` (${pendingAgeGateCount})` : ""}` , href: "/admin/age-gate-review", tone: "primary" },
         { label: "Review Notifications", href: "/notifications", tone: "ghost" },
       ]}

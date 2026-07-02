@@ -23,19 +23,19 @@ export default function DesktopOnlyPage() {
       maxWidthClassName="max-w-4xl"
     >
 
-        <section className="nexus-display-panel rounded-none p-5 text-sm text-slate-200">
-          <p className="text-xs uppercase tracking-[0.22em] text-amber-300">Current Status</p>
+        <section className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 text-sm text-slate-600 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
+          <p className="text-xs uppercase tracking-[0.22em] text-amber-600">Current Status</p>
           <p className="mt-2">
             Desktop access is {desktopOnlyEnabled ? "ENABLED" : "DISABLED"}. When you are ready to reopen web access,
-            set <span className="font-semibold text-amber-100">NEXUSFORGE_DESKTOP_ONLY=false</span> and redeploy the web app.
+            set <span className="font-semibold text-amber-700">NEXUSFORGE_DESKTOP_ONLY=false</span> and redeploy the web app.
           </p>
-          <div className="mt-4 rounded-none border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">
+          <div className="mt-4 rounded-[22px] border border-slate-900/10 bg-slate-50 p-3 text-xs text-slate-500">
             Desktop users should open NexusForge through the Electron app launcher.
           </div>
           <div className="mt-4">
             <Link
               href="/"
-              className="inline-flex h-10 items-center rounded-none border border-slate-700 bg-slate-900 px-4 font-semibold text-slate-100"
+              className="inline-flex h-10 items-center rounded-full border border-slate-900/10 bg-white px-4 font-semibold text-slate-900 hover:bg-slate-50"
             >
               Refresh Status
             </Link>

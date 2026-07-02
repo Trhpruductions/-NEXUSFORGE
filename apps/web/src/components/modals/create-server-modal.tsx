@@ -99,24 +99,23 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose} />
+         <div className="absolute inset-0 bg-slate-700/35 backdrop-blur-md" onClick={onClose} />
       
-      <div className="relative w-full max-w-4xl border border-white/10 bg-black flex flex-col shadow-[0_0_100px_rgba(0,0,0,1)] overflow-hidden">
-        {/* MODAL HEADER */}
-        <div className="p-8 border-b border-white/5 bg-white/5 flex items-center justify-between">
+      <div className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-slate-900/10 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+        <div className="flex items-center justify-between border-b border-slate-900/5 bg-slate-50 p-8">
            <div className="space-y-2">
               <div className="flex items-center gap-3">
-                 <div className="w-8 h-1 bg-amber-500" />
-                 <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Node_Initialization_v1.0</span>
+                 <div className="h-1 w-8 rounded-full bg-amber-400" />
+                 <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-slate-500">Node initialization</span>
               </div>
-              <h2 className="text-3xl font-black uppercase text-white italic tracking-tighter">
-                 Forge_Sequence_Start
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-950">
+                 Create a new forge
               </h2>
            </div>
            <button 
              onClick={onClose} 
              title="Close Modal"
-             className="p-2 text-slate-500 hover:text-white transition-colors"
+             className="p-2 text-slate-500 transition-colors hover:text-slate-900"
            >
               <X className="w-8 h-8 font-thin" />
            </button>
@@ -124,27 +123,27 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
 
         <div className="flex-1 overflow-y-auto max-h-[70vh]">
           {step === "template" ? (
-            <div className="p-8 space-y-8">
+            <div className="space-y-8 p-8">
                <div className="flex items-center gap-3">
                   <Terminal className="w-4 h-4 text-slate-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Select_Cluster_Template</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Select a template</span>
                </div>
-               <div className="grid grid-cols-2 gap-1">
+               <div className="grid grid-cols-2 gap-4">
                   {templates.map((tpl) => (
                     <button 
                       key={tpl.id}
                       onClick={() => { setSelectedTemplate(tpl.id); setStep("details"); }}
-                      className="p-8 border border-white/5 bg-white/2 hover:bg-white/5 group transition-all text-left space-y-6"
+                      className="group space-y-6 rounded-[28px] border border-slate-900/10 bg-slate-50 p-8 text-left transition-colors hover:bg-white"
                     >
                        <div className="flex justify-between items-start">
-                          <div className="w-12 h-12 border border-white/10 bg-slate-950 flex items-center justify-center group-hover:border-amber-500/50 transition-all">
-                             <tpl.icon className="w-5 h-5 text-slate-400 group-hover:text-amber-500" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-900/10 bg-white transition-all group-hover:border-amber-200">
+                             <tpl.icon className="w-5 h-5 text-slate-500 group-hover:text-amber-600" />
                           </div>
-                          <span className="text-[9px] text-slate-600 font-mono italic group-hover:text-amber-500">{tpl.code}</span>
+                          <span className="text-[9px] font-mono italic text-slate-500 group-hover:text-amber-600">{tpl.code}</span>
                        </div>
                        <div className="space-y-1">
-                          <h4 className="text-xl font-black text-white uppercase italic tracking-tighter">{tpl.label}</h4>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed">
+                          <h4 className="text-xl font-semibold tracking-tight text-slate-950">{tpl.label.replace(/_/g, " ")}</h4>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest leading-relaxed text-slate-500">
                              {tpl.description}
                           </p>
                        </div>
@@ -153,53 +152,53 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                </div>
             </div>
           ) : (
-            <div className="p-8 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-12 p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                <div className="space-y-8">
                   <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Node_Identification_String</label>
+                     <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Forge name</label>
                      <input 
                         autoFocus
                         value={serverName}
                         onChange={(e) => setServerName(e.target.value)}
-                        placeholder="ENTER_FORGE_NAME..."
-                        className="w-full bg-slate-950 border border-white/10 p-6 text-2xl font-black text-white uppercase italic tracking-tighter placeholder:text-slate-800 outline-none focus:border-amber-500/50 transition-all"
+                        placeholder="Enter forge name..."
+                        className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-2xl font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                      />
                   </div>
                   <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Description_Metadata (OPTIONAL)</label>
+                     <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Description (optional)</label>
                      <textarea 
                         value={serverDescription}
                         onChange={(e) => setServerDescription(e.target.value)}
-                        placeholder="DEFINE_SCOPE_AND_PARAMETERS..."
-                        className="w-full bg-slate-950 border border-white/10 p-6 text-lg font-black text-white uppercase italic tracking-tighter placeholder:text-slate-800 outline-none focus:border-amber-500/50 transition-all h-32 resize-none"
+                        placeholder="Describe the workspace..."
+                        className="h-32 w-full resize-none rounded-[24px] border border-slate-900/10 bg-white p-6 text-lg font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                      />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Icon_Vector_URL</label>
+                      <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Icon URL</label>
                       <input 
                           value={serverIcon}
                           onChange={(e) => setServerIcon(e.target.value)}
-                          placeholder="HTTPS://..."
-                          className="w-full bg-slate-950 border border-white/10 p-6 text-sm font-black text-white uppercase italic tracking-tighter placeholder:text-slate-800 outline-none focus:border-amber-500/50 transition-all"
+                          placeholder="https://..."
+                          className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                       />
                     </div>
                     <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Banner_Visual_URL</label>
+                      <label className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">Banner URL</label>
                       <input 
                           value={serverBanner}
                           onChange={(e) => setServerBanner(e.target.value)}
-                          placeholder="HTTPS://..."
-                          className="w-full bg-slate-950 border border-white/10 p-6 text-sm font-black text-white uppercase italic tracking-tighter placeholder:text-slate-800 outline-none focus:border-amber-500/50 transition-all"
+                          placeholder="https://..."
+                          className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                       />
                     </div>
                   </div>
                </div>
 
                {submitError && (
-                  <div className="p-4 bg-rose-500/10 border border-rose-500/30">
-                     <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest flex items-center gap-2">
+                  <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
+                     <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-rose-600">
                         <X className="w-3 h-3" /> {submitError}
                      </p>
                   </div>
@@ -208,38 +207,36 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
           )}
         </div>
 
-        {/* MODAL FOOTER */}
-        <div className="p-8 bg-black border-t border-white/5 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-slate-900/5 bg-slate-50 p-8">
            <div className="flex items-center gap-6">
               {step === "details" && (
-                <button onClick={() => setStep("template")} className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">
-                   GO_BACK
+                <button onClick={() => setStep("template")} className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:text-slate-900">
+                   Go back
                 </button>
               )}
-              <div className="flex items-center gap-2 text-slate-700">
+              <div className="flex items-center gap-2 text-slate-600">
                  <ShieldCheck className="w-4 h-4" />
-                 <span className="text-[8px] font-black uppercase tracking-widest italic">Encryption_Active</span>
+                 <span className="text-[8px] font-semibold uppercase tracking-widest italic">Encryption active</span>
               </div>
            </div>
            
            <div className="flex items-center gap-4">
-              <button onClick={onClose} className="px-8 py-4 border border-white/10 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all">
-                 ABORT
+              <button onClick={onClose} className="rounded-full border border-slate-900/10 bg-white px-8 py-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:bg-slate-50">
+                 Abort
               </button>
               {step === "details" && (
                 <button 
                   onClick={executeInitialization}
-                  className="px-10 py-4 bg-amber-500 text-black text-[11px] font-black uppercase tracking-[0.2em] hover:bg-amber-400 transition-all flex items-center gap-2"
+                           className="flex items-center gap-2 rounded-full bg-amber-500 px-10 py-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-950 transition-colors hover:bg-amber-400"
                 >
-                   Finalize_Initialization <ArrowRight className="w-4 h-4" />
+                   Create forge <ArrowRight className="w-4 h-4" />
                 </button>
               )}
            </div>
         </div>
 
-        {/* DECORATIVE CORNER CODES */}
-        <div className="absolute bottom-4 right-4 opacity-10 pointer-events-none select-none">
-           <Cpu className="w-32 h-32 text-white" />
+        <div className="pointer-events-none absolute bottom-4 right-4 select-none opacity-10">
+           <Cpu className="w-32 h-32 text-slate-400" />
         </div>
       </div>
     </div>

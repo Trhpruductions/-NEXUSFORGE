@@ -30,13 +30,13 @@ export function GlobalNotificationCenter() {
   const getColors = (type: string) => {
     switch (type) {
       case "error":
-        return "border-rose-500/45 bg-rose-950/35 text-rose-100";
+        return "border-rose-200 bg-rose-50 text-rose-700";
       case "success":
-        return "border-amber-500/45 bg-amber-950/35 text-amber-100";
+        return "border-amber-200 bg-amber-50 text-amber-700";
       case "update":
-        return "border-amber-500/45 bg-amber-950/35 text-amber-100";
+        return "border-amber-200 bg-amber-50 text-amber-700";
       default:
-        return "border-slate-700 bg-slate-900/75 text-slate-200";
+        return "border-slate-900/10 bg-white text-slate-700";
     }
   };
 
@@ -74,11 +74,11 @@ export function GlobalNotificationCenter() {
   return (
     <div className="pointer-events-none fixed right-4 top-24 z-[120] flex max-h-screen w-[min(90vw,420px)] flex-col gap-2 overflow-y-auto">
       {updateMessage && !desktopUpdateBannerActive && (
-        <div className={`pointer-events-auto rounded-none border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors("update")}`}>
+        <div className={`pointer-events-auto rounded-[20px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.18)] backdrop-blur ${getColors("update")}`}>
           <div className="flex items-start gap-3">
-            <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-amber-400" />
+            <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-amber-500" />
             <div className="flex-1">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">Desktop Update Center</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Desktop Update Center</p>
               <p className="mt-1 text-sm font-medium">{updateMessage}</p>
             </div>
             <button
@@ -86,7 +86,7 @@ export function GlobalNotificationCenter() {
                 // Update will clear from updateState
               }}
               aria-label="Dismiss update notification"
-              className="flex-shrink-0 text-slate-400 hover:text-slate-200"
+              className="flex-shrink-0 text-slate-400 hover:text-slate-700"
             >
               <X size={16} />
             </button>
@@ -97,7 +97,7 @@ export function GlobalNotificationCenter() {
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`pointer-events-auto rounded-none border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors(notification.type)}`}
+          className={`pointer-events-auto rounded-[20px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.18)] backdrop-blur ${getColors(notification.type)}`}
         >
           <div className="flex items-start gap-3">
             {getIcon(notification.type)}
@@ -120,7 +120,7 @@ export function GlobalNotificationCenter() {
               <button
                 onClick={() => removeNotification(notification.id)}
                 aria-label="Dismiss notification"
-                className="flex-shrink-0 text-slate-400 hover:text-slate-200"
+                className="flex-shrink-0 text-slate-400 hover:text-slate-700"
               >
                 <X size={16} />
               </button>

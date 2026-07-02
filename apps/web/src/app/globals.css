@@ -1,18 +1,13 @@
 @import "tailwindcss";
 
-/* INDUSTRIAL GEOMETRIC OVERRIDE */
-* {
-  border-radius: 0 !important;
-}
-
 :root {
-  --background: #050b16;
-  --foreground: #eef6ff;
-  --surface: rgba(9, 17, 31, 0.72);
-  --surface-strong: rgba(6, 12, 24, 0.9);
-  --surface-soft: rgba(15, 23, 42, 0.5);
-  --border-soft: rgba(255, 255, 255, 0.08); /* Sharpened from slate */
-  --border-strong: rgba(255, 184, 108, 0.18);
+  --background: #030813;
+  --foreground: #e8f0ff;
+  --surface: rgba(7, 14, 27, 0.74);
+  --surface-strong: rgba(5, 10, 20, 0.92);
+  --surface-soft: rgba(11, 20, 36, 0.56);
+  --border-soft: rgba(148, 163, 184, 0.22);
+  --border-strong: rgba(56, 189, 248, 0.34);
   
   /* VIBRANT NEXUS PALETTE */
   --nexus-cyan: #00f2ff;
@@ -21,13 +16,13 @@
   --nexus-purple: #a855f7;
   --nexus-vibrant-glow: rgba(0, 242, 255, 0.5);
 
-  --button-top: rgba(255, 204, 58, 0.98);
-  --button-mid: rgba(231, 109, 56, 0.94);
-  --button-bottom: rgba(190, 34, 46, 0.94);
-  --button-ink: #1f130b;
-  --mood-a: rgba(255, 184, 108, 0.16);
-  --mood-b: rgba(196, 34, 50, 0.12);
-  --mood-c: rgba(255, 121, 63, 0.08);
+  --button-top: rgba(56, 189, 248, 0.98);
+  --button-mid: rgba(59, 130, 246, 0.94);
+  --button-bottom: rgba(190, 24, 93, 0.9);
+  --button-ink: #050a14;
+  --mood-a: rgba(56, 189, 248, 0.2);
+  --mood-b: rgba(99, 102, 241, 0.16);
+  --mood-c: rgba(190, 24, 93, 0.12);
 }
 
 html[data-theme-mode="command"] {
@@ -103,7 +98,6 @@ html[data-theme-mode="admin"] {
 
 .no-scrollbar {
   -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 html,
@@ -125,10 +119,10 @@ body,
 
 body {
   background:
-    radial-gradient(circle at 10% 0%, rgba(0, 242, 255, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(255, 46, 77, 0.1), transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.08), transparent 50%),
-    linear-gradient(165deg, #050b16 0%, #081223 50%, #03070f 100%);
+    radial-gradient(circle at 12% 4%, rgba(56, 189, 248, 0.14), transparent 34%),
+    radial-gradient(circle at 86% 14%, rgba(244, 63, 94, 0.1), transparent 32%),
+    radial-gradient(circle at 44% 65%, rgba(99, 102, 241, 0.08), transparent 42%),
+    linear-gradient(165deg, #030813 0%, #071124 46%, #02050d 100%);
   color: var(--foreground);
   font-family: var(--font-exo), sans-serif;
   height: 100dvh;
@@ -145,30 +139,24 @@ body {
 body::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  background-size: 100% 2px, 3px 100%;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
   pointer-events: none;
-  z-index: 9999;
-  opacity: 0.15;
+  z-index: 0;
+  opacity: 0.22;
 }
 
 body::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url("https://grainy-gradients.vercel.app/noise.svg");
-  filter: contrast(170%) brightness(1000%) invert(100%);
-  mix-blend-mode: screen;
+  inset: 0;
+  background: radial-gradient(circle at 60% 30%, rgba(14, 165, 233, 0.12), transparent 38%);
   pointer-events: none;
-  z-index: 9998;
-  opacity: 0.03;
+  z-index: 0;
+  opacity: 0.4;
 }
 
 ::selection {
@@ -357,6 +345,187 @@ select:focus-visible {
 .nexus-shell > * {
   position: relative;
   z-index: 1;
+}
+
+.nf-heading {
+  font-family: var(--font-orbitron), var(--font-exo), sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.nf-nav-label {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 650;
+}
+
+.nf-control {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(100, 116, 139, 0.42);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.88), rgba(9, 14, 28, 0.88));
+  color: #dbeafe;
+}
+
+.nf-interact {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease, color 220ms ease;
+}
+
+.nf-interact:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 10px 28px rgba(8, 47, 73, 0.35);
+}
+
+.nf-interact:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.nf-panel-modern {
+  border: 1px solid rgba(100, 116, 139, 0.4);
+  background: linear-gradient(165deg, rgba(2, 6, 23, 0.86), rgba(10, 17, 33, 0.82));
+  box-shadow: 0 20px 46px rgba(2, 6, 23, 0.4);
+}
+
+.nf-content-rhythm {
+  --nf-space-xs: clamp(0.35rem, 0.25rem + 0.35vw, 0.55rem);
+  --nf-space-sm: clamp(0.6rem, 0.45rem + 0.55vw, 0.9rem);
+  --nf-space-md: clamp(0.9rem, 0.7rem + 0.8vw, 1.35rem);
+  --nf-space-lg: clamp(1.25rem, 1rem + 1.2vw, 2rem);
+}
+
+.nf-type-eyebrow {
+  font-size: clamp(0.58rem, 0.52rem + 0.2vw, 0.72rem);
+  line-height: 1.35;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.nf-type-title {
+  font-size: clamp(1.55rem, 1.15rem + 1.3vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+
+.nf-type-subtitle {
+  font-size: clamp(0.78rem, 0.68rem + 0.35vw, 0.94rem);
+  line-height: 1.62;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nf-type-body {
+  font-size: clamp(0.84rem, 0.76rem + 0.28vw, 0.98rem);
+  line-height: 1.65;
+}
+
+.nf-motion-rise {
+  opacity: 0;
+  transform: translateY(18px) scale(0.992);
+}
+
+.nf-stagger > * {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.nf-delay-40 {
+  animation-delay: 40ms;
+}
+
+.nf-delay-80 {
+  animation-delay: 80ms;
+}
+
+.nf-delay-120 {
+  animation-delay: 120ms;
+}
+
+.nf-delay-160 {
+  animation-delay: 160ms;
+}
+
+.nf-delay-180 {
+  animation-delay: 180ms;
+}
+
+.nf-delay-220 {
+  animation-delay: 220ms;
+}
+
+.nf-stagger-base-60 {
+  --nf-stagger-base: 60ms;
+}
+
+.nf-stagger-base-110 {
+  --nf-stagger-base: 110ms;
+}
+
+.nf-stagger-base-120 {
+  --nf-stagger-base: 120ms;
+}
+
+.nf-stagger-item-0 {
+  --nf-stagger-index: 0;
+}
+
+.nf-stagger-item-1 {
+  --nf-stagger-index: 1;
+}
+
+.nf-stagger-item-2 {
+  --nf-stagger-index: 2;
+}
+
+.nf-stagger-item-3 {
+  --nf-stagger-index: 3;
+}
+
+.nf-stagger-item-4 {
+  --nf-stagger-index: 4;
+}
+
+.nf-stagger-item-5 {
+  --nf-stagger-index: 5;
+}
+
+.nf-stagger-item-6 {
+  --nf-stagger-index: 6;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nf-motion-rise {
+    animation: nf-rise-in 560ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, opacity;
+  }
+
+  .nf-stagger > * {
+    animation: nf-rise-in 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation-delay: calc(var(--nf-stagger-index, 0) * 70ms + var(--nf-stagger-base, 0ms));
+    will-change: transform, opacity;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-motion-rise,
+  .nf-stagger > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+@keyframes nf-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .hero-highlight-card {
@@ -2408,6 +2577,269 @@ picture {
   box-shadow: 0 0 25px rgba(251, 191, 36, 0.1);
   color: #fff;
   transform: translateY(-1px);
+}
+
+/* Final visual-pop overrides */
+:root {
+  --background: #020611;
+  --foreground: #eef6ff;
+  --border-strong: rgba(56, 189, 248, 0.5);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.2), transparent 28%),
+    radial-gradient(circle at 90% 12%, rgba(244, 63, 94, 0.14), transparent 26%),
+    radial-gradient(circle at 50% 78%, rgba(99, 102, 241, 0.14), transparent 36%),
+    linear-gradient(166deg, #020611 0%, #071127 44%, #040816 100%);
+}
+
+body::before {
+  opacity: 0.28;
+  background-size: 24px 24px;
+}
+
+body::after {
+  opacity: 0.58;
+  background:
+    radial-gradient(circle at 60% 24%, rgba(56, 189, 248, 0.18), transparent 34%),
+    radial-gradient(circle at 28% 72%, rgba(244, 63, 94, 0.1), transparent 30%);
+}
+
+.nf-heading {
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.2);
+}
+
+.nf-type-title {
+  letter-spacing: -0.018em;
+  text-shadow: 0 0 22px rgba(56, 189, 248, 0.16);
+}
+
+.nf-panel-modern,
+.nexus-panel-strong,
+.glass-cut {
+  border-color: rgba(71, 85, 105, 0.6);
+  background:
+    linear-gradient(162deg, rgba(3, 8, 22, 0.92), rgba(9, 16, 34, 0.86));
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.14),
+    0 24px 56px rgba(2, 6, 23, 0.5),
+    0 0 0 1px rgba(56, 189, 248, 0.06);
+}
+
+.nf-panel-modern:hover,
+.nexus-panel-strong:hover,
+.glass-cut:hover {
+  border-color: rgba(56, 189, 248, 0.56);
+  box-shadow:
+    inset 0 1px 0 rgba(148, 163, 184, 0.18),
+    0 28px 64px rgba(2, 6, 23, 0.56),
+    0 0 26px rgba(56, 189, 248, 0.18);
+}
+
+.nf-control {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: linear-gradient(155deg, rgba(13, 24, 45, 0.9), rgba(8, 14, 28, 0.9));
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.18), 0 14px 30px rgba(8, 47, 73, 0.24);
+}
+
+.nf-interact {
+  transition:
+    transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease,
+    color 220ms ease,
+    filter 220ms ease;
+}
+
+.nf-interact:hover {
+  transform: translateY(-2px) scale(1.01);
+  border-color: rgba(56, 189, 248, 0.62);
+  box-shadow: 0 14px 34px rgba(8, 47, 73, 0.42), 0 0 24px rgba(56, 189, 248, 0.2);
+  filter: saturate(1.08);
+}
+
+.nf-interact:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.command-halo {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.22), transparent 34%),
+    radial-gradient(circle at 78% 16%, rgba(244, 63, 94, 0.16), transparent 30%);
+  filter: blur(26px);
+  opacity: 0.8;
+}
+
+.forge-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(251, 146, 60, 0.38);
+  background:
+    linear-gradient(160deg, rgba(6, 10, 20, 0.92) 0%, rgba(10, 14, 27, 0.9) 52%, rgba(6, 9, 18, 0.94) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(251, 191, 36, 0.07),
+    0 20px 44px rgba(2, 6, 23, 0.52),
+    0 0 30px rgba(251, 113, 133, 0.14);
+}
+
+.forge-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(251, 113, 133, 0.16), transparent 36%),
+    radial-gradient(circle at 84% 8%, rgba(251, 191, 36, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 32%);
+}
+
+.forge-frame::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.forge-panel {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(155deg, rgba(11, 17, 32, 0.9), rgba(9, 13, 24, 0.92));
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.16), 0 16px 34px rgba(2, 6, 23, 0.45);
+}
+
+.forge-panel:hover {
+  border-color: rgba(251, 146, 60, 0.5);
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.2), 0 18px 38px rgba(2, 6, 23, 0.52), 0 0 26px rgba(251, 113, 133, 0.12);
+}
+
+.forge-chip {
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  background: linear-gradient(140deg, rgba(251, 146, 60, 0.24), rgba(244, 63, 94, 0.2));
+  color: #ffe9cf;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.26);
+}
+
+.forge-btn-primary {
+  border: 1px solid rgba(251, 191, 36, 0.56);
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 60%, #b91c1c 100%);
+  color: #fff8ea;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.forge-btn-primary:hover {
+  filter: saturate(1.12) brightness(1.06);
+  box-shadow: 0 16px 36px rgba(239, 68, 68, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.forge-btn-secondary {
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.86), rgba(12, 18, 32, 0.9));
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.forge-btn-secondary:hover {
+  border-color: rgba(251, 146, 60, 0.52);
+  color: #fff;
+}
+
+@keyframes scanlineDriftCinematic {
+  0% {
+    transform: translateY(0px);
+  }
+  100% {
+    transform: translateY(22px);
+  }
+}
+
+@keyframes particleDrift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.44;
+  }
+  50% {
+    transform: translate3d(5px, -8px, 0);
+    opacity: 0.66;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.44;
+  }
+}
+
+.cinematic-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.cinematic-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 15% 6%, rgba(244, 63, 94, 0.16), transparent 30%),
+    radial-gradient(circle at 82% 8%, rgba(251, 191, 36, 0.13), transparent 28%),
+    radial-gradient(circle at 50% 92%, rgba(56, 189, 248, 0.08), transparent 38%);
+}
+
+.cinematic-stage::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  z-index: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 100% 6px;
+  opacity: 0.16;
+  animation: scanlineDriftCinematic 6s linear infinite;
+}
+
+.cinematic-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 14% 20%, rgba(251, 191, 36, 0.45) 1px, transparent 2px),
+    radial-gradient(circle at 70% 24%, rgba(248, 113, 113, 0.44) 1px, transparent 2px),
+    radial-gradient(circle at 40% 75%, rgba(56, 189, 248, 0.32) 1px, transparent 2px),
+    radial-gradient(circle at 88% 68%, rgba(251, 191, 36, 0.35) 1px, transparent 2px);
+  background-size: 280px 240px, 260px 260px, 320px 300px, 300px 280px;
+  animation: particleDrift 12s ease-in-out infinite;
+  opacity: 0.55;
+}
+
+.metal-corners {
+  position: relative;
+}
+
+.metal-corners::before,
+.metal-corners::after {
+  content: "";
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  border-color: rgba(251, 191, 36, 0.56);
+  filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.35));
+}
+
+.metal-corners::before {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.metal-corners::after {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
 }
 
 .nexus-card-interactive {

@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { listForges } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-import { LayoutGrid, Users, History, ArrowRight, Zap, Target, ShieldCheck, Cpu, Database } from "lucide-react";
+import { LayoutGrid, Users, History, ArrowRight, Sparkles, Target, ShieldCheck, Cpu, Database } from "lucide-react";
 
 const CreateServerModal = dynamic(
   () => import("@/components/modals/create-server-modal").then((mod) => ({ default: mod.CreateServerModal })),
@@ -15,10 +15,10 @@ const CreateServerModal = dynamic(
 );
 
 const fallbackServers = [
-  { name: "Apex Legion", online: 48, tag: "APX", integrity: 98 },
-  { name: "Nexus Prime", online: 32, tag: "NXS", integrity: 100 },
-  { name: "Outlaw Crew", online: 17, tag: "OTL", integrity: 94 },
-  { name: "Nightfall", online: 24, tag: "NIT", integrity: 99 },
+   { name: "Studio North", online: 48, tag: "NTH", integrity: 98 },
+   { name: "North Loop", online: 32, tag: "LOP", integrity: 100 },
+   { name: "Field Notes", online: 17, tag: "FLD", integrity: 94 },
+   { name: "Quiet Harbor", online: 24, tag: "HRB", integrity: 99 },
 ];
 
 export function AppHomeScreen() {
@@ -44,64 +44,63 @@ export function AppHomeScreen() {
   }, [forgesQuery.data]);
 
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: COMMANDER HUD OVERVIEW */}
-      <div className="p-8 border border-white/10 bg-black/60 flex items-center justify-between nexus-corner-tick relative overflow-hidden backdrop-blur-xl">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-nexus-cyan/5 blur-[100px] -z-10" />
+      <div className="cinematic-stage metal-corners flex flex-col gap-4 text-slate-100 nf-content-rhythm">
+         <div className="cinematic-particles" />
+      <div className="forge-frame relative rounded-[28px] p-8 backdrop-blur-xl">
+         <div className="absolute top-0 right-0 h-64 w-64 -z-10 blur-[110px] bg-rose-500/25" />
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-10 h-1 bg-nexus-gold shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
-               <span className="text-[11px] font-black text-nexus-gold uppercase tracking-[0.4em] nexus-text-pop">Comm_Center_v6.0</span>
+               <div className="h-1 w-10 rounded-full bg-amber-400 shadow-[0_0_14px_rgba(251,191,36,0.62)]" />
+               <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-amber-200/85">Command overview</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter drop-shadow-lg">
-               Commander_<span className="text-nexus-cyan nexus-text-vibrant">Dashboard</span>
+            <h1 className="text-4xl font-semibold tracking-tight text-slate-100 md:text-5xl">
+               Rise. Fight. <span className="text-amber-300">Conquer.</span>
             </h1>
          </div>
          <div className="flex gap-8">
             <div className="flex flex-col items-end">
-               <span className="text-[10px] text-nexus-purple font-black uppercase tracking-widest opacity-80">Global_Precision</span>
-               <span className="text-[13px] text-white font-black uppercase tracking-widest flex items-center gap-2 drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">
-                  <Target className="w-4 h-4 text-nexus-gold" /> 99.99%
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 opacity-90">Forge integrity</span>
+               <span className="flex items-center gap-2 text-[13px] font-semibold tracking-widest text-slate-100">
+                  <Target className="h-4 w-4 text-amber-500" /> 99.99%
                </span>
             </div>
-            <div className="w-px h-10 bg-white/10" />
+            <div className="h-10 w-px bg-slate-600/60" />
             <div className="flex flex-col items-end">
-               <span className="text-[10px] text-nexus-purple font-black uppercase tracking-widest opacity-80">Active_Sessions</span>
-               <span className="text-[13px] text-nexus-cyan font-black uppercase tracking-widest flex items-center gap-2 nexus-text-pop">
-                  <Users className="w-4 h-4" /> 12,504 NODES
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 opacity-90">Active operators</span>
+               <span className="flex items-center gap-2 text-[13px] font-semibold tracking-widest text-slate-100">
+                  <Users className="h-4 w-4 text-rose-400" /> 12,504
                </span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* LEFT COLUMN: CORE CHANNELS */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-12 lg:col-span-8 space-y-1">
-            <div className="p-14 border border-white/10 bg-black/60 relative overflow-hidden group nexus-corner-tick backdrop-blur-3xl">
-               <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none group-hover:opacity-[0.07] transition-opacity">
-                  <ShieldCheck className="w-80 h-80 text-nexus-gold" />
+            <div className="forge-frame relative rounded-[30px] p-10 backdrop-blur-3xl md:p-14">
+               <div className="pointer-events-none absolute top-0 right-0 p-12 opacity-[0.09] transition-opacity group-hover:opacity-[0.14]">
+                  <ShieldCheck className="h-80 w-80 text-rose-300" />
                </div>
                
                <div className="relative z-10 space-y-10">
-                  <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-nexus-gold/10 border border-nexus-gold/30 text-[10px] font-black text-nexus-gold uppercase tracking-widest nexus-text-pop">
-                     <Zap className="w-3 h-3 animate-pulse" /> Core_System_Initialized
+                  <div className="forge-chip inline-flex items-center gap-3 rounded-full px-4 py-1.5 text-[10px] font-semibold uppercase tracking-widest shadow-sm">
+                     <Sparkles className="h-3 w-3" /> Workspace ready
                   </div>
-                  <h2 className="text-7xl font-black text-white italic uppercase tracking-tighter max-w-xl leading-[0.85] drop-shadow-2xl">
-                     Initialize <br/> <span className="text-nexus-gold nexus-text-pop">Node_Protocols</span>
+                  <h2 className="max-w-xl text-5xl font-semibold tracking-tight text-slate-50 md:text-7xl md:leading-[0.9]">
+                     Enter the <br/> command <span className="text-amber-300">grid</span>
                   </h2>
-                  <p className="max-w-md text-[12px] text-slate-300 uppercase font-black leading-relaxed tracking-[0.12em] opacity-80">
-                     Your commander instance is currently synchronized with the primary grid. All communication lanes are secured with <span className="text-nexus-cyan">Nexus_Industrial</span> encryption.
+                  <p className="max-w-md text-sm leading-7 text-slate-300">
+                     Tactical operations, ranked progression, and social command channels now run inside a cinematic battle-console surface.
                   </p>
                   
                   <div className="flex gap-5">
-                     <Link href="/app/games" className="px-10 py-5 bg-nexus-gold text-black text-[12px] font-black uppercase tracking-[0.2em] hover:bg-white transition-all flex items-center gap-4 shadow-[0_10px_20px_-10px_rgba(251,191,36,0.4)] group">
-                        Deploy_Arenas <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                     <Link href="/app/games" className="forge-btn-primary nf-interact group inline-flex items-center gap-3 rounded-full px-6 py-3.5 text-[12px] font-semibold uppercase tracking-[0.18em] transition-transform hover:-translate-y-0.5">
+                        Join the battle <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                      </Link>
                      <button 
                         onClick={() => setIsCreateServerOpen(true)}
-                        className="px-10 py-5 border border-white/20 text-white text-[12px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all backdrop-blur-md"
+                        className="forge-btn-secondary nf-interact rounded-full px-6 py-3.5 text-[12px] font-semibold uppercase tracking-[0.18em] transition-colors"
                      >
-                        New_Server_Link
+                        Create war-room
                      </button>
                   </div>
                </div>
@@ -109,68 +108,67 @@ export function AppHomeScreen() {
 
             <div className="grid grid-cols-3 gap-1">
                {[
-                  { label: "Community", icon: Users, val: "1,245", sub: "Global_Members" },
-                  { label: "Assets", icon: Database, val: "4.2TB", sub: "Cloud_Sync_Data" },
-                  { label: "Core_Load", icon: Cpu, val: "12%", sub: "Processing_Idle" },
+                  { label: "Members", icon: Users, val: "1,245", sub: "online units" },
+                  { label: "Storage", icon: Database, val: "4.2TB", sub: "vault reserve" },
+                  { label: "Load", icon: Cpu, val: "12%", sub: "combat runtime" },
                ].map(stat => (
-                  <div key={stat.label} className="p-8 border border-white/10 bg-black/40 space-y-4">
-                     <stat.icon className="w-5 h-5 text-amber-500" />
+                  <div key={stat.label} className="forge-panel nf-interact space-y-4 rounded-[22px] p-6">
+                     <stat.icon className="h-5 w-5 text-amber-300" />
                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{stat.label}</p>
-                        <p className="text-2xl font-black text-white uppercase italic tracking-tighter">{stat.val}</p>
-                        <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest mt-1">{stat.sub}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{stat.label}</p>
+                        <p className="text-2xl font-semibold tracking-tight text-slate-100">{stat.val}</p>
+                        <p className="mt-1 text-[8px] font-semibold uppercase tracking-widest text-slate-500">{stat.sub}</p>
                      </div>
                   </div>
                ))}
             </div>
          </div>
 
-         {/* RIGHT COLUMN: CLUSTERS & LOGS */}
          <div className="col-span-12 lg:col-span-4 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/60 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] space-y-8 nexus-corner-tick backdrop-blur-3xl">
+            <div className="forge-frame space-y-8 rounded-[28px] p-8 backdrop-blur-3xl">
                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-nexus-gold drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]" />
-                  <span className="text-[11px] font-black text-white uppercase tracking-[0.3em] nexus-text-pop">Active_Clusters</span>
+                  <Users className="h-5 w-5 text-amber-300" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-300">Featured communities</span>
                </div>
                <div className="space-y-2">
                   {servers.map(server => (
-                     <div key={server.name} className="p-5 border border-white/5 bg-white/5 hover:bg-white/10 hover:border-nexus-gold/30 transition-all flex items-center justify-between cursor-pointer group nexus-corner-tick relative overflow-hidden">
-                        <div className="absolute inset-0 bg-nexus-gold/0 group-hover:bg-nexus-gold/[0.02] transition-colors" />
+                     <div key={server.name} className="forge-panel nf-interact group relative flex cursor-pointer items-center justify-between overflow-hidden rounded-2xl px-5 py-4 transition-colors">
+                        <div className="absolute inset-0 bg-amber-300/0 transition-colors group-hover:bg-amber-300/[0.05]" />
                         <div className="flex items-center gap-5 relative z-10">
-                           <div className="w-12 h-12 border border-white/10 bg-slate-900/80 flex items-center justify-center text-[11px] font-black group-hover:text-nexus-gold group-hover:border-nexus-gold/40 transition-all shadow-inner">
+                           <div className="flex h-12 w-12 items-center justify-center border border-slate-600/70 bg-slate-900/70 text-[11px] font-semibold text-slate-200 transition-all group-hover:border-amber-300/60 group-hover:text-amber-100 shadow-sm">
                               {server.tag}
                            </div>
                            <div>
-                              <p className="text-[11px] text-white font-black uppercase tracking-widest group-hover:nexus-text-gold transition-all">{server.name}</p>
-                              <p className="text-[9px] text-nexus-cyan font-bold uppercase tracking-widest opacity-80">{server.online} NODES_CONNECTED</p>
+                              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-100 transition-colors group-hover:text-amber-100">{server.name}</p>
+                              <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 opacity-90">{server.online} connected</p>
                            </div>
                         </div>
                         <div className="text-right relative z-10">
-                           <p className="text-[9px] text-nexus-purple font-black uppercase opacity-60">Integrity</p>
-                           <p className="text-[11px] text-emerald-400 font-black nexus-text-pop">{server.integrity}%</p>
+                           <p className="text-[9px] font-semibold uppercase opacity-70 text-slate-500">Integrity</p>
+                           <p className="text-[11px] font-semibold text-emerald-400">{server.integrity}%</p>
                         </div>
                      </div>
                   ))}
                </div>
-               <button className="w-full py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] border border-white/10 hover:border-nexus-gold/50 hover:text-nexus-gold hover:bg-nexus-gold/5 transition-all backdrop-blur-md">
-                  Browse_All_Clusters
+               <button className="forge-btn-secondary nf-interact w-full rounded-full py-4 text-[10px] font-semibold uppercase tracking-[0.3em] transition-colors">
+                  Browse all spaces
                </button>
             </div>
 
-            <div className="p-8 border border-white/10 bg-black/60 shadow-[inset_0_0_40px_rgba(0,0,0,0.4)] space-y-8 nexus-corner-tick backdrop-blur-3xl">
+            <div className="forge-frame space-y-8 rounded-[28px] p-8 backdrop-blur-3xl">
                <div className="flex items-center gap-3">
-                  <History className="w-5 h-5 text-nexus-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.3)]" />
-                  <span className="text-[11px] font-black text-white uppercase tracking-[0.3em] nexus-text-pop">Tactical_Logs</span>
+                  <History className="h-5 w-5 text-rose-300" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-300">Recent activity</span>
                </div>
                <div className="space-y-5">
                   {[
-                     { msg: "NODE_ALPHA connected to US_WEST", time: "2m ago", color: "border-nexus-cyan" },
-                     { msg: "BLOCK_UPDATE v2.1 synced", time: "14m ago", color: "border-nexus-gold" },
-                     { msg: "CORE_SECURITY heartbeat OK", time: "30m ago", color: "border-nexus-purple" },
+                     { msg: "North Loop shared a new update", time: "2m ago", color: "border-sky-400" },
+                     { msg: "Team summary synced", time: "14m ago", color: "border-amber-400" },
+                     { msg: "Workspace heartbeat is stable", time: "30m ago", color: "border-emerald-400" },
                   ].map((log, i) => (
-                     <div key={i} className={cn("flex flex-col gap-1.5 border-l-2 pl-5 py-2 group cursor-default transition-all hover:bg-white/5", log.color)}>
-                        <p className="text-[10px] text-white font-bold uppercase tracking-wider group-hover:text-nexus-cyan transition-colors">{log.msg}</p>
-                        <p className="text-[9px] text-slate-500 uppercase font-black opacity-60">{log.time}</p>
+                     <div key={i} className={cn("group flex cursor-default flex-col gap-1.5 border-l-2 py-2 pl-5 transition-all hover:bg-slate-800/20", log.color)}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-200 transition-colors group-hover:text-slate-100">{log.msg}</p>
+                        <p className="text-[9px] font-semibold uppercase opacity-70 text-slate-500">{log.time}</p>
                      </div>
                   ))}
                </div>

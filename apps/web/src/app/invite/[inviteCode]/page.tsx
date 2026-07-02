@@ -59,25 +59,25 @@ export default function InvitePage() {
     >
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-panel-glass rounded-none p-6">
+          <div className="nexus-panel-glass rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
             {isInviteLoading ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Invite Intake</p>
-                  <p className="mt-2 text-sm text-slate-300">Loading forge invite...</p>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Invite Intake</p>
+                  <p className="mt-2 text-sm text-slate-600">Loading forge invite...</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
+                  <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Owner</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">Resolving</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">Resolving</p>
                   </div>
-                  <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
+                  <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Members</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">Scanning</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">Scanning</p>
                   </div>
-                  <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
+                  <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
-                    <p className="mt-2 text-sm font-semibold text-amber-200">Fetching invite</p>
+                    <p className="mt-2 text-sm font-semibold text-amber-700">Fetching invite</p>
                   </div>
                 </div>
               </div>
@@ -91,17 +91,17 @@ export default function InvitePage() {
                       width={80}
                       height={80}
                       unoptimized
-                      className="h-20 w-20 rounded-none border border-amber-500/35 object-cover aspect-square"
+                      className="h-20 w-20 rounded-[18px] border border-amber-200 object-cover aspect-square"
                     />
                   ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-none border border-amber-500/35 bg-amber-950/35 text-2xl font-semibold text-amber-100">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-[18px] border border-amber-200 bg-amber-50 text-2xl font-semibold text-amber-700">
                       {invite.name.slice(0, 2).toUpperCase()}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">/{invite.inviteCode}</p>
-                    <h2 className="mt-2 break-words text-xl font-semibold text-slate-50 sm:text-2xl">{invite.name}</h2>
-                    <p className="mt-2 text-sm text-slate-300">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">/{invite.inviteCode}</p>
+                    <h2 className="mt-2 break-words text-xl font-semibold text-slate-950 sm:text-2xl">{invite.name}</h2>
+                    <p className="mt-2 text-sm text-slate-600">
                       {invite.description ?? "No public description has been added for this forge yet."}
                     </p>
                   </div>
@@ -114,62 +114,62 @@ export default function InvitePage() {
                     width={1200}
                     height={352}
                     unoptimized
-                    className="mt-5 h-44 w-full rounded-none border border-slate-700/80 object-cover"
+                    className="mt-5 h-44 w-full rounded-[22px] border border-slate-900/10 object-cover"
                   />
                 ) : null}
 
                 <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-3">
-                  <div className="nexus-metric-card rounded-none p-4">
+                  <div className="nexus-metric-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Owner</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">{invite.owner.username}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">{invite.owner.username}</p>
                   </div>
-                  <div className="nexus-metric-card rounded-none p-4">
+                  <div className="nexus-metric-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Members</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">{invite.memberCount}</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">{invite.memberCount}</p>
                   </div>
-                  <div className="nexus-metric-card rounded-none p-4">
+                  <div className="nexus-metric-card rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Created</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
                       {new Date(invite.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  <div className="nexus-display-panel rounded-none p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Invite Views</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">{invite.inviteViewCount}</p>
-                    <p className="mt-1 text-xs text-slate-400">
+                  <div className="nexus-display-panel rounded-[20px] p-4">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-amber-700">Invite Views</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">{invite.inviteViewCount}</p>
+                    <p className="mt-1 text-xs text-slate-500">
                       Last viewed {invite.inviteLastViewedAt ? new Date(invite.inviteLastViewedAt).toLocaleString() : "not yet"}
                     </p>
                   </div>
-                  <div className="nexus-display-panel rounded-none p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Invite Joins</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-100">{invite.inviteJoinCount}</p>
-                    <p className="mt-1 text-xs text-slate-400">
+                  <div className="nexus-display-panel rounded-[20px] p-4">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-amber-700">Invite Joins</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">{invite.inviteJoinCount}</p>
+                    <p className="mt-1 text-xs text-slate-500">
                       Last joined {invite.inviteLastJoinedAt ? new Date(invite.inviteLastJoinedAt).toLocaleString() : "not yet"}
                     </p>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="nexus-display-panel rounded-none p-5 text-sm text-slate-300">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Invite Unavailable</p>
+              <div className="nexus-display-panel rounded-[20px] p-5 text-sm text-slate-600">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-700">Invite Unavailable</p>
                 <p className="mt-2">This invite is not active right now. Ask the forge owner for a fresh invite link.</p>
-                {errorMessage ? <p className="mt-2 text-rose-300">{errorMessage}</p> : null}
+                {errorMessage ? <p className="mt-2 text-rose-600">{errorMessage}</p> : null}
               </div>
             )}
           </div>
 
-          <div className="nexus-panel-glass rounded-none p-6">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Join Flow</p>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
+          <div className="nexus-panel-glass rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-700">Join Flow</p>
+            <div className="mt-4 space-y-3 text-sm text-slate-600">
               <p>
                 {hydrated && user
                   ? `Signed in as ${user.username}. Join immediately and drop into the desktop workspace.`
                   : "Sign in or register to accept this invite and attach the forge to your account."}
               </p>
-              {errorMessage ? <p className="text-rose-300">{errorMessage}</p> : null}
+              {errorMessage ? <p className="text-rose-600">{errorMessage}</p> : null}
             </div>
 
             <div className="mt-5 grid gap-3">
@@ -186,13 +186,13 @@ export default function InvitePage() {
                 <>
                   <Link
                     href={`/login?redirect=${redirectParam}`}
-                    className="nexus-button-primary inline-flex h-11 w-full items-center justify-center rounded-none px-5 text-sm font-semibold text-slate-950"
+                    className="nexus-button-primary inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-slate-950"
                   >
                     Sign In To Join
                   </Link>
                   <Link
                     href={`/register?redirect=${redirectParam}`}
-                    className="nexus-button-secondary inline-flex h-11 w-full items-center justify-center rounded-none px-5 text-sm font-semibold text-slate-100"
+                    className="nexus-button-secondary inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-slate-700"
                   >
                     Create Account
                   </Link>
@@ -201,9 +201,9 @@ export default function InvitePage() {
 
               <Link
                 href="/app"
-                className="nexus-outline-button inline-flex h-11 w-full items-center justify-center rounded-none px-5 text-sm font-semibold text-slate-100"
+                className="nexus-outline-button inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-slate-700"
               >
-                Open Command Center
+                Open Workspace
               </Link>
             </div>
           </div>

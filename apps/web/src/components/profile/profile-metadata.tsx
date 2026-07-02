@@ -41,22 +41,22 @@ export function ProfileMetadata({ user }: { user: User }) {
   };
 
   return (
-    <section className="nexus-display-panel mb-8 rounded-none p-5 sm:p-6">
+    <section className="nexus-display-panel mb-8 rounded-[24px] p-5 sm:p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Account Profile</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-50">{user.username}</h2>
-          <p className="mt-1 text-sm text-slate-400">{user.email}</p>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-amber-700">Account Profile</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-950">{user.username}</h2>
+          <p className="mt-1 text-sm text-slate-500">{user.email}</p>
         </div>
-        <div className="inline-flex items-center rounded-none border border-amber-500/30 bg-amber-950/25 px-3 py-1 text-xs text-amber-100">
+        <div className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
           Joined {joinDateFormatted}
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="nexus-metric-card nexus-interactive-card rounded-none px-4 py-3">
+        <article className="nexus-metric-card nexus-interactive-card rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Join Date</p>
-          <p className="mt-1 text-sm font-semibold text-slate-100">
+          <p className="mt-1 text-sm font-semibold text-slate-900">
             {joinDate.toLocaleDateString("en-US", {
               year: "numeric",
               month: "short",
@@ -65,9 +65,9 @@ export function ProfileMetadata({ user }: { user: User }) {
           </p>
         </article>
 
-        <article className="nexus-metric-card nexus-interactive-card rounded-none px-4 py-3">
+        <article className="nexus-metric-card nexus-interactive-card rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Subscription Tier</p>
-          <p className={`mt-1 text-sm font-semibold ${user.premium ? "text-amber-300" : "text-slate-300"}`}>{getTierLabel()}</p>
+          <p className={`mt-1 text-sm font-semibold ${user.premium ? "text-amber-700" : "text-slate-600"}`}>{getTierLabel()}</p>
           {user.premium && user.corePlusActivatedAt ? (
             <p className="mt-1 text-[11px] text-slate-500">
               Since {new Date(user.corePlusActivatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
@@ -75,15 +75,15 @@ export function ProfileMetadata({ user }: { user: User }) {
           ) : null}
         </article>
 
-        <article className="nexus-metric-card nexus-interactive-card rounded-none px-4 py-3">
+        <article className="nexus-metric-card nexus-interactive-card rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Core+ Boost</p>
-          <p className={`mt-1 text-sm font-semibold ${user.corePlusBoostLevel && user.corePlusBoostLevel > 0 ? "text-amber-300" : "text-slate-400"}`}>{getBoostLevel()}</p>
+          <p className={`mt-1 text-sm font-semibold ${user.corePlusBoostLevel && user.corePlusBoostLevel > 0 ? "text-amber-700" : "text-slate-500"}`}>{getBoostLevel()}</p>
           {user.corePlusStreakDays && user.corePlusStreakDays > 0 ? <p className="mt-1 text-[11px] text-slate-500">Streak: {user.corePlusStreakDays} days</p> : null}
         </article>
 
-        <article className="nexus-metric-card nexus-interactive-card rounded-none px-4 py-3">
+        <article className="nexus-metric-card nexus-interactive-card rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Leaderboard</p>
-          <p className="mt-1 text-sm font-semibold text-slate-100">
+          <p className="mt-1 text-sm font-semibold text-slate-900">
             {typeof user.appRank === "number" ? `App #${user.appRank}` : "App rank pending"}
           </p>
           <p className="mt-1 text-[11px] text-slate-500">
@@ -93,14 +93,14 @@ export function ProfileMetadata({ user }: { user: User }) {
       </div>
 
       {user.clanTag ? (
-        <div className="nexus-display-panel mt-4 rounded-none px-4 py-3">
+        <div className="nexus-display-panel mt-4 rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Clan Tag</p>
-          <p className="mt-1 text-sm font-mono font-bold text-amber-300">[{user.clanTag}]</p>
+          <p className="mt-1 text-sm font-mono font-bold text-amber-700">[{user.clanTag}]</p>
         </div>
       ) : null}
 
       {profileBadges.length ? (
-        <div className="nexus-display-panel mt-4 rounded-none px-4 py-3">
+        <div className="nexus-display-panel mt-4 rounded-[18px] px-4 py-3">
           <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Profile Badges</p>
           <ProfileBadgeStrip
             badges={profileBadges}
@@ -109,7 +109,7 @@ export function ProfileMetadata({ user }: { user: User }) {
             imageClassName="h-auto w-full"
             imageWidth={192}
             imageHeight={72}
-            itemClassName="rounded-none border-slate-700/75 bg-slate-950/65"
+            itemClassName="rounded-[14px] border-slate-900/10 bg-white"
           />
         </div>
       ) : null}

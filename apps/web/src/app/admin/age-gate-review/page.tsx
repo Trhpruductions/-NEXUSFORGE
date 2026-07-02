@@ -26,7 +26,7 @@ export default function AdminAgeGateReviewPage() {
         metrics={[]}
         maxWidthClassName="max-w-5xl"
       >
-        <div className="nexus-display-panel rounded-none p-5 text-slate-200">Loading authentication status...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading authentication status...</div>
       </ExperienceShell>
     );
   }
@@ -60,8 +60,8 @@ export default function AdminAgeGateReviewPage() {
         actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]}
         maxWidthClassName="max-w-5xl"
       >
-        <div className="nexus-display-panel rounded-none p-5 text-sm text-slate-300">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Restricted Access</p>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-600">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Restricted Access</p>
           <p className="mt-2">This page is reserved for administrator review workflows.</p>
         </div>
       </ExperienceShell>

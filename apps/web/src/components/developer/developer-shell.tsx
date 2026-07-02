@@ -22,12 +22,12 @@ export function DeveloperShell({ children }: DeveloperShellProps) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-none border border-slate-700/70 bg-slate-950/95 p-5 shadow-[0_30px_90px_rgba(0,0,0,0.3)]">
+      <div className="rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Developer Portal</p>
-            <h1 className="mt-2 text-3xl font-semibold text-white">Developer console</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Developer portal</p>
+            <h1 className="mt-2 text-3xl font-semibold text-slate-950">Developer console</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
               Create, manage, and publish your NexusForge integrations from one central hub.
             </p>
           </div>
@@ -38,10 +38,10 @@ export function DeveloperShell({ children }: DeveloperShellProps) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`inline-flex h-11 items-center rounded-none px-4 text-sm font-semibold transition ${
+                  className={`inline-flex h-11 items-center rounded-full px-4 text-sm font-semibold transition ${
                     active
-                      ? "border border-amber-400/70 bg-amber-500/15 text-amber-100"
-                      : "border border-slate-700/70 bg-slate-900/80 text-slate-200 hover:border-amber-400/50 hover:bg-slate-900"
+                      ? "border border-amber-200 bg-amber-50 text-amber-700"
+                      : "border border-slate-900/10 bg-white text-slate-600 hover:border-slate-900/20 hover:bg-slate-50"
                   }`}
                 >
                   {link.label}

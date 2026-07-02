@@ -39,9 +39,9 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
   }, [participants]);
 
   const connectionTone = useMemo(() => {
-    if (connectionState === ConnectionState.Connected) return "border-amber-400/50 bg-amber-950/50 text-amber-200";
-    if (connectionState === ConnectionState.Reconnecting) return "border-amber-400/50 bg-amber-950/40 text-amber-200";
-    return "border-slate-600/80 bg-slate-900/70 text-slate-300";
+    if (connectionState === ConnectionState.Connected) return "border-amber-200 bg-amber-50 text-amber-700";
+    if (connectionState === ConnectionState.Reconnecting) return "border-amber-200 bg-amber-50 text-amber-700";
+    return "border-slate-900/10 bg-slate-50 text-slate-600";
   }, [connectionState]);
 
   useEffect(() => {
@@ -148,26 +148,26 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
 
   if (!session) {
     return (
-      <div className="nexus-panel rounded-none border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-400">
+      <div className="nexus-panel rounded-[16px] border border-slate-900/10 bg-white/85 p-3 text-xs text-slate-600">
         Select a voice or stage channel to start a LiveKit session.
       </div>
     );
   }
 
   return (
-    <div className="nexus-panel rounded-none border border-slate-700/80 bg-slate-950/78 p-3">
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-400">
+    <div className="nexus-panel rounded-[16px] border border-slate-900/10 bg-white/85 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-500">
         <span className="truncate">{session.roomName}</span>
-        <span className={`rounded-none border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${connectionTone}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${connectionTone}`}>
           {connectionState}
         </span>
       </div>
 
-      <p className="text-sm text-slate-100">{participantSummary}</p>
+      <p className="text-sm text-slate-900">{participantSummary}</p>
       {participants.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {participants.map((participant) => (
-            <span key={participant} className="rounded-none border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] text-amber-100">
+            <span key={participant} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
               {participant}
             </span>
           ))}
@@ -175,16 +175,16 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
       ) : null}
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.muted ? "border-rose-500/50 bg-rose-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("muted")}>
+        <button className={`nexus-interactive-btn rounded-[10px] border px-2 py-1 text-slate-700 ${voiceState.muted ? "border-rose-200 bg-rose-50" : "border-slate-900/10 bg-slate-50"}`} onClick={() => onToggleVoiceFlag("muted")}>
           Mute: {voiceState.muted ? "On" : "Off"}
         </button>
-        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.deafened ? "border-amber-500/50 bg-amber-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("deafened")}>
+        <button className={`nexus-interactive-btn rounded-[10px] border px-2 py-1 text-slate-700 ${voiceState.deafened ? "border-amber-200 bg-amber-50" : "border-slate-900/10 bg-slate-50"}`} onClick={() => onToggleVoiceFlag("deafened")}>
           Deafen: {voiceState.deafened ? "On" : "Off"}
         </button>
-        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.screenSharing ? "border-violet-500/50 bg-violet-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("screenSharing")}>
+        <button className={`nexus-interactive-btn rounded-[10px] border px-2 py-1 text-slate-700 ${voiceState.screenSharing ? "border-violet-200 bg-violet-50" : "border-slate-900/10 bg-slate-50"}`} onClick={() => onToggleVoiceFlag("screenSharing")}>
           Screen: {voiceState.screenSharing ? "On" : "Off"}
         </button>
-        <button className={`nexus-interactive-btn rounded border px-2 py-1 text-slate-200 ${voiceState.noiseSuppression ? "border-amber-500/50 bg-amber-950/35" : "border-slate-600 bg-slate-900/60"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
+        <button className={`nexus-interactive-btn rounded-[10px] border px-2 py-1 text-slate-700 ${voiceState.noiseSuppression ? "border-amber-200 bg-amber-50" : "border-slate-900/10 bg-slate-50"}`} onClick={() => onToggleVoiceFlag("noiseSuppression")}>
           Noise: {voiceState.noiseSuppression ? "On" : "Off"}
         </button>
       </div>

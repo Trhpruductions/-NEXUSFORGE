@@ -94,18 +94,18 @@ export function DesktopUpdateBanner() {
   }
 
   const toneClass = state?.lastError
-    ? "border-rose-500/45 bg-rose-950/35 text-rose-100"
+    ? "border-rose-200 bg-rose-50 text-rose-700"
     : state?.downloaded
-      ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
+      ? "border-amber-200 bg-amber-50 text-amber-700"
       : state?.available
-        ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
-        : "border-slate-700 bg-slate-900/75 text-slate-200";
+        ? "border-amber-200 bg-amber-50 text-amber-700"
+        : "border-slate-900/10 bg-white text-slate-700";
 
   const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
 
   return (
-    <div className={`pointer-events-auto fixed right-4 top-4 z-[140] w-[min(90vw,420px)] rounded-none border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
-      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300">Desktop Update Center</p>
+    <div className={`pointer-events-auto fixed right-4 top-4 z-[140] w-[min(90vw,420px)] rounded-[16px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.18)] backdrop-blur ${toneClass}`}>
+      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Desktop Update Center</p>
       <p className="mt-1 text-sm font-medium">{statusMessage(state)}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
@@ -116,7 +116,7 @@ export function DesktopUpdateBanner() {
             }
           }}
           variant="ghost"
-          className="h-8 rounded-none px-3 text-xs"
+          className="h-8 rounded-full px-3 text-xs"
         >
           Check now
         </Button>
@@ -127,7 +127,7 @@ export function DesktopUpdateBanner() {
                 void bridge.downloadUpdateNow().then(setState).catch(() => undefined);
               }
             }}
-            className="h-8 rounded-none border border-amber-500/45 bg-amber-500/10 px-3 text-xs text-amber-100 hover:bg-amber-500/15"
+            className="h-8 rounded-full border border-amber-200 bg-amber-100 px-3 text-xs text-amber-700 hover:bg-amber-200"
           >
             Download update now
           </Button>
@@ -139,7 +139,7 @@ export function DesktopUpdateBanner() {
                 void bridge.restartForUpdate();
               }
             }}
-            className="h-8 rounded-none border-amber-500/55 bg-[linear-gradient(180deg,rgba(255,184,108,0.95),rgba(255,184,108,0.96)_45%,rgba(255,170,50,0.96))] px-3 text-xs text-slate-950 shadow-[0_14px_28px_rgba(255,121,63,0.24),inset_0_1px_0_rgba(255,255,255,0.28)]"
+            className="h-8 rounded-full border border-amber-300 bg-amber-500 px-3 text-xs text-slate-950 shadow-[0_10px_24px_rgba(245,158,11,0.2)]"
           >
             Install update now
           </Button>

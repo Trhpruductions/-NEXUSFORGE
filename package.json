@@ -64,6 +64,8 @@
     "age:gate:validate": "node ./scripts/validate-age-gate-security.mjs",
     "age:gate:validate:local": "node ./scripts/validate-age-gate-security.mjs --base http://127.0.0.1:3000",
     "brand:verify": "node ./scripts/verify-brand-assets.mjs",
+    "pricing:validate": "node ./scripts/validate-pricing-catalog.mjs",
+    "pricing:smoke:live": "node ./scripts/pricing-runtime-smoke.mjs",
     "admin:badge:smoke": "node ./scripts/admin-badge-smoke.mjs",
     "scripts:validate:powershell": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/validate-powershell-scripts.ps1",
     "smoke:local": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/local-smoke.ps1",

@@ -77,35 +77,35 @@ export default function RegisterPage() {
     <AuthPageShell
       hero={
         <>
-          <p className="nexus-eyebrow text-amber-300">Onboarding Rail</p>
-          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
+          <p className="nexus-eyebrow text-amber-600">Onboarding Rail</p>
+          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-slate-950">
             Launch your account and drop into the command network fast.
           </h2>
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-sm text-slate-600">
             Registration is wired for immediate session activation, route handoff, and premium posture visibility from first login.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Onboarding</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Create forge-ready access</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Redirects into app</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Verification</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Demo token issued</p>
             </article>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="glass-cut auth-hero-card rounded-none border border-slate-700/70 bg-slate-950/80 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Instant activation</p>
-              <p className="mt-2 text-sm text-slate-300">Account setup completes quickly so your Forge is ready to deploy immediately.</p>
+            <div className="glass-cut auth-hero-card rounded-[20px] border border-slate-900/10 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-600">Instant activation</p>
+              <p className="mt-2 text-sm text-slate-600">Account setup completes quickly so your Forge is ready to deploy immediately.</p>
             </div>
-            <div className="glass-cut rounded-none border border-fuchsia-400/20 bg-fuchsia-500/10 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200">Forge ready</p>
-              <p className="mt-2 text-sm text-fuchsia-100">Start building your command network with premium tools from first login.</p>
+            <div className="glass-cut rounded-[20px] border border-fuchsia-200 bg-fuchsia-50 p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-700">Forge ready</p>
+              <p className="mt-2 text-sm text-fuchsia-800">Start building your command network with premium tools from first login.</p>
             </div>
           </div>
         </>
@@ -116,7 +116,7 @@ export default function RegisterPage() {
         subtitle="Join NexusForge and launch your first Forge"
         footer={
           <div className="flex items-center justify-end">
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-amber-300 hover:text-amber-200">
+            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-amber-700 hover:text-amber-600">
               Already have an account?
             </Link>
           </div>
@@ -148,11 +148,11 @@ export default function RegisterPage() {
             </p>
           ) : null}
           {verificationToken ? (
-            <div className="grid gap-2 rounded-none border border-amber-400/20 bg-slate-950/80 px-3 py-2 text-xs text-amber-200">
+            <div className="grid gap-2 rounded-[20px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
               <p>Demo verification token: {verificationToken}</p>
               <Link
                 href={`/verify-email?token=${encodeURIComponent(verificationToken)}`}
-                className="text-amber-300 hover:text-amber-200 underline"
+                className="text-amber-700 hover:text-amber-600 underline"
               >
                 Verify email now
               </Link>

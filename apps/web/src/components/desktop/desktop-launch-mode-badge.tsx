@@ -98,15 +98,15 @@ export function DesktopLaunchModeBadge() {
 
   const toneClass =
     mode === "local"
-      ? "border-amber-500/45 bg-amber-950/40 text-amber-100"
+      ? "border-amber-200 bg-amber-50 text-amber-700"
       : mode === "hosted-fallback"
-        ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
+        ? "border-amber-200 bg-amber-50 text-amber-700"
         : mode === "hosted"
-          ? "border-amber-500/45 bg-amber-950/35 text-amber-100"
-          : "border-slate-700 bg-slate-900/75 text-slate-200";
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-slate-900/10 bg-white text-slate-700";
 
   return (
-    <div className={`pointer-events-none fixed bottom-4 right-4 z-[110] rounded-none border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-[0_14px_32px_rgba(2,6,23,0.45)] backdrop-blur ${toneClass}`}>
+    <div className={`pointer-events-none fixed bottom-4 right-4 z-[110] rounded-[14px] border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-[0_14px_32px_rgba(2,6,23,0.18)] backdrop-blur ${toneClass}`}>
       {label}
     </div>
   );

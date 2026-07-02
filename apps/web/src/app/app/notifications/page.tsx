@@ -6,69 +6,66 @@ import { ShieldAlert, Activity, Search } from "lucide-react";
 
 export default function NotificationsPage() {
   return (
-    <div className="flex flex-col gap-1">
-      {/* HEADER: ALERT CENTER */}
-      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+      <div className="flex flex-col gap-4 text-slate-100 nf-content-rhythm nf-stagger nf-stagger-base-60">
+         <div className="flex items-center justify-between gap-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl nf-stagger-item-0">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Alert_Center_v3.2</span>
+               <div className="h-1 w-8 rounded-full bg-amber-400" />
+               <span className="nf-type-eyebrow text-slate-300">Operations feed</span>
             </div>
-            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
-               Terminal_Notifications
+            <h1 className="nf-type-title text-slate-100">
+               Threats, alerts, and live signals
             </h1>
          </div>
          <div className="flex gap-2">
-            <button className="px-6 py-3 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center gap-2">
-               <Search className="w-3 h-3" /> Filter_Signals
+            <button className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 px-6 py-3 text-[10px] font-semibold uppercase tracking-widest text-slate-300 transition-all hover:border-sky-400/60 hover:bg-sky-500/10 hover:text-sky-200">
+               <Search className="w-3 h-3" /> Filter
             </button>
-            <div className="h-12 w-px bg-white/10 mx-2" />
-            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Feed_Status</span>
-               <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-emerald-500 animate-pulse" /> LIVE_POLLING
+            <div className="mx-2 h-12 w-px bg-slate-300/40" />
+            <div className="flex flex-col items-end rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-2">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400">Feed status</span>
+               <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
+                  <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> live polling
                </span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-1">
-         {/* PRIORITY ALERTS & LOGS */}
+      <div className="grid grid-cols-12 gap-4 nf-stagger-item-1">
          <div className="col-span-12 lg:col-span-9">
             <Suspense fallback={
-               <div className="p-12 border border-white/10 bg-black/40 text-center">
-                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em] animate-pulse">Syncing_Alert_Feed...</span>
+               <div className="rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-12 text-center shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+                  <span className="animate-pulse nf-type-eyebrow text-slate-400">Syncing alerts...</span>
                </div>
             }>
                <NotificationCenter />
             </Suspense>
          </div>
 
-         {/* SIDEBAR: ALERT POLICIES */}
          <div className="col-span-12 lg:col-span-3 space-y-1">
-            <div className="p-8 border border-white/10 bg-black/40 space-y-6">
+            <div className="space-y-6 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-amber-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Alert_Policies</span>
+                  <span className="nf-type-eyebrow text-slate-300">Alert policy</span>
                </div>
                <div className="space-y-4">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-loose">
-                     Priority filter is currently active. Critical system signals will bypass throttle settings to ensure immediate commander awareness.
+                  <p className="nf-type-subtitle text-slate-400">
+                     Priority filtering stays enabled so critical events surface fast during active sessions.
                   </p>
                   <div className="space-y-2">
-                     <button className="w-full py-3 border border-white/10 bg-white/5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:bg-white/10 transition-all text-left px-4 flex justify-between items-center">
-                        Mute_Global_Chat <span>OFF</span>
+                     <button className="flex w-full items-center justify-between rounded-full border border-slate-700/70 bg-slate-900 px-4 py-3 text-left text-[9px] font-semibold uppercase tracking-widest text-slate-300 transition-all hover:border-slate-500/70 hover:bg-slate-800/70">
+                        Mute global chat <span>Off</span>
                      </button>
-                     <button className="w-full py-3 border border-white/10 bg-white/5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:bg-white/10 transition-all text-left px-4 flex justify-between items-center">
-                        Raid_Detections <span>HIGH</span>
+                     <button className="flex w-full items-center justify-between rounded-full border border-slate-700/70 bg-slate-900 px-4 py-3 text-left text-[9px] font-semibold uppercase tracking-widest text-slate-300 transition-all hover:border-slate-500/70 hover:bg-slate-800/70">
+                        Raid detections <span>High</span>
                      </button>
                   </div>
                </div>
             </div>
 
-            <div className="p-8 border border-white/10 bg-black/40 space-y-4 text-center">
-               <Activity className="w-8 h-8 text-amber-500/20 mx-auto" />
-               <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">All telemetry is archived for 30 days before being purged from the Primary_Node.</p>
+            <div className="space-y-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 text-center shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+               <Activity className="mx-auto w-8 h-8 text-sky-300/50" />
+               <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-400">Alerts remain archived for 30 days before secure purge.</p>
             </div>
          </div>
       </div>

@@ -39,17 +39,17 @@ export function VerifyEmailClient({ token }: { token: string }) {
       subtitle="Confirm your token and return to the login flow"
       footer={
         <div className="flex items-center justify-end gap-4">
-          <Link href="/login" className="text-amber-300 hover:text-amber-200">
+          <Link href="/login" className="text-amber-700 hover:text-amber-600">
             Back to login
           </Link>
-          <Link href="/forgot-password" className="text-amber-300 hover:text-amber-200">
+          <Link href="/forgot-password" className="text-amber-700 hover:text-amber-600">
             Forgot password?
           </Link>
         </div>
       }
     >
       <div className="grid gap-4">
-        <p role="status" aria-live="polite" className="text-sm text-slate-300">
+        <p role="status" aria-live="polite" className="text-sm text-slate-600">
           {status === "loading"
             ? "Verifying your email..."
             : status === "success"
@@ -58,7 +58,7 @@ export function VerifyEmailClient({ token }: { token: string }) {
         </p>
         <Link
           href="/login"
-          className="nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-none px-5 text-sm font-semibold tracking-wide border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,184,108,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px]"
+          className="nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-full border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] px-5 text-sm font-semibold tracking-wide text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,184,108,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px]"
         >
           Continue to login
         </Link>

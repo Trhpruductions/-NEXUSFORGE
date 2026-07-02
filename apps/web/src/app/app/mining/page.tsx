@@ -40,86 +40,85 @@ export default function MiningPage() {
   };
 
   return (
-      <div className="flex flex-col gap-3 md:gap-4 select-none">
-      {/* HEADER: MINING CONTROL */}
-         <div className="p-5 md:p-8 border border-white/10 bg-black/60 flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6 nexus-corner-tick relative overflow-hidden backdrop-blur-xl">
-         <div className="absolute top-0 right-0 w-64 h-64 bg-nexus-cyan/5 blur-[100px] -z-10" />
-         <div className="space-y-2 text-glow">
+      <div className="cinematic-stage metal-corners flex select-none flex-col gap-4 text-slate-100 nf-content-rhythm">
+         <div className="cinematic-particles" />
+         <div className="forge-frame relative flex flex-col justify-between gap-4 overflow-hidden rounded-[28px] p-5 backdrop-blur-xl md:p-8 lg:flex-row lg:items-center">
+         <div className="absolute -z-10 h-64 w-64 top-0 right-0 bg-sky-200/30 blur-[100px]" />
+         <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-10 h-1 bg-nexus-gold shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
-               <span className="text-[11px] font-black text-nexus-gold uppercase tracking-[0.4em] nexus-text-pop">Mining_Infrastructure_v6.4</span>
+               <div className="h-1 w-10 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.35)]" />
+               <span className="nf-type-eyebrow text-slate-300">Mining grid</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black uppercase text-white italic tracking-tight md:tracking-tighter drop-shadow-lg">
-               Compute_<span className="text-nexus-cyan nexus-text-vibrant text-shadow-glow">Yield_Station</span>
+            <h1 className="nf-type-title text-slate-100 md:text-4xl">
+               Industrial yield command center
             </h1>
          </div>
-         <div className="flex w-full lg:w-auto gap-3 md:gap-4">
-            <div className="px-4 md:px-6 py-3 border border-white/10 bg-white/5 flex flex-col items-end nexus-corner-tick w-full lg:w-auto">
-               <span className="text-[10px] text-nexus-purple font-black uppercase tracking-widest opacity-80">Infrastructure_Status</span>
+         <div className="flex w-full gap-3 md:gap-4 lg:w-auto">
+            <div className="flex w-full flex-col items-end rounded-2xl border border-slate-700/70 bg-slate-900/70 px-4 py-3 md:px-6 lg:w-auto">
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Infrastructure status</span>
                <span className={cn(
-                  "text-[12px] font-black uppercase tracking-widest flex items-center gap-2 nexus-text-pop",
-                  rigs.length > 0 ? "text-nexus-cyan" : "text-slate-500"
+                  "flex items-center gap-2 text-[12px] font-semibold uppercase tracking-widest",
+                  rigs.length > 0 ? "text-sky-600" : "text-slate-500"
                )}>
                   <div className={cn(
-                    "w-2 h-2 shadow-[0_0_8px]",
-                    rigs.length > 0 ? "bg-nexus-cyan shadow-nexus-cyan" : "bg-slate-500 shadow-transparent"
+                    "h-2 w-2 rounded-full shadow-[0_0_8px]",
+                    rigs.length > 0 ? "bg-sky-500 shadow-sky-500" : "bg-slate-400 shadow-transparent"
                   )} /> 
-                  {rigs.length.toString().padStart(2, '0')}_{rigs.length > 0 ? "OPERATIONAL" : "OFFLINE"}
+                  {rigs.length.toString().padStart(2, '0')} {rigs.length > 0 ? "operational" : "offline"}
                </span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-3 md:gap-4">
-         {/* RIG MONITOR */}
+      <div className="grid grid-cols-12 gap-4">
          <div className="col-span-12 xl:col-span-8 space-y-3">
-            <div className="p-5 md:p-8 xl:p-12 border border-white/10 bg-black/60 space-y-8 md:space-y-12 nexus-corner-tick backdrop-blur-3xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-                  <Cpu className="w-64 h-64 text-nexus-cyan" />
+            <div className="forge-frame relative overflow-hidden rounded-[28px] p-5 backdrop-blur-3xl md:p-8 xl:p-12 space-y-8 md:space-y-12">
+               <div className="pointer-events-none absolute top-0 right-0 p-12 opacity-[0.04]">
+                  <Cpu className="w-64 h-64 text-sky-300" />
                </div>
 
                {error && (
-                 <div className="absolute top-0 left-0 right-0 p-4 bg-nexus-crimson/20 border-b border-nexus-crimson/40 text-nexus-crimson text-xs font-black uppercase tracking-widest text-center animate-pulse z-50">
+                 <div className="absolute top-0 left-0 right-0 z-50 border-b border-rose-200 bg-rose-50 p-4 text-center text-xs font-semibold uppercase tracking-widest text-rose-700 animate-pulse">
                     CRITICAL_SYSTEM_ERROR: {error}
                  </div>
                )}
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 xl:gap-12 relative z-10">
                   <div className="space-y-4">
-                     <p className="text-[11px] text-nexus-purple font-black uppercase tracking-widest opacity-70">Aggregate_Hashrate</p>
+                     <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 opacity-70">Aggregate hash rate</p>
                      <div className="flex items-baseline gap-3">
-                        <span className="text-4xl md:text-5xl xl:text-6xl font-black text-white italic tracking-tighter drop-shadow-xl">
+                        <span className="text-4xl font-semibold tracking-tight text-slate-100 md:text-5xl xl:text-6xl">
                           {localHashRate > 0 ? localHashRate.toFixed(2) : "00.00"}
                         </span>
-                        <span className="text-nexus-cyan font-black text-sm uppercase tracking-widest nexus-text-vibrant">MH/s</span>
+                        <span className="text-sm font-semibold uppercase tracking-widest text-sky-600">MH/s</span>
                      </div>
                   </div>
                   <div className="space-y-4">
-                     <p className="text-[11px] text-nexus-purple font-black uppercase tracking-widest opacity-70">Internal_Thermal</p>
+                     <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 opacity-70">Internal temperature</p>
                      <div className="flex items-baseline gap-3">
                                     <span className={cn(
-                                       "text-4xl md:text-5xl xl:text-6xl font-black italic tracking-tighter transition-colors duration-500",
-                          internalTemp > 75 ? 'text-nexus-crimson drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'text-white'
+                                       "text-4xl font-semibold tracking-tight transition-colors duration-500 md:text-5xl xl:text-6xl",
+                          internalTemp > 75 ? 'text-rose-600' : 'text-slate-100'
                         )}>{internalTemp}&deg;</span>
-                        <span className="text-slate-500 font-black text-sm uppercase tracking-widest">Celsius</span>
+                        <span className="text-sm font-semibold uppercase tracking-widest text-slate-500">Celsius</span>
                      </div>
                   </div>
                   <div className="space-y-4 md:text-right">
-                     <p className="text-[11px] text-nexus-purple font-black uppercase tracking-widest opacity-70">Accumulated_Yield</p>
+                     <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 opacity-70">Accumulated yield</p>
                      <div className="flex items-baseline justify-end gap-3">
-                        <span className="text-4xl md:text-5xl xl:text-6xl font-black text-nexus-gold italic tracking-tighter nexus-text-pop">
+                        <span className="text-4xl font-semibold tracking-tight text-amber-600 md:text-5xl xl:text-6xl">
                           {totalPending > 0n ? `+${totalPending.toLocaleString()}` : "00"}
                         </span>
-                        <span className="text-slate-500 font-black text-sm uppercase font-mono tracking-widest">NC</span>
+                        <span className="text-sm font-semibold uppercase tracking-widest text-slate-500">NC</span>
                      </div>
                   </div>
                </div>
 
                <div className="space-y-8 relative z-10">
-                  <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-[0.2em] text-nexus-purple">
-                     <span className="opacity-80">Distribution_Pulse_Stream</span>
-                     <span className="text-nexus-gold nexus-text-pop">
-                        {(rigs.length > 0 ? 80 + Math.random() * 15 : 0).toFixed(0)}% SYSTEM_UTILIZATION
+                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                     <span className="opacity-80">Distribution pulse</span>
+                     <span className="text-amber-600">
+                        {(rigs.length > 0 ? 80 + Math.random() * 15 : 0).toFixed(0)}% utilization
                      </span>
                   </div>
                   <div className="grid grid-cols-12 md:grid-cols-24 gap-1.5 h-32 md:h-40">
@@ -129,16 +128,16 @@ export default function MiningPage() {
                         return (
                            <div 
                               key={i} 
-                              className="bg-white/5 relative group overflow-hidden border-b border-white/5 transition-colors hover:bg-white/10"
+                              className="group relative overflow-hidden border-b border-slate-700/60 bg-slate-900/80 transition-colors hover:bg-slate-200"
                            >
                               <div 
                                  className={cn(
                                     "absolute bottom-0 inset-x-0 transition-all duration-1000",
-                                    isActive ? "bg-nexus-cyan shadow-[0_0_15px_rgba(0,242,255,0.6)]" : "bg-white/10",
+                                    isActive ? "bg-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.45)]" : "bg-slate-900/20",
                                     isActive ? heights[i % heights.length] : "h-0"
                                  )}
                               />
-                              <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-white/40 to-transparent" />
                            </div>
                         );
                      })}
@@ -146,130 +145,126 @@ export default function MiningPage() {
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 nf-stagger nf-stagger-base-60">
                 {rigs.map((rig, idx) => (
-               <div key={rig.rigId} className="p-5 md:p-7 border border-white/10 bg-black/60 space-y-6 group hover:bg-white/5 transition-all duration-300 hover:-translate-y-[2px] nexus-corner-tick backdrop-blur-md">
-                      <div className="flex justify-between items-start">
+               <div key={rig.rigId} className={cn("forge-frame group space-y-6 rounded-[28px] p-5 backdrop-blur-md md:p-7 nf-interact", idx % 3 === 0 && "nf-stagger-item-0", idx % 3 === 1 && "nf-stagger-item-1", idx % 3 === 2 && "nf-stagger-item-2")}>
+                      <div className="flex items-start justify-between">
                          <div className="space-y-1">
-                            <span className="text-[10px] text-nexus-purple font-black uppercase tracking-widest opacity-60">MODULE_ID</span>
-                            <h4 className={cn(
-                              "text-2xl font-black uppercase italic tracking-tighter drop-shadow-sm", 
-                              idx % 2 === 0 ? "text-nexus-cyan" : "text-nexus-purple"
-                            )}>{rig.name}</h4>
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 opacity-60">Module</span>
+                            <h4 className="text-2xl font-semibold tracking-tight text-slate-100">{rig.name}</h4>
                          </div>
                          <div className={cn(
-                            "px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] nexus-text-pop border",
-                            rig.status === "ACTIVE" ? "bg-nexus-cyan/10 border-nexus-cyan/30 text-nexus-cyan" : "bg-nexus-crimson/10 border-nexus-crimson/30 text-nexus-crimson"
+                            "rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] border",
+                            rig.status === "ACTIVE" ? "bg-sky-500/15 border-sky-400/50 text-sky-200" : "bg-rose-500/15 border-rose-400/50 text-rose-200"
                          )}>
                             {rig.status}
                          </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                         <div className="p-4 md:p-5 bg-black/40 border border-white/5 nexus-corner-tick hover:border-nexus-gold/30 transition-colors">
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 opacity-70">Hash_Output</p>
-                            <p className="text-xl font-black text-white italic">{rig.hashRate} MH/s</p>
+                         <div className="forge-panel rounded-2xl p-4 md:p-5 transition-colors hover:border-sky-400/40">
+                            <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-slate-500 opacity-70">Hash output</p>
+                            <p className="text-xl font-semibold text-slate-100">{rig.hashRate} MH/s</p>
                          </div>
-                         <div className="p-4 md:p-5 bg-black/40 border border-white/5 nexus-corner-tick hover:border-nexus-cyan/30 transition-colors">
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1 opacity-70">Efficiency</p>
-                            <p className="text-xl font-black text-white italic">{(rig.efficiency * 100).toFixed(0)}%</p>
+                         <div className="forge-panel rounded-2xl p-4 md:p-5 transition-colors hover:border-sky-400/40">
+                            <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-slate-500 opacity-70">Efficiency</p>
+                            <p className="text-xl font-semibold text-slate-100">{(rig.efficiency * 100).toFixed(0)}%</p>
                          </div>
                       </div>
                   </div>
                 ))}
                 
                 {rigs.length === 0 && !loading && (
-                   <div className="col-span-1 md:col-span-2 p-8 md:p-12 border border-dashed border-white/10 bg-black/20 text-center space-y-4 nexus-corner-tick">
-                      <HardDrive className="w-12 h-12 text-slate-700 mx-auto" />
+                   <div className="col-span-1 space-y-4 rounded-[28px] border border-dashed border-slate-700/70 bg-slate-900/65 p-8 text-center md:col-span-2 md:p-12">
+                      <HardDrive className="mx-auto w-12 h-12 text-slate-300" />
                       <div className="space-y-1">
-                        <p className="text-white font-black uppercase italic tracking-widest text-lg">No_Rigs_Detected</p>
-                        <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Initialize infrastructure via terminal_0.1</p>
+                        <p className="text-lg font-semibold tracking-tight text-slate-100">No rigs detected</p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Initialize infrastructure when you are ready</p>
                       </div>
                    </div>
                 )}
             </div>
          </div>
 
-         {/* POOL TELEMETRY */}
          <div className="col-span-12 xl:col-span-4 space-y-3">
-            <div className="p-5 md:p-8 border border-white/10 bg-black/60 shadow-[inset_0_0_60px_rgba(0,242,255,0.05)] space-y-8 md:space-y-10 h-full nexus-corner-tick backdrop-blur-3xl relative overflow-hidden flex flex-col">
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-nexus-purple/5 blur-[100px] pointer-events-none" />
+            <div className="forge-frame relative flex h-full flex-col space-y-8 overflow-hidden rounded-[28px] p-5 backdrop-blur-3xl md:p-8 md:space-y-10">
+               <div className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 bg-sky-200/20 blur-[100px]" />
                
                <div className="space-y-6 relative z-10">
                   <div className="flex items-center gap-3">
-                     <Database className="w-5 h-5 text-nexus-gold drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]" />
-                     <span className="text-[12px] font-black text-white uppercase tracking-[0.3em] nexus-text-pop">Economic_Integrity</span>
+                     <Database className="w-5 h-5 text-amber-500" />
+                     <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-slate-300">Economy</span>
                   </div>
                   <div className="space-y-1.5">
                      {[
-                        { label: "Atomic_Sync", val: "VERIFIED", color: "text-nexus-cyan" },
-                        { label: "Safety_Guard", val: "LOCKED", color: "text-nexus-gold" },
-                        { label: "NC_Balance", val: `${Number(economy?.balance || 0).toLocaleString()} NC`, color: "text-nexus-purple" },
-                        { label: "Session_Extractions", val: `+${sessionHarvested} NC`, color: "text-white" },
+                        { label: "Atomic sync", val: "Verified", color: "text-sky-600" },
+                        { label: "Safety guard", val: "Locked", color: "text-amber-600" },
+                        { label: "NC balance", val: `${Number(economy?.balance || 0).toLocaleString()} NC`, color: "text-slate-100" },
+                        { label: "Session harvest", val: `+${sessionHarvested} NC`, color: "text-slate-100" },
                      ].map(item => (
-                        <div key={item.label} className="p-4 border border-white/5 bg-white/5 hover:bg-white/10 transition-colors flex justify-between items-center text-[10px] font-black uppercase tracking-widest nexus-corner-tick">
+                        <div key={item.label} className="forge-panel flex items-center justify-between rounded-2xl p-4 text-[10px] font-semibold uppercase tracking-widest transition-colors hover:bg-slate-900">
                            <span className="text-slate-500 opacity-80">{item.label}</span>
-                           <span className={cn("nexus-text-pop", item.color)}>{item.val}</span>
+                           <span className={cn(item.color)}>{item.val}</span>
                         </div>
                      ))}
                   </div>
                </div>
 
                <div className="space-y-6 relative z-10">
-                  <div className="flex items-center gap-3 text-nexus-cyan">
-                     <Activity className="w-5 h-5 drop-shadow-[0_0_8px_rgba(0,242,255,0.3)]" />
-                     <span className="text-[12px] font-black text-white uppercase tracking-[0.3em] nexus-text-pop">Global_Extraction</span>
+                  <div className="flex items-center gap-3 text-sky-600">
+                     <Activity className="w-5 h-5" />
+                     <span className="text-[12px] font-semibold uppercase tracking-[0.3em] text-slate-300">Harvest status</span>
                   </div>
-                  <div className="p-6 md:p-10 border border-white/5 bg-black/40 flex flex-col items-center justify-center space-y-6 md:space-y-8 min-h-[220px] md:min-h-[250px] nexus-corner-tick backdrop-blur-md">
+                  <div className="forge-panel flex min-h-[220px] flex-col items-center justify-center space-y-6 rounded-[28px] p-6 md:min-h-[250px] md:p-10 md:space-y-8 backdrop-blur-md">
                      <div className="relative w-36 h-36 flex items-center justify-center">
-                        <div className="absolute inset-0 border-[8px] border-white/5 shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]" />
+                        <div className="absolute inset-0 border-[8px] border-slate-200 shadow-[inset_0_0_30px_rgba(15,23,42,0.08)]" />
                         <div className={cn(
                            "absolute inset-0 border-[8px] border-t-transparent animate-[spin_2s_linear_infinite] shadow-[0_0_20px]",
-                           isHarvesting ? "border-nexus-gold shadow-nexus-gold" : "border-nexus-cyan shadow-nexus-cyan"
+                           isHarvesting ? "border-amber-400 shadow-amber-400" : "border-sky-400 shadow-sky-400"
                         )} />
-                        <div className="absolute inset-[15px] border-[2px] border-nexus-purple/30 border-b-transparent animate-[spin_4s_linear_infinite_reverse]" />
+                        <div className="absolute inset-[15px] animate-[spin_4s_linear_infinite_reverse] border-[2px] border-b-transparent border-slate-300" />
                         {isHarvesting ? (
-                          <Loader2 className="w-10 h-10 text-nexus-gold animate-spin" />
+                          <Loader2 className="w-10 h-10 animate-spin text-amber-500" />
                         ) : (
-                          <span className="text-2xl font-black text-white italic tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
-                            {rigs.length > 0 ? "STABLE" : "IDLE"}
+                          <span className="text-2xl font-semibold tracking-tight text-slate-100">
+                            {rigs.length > 0 ? "Stable" : "Idle"}
                           </span>
                         )}
                      </div>
                      <p className={cn(
-                       "text-[10px] font-black uppercase tracking-[0.4em] text-center",
-                       isHarvesting ? "text-nexus-gold animate-pulse" : "text-nexus-purple opacity-80"
+                       "text-center text-[10px] font-semibold uppercase tracking-[0.4em]",
+                       isHarvesting ? "text-amber-600 animate-pulse" : "text-slate-500 opacity-80"
                      )}>
-                        {isHarvesting ? "INITIATING_ATOMIC_HARVEST..." : "SOLVING_BLOCK_EQUATIONS..."}
+                        {isHarvesting ? "Collecting yield..." : "Ready to harvest"}
                      </p>
                   </div>
                </div>
 
-               <div className="flex gap-2 relative z-10 mt-auto">
+               <div className="relative z-10 mt-auto flex gap-2">
                   <button 
                     onClick={handleHarvest}
                     disabled={isHarvesting || rigs.length === 0}
-                    className={cn(
-                      "flex-1 py-4 md:py-5 font-black uppercase tracking-[0.2em] text-[11px] transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_10px_20px_-10px_rgba(0,242,255,0.4)] group overflow-hidden relative",
-                      isHarvesting || rigs.length === 0 ? "bg-slate-800 text-slate-500 cursor-not-allowed" : "bg-nexus-cyan text-black hover:bg-white"
-                    )}
+                              className={cn(
+                                 "group relative flex flex-1 items-center justify-center gap-3 overflow-hidden rounded-full py-4 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all duration-300",
+                                                 isHarvesting || rigs.length === 0 ? "cursor-not-allowed bg-slate-700/60 text-slate-400" : "nf-control nf-interact"
+                              )}
                   >
                      {isHarvesting ? (
                        <Loader2 className="w-4 h-4 animate-spin" />
                      ) : (
-                       <CheckCircle2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                       <CheckCircle2 className="w-4 h-4 transition-transform group-hover:scale-110" />
                      )} 
-                     {isHarvesting ? "PROCESSOR_BUSY" : "HARVEST_ALL_YIELD"}
+                     {isHarvesting ? "Processing" : "Harvest all"}
                   </button>
                   <button 
                     onClick={() => refresh()}
                     title="Re-sync Telemetry"
-                    className="w-14 md:w-16 py-4 md:py-5 border border-white/10 text-white font-black uppercase tracking-widest text-[11px] hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
+                              className="flex w-14 items-center justify-center rounded-full border border-slate-700/70 py-4 text-[11px] font-semibold uppercase tracking-widest text-slate-300 transition-all duration-300 hover:border-sky-400/60 hover:bg-sky-500/10 md:w-16 md:py-5 nf-interact"
                   >
                      <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
                   </button>
                   <button 
                     title="Terminate Operations"
-                    className="w-14 md:w-16 py-4 md:py-5 border border-nexus-crimson/20 text-nexus-crimson font-black uppercase tracking-widest text-[11px] hover:bg-nexus-crimson hover:text-white transition-all duration-300 flex items-center justify-center"
+                              className="flex w-14 items-center justify-center rounded-full border border-rose-400/45 py-4 text-[11px] font-semibold uppercase tracking-widest text-rose-300 transition-all duration-300 hover:bg-rose-500/15 md:w-16 md:py-5 nf-interact"
                   >
                      <Power className="w-5 h-5" />
                   </button>

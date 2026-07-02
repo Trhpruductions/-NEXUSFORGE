@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import styles from './loading.module.css';
 
 export default function Loading() {
@@ -7,21 +6,20 @@ export default function Loading() {
       <section className={styles.content}>
         <div className={styles.logoWrap}>
           <div className={styles.halo} aria-hidden='true' />
-          <Image
+          <img
             src='/brand/nexusforge-logo.png'
             alt='NexusForge'
             width={88}
             height={88}
             className={styles.logo}
-            priority
             draggable={false}
-            style={{ width: 88, height: 88 }}
           />
         </div>
 
         <div className={styles.textBlock}>
           <h1 className={styles.title}>NexusForge</h1>
-          <p className={styles.status}>Opening app...</p>
+          <p className={styles.status}>Preparing your workspace...</p>
+          <p className={styles.phaseText}>Syncing recent updates</p>
 
           <div className={styles.dots} aria-hidden='true'>
             <span />
@@ -33,10 +31,10 @@ export default function Loading() {
             <div className={styles.progressFill} />
           </div>
 
-          <p className={styles.caption}>Please wait while your workspace loads.</p>
+          <p className={styles.caption}>A calmer start while the interface gets ready.</p>
         </div>
 
-        <p className='sr-only'>NexusForge is preparing your command network. Please wait.</p>
+        <p className='sr-only'>NexusForge is preparing your workspace. Please wait.</p>
       </section>
     </main>
   );

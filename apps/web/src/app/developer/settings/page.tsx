@@ -195,45 +195,45 @@ export default function DeveloperSettingsPage() {
       maxWidthClassName="max-w-5xl"
     >
       {!isSignedIn ? (
-        <div className="rounded-none border border-slate-700/70 bg-slate-950/95 p-8 text-slate-300">Please sign in to manage your developer credentials.</div>
+        <div className="rounded-[28px] border border-slate-900/10 bg-white/85 p-8 text-slate-600 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">Please sign in to manage your developer credentials.</div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
           <div className="space-y-6">
-            <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">API key management</p>
-              <h2 className="mt-4 text-2xl font-semibold text-white">Create a new API key</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">Generate a key for your integrations and keep your secret safe. You will only see the secret once.</p>
+            <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">API key management</p>
+              <h2 className="mt-4 text-2xl font-semibold text-slate-950">Create a new API key</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">Generate a key for your integrations and keep your secret safe. You will only see the secret once.</p>
 
               <div className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-sm text-slate-300">
+                <label className="grid gap-2 text-sm text-slate-600">
                   Key name
                   <input
                     value={keyName}
                     onChange={(event) => setKeyName(event.target.value)}
                     placeholder="My integration key"
-                    className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                   />
                 </label>
                 <button
                   type="button"
                   disabled={!keyName.trim() || createKeyMutation.isPending}
                   onClick={() => void createKeyMutation.mutateAsync()}
-                  className="inline-flex h-12 items-center justify-center rounded-none bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {createKeyMutation.isPending ? "Creating key..." : "Generate API key"}
                 </button>
                 {createdSecret ? (
-                  <div className="rounded-none border border-emerald-500/20 bg-emerald-400/5 p-4 text-sm text-emerald-200">
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-emerald-100">API key secret</p>
-                        <p className="mt-2 break-all text-slate-100">{createdSecret}</p>
-                        <p className="mt-2 text-xs text-slate-400">Save this secret now. It will not be shown again.</p>
+                        <p className="font-semibold text-emerald-900">API key secret</p>
+                        <p className="mt-2 break-all text-slate-900">{createdSecret}</p>
+                        <p className="mt-2 text-xs text-slate-500">Save this secret now. It will not be shown again.</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => void copyText(createdSecret, setApiSecretCopyStatus)}
-                        className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                       >
                         {apiSecretCopyStatus === "copied"
                           ? "Copied"
@@ -250,28 +250,28 @@ export default function DeveloperSettingsPage() {
               </div>
             </section>
 
-            <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">OAuth client management</p>
-              <h2 className="mt-4 text-2xl font-semibold text-white">Create a new OAuth client</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">Register a client for OAuth redirect flows and keep your credentials secure. The secret is revealed only once.</p>
+            <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">OAuth client management</p>
+              <h2 className="mt-4 text-2xl font-semibold text-slate-950">Create a new OAuth client</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">Register a client for OAuth redirect flows and keep your credentials secure. The secret is revealed only once.</p>
 
               <div className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-sm text-slate-300">
+                <label className="grid gap-2 text-sm text-slate-600">
                   Client name
                   <input
                     value={clientName}
                     onChange={(event) => setClientName(event.target.value)}
                     placeholder="Forge integration client"
-                    className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                   />
                 </label>
-                <label className="grid gap-2 text-sm text-slate-300">
+                <label className="grid gap-2 text-sm text-slate-600">
                   Redirect URIs
                   <input
                     value={clientRedirectUris}
                     onChange={(event) => setClientRedirectUris(event.target.value)}
                     placeholder="https://example.com/oauth/callback, https://app.example.com/oauth/callback"
-                    className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-400"
+                    className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                   />
                   <span className="text-xs text-slate-500">Comma-separated redirect URIs for your OAuth client.</span>
                 </label>
@@ -279,22 +279,22 @@ export default function DeveloperSettingsPage() {
                   type="button"
                   disabled={!clientName.trim() || createOAuthClientMutation.isPending}
                   onClick={() => void createOAuthClientMutation.mutateAsync()}
-                  className="inline-flex h-12 items-center justify-center rounded-none bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {createOAuthClientMutation.isPending ? "Registering client..." : "Register OAuth client"}
                 </button>
                 {createdOauthSecret ? (
-                  <div className="rounded-none border border-emerald-500/20 bg-emerald-400/5 p-4 text-sm text-emerald-200">
+                  <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-emerald-100">Client secret</p>
-                        <p className="mt-2 break-all text-slate-100">{createdOauthSecret}</p>
-                        <p className="mt-2 text-xs text-slate-400">Save this secret now. It will not be shown again.</p>
+                        <p className="font-semibold text-emerald-900">Client secret</p>
+                        <p className="mt-2 break-all text-slate-900">{createdOauthSecret}</p>
+                        <p className="mt-2 text-xs text-slate-500">Save this secret now. It will not be shown again.</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => void copyText(createdOauthSecret, setOauthSecretCopyStatus)}
-                        className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                       >
                         {oauthSecretCopyStatus === "copied"
                           ? "Copied"
@@ -312,28 +312,28 @@ export default function DeveloperSettingsPage() {
             </section>
           </div>
 
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Your API keys</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Active credentials</h2>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Your API keys</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Active credentials</h2>
             <div className="mt-6 space-y-3">
               {keysQuery.isLoading ? (
-                <p className="text-sm text-slate-400">Loading your API keys...</p>
+                <p className="text-sm text-slate-600">Loading your API keys...</p>
               ) : keysQuery.data?.keys.length ? (
                 keysQuery.data.keys.map((key) => (
-                  <div key={key.id} className="rounded-none border border-slate-700/80 bg-slate-900/80 p-4">
+                  <div key={key.id} className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="font-semibold text-slate-100">{key.name}</p>
-                        <p className="mt-1 text-xs text-slate-400">Created {new Date(key.createdAt).toLocaleDateString()}</p>
+                        <p className="font-semibold text-slate-950">{key.name}</p>
+                        <p className="mt-1 text-xs text-slate-600">Created {new Date(key.createdAt).toLocaleDateString()}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-none px-3 py-1 text-xs uppercase tracking-[0.24em] ${key.enabled ? "bg-emerald-400/10 text-emerald-200 border border-emerald-400/20" : "bg-slate-800 text-slate-300 border border-slate-700/70"}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.24em] ${key.enabled ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-slate-900/10 bg-white text-slate-600"}`}>
                           {key.enabled ? "Enabled" : "Disabled"}
                         </span>
                         <button
                           type="button"
                           onClick={() => void updateKeyMutation.mutateAsync({ keyId: key.id, enabled: !key.enabled })}
-                          className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                         >
                           {key.enabled ? "Disable" : "Enable"}
                         </button>
@@ -344,7 +344,7 @@ export default function DeveloperSettingsPage() {
                               void revokeKeyMutation.mutateAsync(key.id);
                             }
                           }}
-                          className="inline-flex h-10 items-center justify-center rounded-none border border-rose-500 bg-rose-500/10 px-4 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
                         >
                           Revoke
                         </button>
@@ -354,17 +354,17 @@ export default function DeveloperSettingsPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-400">No API keys created yet. Generate one to get started.</p>
+                <p className="text-sm text-slate-600">No API keys created yet. Generate one to get started.</p>
               )}
             </div>
           </section>
 
-          <section className="rounded-none border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-sky-300">OAuth clients</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Registered OAuth clients</h2>
+          <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[10px] uppercase tracking-[0.28em] text-sky-600">OAuth clients</p>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Registered OAuth clients</h2>
             <div className="mt-6 space-y-3">
               {oauthClientsQuery.isLoading ? (
-                <p className="text-sm text-slate-400">Loading your OAuth clients...</p>
+                <p className="text-sm text-slate-600">Loading your OAuth clients...</p>
               ) : oauthClientsQuery.data?.clients.length ? (
                 oauthClientsQuery.data.clients.map((client) => {
                   const isEditing = editingClientId === client.clientId;
@@ -374,23 +374,23 @@ export default function DeveloperSettingsPage() {
                   };
 
                   return (
-                    <div key={client.id} className="rounded-none border border-slate-700/80 bg-slate-900/80 p-4">
+                    <div key={client.id} className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-4">
                       {isEditing ? (
                         <div className="space-y-4">
-                          <label className="grid gap-2 text-sm text-slate-300">
+                          <label className="grid gap-2 text-sm text-slate-600">
                             Client name
                             <input
                               value={editingState.name}
                               onChange={(event) => updateEditingClientField(client.clientId, "name", event.target.value)}
-                              className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-sky-400"
+                              className="w-full rounded-[20px] border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-sky-300"
                             />
                           </label>
-                          <label className="grid gap-2 text-sm text-slate-300">
+                          <label className="grid gap-2 text-sm text-slate-600">
                             Redirect URIs
                             <input
                               value={editingState.redirectUris}
                               onChange={(event) => updateEditingClientField(client.clientId, "redirectUris", event.target.value)}
-                              className="w-full rounded-none border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none focus:border-sky-400"
+                              className="w-full rounded-[20px] border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-sky-300"
                             />
                             <span className="text-xs text-slate-500">Comma-separated redirect URIs for this client.</span>
                           </label>
@@ -408,14 +408,14 @@ export default function DeveloperSettingsPage() {
                                     .filter(Boolean),
                                 })
                               }
-                              className="inline-flex h-11 items-center justify-center rounded-none bg-sky-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex h-11 items-center justify-center rounded-full bg-sky-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {updateOAuthClientMutation.isPending ? "Saving..." : "Save changes"}
                             </button>
                             <button
                               type="button"
                               onClick={cancelEditingClient}
-                              className="inline-flex h-11 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-5 text-sm font-semibold text-slate-200 transition hover:border-amber-400"
+                              className="inline-flex h-11 items-center justify-center rounded-full border border-slate-900/10 bg-white px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                             >
                               Cancel
                             </button>
@@ -425,25 +425,25 @@ export default function DeveloperSettingsPage() {
                         <>
                           <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
-                              <p className="font-semibold text-slate-100">{client.name}</p>
-                              <p className="mt-1 text-xs text-slate-400">Client ID: {client.clientId}</p>
+                              <p className="font-semibold text-slate-950">{client.name}</p>
+                              <p className="mt-1 text-xs text-slate-600">Client ID: {client.clientId}</p>
                               <p className="mt-2 text-xs text-slate-500">Redirect URIs: {client.redirectUris.length ? client.redirectUris.join(", ") : "None configured"}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`rounded-none px-3 py-1 text-xs uppercase tracking-[0.24em] ${client.enabled ? "bg-emerald-400/10 text-emerald-200 border border-emerald-400/20" : "bg-slate-800 text-slate-300 border border-slate-700/70"}`}>
+                              <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.24em] ${client.enabled ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-slate-900/10 bg-white text-slate-600"}`}>
                                 {client.enabled ? "Enabled" : "Disabled"}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => void updateOAuthClientMutation.mutateAsync({ clientId: client.clientId, enabled: !client.enabled })}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-sky-400"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                               >
                                 {client.enabled ? "Disable" : "Enable"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => void copyClientIdText(client.clientId, client.clientId)}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                               >
                                 {copyClientIdStatuses[client.clientId] === "copied"
                                   ? "Copied ID"
@@ -454,7 +454,7 @@ export default function DeveloperSettingsPage() {
                               <button
                                 type="button"
                                 onClick={() => beginEditingClient(client)}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                               >
                                 Edit
                               </button>
@@ -465,7 +465,7 @@ export default function DeveloperSettingsPage() {
                                     void revokeOAuthClientMutation.mutateAsync(client.clientId);
                                   }
                                 }}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-rose-500 bg-rose-500/10 px-4 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
                               >
                                 Revoke
                               </button>
@@ -476,14 +476,14 @@ export default function DeveloperSettingsPage() {
                                     void rotateOAuthClientSecretMutation.mutateAsync(client.clientId);
                                   }
                                 }}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-emerald-500 bg-emerald-500/10 px-4 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                               >
                                 Rotate secret
                               </button>
                               <button
                                 type="button"
                                 onClick={() => downloadClientConfig(client)}
-                                className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-slate-400"
+                                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                               >
                                 Download config
                               </button>
@@ -502,17 +502,17 @@ export default function DeveloperSettingsPage() {
           </section>
 
           {rotatedOauthSecret ? (
-            <section className="rounded-none border border-emerald-500/20 bg-emerald-400/5 p-6 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.32)]">
+              <section className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-6 text-slate-900 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-emerald-100">New client secret</p>
-                  <p className="mt-3 break-all text-slate-100">{rotatedOauthSecret}</p>
-                  <p className="mt-2 text-xs text-slate-300">Save this secret now. It will not be shown again.</p>
+                  <p className="text-sm font-semibold text-emerald-900">New client secret</p>
+                  <p className="mt-3 break-all text-slate-900">{rotatedOauthSecret}</p>
+                  <p className="mt-2 text-xs text-slate-500">Save this secret now. It will not be shown again.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => void copyText(rotatedOauthSecret, setRotatedSecretCopyStatus)}
-                  className="inline-flex h-10 items-center justify-center rounded-none border border-slate-700 bg-slate-900 px-4 text-xs font-semibold text-slate-200 transition hover:border-amber-400"
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
                   {rotatedSecretCopyStatus === "copied"
                     ? "Copied"

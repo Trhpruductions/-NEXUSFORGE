@@ -1,125 +1,211 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Shield, Globe, Terminal, Box, Zap } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, LayoutDashboard, MessageSquare, ShieldCheck, Sparkles, Users2 } from "lucide-react";
+
+const features = [
+   {
+      title: "Calm workspace",
+      description: "A focused home base for planning, messages, and day-to-day coordination without the visual noise.",
+      icon: LayoutDashboard,
+   },
+   {
+      title: "Safer defaults",
+      description: "Privacy-conscious flows and clear permission boundaries that feel practical instead of dramatic.",
+      icon: ShieldCheck,
+   },
+   {
+      title: "Less friction",
+      description: "Fast navigation, short paths to common actions, and copy that reads like a product, not a trailer.",
+      icon: Sparkles,
+   },
+];
+
+const activityItems = [
+   { label: "Daily check-in", note: "8:30 AM", status: "Ready", tone: "bg-emerald-500/15 text-emerald-700" },
+   { label: "Team notes", note: "2 new updates", status: "Quiet", tone: "bg-sky-500/15 text-sky-700" },
+   { label: "Next milestone", note: "On track", status: "Today", tone: "bg-amber-500/15 text-amber-700" },
+];
 
 export default function Home() {
-  return (
-    <div className="h-screen w-screen overflow-y-auto overflow-x-hidden bg-[#050207] text-[#e2e2e2] selection:bg-amber-500 selection:text-black scroll-smooth">
-      {/* Decorative Grid Overlay */}
-      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none" />
-      <div className="fixed inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+   return (
+      <div className="min-h-screen overflow-x-hidden bg-[#f5f1ea] text-slate-900 selection:bg-amber-200 selection:text-slate-900 scroll-smooth">
+         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(15,23,42,0.08),transparent_32%),radial-gradient(circle_at_80%_12%,rgba(56,189,248,0.08),transparent_26%),radial-gradient(circle_at_50%_90%,rgba(251,191,36,0.09),transparent_28%)]" />
+         <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,#94a3b81a_1px,transparent_1px),linear-gradient(to_bottom,#94a3b81a_1px,transparent_1px)] bg-[size:38px_38px] opacity-35 [mask-image:radial-gradient(ellipse_70%_55%_at_50%_10%,#000_60%,transparent_100%)]" />
 
-      <header className="fixed top-0 left-0 right-0 h-[80px] z-50 bg-black/40 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto h-full px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-             <div className="w-10 h-10 border border-amber-500/30 flex items-center justify-center p-2 nexus-corner-tick bg-amber-500/5 group">
-                <Image 
-                  src="/app-images/all-images/nexusforge-logo.png" 
-                  alt="Nexus" 
-                  width={24} 
-                  height={24} 
-                  className="filter brightness-125" 
-                />
-             </div>
-             <span className="text-[12px] font-black uppercase tracking-[0.4em] text-white">Nexus_Forge</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-10">
-            {["Engine", "Telemetry", "Privacy", "Docs"].map(n => (
-              <Link key={n} href={`/${n.toLowerCase()}`} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors">
-                {n}
-              </Link>
-            ))}
-          </nav>
-          <Link href="/app" className="px-6 py-3 bg-amber-500 text-black text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 transition-all shadow-[0_0_30px_rgba(251,191,36,0.2)]">
-            Initialize Deck
-          </Link>
-        </div>
-      </header>
+         <header className="sticky top-0 z-50 border-b border-slate-900/8 bg-[#f5f1ea]/85 backdrop-blur-xl">
+            <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
+               <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-900/10 bg-white shadow-sm">
+                     <Image src="/app-images/all-images/nexusforge-logo.png" alt="NexusForge" width={24} height={24} className="h-6 w-6 object-contain" />
+                  </div>
+                  <div>
+                     <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">NexusForge</p>
+                     <p className="text-sm text-slate-700">A calmer command workspace</p>
+                  </div>
+               </div>
 
-      <main className="relative pt-[180px] px-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center mb-32">
-          <div className="space-y-12">
-            <div className="flex items-center gap-4">
-               <div className="w-12 h-[1px] bg-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.5em]">Protocol_V2 Ready</span>
-            </div>
-            
-            <h1 className="text-6xl md:text-8xl font-black uppercase leading-tight italic tracking-tighter text-white">
-              Industrial <br/> <span className="text-amber-500">Command</span> <br/> Architecture.
-            </h1>
-            
-            <p className="max-w-xl text-lg text-slate-400 leading-relaxed uppercase tracking-wide font-medium">
-              A high-precision command deck for squads and studios. <br/>
-              Zero clutter. Hardened security. Infinite scalability.
-            </p>
+               <nav className="hidden items-center gap-8 md:flex">
+                  {[
+                     ["Workspace", "/app"],
+                     ["Pricing", "/pricing"],
+                     ["Support", "/support"],
+                  ].map(([label, href]) => (
+                     <Link key={label} href={href} className="text-sm text-slate-500 transition-colors hover:text-slate-900">
+                        {label}
+                     </Link>
+                  ))}
+               </nav>
 
-            <div className="flex flex-wrap gap-6">
-               <Link href="/app" className="group flex items-center gap-4 px-10 py-6 bg-white text-black font-black uppercase tracking-widest text-[11px] hover:bg-amber-500 transition-all shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-                  Enter Command Node
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-2 transition-transform" />
-               </Link>
-               <Link href="/pricing" className="flex items-center gap-4 px-10 py-6 border border-white/10 text-white font-black uppercase tracking-widest text-[11px] hover:bg-white/5 transition-all">
-                  Access Core+
+               <Link
+                  href="/app"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white px-5 py-3 text-sm font-medium text-slate-900 shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-transform hover:-translate-y-0.5"
+               >
+                  Open workspace
+                  <ArrowRight className="h-4 w-4" />
                </Link>
             </div>
+         </header>
 
-            <div className="flex items-center gap-10 pt-8 opacity-40 grayscale hover:grayscale-0 transition-all">
-               <Image src="/app-images/all-images/intel-logo.png" alt="Intel" width={80} height={20} className="object-contain" />
-               <Image src="/app-images/all-images/nvidia-logo.png" alt="Nvidia" width={80} height={20} className="object-contain" />
-               <Image src="/app-images/all-images/amd-logo.png" alt="AMD" width={80} height={20} className="object-contain" />
-            </div>
-          </div>
+         <main className="relative mx-auto max-w-7xl px-6 pb-20 pt-14 lg:px-8 lg:pt-20">
+            <section className="grid items-center gap-14 lg:grid-cols-[1.08fr_0.92fr]">
+               <div className="max-w-2xl space-y-8">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/70 px-4 py-2 text-xs font-medium text-slate-600 shadow-sm">
+                     <Clock3 className="h-4 w-4 text-slate-500" />
+                     Built for steady teams and quieter days
+                  </div>
 
-          <div className="relative aspect-square">
-             <div className="absolute inset-0 border border-amber-500/20 rotate-12 scale-90" />
-             <div className="absolute inset-0 border border-white/5 -rotate-12 scale-95" />
-             <div className="relative w-full h-full bg-[#0d0a13] border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 scanline-overlay pointer-events-none opacity-20" />
-                <div className="z-10 text-center space-y-8">
-                   <div className="w-24 h-24 mx-auto border-2 border-amber-500 p-4 animate-pulse">
-                      <Terminal className="w-full h-full text-amber-500" />
-                   </div>
-                   <div className="space-y-2">
-                      <p className="text-[12px] font-black text-white uppercase tracking-[0.5em]">Auth_Tunnel</p>
-                      <p className="text-[10px] font-mono text-emerald-500">0xNexus_Initialized_v2</p>
-                   </div>
-                </div>
-             </div>
-          </div>
-        </div>
+                  <div className="space-y-5">
+                     <h1 className="max-w-xl text-5xl font-semibold tracking-tight text-slate-950 md:text-7xl">
+                        A calmer way to run the work that matters.
+                     </h1>
+                     <p className="max-w-xl text-lg leading-8 text-slate-600 md:text-xl">
+                        NexusForge brings together updates, coordination, and tools in a softer, more focused interface.
+                        It feels real, readable, and easy to live in.
+                     </p>
+                  </div>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-1 px-1 bg-white/5 border border-white/5 mb-40">
-           {[
-             { title: "Hardened Privacy", desc: "One-way IP hashing & AES-256 data mesh.", icon: Shield },
-             { title: "Grid Performance", desc: "React 19 + Turbopack industrial-ready engine.", icon: Zap },
-             { title: "Module Ecosystem", desc: "Deploy servers, voice pods, and asset vaults.", icon: Box },
-           ].map(f => (
-             <div key={f.title} className="p-12 bg-[#050207] space-y-6 hover:bg-black transition-colors group">
-                <div className="w-10 h-10 flex items-center justify-center border border-white/10 text-slate-500 group-hover:border-amber-500/50 group-hover:text-amber-500 transition-all">
-                   <f.icon className="w-5 h-5" />
-                </div>
-                <h3 className="text-[13px] font-black text-white uppercase tracking-widest">{f.title}</h3>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest leading-loose">{f.desc}</p>
-             </div>
-           ))}
-        </section>
-      </main>
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                     <Link
+                        href="/app"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-400 px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_12px_30px_rgba(251,191,36,0.24)] transition-transform hover:-translate-y-0.5"
+                     >
+                        Enter workspace
+                        <ArrowRight className="h-4 w-4" />
+                     </Link>
+                     <Link
+                        href="/support"
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-900/10 bg-white/80 px-6 py-3.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white"
+                     >
+                        See how it works
+                     </Link>
+                  </div>
 
-      <footer className="py-20 border-t border-white/5 px-8">
-         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-            <div className="flex items-center gap-4">
-                <div className="w-8 h-8 border border-white/10 flex items-center justify-center text-[10px] font-black rotate-45">
-                   <span className="-rotate-45">NF</span>
-                </div>
-                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-[0.4em]">Integrated_Command &copy; 2026</p>
-            </div>
-            <div className="flex gap-8">
-               {["Terms", "Privacy", "Support", "Status"].map(l => (
-                  <Link key={l} href="#" className="text-[9px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">{l}</Link>
+                  <div className="flex flex-wrap gap-3 pt-2 text-sm text-slate-500">
+                     {[
+                        "Less noise",
+                        "Clear status",
+                        "Quick navigation",
+                        "Privacy-first",
+                     ].map((item) => (
+                        <span key={item} className="rounded-full border border-slate-900/10 bg-white/70 px-4 py-2">
+                           {item}
+                        </span>
+                     ))}
+                  </div>
+               </div>
+
+               <div className="relative">
+                  <div className="absolute -left-6 top-8 h-24 w-24 rounded-full bg-amber-300/25 blur-3xl" />
+                  <div className="absolute -right-3 bottom-10 h-28 w-28 rounded-full bg-sky-300/25 blur-3xl" />
+
+                  <div className="relative overflow-hidden rounded-[32px] border border-slate-900/10 bg-white/80 p-4 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur">
+                     <div className="rounded-[28px] border border-slate-900/5 bg-gradient-to-br from-white to-slate-50 p-5">
+                        <div className="flex items-center justify-between border-b border-slate-900/5 pb-4">
+                           <div>
+                              <p className="text-sm font-semibold text-slate-950">Today</p>
+                              <p className="text-sm text-slate-500">A focused view of what needs attention</p>
+                           </div>
+                           <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Stable
+                           </div>
+                        </div>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                           <div className="rounded-2xl border border-slate-900/5 bg-[#f8f5ef] p-4">
+                              <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Focus</p>
+                              <p className="mt-3 text-3xl font-semibold text-slate-950">3</p>
+                              <p className="mt-1 text-sm text-slate-500">tasks ready for today</p>
+                           </div>
+                           <div className="rounded-2xl border border-slate-900/5 bg-[#f8f5ef] p-4">
+                              <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">Team</p>
+                              <p className="mt-3 text-3xl font-semibold text-slate-950">12</p>
+                              <p className="mt-1 text-sm text-slate-500">people checked in</p>
+                           </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                           {activityItems.map((item) => (
+                              <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-900/5 bg-white px-4 py-3">
+                                 <div>
+                                    <p className="text-sm font-medium text-slate-900">{item.label}</p>
+                                    <p className="text-sm text-slate-500">{item.note}</p>
+                                 </div>
+                                 <span className={`rounded-full px-3 py-1 text-xs font-medium ${item.tone}`}>{item.status}</span>
+                              </div>
+                           ))}
+                        </div>
+
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                           <div className="rounded-2xl border border-slate-900/10 bg-slate-100 px-4 py-3 text-slate-900">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Messages</p>
+                              <p className="mt-2 text-sm font-medium">2 waiting, no rush</p>
+                           </div>
+                           <div className="rounded-2xl border border-slate-900/5 bg-white px-4 py-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Updates</p>
+                              <p className="mt-2 text-sm font-medium text-slate-900">Quiet summary mode</p>
+                           </div>
+                           <div className="rounded-2xl border border-slate-900/5 bg-white px-4 py-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Status</p>
+                              <p className="mt-2 text-sm font-medium text-slate-900">Everything is synced</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </section>
+
+            <section className="mt-16 grid gap-4 md:grid-cols-3">
+               {features.map((feature) => (
+                  <div key={feature.title} className="rounded-[28px] border border-slate-900/10 bg-white/80 p-6 shadow-sm backdrop-blur-sm">
+                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-900 shadow-sm">
+                        <feature.icon className="h-5 w-5" />
+                     </div>
+                     <h2 className="mt-5 text-lg font-semibold text-slate-950">{feature.title}</h2>
+                     <p className="mt-3 text-sm leading-7 text-slate-600">{feature.description}</p>
+                  </div>
                ))}
-            </div>
-         </div>
-      </footer>
-    </div>
-  );
+            </section>
+
+            <section className="mt-16 grid gap-4 rounded-[32px] border border-slate-900/10 bg-white/85 px-6 py-8 text-slate-900 shadow-[0_30px_90px_rgba(15,23,42,0.1)] md:grid-cols-3 md:px-8">
+               <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-500">Why it feels different</p>
+                  <h2 className="mt-3 text-2xl font-semibold">Less spectacle. More clarity.</h2>
+               </div>
+               <div className="rounded-2xl border border-slate-900/10 bg-slate-50 p-5">
+                  <MessageSquare className="h-5 w-5 text-amber-600" />
+                  <p className="mt-4 text-sm leading-7 text-slate-600">
+                     Copy, spacing, and motion are kept simple so the interface feels natural instead of overdesigned.
+                  </p>
+               </div>
+               <div className="rounded-2xl border border-slate-900/10 bg-slate-50 p-5">
+                  <Users2 className="h-5 w-5 text-amber-600" />
+                  <p className="mt-4 text-sm leading-7 text-slate-600">
+                     The layout supports real teams: one place for tasks, conversation, and the next small step.
+                  </p>
+               </div>
+            </section>
+         </main>
+      </div>
+   );
 }

@@ -22,11 +22,11 @@ type ExperienceShellProps = {
 };
 
 function metricToneClass(tone: ExperienceMetric["tone"]) {
-  if (tone === "cyan") return "text-nexus-cyan nexus-text-pop";
-  if (tone === "emerald") return "text-nexus-cyan nexus-text-pop opacity-80";
-  if (tone === "amber") return "text-nexus-gold nexus-text-pop";
-  if (tone === "slate") return "text-nexus-purple nexus-text-pop";
-  return "text-slate-300";
+  if (tone === "cyan") return "text-sky-600";
+  if (tone === "emerald") return "text-emerald-600";
+  if (tone === "amber") return "text-amber-600";
+  if (tone === "slate") return "text-slate-300";
+  return "text-slate-500";
 }
 
 export function ExperienceShell({
@@ -45,21 +45,22 @@ export function ExperienceShell({
   const pathname = usePathname();
 
   return (
-    <div className="nexus-shell">
-      <div className={`nexus-shell-inner ${maxWidthClassName} nexus-shell-atmos space-y-2`}>
-        <header className="nexus-shell-header nexus-panel-glass p-8 border border-white/10 bg-black/60 nexus-corner-tick relative overflow-hidden backdrop-blur-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-nexus-cyan/5 blur-[100px] -z-10" />
+    <div className="nexus-shell cinematic-stage metal-corners text-slate-100 nf-content-rhythm">
+      <div className="cinematic-particles" />
+      <div className={`nexus-shell-inner ${maxWidthClassName} nexus-shell-atmos space-y-4`}>
+        <header className="forge-frame relative overflow-hidden rounded-[32px] p-8 backdrop-blur-xl nf-motion-rise">
+          <div className="absolute top-0 right-0 h-64 w-64 -z-10 bg-rose-400/25 blur-[110px]" />
           <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-4">
-                <div className="p-2 border border-nexus-cyan/30 bg-black/40 flex items-center justify-center nexus-corner-tick relative overflow-hidden group shadow-[inset_0_0_10px_rgba(0,242,255,0.1)]">
-                   <div className="absolute top-0 right-0 w-3 h-3 bg-nexus-cyan/20" />
+                <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-950/70 p-2 shadow-[inset_0_0_10px_rgba(15,23,42,0.2)] group">
+                   <div className="absolute top-0 right-0 h-3 w-3 bg-amber-300/60" />
                    <Image 
                      src="/brand/nexusforge-logo.png" 
                      alt="NF" 
                      width={100} 
                      height={25} 
-                     className="brightness-125 transition-all duration-300 group-hover:scale-110" 
+                     className="h-auto w-auto transition-all duration-300 group-hover:scale-110"
                    />
                 </div>
                 {showGlobalNav ? (
@@ -71,13 +72,13 @@ export function ExperienceShell({
                           key={action.href}
                           href={action.href}
                           className={cn(
-                            "inline-flex h-10 items-center px-4 text-[10px] font-black uppercase tracking-[0.25em] transition-all border",
+                            "inline-flex h-10 items-center rounded-full border px-4 text-[10px] font-semibold uppercase tracking-[0.25em] transition-all",
                             isActive 
-                              ? "border-nexus-gold bg-nexus-gold/10 text-nexus-gold shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
-                              : "border-white/5 text-slate-500 hover:border-nexus-cyan/50 hover:text-nexus-cyan"
+                              ? "border-amber-300/70 bg-amber-500/20 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.2)]" 
+                              : "border-slate-700/70 bg-slate-900/80 text-slate-400 hover:border-amber-400/50 hover:text-slate-100"
                           )}
                         >
-                          {action.label.replace(" ", "_")}
+                          {action.label}
                         </Link>
                       );
                     })}
@@ -86,18 +87,14 @@ export function ExperienceShell({
               </div>
 
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-3 border border-nexus-gold/30 bg-nexus-gold/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.32em] text-nexus-gold nexus-text-pop nexus-corner-tick">
-                  <div className="h-2 w-2 bg-nexus-gold shadow-[0_0_8px_#fbbf24] animate-pulse" />
+                <div className="forge-chip inline-flex items-center gap-3 rounded-full px-4 py-1.5 nf-type-eyebrow shadow-sm">
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500 shadow-[0_0_8px_#fbbf24]" />
                   {eyebrow}
                 </div>
-                <h1 className="text-5xl font-black text-white italic uppercase tracking-tighter drop-shadow-xl leading-none">
-                  {title.split(" ").map((word, i) => (
-                    <span key={i} className={i % 2 === 1 ? "text-nexus-cyan nexus-text-vibrant ml-3" : "ml-3 first:ml-0"}>
-                      {word}
-                    </span>
-                  ))}
+                <h1 className="nf-type-title text-slate-100">
+                  {title}
                 </h1>
-                {subtitle ? <p className="text-[13px] font-black uppercase tracking-[0.1em] text-slate-400 max-w-2xl leading-relaxed opacity-80">{subtitle}</p> : null}
+                {subtitle ? <p className="nf-type-subtitle text-slate-400 max-w-2xl">{subtitle}</p> : null}
               </div>
             </div>
             {mergedActions.length ? (
@@ -107,10 +104,10 @@ export function ExperienceShell({
                     key={`${action.href}-${action.label}`}
                     href={action.href}
                     className={cn(
-                      "inline-flex h-12 items-center px-6 text-[11px] font-black uppercase tracking-[0.2em] transition-all",
+                      "inline-flex h-12 items-center rounded-full px-6 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all",
                       action.tone === "primary"
-                        ? "bg-nexus-cyan text-black hover:bg-white shadow-[0_5px_15px_-5px_rgba(0,242,255,0.4)]"
-                        : "border border-white/10 text-slate-400 hover:border-nexus-gold/50 hover:text-nexus-gold"
+                        ? "forge-btn-primary nf-interact"
+                        : "forge-btn-secondary nf-interact"
                     )}
                   >
                     {action.label}
@@ -122,11 +119,11 @@ export function ExperienceShell({
         </header>
 
         {metrics.length ? (
-          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="bg-black/40 border border-white/10 nexus-corner-tick px-6 py-5 group hover:bg-white/5 transition-all">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-nexus-purple opacity-70 group-hover:opacity-100 transition-opacity">{metric.label}</p>
-                <p className={`mt-2 text-xl font-black italic tracking-tighter ${metricToneClass(metric.tone)}`}>{metric.value}</p>
+          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 nf-stagger nf-stagger-base-110">
+            {metrics.map((metric, index) => (
+              <div key={metric.label} className={cn("forge-panel nf-interact group rounded-[24px] px-6 py-5 transition-colors", index === 0 && "nf-stagger-item-0", index === 1 && "nf-stagger-item-1", index === 2 && "nf-stagger-item-2", index === 3 && "nf-stagger-item-3", index === 4 && "nf-stagger-item-4", index === 5 && "nf-stagger-item-5", index >= 6 && "nf-stagger-item-6")}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500 transition-opacity group-hover:opacity-100">{metric.label}</p>
+                <p className={`mt-2 text-xl font-semibold tracking-tight ${metricToneClass(metric.tone)}`}>{metric.value}</p>
               </div>
             ))}
           </div>

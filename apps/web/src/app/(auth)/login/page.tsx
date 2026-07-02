@@ -63,7 +63,7 @@ export default function LoginPage() {
               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.5em]">Command_Access</span>
            </div>
            
-           <h2 className="text-6xl font-black uppercase leading-tight italic tracking-tighter text-white">
+           <h2 className="text-6xl font-black uppercase leading-tight italic tracking-tighter text-slate-950">
              Secure Your <br/> <span className="text-amber-500">Node_Vault</span>.
            </h2>
            
@@ -76,11 +76,11 @@ export default function LoginPage() {
                 { label: "IP_Masking", status: "ACTIVE", icon: ShieldAlert },
                 { label: "Auth_Sync", status: "READY", icon: Activity },
               ].map(stat => (
-                <div key={stat.label} className="p-6 border border-white/5 bg-black/20 flex flex-col gap-4">
+                 <div key={stat.label} className="flex flex-col gap-4 rounded-[20px] border border-slate-900/10 bg-white/80 p-6">
                    <stat.icon className="w-4 h-4 text-emerald-500" />
                    <div>
                       <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{stat.label}</p>
-                      <p className="text-[10px] text-white font-black uppercase tracking-widest">{stat.status}</p>
+                     <p className="text-[10px] text-slate-900 font-black uppercase tracking-widest">{stat.status}</p>
                    </div>
                 </div>
               ))}
@@ -102,7 +102,7 @@ export default function LoginPage() {
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email_Address</label>
               <input 
                  {...register("email")}
-                 className="w-full bg-slate-900/50 border border-white/10 p-4 text-[12px] font-bold text-white uppercase tracking-widest focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full rounded-[18px] border border-slate-900/10 bg-white p-4 text-[12px] font-bold uppercase tracking-widest text-slate-900 transition-colors focus:border-amber-400/60 focus:outline-none"
                  placeholder="COMMANDER@NEXUS"
               />
               {errors.email && <p className="text-[9px] text-rose-500 uppercase font-black">{errors.email.message}</p>}
@@ -113,7 +113,7 @@ export default function LoginPage() {
               <input 
                  type="password"
                  {...register("password")}
-                 className="w-full bg-slate-900/50 border border-white/10 p-4 text-[12px] font-bold text-white uppercase tracking-widest focus:outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full rounded-[18px] border border-slate-900/10 bg-white p-4 text-[12px] font-bold uppercase tracking-widest text-slate-900 transition-colors focus:border-amber-400/60 focus:outline-none"
                  placeholder="********"
               />
               {errors.password && <p className="text-[9px] text-rose-500 uppercase font-black">{errors.password.message}</p>}

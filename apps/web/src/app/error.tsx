@@ -12,30 +12,29 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log industrial error telemetry
+    // Log global route error telemetry
     console.error("[CRITICAL_SYSTEM_FAILURE]", error);
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-6 font-sans">
-      <div className="max-w-2xl w-full border border-nexus-crimson/30 bg-black/40 nexus-corner-tick p-12 space-y-10 backdrop-blur-xl relative overflow-hidden">
-        {/* SCANLINE EFFECT */}
-        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
-        
-        <div className="flex items-center gap-4 text-nexus-crimson animate-pulse">
-          <ShieldAlert className="w-10 h-10" />
-          <span className="text-[12px] font-black uppercase tracking-[0.4em]">Protocol_Breach // System_Failure</span>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.14),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] p-6 font-sans">
+      <div className="mx-auto w-full max-w-2xl space-y-8 rounded-[30px] border border-slate-900/10 bg-white/90 p-10 shadow-[0_30px_90px_rgba(15,23,42,0.1)] backdrop-blur-xl">
+        <div className="flex items-center gap-4">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+            <ShieldAlert className="h-8 w-8 text-rose-600" />
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-rose-700">System Recovery Mode</span>
         </div>
 
         <div className="space-y-4">
-          <h1 className="text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-            Kernel_<span className="text-nexus-crimson">Panic_Logged</span>
+          <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-950 md:text-5xl">
+            We hit a recoverable issue.
           </h1>
-          <div className="p-6 bg-nexus-crimson/5 border border-nexus-crimson/20 nexus-corner-tick">
-            <p className="text-nexus-crimson font-mono text-sm break-all leading-relaxed">
-              [OS_TRAP]: {error.message || "AN_UNEXPECTED_EXCEPTION_HAS_OCCURRED"}
+          <div className="rounded-[22px] border border-rose-200 bg-rose-50 p-6">
+            <p className="break-all font-mono text-sm leading-relaxed text-rose-700">
+              ERROR: {error.message || "AN_UNEXPECTED_EXCEPTION_HAS_OCCURRED"}
               <br />
-              [TRACE_ID]: {error.digest || "NULL_DESCRIPTOR"}
+              TRACE: {error.digest || "NULL_DESCRIPTOR"}
             </p>
           </div>
         </div>
@@ -43,26 +42,26 @@ export default function GlobalError({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => reset()}
-            className="flex items-center justify-center gap-3 py-5 bg-nexus-crimson text-white font-black uppercase tracking-widest text-xs hover:bg-white hover:text-black transition-all group"
+            className="flex items-center justify-center gap-3 rounded-full bg-amber-500 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-950 transition-colors hover:bg-amber-400"
           >
-            <RefreshCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-            Initiate_Hot_Reload
+            <RefreshCcw className="h-4 w-4" />
+            Try Again
           </button>
           <Link
             href="/"
-            className="flex items-center justify-center gap-3 py-5 border border-white/10 text-slate-400 font-black uppercase tracking-widest text-xs hover:border-nexus-cyan hover:text-nexus-cyan transition-all"
+            className="flex items-center justify-center gap-3 rounded-full border border-slate-900/10 bg-white py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 transition-colors hover:bg-slate-50"
           >
-            <Home className="w-4 h-4" />
-            Return_to_Command
+            <Home className="h-4 w-4" />
+            Return Home
           </Link>
         </div>
 
-        <div className="flex justify-between items-center pt-6 border-t border-white/5 opacity-40">
+        <div className="flex items-center justify-between border-t border-slate-900/10 pt-5">
           <div className="flex items-center gap-4">
-             <div className="w-2 h-2 bg-nexus-crimson rounded-full animate-ping" />
-             <span className="text-[10px] font-black uppercase tracking-widest text-white">Automated_Diagnostics_Active</span>
+             <div className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Automated diagnostics active</span>
           </div>
-          <Zap className="w-4 h-4 text-nexus-gold" />
+          <Zap className="h-4 w-4 text-amber-600" />
         </div>
       </div>
     </div>

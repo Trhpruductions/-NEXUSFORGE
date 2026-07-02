@@ -12,65 +12,64 @@ const hubs = [
 
 export default function GamesPage() {
   return (
-    <div className="flex flex-col gap-3 md:gap-4">
-      {/* HEADER: ARENA COMMAND */}
-      <div className="p-5 md:p-8 border border-white/10 bg-black/40 flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6">
+      <div className="cinematic-stage metal-corners flex flex-col gap-4 text-slate-100 nf-content-rhythm">
+         <div className="cinematic-particles" />
+         <div className="forge-frame flex flex-col justify-between gap-4 rounded-[28px] p-5 backdrop-blur-xl md:p-8 lg:flex-row lg:items-center">
          <div className="space-y-2">
             <div className="flex items-center gap-3">
-               <div className="w-8 h-1 bg-amber-500" />
-               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Arena_Deployment_v3</span>
+               <div className="h-1 w-8 rounded-full bg-sky-400" />
+               <span className="nf-type-eyebrow text-slate-300">Game library</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-black uppercase text-white italic tracking-tight md:tracking-tighter break-words">
-               Combat_Zones_&_Arcs
+            <h1 className="nf-type-title text-slate-100 md:text-4xl">
+               Competitive and social hubs
             </h1>
          </div>
-         <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3">
-            <button className="px-4 md:px-6 py-3 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all duration-300 flex items-center gap-2">
-               <Target className="w-3 h-3" /> Auto_Match
+         <div className="flex flex-wrap items-center gap-2 md:gap-3 lg:flex-nowrap">
+            <button className="forge-btn-secondary inline-flex items-center gap-2 rounded-full px-4 py-3 text-[10px] font-semibold uppercase tracking-widest transition-colors md:px-6 nf-interact">
+               <Target className="w-3 h-3" /> Quick match
             </button>
-            <div className="hidden lg:block h-12 w-px bg-white/10 mx-1" />
-            <div className="px-3 md:px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end min-w-[160px]">
-               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Active_Players</span>
-               <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">12,452 NODES</span>
+            <div className="hidden h-12 w-px bg-slate-300/40 lg:block lg:mx-1" />
+            <div className="forge-panel flex min-w-[160px] flex-col items-end rounded-2xl px-3 py-2 md:px-4">
+               <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Players online</span>
+               <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-300">12,452 active</span>
             </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 md:gap-4">
-         {/* MAIN HUB GRID */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
          <div className="xl:col-span-8 2xl:col-span-9 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                {hubs.map((hub, idx) => (
-                  <div key={idx} className="p-5 md:p-7 border border-white/10 bg-black/40 space-y-6 md:space-y-7 group hover:bg-white/5 transition-all duration-300 hover:border-amber-500/20 hover:-translate-y-[2px] nf-stagger-item">
-                     <div className="flex justify-between items-start">
+                  <div key={idx} className="forge-frame group space-y-6 overflow-hidden rounded-[28px] p-5 transition-transform duration-300 hover:-translate-y-[2px] md:p-7 nf-interact">
+                     <div className="flex items-start justify-between">
                         <div className="space-y-1">
-                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{hub.genre}_MODULE</span>
-                           <h3 className="text-xl md:text-2xl xl:text-3xl font-black text-white uppercase italic tracking-tight leading-[0.95] break-words">{hub.name}</h3>
+                           <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">{hub.genre}</span>
+                           <h3 className="text-xl font-semibold tracking-tight text-slate-100 md:text-2xl xl:text-3xl leading-[0.95] break-words">{hub.name}</h3>
                         </div>
-                        <div className="w-10 h-10 border border-white/10 bg-slate-900 flex items-center justify-center">
-                           <Gamepad2 className="w-5 h-5 text-amber-500/50 group-hover:text-amber-500 transition-colors" />
+                        <div className="flex h-10 w-10 items-center justify-center border border-slate-700/70 bg-slate-900">
+                           <Gamepad2 className="w-5 h-5 text-sky-300 transition-colors" />
                         </div>
                      </div>
 
-                     <div className="h-36 md:h-44 xl:h-48 border border-white/5 bg-slate-950 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                     <div className="relative h-36 overflow-hidden rounded-3xl border border-slate-700/60 bg-slate-900/80 md:h-44 xl:h-48">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.16),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(56,189,248,0.12),transparent_35%)]" />
                         <div className="absolute bottom-4 left-4 flex gap-4">
-                           <div className="px-3 py-1 bg-black/60 border border-white/10 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                           <div className="rounded-full border border-emerald-400/45 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
                               {hub.status}
                            </div>
-                           <div className="px-3 py-1 bg-black/60 border border-white/10 text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                           <div className="flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-300">
                               <Users className="w-3 h-3" /> {hub.players}
                            </div>
                         </div>
                      </div>
 
                      <div className="flex gap-2">
-                        <button className="flex-1 py-3 md:py-4 bg-amber-500 text-black font-black uppercase tracking-[0.2em] text-[11px] hover:bg-amber-400 transition-all duration-300 flex items-center justify-center gap-2">
-                           <Play className="w-3 h-3 fill-current" /> Initialize_Instance
+                        <button className="forge-btn-primary flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors md:py-4 nf-interact">
+                           <Play className="w-3 h-3 fill-current" /> Launch
                         </button>
                         <button 
                            title="Favorite"
-                           className="w-14 h-14 border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+                           className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-700/70 bg-slate-900 transition-colors hover:bg-slate-900/70 nf-interact"
                         >
                            <Star className="w-4 h-4 text-slate-500" />
                         </button>
@@ -80,12 +79,11 @@ export default function GamesPage() {
             </div>
          </div>
 
-         {/* RANKINGS & COMMS */}
          <div className="xl:col-span-4 2xl:col-span-3 space-y-3">
-            <div className="p-5 md:p-6 border border-white/10 bg-black/40 space-y-6">
+            <div className="forge-frame space-y-6 rounded-[28px] p-5 md:p-6">
                <div className="flex items-center gap-2 text-amber-500">
                   <Trophy className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Global_Leaders</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Top players</span>
                </div>
                <div className="space-y-1">
                   {[
@@ -93,25 +91,25 @@ export default function GamesPage() {
                      { user: "Neon_A", score: "475k", rank: 2 },
                      { user: "Crusade", score: "461k", rank: 3 },
                   ].map(item => (
-                     <div key={item.user} className="p-3 md:p-4 border border-white/5 bg-white/5 flex items-center justify-between">
+                     <div key={item.user} className="forge-panel flex items-center justify-between rounded-2xl p-3 md:p-4">
                         <div className="flex items-center gap-3">
-                           <span className="text-[10px] font-black text-slate-600">0{item.rank}</span>
-                           <span className="text-[10px] font-black text-white uppercase tracking-widest">{item.user}</span>
+                           <span className="text-[10px] font-semibold text-slate-500">0{item.rank}</span>
+                           <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-100">{item.user}</span>
                         </div>
-                        <span className="text-[10px] font-black text-amber-500">{item.score}</span>
+                        <span className="text-[10px] font-semibold text-amber-300">{item.score}</span>
                      </div>
                   ))}
                </div>
             </div>
 
-            <div className="p-5 md:p-6 border border-white/10 bg-amber-500/5 space-y-4">
+            <div className="forge-frame space-y-4 rounded-[28px] p-5 md:p-6">
                <div className="flex items-center gap-2">
                   <Search className="w-4 h-4 text-amber-500" />
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Recent_Searches</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-300">Recent searches</span>
                </div>
                <div className="flex flex-wrap gap-2">
-                  {["#FPS", "#MMO", "#ASSETS", "#COOP"].map(tag => (
-                     <span key={tag} className="px-3 py-1 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:border-amber-500/50 hover:text-amber-500">
+                  {["#FPS", "#MMO", "#ASSETS", "#COOP"].map((tag) => (
+                     <span key={tag} className="cursor-pointer rounded-full border border-slate-700/70 bg-slate-900 px-3 py-1 text-[9px] font-semibold uppercase tracking-widest text-slate-300 transition-colors hover:border-sky-400/50 hover:text-sky-200 nf-interact">
                         {tag}
                      </span>
                   ))}

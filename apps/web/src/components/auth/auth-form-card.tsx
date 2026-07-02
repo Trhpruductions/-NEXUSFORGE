@@ -18,15 +18,15 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
     <section
       role="form"
       aria-labelledby={titleId}
-      className="w-full max-w-[480px] bg-black/60 border border-white/5 p-10 relative overflow-hidden group shadow-[0_50px_100px_rgba(0,0,0,0.8)] backdrop-blur-md"
+      className="w-full max-w-[480px] rounded-[32px] border border-slate-900/10 bg-white/85 p-10 relative overflow-hidden group shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl text-slate-900"
     >
-      <div className="absolute top-0 right-0 p-8 opacity-5">
+      <div className="absolute top-0 right-0 p-8 opacity-10">
          <LayoutPanelTop className="w-32 h-32" />
       </div>
 
       <div className="relative mb-12 flex items-center justify-between">
          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 border border-amber-500/30 flex items-center justify-center bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors nexus-corner-tick">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 transition-colors group-hover:bg-amber-100">
                <Image 
                  src="/app-images/all-images/nexusforge-logo.png" 
                  alt="" 
@@ -36,18 +36,18 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
                />
             </div>
             <div>
-               <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.4em] mb-1">Nexus_Auth_v7</p>
-               <h1 id={titleId} className="text-2xl font-black text-white uppercase tracking-tighter italic">{title}</h1>
+               <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.4em] text-amber-600">Nexus Auth v7</p>
+               <h1 id={titleId} className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
             </div>
          </div>
-         <div className="flex items-center gap-2 px-3 py-1 border border-emerald-500/20 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-            <Lock className="w-3 h-3 text-emerald-500" />
-            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">TLS_Secure</span>
+         <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 shadow-sm">
+            <Lock className="w-3 h-3 text-emerald-600" />
+            <span className="text-[8px] font-semibold uppercase tracking-widest text-emerald-600">TLS secure</span>
          </div>
       </div>
 
-      <div className="relative mb-10 pb-6 border-b border-white/5">
-         <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest leading-relaxed italic">{subtitle}</p>
+      <div className="relative mb-10 pb-6 border-b border-slate-900/5">
+         <p className="text-[11px] font-medium uppercase tracking-widest leading-relaxed text-slate-500">{subtitle}</p>
       </div>
 
       <div className="relative space-y-6">
@@ -55,14 +55,14 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
       </div>
 
       {footer && (
-         <div className="relative mt-10 pt-8 border-t border-white/5 text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center group-hover:text-slate-300 transition-colors">
+         <div className="relative mt-10 pt-8 border-t border-slate-900/5 text-[10px] font-semibold uppercase tracking-widest text-center text-slate-500 transition-colors group-hover:text-slate-700">
             {footer}
          </div>
       )}
       
       {/* CORNER DECS */}
-      <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-amber-500/20" />
-      <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-amber-500/20" />
+      <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-amber-200" />
+      <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-amber-200" />
     </section>
   );
 }

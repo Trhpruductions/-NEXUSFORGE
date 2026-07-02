@@ -6,6 +6,7 @@ import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
 import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, approveAdminAgeGateAudit, getAdminAiInsights, getAdminAgeGateAudit, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue, getBillingReadiness, rejectAdminAgeGateAudit, setAdminLaunchMode } from "@/lib/api";
+import { CORE_PLUS_TIER_DISPLAY_LABELS, PAID_FEATURE_DISPLAY_LABELS } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -515,15 +516,15 @@ export function AdminDashboard() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-      <div className="nexus-panel-glass flex flex-wrap items-center gap-3 rounded-[28px] border border-slate-700/70 bg-slate-950/85 p-4 shadow-[0_28px_70px_rgba(0,0,0,0.35)] lg:col-span-2">
+      <div className="nexus-panel-glass flex flex-wrap items-center gap-3 rounded-[28px] border border-slate-900/10 bg-white/90 p-4 shadow-[0_28px_70px_rgba(0,0,0,0.35)] lg:col-span-2">
         <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs uppercase tracking-[0.22em] text-amber-200">Admin Hub</span>
-        <Link href="/admin/age-gate-review" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+        <Link href="/admin/age-gate-review" className="rounded-full border border-slate-900/10 bg-white/90 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-amber-400/60 hover:bg-white/95">
           Gate Review
         </Link>
-        <Link href="/notifications" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+        <Link href="/notifications" className="rounded-full border border-slate-900/10 bg-white/90 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-amber-400/60 hover:bg-white/95">
           Alerts
         </Link>
-        <Link href="/app" className="rounded-full border border-slate-700/70 bg-slate-900/90 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-amber-400/60 hover:bg-slate-900/95">
+        <Link href="/app" className="rounded-full border border-slate-900/10 bg-white/90 px-3 py-2 text-sm font-semibold text-slate-900 transition hover:border-amber-400/60 hover:bg-white/95">
           Back to App
         </Link>
         <span className="ml-auto rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">Governance live</span>
@@ -544,23 +545,23 @@ export function AdminDashboard() {
               Hardened
             </div>
           </div>
-        <div className="grid grid-cols-2 gap-3 text-sm text-slate-200">
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Users: {summaryQuery.data?.users ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Forges: {summaryQuery.data?.forges ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Messages: {summaryQuery.data?.messages ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Notifications: {summaryQuery.data?.notifications ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Pending Friend Requests: {summaryQuery.data?.pendingFriends ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">Active Subscriptions: {revenueQuery.data?.revenue.activeSubscriptions ?? 0}</div>
+        <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Users: {summaryQuery.data?.users ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Forges: {summaryQuery.data?.forges ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Messages: {summaryQuery.data?.messages ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Notifications: {summaryQuery.data?.notifications ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Pending Friend Requests: {summaryQuery.data?.pendingFriends ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">Active Subscriptions: {revenueQuery.data?.revenue.activeSubscriptions ?? 0}</div>
         </div>
 
-        <div className="mt-4 grid gap-2 text-sm text-slate-200">
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
+        <div className="mt-4 grid gap-2 text-sm text-slate-700">
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">
             Revenue 30d: <span className="font-semibold text-amber-200">{formatUsd(revenueQuery.data?.revenue.last30DaysCents ?? 0)}</span>
           </div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">
             Revenue Growth: <span className="font-semibold text-amber-200">{revenueQuery.data?.revenue.growthPct ?? 0}%</span>
           </div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3">
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3">
             Failed Payments (30d): <span className="font-semibold text-rose-200">{revenueQuery.data?.revenue.failedPayments ?? 0}</span>
           </div>
         </div>
@@ -572,7 +573,7 @@ export function AdminDashboard() {
           </p>
           <p className="mt-1 text-slate-400">
             Source: {launchModeQuery.data?.source ?? "-"}
-            {launchModeQuery.data?.updatedBy ? ` • Updated by ${launchModeQuery.data.updatedBy.username}` : ""}
+            {launchModeQuery.data?.updatedBy ? ` | Updated by ${launchModeQuery.data.updatedBy.username}` : ""}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
@@ -638,13 +639,13 @@ export function AdminDashboard() {
             <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Moderation Queue</h2>
             <p className="mt-2 text-sm text-slate-400">Role escalation, access correction, and admin privilege changes in one queue.</p>
           </div>
-          <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+          <div className="rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
             {usersQuery.data?.users.length ?? 0} users
           </div>
         </div>
         <div className="space-y-2">
           {usersQuery.data?.users.map((entry) => (
-            <div key={entry.id} className="nexus-interactive-card flex flex-col items-stretch gap-3 rounded-[24px] border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.16))] px-4 py-4 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between">
+            <div key={entry.id} className="nexus-interactive-card flex flex-col items-stretch gap-3 rounded-[24px] border border-slate-900/10 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.16))] px-4 py-4 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2">
                   <span>{entry.username}</span>
@@ -675,7 +676,7 @@ export function AdminDashboard() {
                       [entry.id]: event.target.value as AppRole,
                     }))
                   }
-                  className="h-9 min-w-0 rounded-lg border border-slate-600/80 bg-slate-950/80 px-2 text-xs text-slate-100 sm:min-w-[140px]"
+                  className="h-9 min-w-0 rounded-lg border border-slate-900/10 bg-white/90 px-2 text-xs text-slate-900 sm:min-w-[140px]"
                   aria-label={`Select role for ${entry.username}`}
                 >
                   <option value="USER">USER</option>
@@ -708,7 +709,7 @@ export function AdminDashboard() {
                       [entry.id]: event.target.value as ManualBadgeKey,
                     }))
                   }
-                  className="h-9 min-w-0 rounded-lg border border-slate-600/80 bg-slate-950/80 px-2 text-xs text-slate-100 sm:min-w-[128px]"
+                  className="h-9 min-w-0 rounded-lg border border-slate-900/10 bg-white/90 px-2 text-xs text-slate-900 sm:min-w-[128px]"
                   aria-label={`Select badge for ${entry.username}`}
                 >
                   {manualBadgeOptions.map((option) => (
@@ -760,16 +761,18 @@ export function AdminDashboard() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-700/70 text-slate-300">
+              <tr className="border-b border-slate-900/10 text-slate-300">
                 <th className="py-2 pr-3">Feature</th>
+                <th className="py-2 pr-3">Catalog Price</th>
                 <th className="py-2 pr-3">Revenue</th>
                 <th className="py-2">Transactions</th>
               </tr>
             </thead>
             <tbody>
               {(revenueQuery.data?.featureRevenue ?? []).map((row) => (
-                <tr key={row.featureCode} className="border-b border-slate-800/70 text-slate-200 transition-colors hover:bg-slate-900/45">
-                  <td className="py-2 pr-3 font-medium text-slate-100">{row.featureCode}</td>
+                <tr key={row.featureCode} className="border-b border-slate-900/10/70 text-slate-700 transition-colors hover:bg-slate-100">
+                  <td className="py-2 pr-3 font-medium text-slate-900">{row.featureLabel ?? PAID_FEATURE_DISPLAY_LABELS[row.featureCode]}</td>
+                  <td className="py-2 pr-3 text-slate-500">{row.priceLabel ?? "-"}</td>
                   <td className="py-2 pr-3 text-amber-200">{formatUsd(row.revenueCents)}</td>
                   <td className="py-2">{row.transactions}</td>
                 </tr>
@@ -778,10 +781,10 @@ export function AdminDashboard() {
           </table>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3 text-sm text-slate-200">CORE: {revenueQuery.data?.tierDistribution.CORE ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3 text-sm text-slate-200">PLUS: {revenueQuery.data?.tierDistribution.PLUS ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3 text-sm text-slate-200">ELITE: {revenueQuery.data?.tierDistribution.ELITE ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-slate-800/80 p-3 text-sm text-slate-200">INFINITE: {revenueQuery.data?.tierDistribution.INFINITE ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3 text-sm text-slate-700">{CORE_PLUS_TIER_DISPLAY_LABELS.CORE}: {revenueQuery.data?.tierDistribution.CORE ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3 text-sm text-slate-700">{CORE_PLUS_TIER_DISPLAY_LABELS.PLUS}: {revenueQuery.data?.tierDistribution.PLUS ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3 text-sm text-slate-700">{CORE_PLUS_TIER_DISPLAY_LABELS.ELITE}: {revenueQuery.data?.tierDistribution.ELITE ?? 0}</div>
+          <div className="glass-cut rounded-xl border border-slate-900/10 p-3 text-sm text-slate-700">{CORE_PLUS_TIER_DISPLAY_LABELS.INFINITE}: {revenueQuery.data?.tierDistribution.INFINITE ?? 0}</div>
         </div>
       </section>
 
@@ -801,19 +804,19 @@ export function AdminDashboard() {
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200">
+            <div className="glass-cut rounded-xl border border-slate-900/10 p-4 text-slate-700">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Pressure Score</p>
               <p className="mt-2 text-3xl font-semibold text-rose-200">{aiInsightsQuery.data?.insights.pressureScore ?? 0}</p>
             </div>
-            <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200">
+            <div className="glass-cut rounded-xl border border-slate-900/10 p-4 text-slate-700">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Recent Messages</p>
               <p className="mt-2 text-3xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.recentMessages ?? 0}</p>
             </div>
-            <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200">
+            <div className="glass-cut rounded-xl border border-slate-900/10 p-4 text-slate-700">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-400">New Accounts 7d</p>
               <p className="mt-2 text-3xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.recentAccounts ?? 0}</p>
             </div>
-            <div className="glass-cut rounded-xl border border-slate-800/80 p-4 text-slate-200 md:col-span-3">
+            <div className="glass-cut rounded-xl border border-slate-900/10 p-4 text-slate-700 md:col-span-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Risk Level</p>
@@ -825,21 +828,21 @@ export function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="md:col-span-3 rounded-xl border border-slate-700/80 bg-slate-900/80 p-4 text-sm text-slate-200">
+            <div className="md:col-span-3 rounded-xl border border-slate-900/10 bg-white/90 p-4 text-sm text-slate-700">
               <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Automation Actions</p>
               <div className="grid gap-2 md:grid-cols-3">
                 {(aiInsightsQuery.data?.insights.automationActions ?? []).map((action) => (
-                  <div key={action} className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  <div key={action} className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                     {action}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="md:col-span-3 rounded-xl border border-slate-700/80 bg-slate-900/80 p-4 text-sm text-slate-200">
+            <div className="md:col-span-3 rounded-xl border border-slate-900/10 bg-white/90 p-4 text-sm text-slate-700">
               <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Recommended Playbooks</p>
               <div className="grid gap-2 md:grid-cols-3">
                 {(aiInsightsQuery.data?.insights.recommendedPlaybooks ?? []).map((playbook) => (
-                  <div key={playbook.title} className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                  <div key={playbook.title} className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">{playbook.title}</p>
                     <p className="mt-1 text-[11px] text-slate-300">{playbook.detail}</p>
                     <p className="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-500">Priority: {playbook.priority}</p>
@@ -869,20 +872,20 @@ export function AdminDashboard() {
             <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Profile Data Operations</h2>
             <p className="mt-2 text-sm text-slate-400">Controlled generation, reputation balancing, and recovery paths for profile tooling.</p>
           </div>
-          <div className="rounded-full border border-slate-800 bg-slate-950/65 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
+          <div className="rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">
             Ops rail
           </div>
         </div>
-        <div className="mb-3 rounded-[20px] border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-xs text-slate-300">
+        <div className="mb-3 rounded-[20px] border border-slate-900/10 bg-white/90 px-3 py-2 text-xs text-slate-300">
           Generation status: {profileToolsStatusQuery.data?.inProgress ? "Running" : "Idle"}
-          {profileToolsStatusQuery.data?.startedAt ? ` • Started ${new Date(profileToolsStatusQuery.data.startedAt).toLocaleTimeString()}` : ""}
-          {profileToolsStatusQuery.data?.lastCompletedAt ? ` • Last completed ${new Date(profileToolsStatusQuery.data.lastCompletedAt).toLocaleTimeString()}` : ""}
+          {profileToolsStatusQuery.data?.startedAt ? ` | Started ${new Date(profileToolsStatusQuery.data.startedAt).toLocaleTimeString()}` : ""}
+          {profileToolsStatusQuery.data?.lastCompletedAt ? ` | Last completed ${new Date(profileToolsStatusQuery.data.lastCompletedAt).toLocaleTimeString()}` : ""}
           {profileToolsStatusQuery.data && !profileToolsStatusQuery.data.inProgress && profileToolsStatusQuery.data.cooldownRemainingMs > 0
-            ? ` • Cooldown ${Math.ceil(profileToolsStatusQuery.data.cooldownRemainingMs / 1000)}s`
+            ? ` | Cooldown ${Math.ceil(profileToolsStatusQuery.data.cooldownRemainingMs / 1000)}s`
             : ""}
         </div>
         {profileToolsStatusQuery.data?.latestJob ? (
-          <div className="mb-3 rounded-[20px] border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-300">
+          <div className="mb-3 rounded-[20px] border border-slate-900/10 bg-white/90 p-3 text-xs text-slate-300">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p>
                 Last job: {profileToolsStatusQuery.data.latestJob.title} by {profileToolsStatusQuery.data.latestJob.actor.username} at {new Date(profileToolsStatusQuery.data.latestJob.createdAt).toLocaleString()}
@@ -896,16 +899,16 @@ export function AdminDashboard() {
             ) : null}
             {latestJobResult ? (
               <div className="mt-3 grid gap-2 md:grid-cols-4">
-                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                   Users: {latestJobResult.usersProcessed ?? 0}
                 </div>
-                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                   Reputation updates: {latestJobResult.reputationUpdates ?? 0}
                 </div>
-                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                   Activities: {latestJobResult.createdActivities ?? 0}
                 </div>
-                <div className="rounded-lg border border-slate-700/70 bg-slate-950/60 px-3 py-2">
+                <div className="rounded-lg border border-slate-900/10 bg-slate-50 px-3 py-2">
                   Medal links: {latestJobResult.totalUserMedalLinks ?? 0}
                 </div>
               </div>
@@ -942,11 +945,11 @@ export function AdminDashboard() {
                 ? `Cooldown ${generationCooldownSeconds}s`
                 : "Generate Sample Profiles"}
           </Button>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl border border-slate-900/10 bg-white/90 px-3 py-2">
             <select
               aria-label="Select user for reputation adjustment"
               title="Select user for reputation adjustment"
-              className="h-8 flex-1 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+              className="h-8 flex-1 rounded border border-slate-900/10 bg-white px-2 text-xs text-slate-900"
               value={selectedUserId}
               onChange={(event) => setSelectedUserId(event.target.value)}
             >
@@ -961,7 +964,7 @@ export function AdminDashboard() {
               aria-label="Reputation delta"
               title="Reputation delta"
               placeholder="Delta"
-              className="h-8 w-20 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+              className="h-8 w-20 rounded border border-slate-900/10 bg-white px-2 text-xs text-slate-900"
               value={reputationDelta}
               onChange={(event) => setReputationDelta(Number(event.target.value) || 0)}
             />
@@ -1015,7 +1018,7 @@ export function AdminDashboard() {
           <select
             aria-label="Filter audit by action"
             title="Filter audit by action"
-            className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+            className="h-9 rounded border border-slate-900/10 bg-white px-2 text-xs text-slate-900"
             value={auditActionFilter}
             onChange={(event) => setAuditActionFilter(event.target.value as "all" | "seed-medals" | "generate-sample-data" | "adjust-reputation")}
           >
@@ -1027,7 +1030,7 @@ export function AdminDashboard() {
           <select
             aria-label="Filter audit by actor"
             title="Filter audit by actor"
-            className="h-9 rounded border border-slate-700 bg-slate-950 px-2 text-xs text-slate-100"
+            className="h-9 rounded border border-slate-900/10 bg-white px-2 text-xs text-slate-900"
             value={auditActorFilter}
             onChange={(event) => setAuditActorFilter(event.target.value)}
           >
@@ -1041,7 +1044,7 @@ export function AdminDashboard() {
         </div>
         <div className="grid gap-2">
           {(profileAuditQuery.data?.logs ?? []).map((entry) => (
-            <article key={entry.id} className="rounded-[20px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-200">
+            <article key={entry.id} className="rounded-[20px] border border-slate-900/10 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-700">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-amber-100">{entry.title}</p>
                 <p className="text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
@@ -1051,7 +1054,7 @@ export function AdminDashboard() {
             </article>
           ))}
           {profileAuditQuery.data && profileAuditQuery.data.logs.length === 0 ? (
-            <p className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">No profile-tool audit events yet.</p>
+            <p className="rounded-xl border border-slate-900/10 bg-white/90 p-3 text-xs text-slate-400">No profile-tool audit events yet.</p>
           ) : null}
         </div>
         <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-400">
@@ -1096,7 +1099,7 @@ export function AdminDashboard() {
         </div>
         <div className="grid gap-3">
           {(ageGateAuditQuery.data?.logs ?? []).map((entry) => (
-            <article key={entry.id} className="rounded-[20px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-200">
+            <article key={entry.id} className="rounded-[20px] border border-slate-900/10 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-3 text-xs text-slate-700">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-amber-100">{entry.action === "verify" ? "Verification attempt" : "Reject event"}</p>
                 <p className="text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
@@ -1124,7 +1127,7 @@ export function AdminDashboard() {
                     }))
                   }
                   placeholder="Reviewer note (optional)"
-                  className="min-h-[72px] w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                  className="min-h-[72px] w-full rounded-2xl border border-slate-900/10 bg-white px-3 py-2 text-xs text-slate-900 focus:border-amber-400 focus:outline-none"
                 />
                 <div className="flex flex-wrap gap-2">
                   {entry.status === "blocked" ? (
@@ -1174,7 +1177,7 @@ export function AdminDashboard() {
             </article>
           ))}
           {ageGateAuditQuery.data && ageGateAuditQuery.data.logs.length === 0 ? (
-            <p className="rounded-xl border border-slate-700/80 bg-slate-900/80 p-3 text-xs text-slate-400">No pending age gate review items found.</p>
+            <p className="rounded-xl border border-slate-900/10 bg-white/90 p-3 text-xs text-slate-400">No pending age gate review items found.</p>
           ) : null}
         </div>
       </section>

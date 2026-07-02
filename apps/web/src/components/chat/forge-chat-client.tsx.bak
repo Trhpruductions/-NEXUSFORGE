@@ -1696,7 +1696,7 @@ export function ForgeChatClient() {
             transition={{ repeat: Infinity, duration: 3.4, ease: "easeInOut" }}
           />
           <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Command Center</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Workspace</p>
           </div>
         </div>
 
