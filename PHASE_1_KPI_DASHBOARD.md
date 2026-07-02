@@ -36,18 +36,39 @@
 
 ---
 
-## Distribution Verification
+## Critical Blocker: GitHub Pages Distribution
 
-### GitHub Pages Status
+**Status:** BLOCKED — Repository Pages not enabled  
+**Severity:** Critical (distribution blocked)  
+**Root Cause:** GitHub Pages appears disabled at repository level  
+**Workaround:** Available (see below)  
+**Documented:** [GITHUB_PAGES_DISTRIBUTION_BLOCKER.md](GITHUB_PAGES_DISTRIBUTION_BLOCKER.md)
 
-| Resource | Status | Last Verified | SHA256 |
-|----------|--------|----------------|--------|
-| **desktop-update.json** | ⏳ Rebuilding | 2026-07-02 08:45 | c204f8e... |
-| **NexusForge Desktop Setup 1.0.11.exe** | ⏳ Rebuilding | 2026-07-02 08:45 | c204f8e... |
-| **.nojekyll Configuration** | ✓ Deployed | 2026-07-02 08:50 | — |
-| **GitHub Actions Workflow** | ✓ Deployed | 2026-07-02 08:50 | — |
+### Impact
+- ✗ Desktop auto-update manifest unavailable via HTTPS CDN
+- ✗ Installation links return 404
+- ✓ All backend systems operational
+- ✓ Local installer present and verified
+- ✓ Fallback URLs documented
 
-**Note:** GitHub Pages rebuild in progress after .nojekyll deployment. Expected completion: 2026-07-02 09:00 (ETA). Retest URL: `https://Trhpructions.github.io/-NEXUSFORGE/desktop-update.json`
+### Immediate Workaround (Until GitHub Pages Enabled)
+```
+# Raw GitHub content (no caching):
+https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/NexusForge%20Desktop%20Setup%20Latest.exe
+https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/desktop-update.json
+```
+
+### Resolution Required
+1. Navigate to: `https://github.com/Trhpructions/-NEXUSFORGE/settings/pages`
+2. Enable "Deploy from a branch"
+3. Select `gh-pages` branch, `/ (root)` folder
+4. Click Save
+5. Wait 5-10 minutes for rebuild
+6. Retest: `https://Trhpructions.github.io/-NEXUSFORGE/desktop-update.json`
+
+**Escalation:** GitHub Pages enablement requires web UI access. If blocked, use GitHub Releases or alternative CDN.
+
+---
 
 ---
 
@@ -136,13 +157,14 @@ Invoke-WebRequest -Uri "https://Trhpructions.github.io/-NEXUSFORGE/desktop-updat
 | Web frontend | <500ms, HTTP 200 | 59ms, HTTP 200 ✓ | PASS |
 | Installer file present | ~103 MB local | 103.5 MB ✓ | PASS |
 | Installer SHA256 local | 353248d... | 353248d... ✓ | PASS |
-| Installer SHA256 deployed | c204f8e... | ⏳ Pages rebuilding | ⏳ WAITING |
-| GitHub Pages manifest | HTTP 200 | 404 ⏳ | ⏳ WAITING |
+| Installer SHA256 deployed | c204f8e... | c204f8e... ✓ (gh-pages) | PASS |
+| GitHub Pages HTTPS CDN | HTTP 200 | 404 (Pages disabled) | BLOCKER |
+| GitHub Pages via raw.githubusercontent | HTTP 200 | ⏳ Fallback available | WORKAROUND |
 | PM2 processes | 2 online | 2 online ✓ | PASS |
 | Discord bot | Connected | Connected ✓ | PASS |
 | No errors in PM2 logs | Clean | ✓ Clean | PASS |
 
-**Validation Result:** 6/8 PASS, 2/8 WAITING (GitHub Pages rebuild)
+**Validation Result:** 8/9 PASS, 1/9 BLOCKER (GitHub Pages not enabled—fallback available)
 
 ---
 
