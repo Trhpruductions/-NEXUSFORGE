@@ -4,7 +4,7 @@
 
 **Version:** 1.0.11  
 **Status:** 🚀 PRODUCTION READY  
-**Scorecard:** 91% (11/12) — All hard gates PASS  
+**Scorecard:** 100% (12/12) — All hard gates PASS  
 **Distribution:** GitHub Pages (https://trhpruductions.github.io/-NEXUSFORGE)
 
 ### Major Features
@@ -82,8 +82,13 @@ All validation evidence committed to Git:
 - Scorecard: 91% (11/12 points) — **EXCEEDS 85% THRESHOLD**
 - Decision: **GO** (external beta cleared, production ready)
 
+**Post-Launch Hardening (2026-07-02):**
+- Scorecard: 100% (12/12 points)
+- Session revocation audit logging implemented and queryable via admin audit API
+- Desktop manifest drift guard enforced between root and public manifests
+- Daily production validation stabilized with manifest-driven installer hash checks
+
 **Remaining Items (Post-Launch):**
-- Session revocation audit log sampling (observability refinement)
 - Notification latency observability (can be instrumented after launch)
 
 ### Next Steps (Post-Launch)
@@ -101,15 +106,14 @@ All validation evidence committed to Git:
 - Rollback procedure: GitHub Pages revert can restore previous installer version (v1.0.10 preserved)
 - Audit trail: All admin/badge operations logged in database with razeprime@nexusforge.local verification
 
-### Known Limitations (Session 2 Backlog)
+### Known Limitations (Post-Launch Backlog)
 
 - Email verification single-use token behavior (partial coverage via OAuth/Discord)
-- Session revocation device/session visibility (partial coverage via auth token validation)
 - Notification latency SLA instrumentation (deferred to post-launch observability)
 
 ---
 
 **Decision:** 🚀 **PRODUCTION GO**  
 **Signed:** Release Command Center (2026-07-02)  
-**Confidence:** 91% (all hard gates pass, performance validated, E2E complete)  
+**Confidence:** 100% (all hard gates pass, performance validated, Session 2 hardening complete)  
 **Go-Live:** Immediate (GitHub Pages distribution ready)
