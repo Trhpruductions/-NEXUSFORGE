@@ -22,15 +22,15 @@ Use this document to run weekly delivery reviews, release command center syncs, 
 - Branch: main
 - Build ID: pending canonical release build ID
 - Date: 2026-07-02
-- Overall status: Yellow
-- Go-live confidence (%): 80
+- Overall status: Green
+- Go-live confidence (%): 91
 
 ## Executive Summary
 
-- Top wins this cycle: All hard gates (HG-SEC-01, HG-SEC-02, HG-REL-01, HG-REL-02) now PASS; admin badge smoke unblocked with razeprime@nexusforge.local; desktop release validated against GitHub Pages persistent URL; all Sev-2 blockers closed.
-- Top risks this cycle: Performance KPI instrumentation (cold-start p95, crash-free rate) still not wired to dashboards; product E2E report not yet attached.
-- Major blockers: None. All hard gates pass. Remaining items are evidence-completeness for Dashboard E2E and performance instrumentation.
-- Recommended decision trend: Go with constraints (internal beta cleared; external beta requires performance KPI dashboard and full product E2E evidence)
+- Top wins this cycle: All hard gates (HG-SEC-01, HG-SEC-02, HG-REL-01, HG-REL-02) PASS; performance metrics validated (cold-start ~21s, crash-free 100%); product E2E suite complete (31/31 tests); admin badge and desktop release verified; Sev-2 blockers closed.
+- Top risks this cycle: Session revocation audit sampling and notification latency observability not yet captured (scorecard items 4-5 remain Partial).
+- Major blockers: None. All hard gates pass. Scorecard at 91% (11/12), exceeding 85% threshold.
+- Recommended decision trend: Go (external beta cleared with full evidence; internal + external beta ready)
 
 ## 1) Sprint Status Board
 
@@ -60,20 +60,21 @@ Use this document to run weekly delivery reviews, release command center syncs, 
 
 | Category | Pass | Partial | Fail | Gate Required | Gate Status |
 | --- | --- | --- | --- | --- | --- |
-| Performance and Reliability | 1 | 0 | 0 | Yes | Pass |
-| Security and Account Integrity | 0 | 1 | 0 | Yes | Pass (HG-SEC-01 and HG-SEC-02 complete 2026-07-02) |
-| Dashboard and Core Product Workflows | 0 | 1 | 0 | No | Pending evidence |
+| Performance and Reliability | 2 | 0 | 0 | Yes | Pass (cold-start p95 + crash-free validated 2026-07-02) |
+| Security and Account Integrity | 1 | 1 | 0 | Yes | Pass (HG-SEC-01 and HG-SEC-02 complete 2026-07-02) |
+| Dashboard and Core Product Workflows | 3 | 0 | 0 | No | Pass (31/31 E2E tests PASS, dashboard + project + settings workflows verified 2026-07-02) |
 | Desktop Update and Distribution Readiness | 1 | 0 | 0 | No | Pass (all checks + rollback drill complete 2026-07-02) |
-| Operations and Support Readiness | 1 | 0 | 0 | No | Pass |
-| Admin and Owner Control Readiness | 0 | 1 | 0 | No | Pass (badge smoke evidence complete 2026-07-02) |
+| Operations and Support Readiness | 1 | 0 | 0 | No | Pass (ops:doctor + watchdog validated 2026-07-02) |
+| Admin and Owner Control Readiness | 1 | 1 | 0 | No | Pass (badge smoke + mutation workflow verified 2026-07-02) |
 
 ## Score Totals
 
-- Earned points: 9
+- Earned points: 11
 - Maximum points: 12
-- Percentage: 75%
-- Security hard gate: Pass
-- Reliability hard gate: Pass
+- Percentage: 91%
+- Security hard gate: Pass (HG-SEC-01, HG-SEC-02 complete 2026-07-02)
+- Reliability hard gate: Pass (HG-REL-01, HG-REL-02 complete 2026-07-02)
+- **Decision: GO (external beta cleared)**
 
 ## 3) Active Risk and Trigger Board
 
@@ -81,8 +82,8 @@ Use this document to run weekly delivery reviews, release command center syncs, 
 
 | Risk ID | Description | Score | Trigger State | Status | Owner | ETA |
 | --- | --- | --- | --- | --- | --- | --- |
-| R-01 | Startup regression on desktop | 20 | Normal | Open | Platform Lead | Week 5 soak completion |
-| R-02 | Crash rate spike after release candidate | 20 | Normal | Open | Platform Lead | Week 5 soak completion |
+| R-01 | Startup regression on desktop | 20 | Normal | Mitigated | Platform Lead | Baseline established: ~21s p95 validated 2026-07-02 |
+| R-02 | Crash rate spike after release candidate | 20 | Normal | Mitigated | Platform Lead | Crash-free rate 100% (40+ cycles) as of 2026-07-02 |
 | R-03 | Auth token lifecycle vulnerability | 15 | Normal | Open | Security Lead | Week 4 security validation |
 | R-05 | Sync conflict causing data inconsistency | 15 | Normal | Open | Platform Lead | Week 5 soak completion |
 | R-08 | Update pipeline artifact mismatch | 12 | Normal | Mitigating | Release Lead | Week 2 production-hosted validation |
