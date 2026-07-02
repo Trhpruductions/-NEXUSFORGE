@@ -48,3 +48,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Release evidence logs
+var/
