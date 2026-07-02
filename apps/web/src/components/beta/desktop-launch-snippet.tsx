@@ -50,7 +50,7 @@ export function DesktopLaunchSnippet({ desktopTarget }: DesktopLaunchSnippetProp
       <button
         type="button"
         onClick={handleCopy}
-        className="nexus-glow-button inline-flex h-11 items-center justify-center rounded-xl bg-amber-500/10 px-4 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/15"
+        className="nexus-glow-button inline-flex h-11 items-center justify-center rounded-none bg-amber-500/10 px-4 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/15"
       >
         {status}
       </button>
@@ -62,3 +62,4 @@ export function DesktopLaunchSnippet({ desktopTarget }: DesktopLaunchSnippetProp
     </div>
   );
 }
+

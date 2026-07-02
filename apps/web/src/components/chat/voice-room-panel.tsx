@@ -148,17 +148,17 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
 
   if (!session) {
     return (
-      <div className="nexus-panel rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-400">
+      <div className="nexus-panel rounded-none border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-400">
         Select a voice or stage channel to start a LiveKit session.
       </div>
     );
   }
 
   return (
-    <div className="nexus-panel rounded-xl border border-slate-700/80 bg-slate-950/78 p-3">
+    <div className="nexus-panel rounded-none border border-slate-700/80 bg-slate-950/78 p-3">
       <div className="mb-2 flex items-center justify-between gap-2 text-xs text-slate-400">
         <span className="truncate">{session.roomName}</span>
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${connectionTone}`}>
+        <span className={`rounded-none border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] ${connectionTone}`}>
           {connectionState}
         </span>
       </div>
@@ -167,7 +167,7 @@ export function VoiceRoomPanel({ session, voiceState, onToggleVoiceFlag, onLeave
       {participants.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {participants.map((participant) => (
-            <span key={participant} className="rounded-full border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] text-amber-100">
+            <span key={participant} className="rounded-none border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[10px] text-amber-100">
               {participant}
             </span>
           ))}

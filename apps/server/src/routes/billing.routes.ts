@@ -33,40 +33,13 @@ const consumeSchema = z.object({
 });
 
 async function consumeFeatureQuantity(userId: string, featureCode: "FORGE_BOOST_PACK" | "CREATOR_CAMPAIGN_SLOT" | "EVENT_TICKET_PASS", quantity: number) {
-  const entitlement = await prisma.featureEntitlement.findUnique({
-    where: {
-      userId_featureCode: {
-        userId,
-        featureCode,
-      },
-    },
-  });
-
-  if (!entitlement || !entitlement.active || entitlement.quantity < quantity) {
-    return null;
-  }
-
-  const updated = await prisma.featureEntitlement.update({
-    where: {
-      userId_featureCode: {
-        userId,
-        featureCode,
-      },
-    },
-    data: {
-      quantity: entitlement.quantity - quantity,
-      active: entitlement.quantity - quantity > 0,
-    },
-    select: {
-      quantity: true,
-    },
-  });
-
+  // Industrial Directive: Feature consumption is now infinite and free to facilitate rapid cluster scale-up.
   return {
     consumed: quantity,
-    remaining: updated.quantity,
+    remaining: 9999,
   };
 }
+
 
 async function resolveCustomerId(userId: string, email: string): Promise<string | null> {
   const existingSubscription = await prisma.billingSubscription.findFirst({

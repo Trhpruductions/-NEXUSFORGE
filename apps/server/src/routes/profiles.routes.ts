@@ -78,6 +78,92 @@ profilesRouter.get("/users/groups", requireAuth, async (_req, res) => {
   }
 });
 
+/**
+ * @route GET /api/profiles/creators/live
+ * @desc Get currently live creators
+ * @access Private
+ */
+profilesRouter.get("/creators/live", requireAuth, async (_req, res) => {
+  try {
+    const creators = await prisma.user.findMany({
+      where: {
+        isCreator: true,
+        creatorStatus: "LIVE",
+      },
+      select: {
+        id: true,
+        username: true,
+        avatar: true,
+        isCreator: true,
+        isStaff: true,
+        isRep: true,
+        isPartner: true,
+        livePlatform: true,
+        liveStreamTitle: true,
+        liveStreamUrl: true,
+        liveGameCategory: true,
+        liveViewerCount: true,
+        activityType: true,
+        activityStatus: true,
+        socialLinks: true,
+      },
+      orderBy: { liveViewerCount: "desc" },
+    });
+
+    res.json(creators);
+  } catch (error) {
+    console.error("Get live creators error:", error);
+    res.status(500).json({ error: "Failed to get live creators" });
+  }
+});
+
+/**
+ * @route POST /api/profiles/activity
+ * @desc Update current user activity (Game, Music, etc.)
+ * @access Private
+ */
+profilesRouter.post("/activity", requireAuth, async (req, res) => {
+  try {
+    const activitySchema = z.object({
+      activityType: z.enum(["GAME", "MUSIC", "STREAMING", "SOCIAL", "CLEAR"]),
+      activityStatus: z.string().max(255).optional(),
+      activityMetadata: z.any().optional(),
+      showActivity: z.boolean().optional(),
+    });
+
+    const parsed = activitySchema.parse(req.body);
+
+    if (parsed.activityType === "CLEAR") {
+      const updated = await prisma.user.update({
+        where: { id: req.user!.id },
+        data: {
+          activityType: null,
+          activityStatus: null,
+          activityMetadata: Prisma.JsonNull,
+          currentActivity: null,
+        },
+      });
+      res.json(updated);
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        activityType: parsed.activityType,
+        activityStatus: parsed.activityStatus,
+        activityMetadata: parsed.activityMetadata || Prisma.JsonNull,
+        currentActivity: parsed.activityStatus,
+        showActivity: parsed.showActivity ?? true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ error: "Failed to update activity" });
+  }
+});
+
 // Search users by username or tag
 profilesRouter.get("/users/search", requireAuth, async (req, res) => {
   try {

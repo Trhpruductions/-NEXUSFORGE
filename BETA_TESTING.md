@@ -37,6 +37,8 @@ This starts:
 - Web on `http://localhost:3100`
 - API on `http://localhost:4000`
 
+When you need a publicly shared tunnel, use `npm run beta:share`, which starts the tunneled API on `http://127.0.0.1:4001` and exposes it through Cloudflare Tunnel.
+
 ## 2) Start Public Tunnels (Two Terminals)
 Terminal A (web):
 
@@ -72,6 +74,13 @@ From there they can access:
 - `/beta/feedback`
 
 If you want desktop testers to use the remote app, set `NEXUSFORGE_DESKTOP_URL` to `https://<your web tunnel url>/app` when launching the desktop client.
+
+For local desktop development, use hosted mode so the app can load the tunnel URL safely:
+
+```powershell
+$env:NEXUSFORGE_DESKTOP_URL = 'https://<your web tunnel url>/app'
+npm run desktop:open:hosted
+```
 
 > The beta page now displays the computed desktop launch target and PowerShell commands directly, and includes a copy button so testers can copy the launch commands from `/beta`.
 

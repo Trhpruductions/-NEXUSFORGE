@@ -180,7 +180,8 @@ function Invoke-DesktopModeValidation {
   $stderrLog = Join-Path $profileRoot "stderr.log"
   $startupLog = Join-Path $profileRoot "startup.log"
   $supportLogRoot = Join-Path $profileRoot "support"
-  $serviceDeadline = (Get-Date).AddSeconds($effectiveTimeoutSeconds)
+  $serviceTimeoutSeconds = $effectiveTimeoutSeconds
+  $serviceDeadline = (Get-Date).AddSeconds($serviceTimeoutSeconds)
   $supportProcesses = New-Object System.Collections.Generic.List[System.Diagnostics.Process]
 
   New-Item -ItemType Directory -Path $profileRoot -Force | Out-Null
@@ -190,18 +191,34 @@ function Invoke-DesktopModeValidation {
     $serverRoot = Join-Path $repoRoot "apps\server"
     $apiEntry = Join-Path $serverRoot "dist\index.js"
     $webRoot = Join-Path $repoRoot "apps\web"
+    $apiPort = Resolve-ServerPort
+    $apiUsesProdBuild = Test-Path -Path $apiEntry
+    $webBuildEntry = Join-Path $webRoot ".next-build\BUILD_ID"
+    $webUsesProdBuild = Test-Path -Path $webBuildEntry
 
-    if (-not (Test-Path -Path $apiEntry)) {
-      throw ("API entrypoint not found for local-mode validation: {0}" -f $apiEntry)
+    if (-not $apiUsesProdBuild -or -not $webUsesProdBuild) {
+      $serviceTimeoutSeconds = [Math]::Max($serviceTimeoutSeconds, 120)
+      $serviceDeadline = (Get-Date).AddSeconds($serviceTimeoutSeconds)
+      Write-Host "[desktop-network] Build artifacts missing; using dev services for local validation bootstrap." -ForegroundColor Yellow
     }
 
-    $apiPort = Resolve-ServerPort
+    $apiCommand = if ($apiUsesProdBuild) {
+      "node dist/index.js"
+    } else {
+      ('set "PORT={0}" && npm run dev' -f $apiPort)
+    }
+
+    $webCommand = if ($webUsesProdBuild) {
+      "npx next start -p 3000 -H 127.0.0.1"
+    } else {
+      "npm run dev"
+    }
 
     if (-not (Test-PortOpen -Port $apiPort)) {
       Write-Host "[desktop-network] Local API is down; starting temporary API service on port $apiPort." -ForegroundColor Yellow
       $apiStdOut = Join-Path $supportLogRoot "api-stdout.log"
       $apiStdErr = Join-Path $supportLogRoot "api-stderr.log"
-      $apiProcess = Start-BackgroundProcess -WorkingDirectory $serverRoot -CommandLine "node dist/index.js" -StdOutPath $apiStdOut -StdErrPath $apiStdErr
+      $apiProcess = Start-BackgroundProcess -WorkingDirectory $serverRoot -CommandLine $apiCommand -StdOutPath $apiStdOut -StdErrPath $apiStdErr
       $supportProcesses.Add($apiProcess) | Out-Null
     }
 
@@ -209,7 +226,7 @@ function Invoke-DesktopModeValidation {
       Write-Host "[desktop-network] Local web is down; starting temporary web service." -ForegroundColor Yellow
       $webStdOut = Join-Path $supportLogRoot "web-stdout.log"
       $webStdErr = Join-Path $supportLogRoot "web-stderr.log"
-      $webProcess = Start-BackgroundProcess -WorkingDirectory $webRoot -CommandLine "npx next start -p 3000 -H 127.0.0.1" -StdOutPath $webStdOut -StdErrPath $webStdErr
+      $webProcess = Start-BackgroundProcess -WorkingDirectory $webRoot -CommandLine $webCommand -StdOutPath $webStdOut -StdErrPath $webStdErr
       $supportProcesses.Add($webProcess) | Out-Null
     }
 

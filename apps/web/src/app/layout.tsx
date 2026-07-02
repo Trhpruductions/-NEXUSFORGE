@@ -41,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${exo.variable} ${orbitron.variable} h-full min-h-dvh w-full antialiased`}>
-      <body className="m-0 flex min-h-dvh w-full flex-col overflow-x-hidden bg-background p-0 text-foreground">
+    <html lang="en" className={`${exo.variable} ${orbitron.variable} h-full w-full antialiased overflow-hidden`}>
+      <body className="m-0 flex h-full w-full flex-col overflow-hidden bg-background p-0 text-foreground">
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

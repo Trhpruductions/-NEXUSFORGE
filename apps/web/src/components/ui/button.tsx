@@ -11,7 +11,7 @@ export function Button({ className, variant = "primary", ...props }: ButtonProps
   return (
     <button
       className={cn(
-        "nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/25 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60",
+        "nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-none px-5 text-sm font-semibold tracking-wide transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/25 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60",
         variant === "primary" &&
           "border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,160,0,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px] hover:border-amber-200 hover:shadow-[0_20px_38px_rgba(255,160,0,0.32),inset_0_1px_0_rgba(255,255,255,0.38)]",
         variant === "ghost" &&

@@ -1,0 +1,37 @@
+
+> nexusforge@1.0.11 beta:api:tunnel
+> set PORT=4001&& npm run dev -w server
+
+
+> server@1.0.0 dev
+> npm run dev:cleanup-port && npm run dev -w @nexusforge/server
+
+
+> server@1.0.0 dev:cleanup-port
+> powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/cleanup-server-port.ps1
+
+No listener found on port 4000
+
+> @nexusforge/server@1.0.11 dev
+> npm run dev:cleanup-port && npx --yes tsx watch src/index.ts
+
+
+> @nexusforge/server@1.0.11 dev:cleanup-port
+> powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1
+
+No listener found on port 4000
+◇ injected env (25) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from apps\server\.env // tip: ⌘ override existing { override: true }
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+NexusForge API running on http://localhost:4001
+[0mGET /api/health [32m200[0m 1.890 ms - 42[0m
+[discord] Logged in as VEXORA Bot#1026.
+[discord] Registered 5 guild command(s) for guild 1445242974245228678.
+[0mGET /api/health [32m200[0m 0.338 ms - 42[0m
+[0mGET /api/health [32m200[0m 0.230 ms - 42[0m
+[0mGET /api/health [32m200[0m 0.236 ms - 42[0m
+[0mGET /api/health [32m200[0m 0.330 ms - 42[0m
+[0mGET /api/runtime/launch-mode [32m200[0m 265.382 ms - 143[0m
+[0mGET /api/billing/status [32m200[0m 0.600 ms - 410[0m
+[0mGET /api/health [32m200[0m 0.232 ms - 42[0m
+[0mGET /api/health [32m200[0m 0.698 ms - 42[0m

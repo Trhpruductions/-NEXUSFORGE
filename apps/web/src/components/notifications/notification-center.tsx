@@ -3,8 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { Button } from "@/components/ui/button";
 import { listNotifications, markNotificationsRead } from "@/lib/notifications-api";
+import { Bell, ShieldAlert, Zap, Filter, CheckCircle2 } from "lucide-react";
 
 type NotificationFilter = "all" | "unread" | "activity";
 
@@ -44,99 +44,82 @@ export function NotificationCenter() {
   });
 
   return (
-    <div className="space-y-5">
-      <div className="nexus-display-panel relative overflow-hidden rounded-[28px] p-5">
-        <div className="nexus-ambient" aria-hidden="true">
-          <div className="nexus-ambient-orb nexus-ambient-orb-a" />
-          <div className="nexus-ambient-orb nexus-ambient-orb-c" />
-        </div>
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-400">Inbox</p>
-            <h1 className="font-[family-name:var(--font-orbitron)] text-2xl font-semibold tracking-tight text-white">Notifications</h1>
-            <p className="mt-1 text-sm text-slate-400">Prioritize urgent signals, review activity bursts, and keep the live feed under control.</p>
-          </div>
-          <Button className="h-9 px-4 text-xs" variant="ghost" onClick={() => markReadMutation.mutate(undefined)} disabled={markReadMutation.isPending || !allNotifications.length}>
-            Mark all read
-          </Button>
-        </div>
+    <div className="space-y-1">
+      {/* FILTER CONTROLS */}
+      <div className="p-4 border border-white/10 bg-black/40 flex items-center justify-between">
+         <div className="flex gap-2">
+            {(["all", "unread", "activity"] as const).map((filter) => (
+               <a
+                  key={filter}
+                  href={`/app/notifications?filter=${filter}`}
+                  className={`px-4 py-2 border text-[10px] font-black uppercase tracking-widest transition ${
+                  activeFilter === filter
+                     ? "border-amber-500 bg-amber-500/10 text-amber-500"
+                     : "border-white/10 bg-white/5 text-slate-500 hover:border-white/20 hover:text-white"
+                  }`}
+               >
+                  {filter}
+               </a>
+            ))}
+         </div>
+         <button 
+            onClick={() => markReadMutation.mutate(undefined)}
+            disabled={markReadMutation.isPending || !allNotifications.length}
+            className="px-4 py-2 border border-white/10 bg-white/5 text-[9px] font-black uppercase tracking-widest hover:border-emerald-500/50 hover:text-emerald-500 transition-all flex items-center gap-2"
+         >
+            <CheckCircle2 className="w-3 h-3" /> Clear_All_Alerts
+         </button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Unread</p>
-            <p className="mt-1 text-xl font-semibold text-amber-300">{notificationsQuery.data?.unreadCount ?? 0}</p>
-          </div>
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Visible</p>
-            <p className="mt-1 text-xl font-semibold text-amber-300">{visibleNotifications.length}</p>
-          </div>
-          <div className="nexus-metric-card rounded-2xl px-4 py-3">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Feed</p>
-            <p className="mt-1 text-xl font-semibold text-amber-300">{notificationsQuery.isFetching ? "Syncing" : "Live"}</p>
-          </div>
-        </div>
-
-        <div className="nexus-signal-rail rounded-2xl px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Filter Rail</p>
-          <p className="mt-1 text-sm text-slate-300">Move between unread priority, all traffic, and event-driven activity without leaving the current feed.</p>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        {(["all", "unread", "activity"] as const).map((filter) => (
-          <a
-            key={filter}
-            href={`/notifications?filter=${filter}`}
-            className={`rounded-full border px-4 py-1.5 text-xs font-medium capitalize transition ${
-              activeFilter === filter
-                ? "border-amber-500/50 bg-amber-950/40 text-amber-200 shadow-[0_0_0_1px_rgba(255,184,108,0.14)]"
-                : "border-slate-700/80 bg-slate-900/60 text-slate-400 hover:border-slate-600 hover:text-slate-300"
-            }`}
-          >
-            {filter}
-          </a>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        {notificationsQuery.isLoading ? (
-          <div className="nexus-metric-card rounded-2xl p-5 text-center text-sm text-slate-400">Loading notifications...</div>
-        ) : null}
-        {!notificationsQuery.isLoading && !visibleNotifications.length ? (
-          <div className="nexus-display-panel rounded-[24px] p-6 text-center">
-            <p className="text-sm font-medium text-slate-300">All caught up</p>
-            <p className="mt-1 text-xs text-slate-500">No notifications to show right now.</p>
-          </div>
-        ) : null}
-        {visibleNotifications.map((item) => (
-          <div
-            key={item.id}
-            className={`nexus-interactive-card relative overflow-hidden rounded-[24px] border px-4 py-4 ${
-              item.read
-                ? "border-slate-700/80 bg-slate-900/80"
-                : "border-amber-500/40 bg-[linear-gradient(145deg,rgba(8,47,73,0.38),rgba(15,23,42,0.84))] shadow-[0_0_0_1px_rgba(255,184,108,0.15)]"
-            }`}
-          >
-            {!item.read ? <div className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-[24px] bg-gradient-to-b from-amber-300 to-amber-500" /> : null}
-            <div className="flex items-start justify-between gap-3 pl-1">
-              <div className="min-w-0">
-                <div className="mb-1 flex items-center gap-2">
-                  {!item.read ? <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" /> : null}
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{item.read ? "Archived" : "Priority"}</span>
-                </div>
-                <p className="text-sm font-semibold text-slate-100">{item.title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{item.body}</p>
-              </div>
-              {!item.read ? (
-                <Button className="h-8 shrink-0 px-3 text-xs" variant="ghost" onClick={() => markReadMutation.mutate([item.id])} disabled={markReadMutation.isPending}>
-                  Read
-                </Button>
-              ) : null}
+      {/* METRIC GRID */}
+      <div className="grid grid-cols-3 gap-1">
+         {[
+            { label: "Unread_Signals", val: notificationsQuery.data?.unreadCount ?? 0, icon: ShieldAlert },
+            { label: "Visible_Nodes", val: visibleNotifications.length, icon: Filter },
+            { label: "Uplink_Status", val: notificationsQuery.isFetching ? "SYNCING" : "LIVE", icon: Zap },
+         ].map(stat => (
+            <div key={stat.label} className="p-6 border border-white/10 bg-black/40 space-y-2">
+               <div className="flex items-center gap-2 text-slate-600">
+                  <stat.icon className="w-3 h-3" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">{stat.label}</span>
+               </div>
+               <p className="text-xl font-black text-white italic tracking-tighter uppercase">{stat.val}</p>
             </div>
-          </div>
-        ))}
+         ))}
+      </div>
+
+      {/* NOTIFICATION FEED */}
+      <div className="space-y-1">
+         {visibleNotifications.length > 0 ? (
+            visibleNotifications.map((note) => (
+               <div key={note.id} className={`p-6 border border-white/10 bg-black/40 flex items-start gap-6 group hover:bg-white/5 transition-all ${!note.read ? 'border-l-amber-500 border-l-2' : ''}`}>
+                  <div className={`w-10 h-10 border border-white/10 bg-slate-900 flex items-center justify-center ${!note.read ? 'text-amber-500' : 'text-slate-600'}`}>
+                     <Bell className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                     <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">{note.type || 'SYSTEM_LOG'}</span>
+                     <h3 className="text-lg font-black text-white uppercase italic tracking-wider">{note.title}</h3>
+                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed">{note.body}</p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-2">
+                     <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{new Date(note.createdAt).toLocaleTimeString()}</span>
+                     {!note.read && (
+                        <button 
+                           onClick={() => markReadMutation.mutate([note.id])}
+                           className="opacity-0 group-hover:opacity-100 px-3 py-1 border border-amber-500/20 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-black transition-all"
+                        >
+                           ACKNOWLEDGE
+                        </button>
+                     )}
+                  </div>
+               </div>
+            ))
+         ) : (
+            <div className="p-12 border border-white/5 bg-black/20 text-center space-y-4">
+               <ShieldAlert className="w-12 h-12 text-slate-800 mx-auto" />
+               <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.3em]">No_Active_Signals_Detected</p>
+            </div>
+         )}
       </div>
     </div>
   );

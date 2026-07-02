@@ -7,6 +7,7 @@ export type AccessTokenPayload = {
   username: string;
   email: string;
   appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
+  jti: string; // Add a unique token ID to prevent reuse if revoked
 };
 
 export function signAccessToken(payload: AccessTokenPayload): string {

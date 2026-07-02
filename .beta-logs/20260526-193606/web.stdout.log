@@ -1,0 +1,26 @@
+
+> nexusforge@1.0.11 beta:web
+> npm run dev -w web -- --port 3100
+
+
+> web@1.0.11 dev
+> npm run dev:guard && npm run dev:reset && next dev --hostname 127.0.0.1 --port 3000 --port 3100
+
+
+> web@1.0.11 dev:guard
+> powershell -NoProfile -Command "$ports=@(3000,3100); foreach ($port in $ports) { $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1; if ($conn) { Stop-Process -Id $conn.OwningProcess -Force; Write-Output ('Cleared stale listener PID ' + $conn.OwningProcess + ' on port ' + $port) } else { Write-Output ('Port ' + $port + ' clear') } }"
+
+Port 3000 clear
+Port 3100 clear
+
+> web@1.0.11 dev:reset
+> node -e "const fs=require('fs'); ['.next','.next-dev','.next-build'].forEach(dir=>fs.rmSync(dir,{ recursive:true, force:true }));"
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://127.0.0.1:3100
+- Network:       http://127.0.0.1:3100
+- Environments: .env.local
+✓ Ready in 514ms
+
+ GET / 200 in 2.6s (next.js: 2.3s, application-code: 282ms)
+[?25h

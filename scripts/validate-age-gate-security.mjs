@@ -76,6 +76,19 @@ async function postJson(url, payload, headers) {
   return { response, bodyText };
 }
 
+function parseRetryAfterSeconds(headers) {
+  const value = String(headers.get("retry-after") || "").trim();
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+function waitMs(durationMs) {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
 async function main() {
   const rawBase = getArgValue("--base") || defaultBaseUrl;
   const baseUrl = rawBase.replace(/\/+$/, "");
@@ -98,7 +111,7 @@ async function main() {
   ensure(crossOriginVerify.response.status === 403, "Cross-origin verify should be blocked with 403");
   ensure(hasNoStoreHeader(crossOriginVerify.response.headers), "Cross-origin verify response must be no-store");
 
-  const sameOriginVerify = await postJson(
+  let sameOriginVerify = await postJson(
     verifyUrl,
     { confirmed: true, deviceProfile: getBrowserLikeDeviceProfile() },
     {
@@ -107,6 +120,20 @@ async function main() {
       "user-agent": "AgeGateValidator-SameOrigin",
     },
   );
+  if (sameOriginVerify.response.status === 429) {
+    const retryAfterSeconds = parseRetryAfterSeconds(sameOriginVerify.response.headers);
+    ensure(Boolean(retryAfterSeconds), "Rate-limited verify response must include retry-after header");
+    await waitMs((retryAfterSeconds + 1) * 1000);
+    sameOriginVerify = await postJson(
+      verifyUrl,
+      { confirmed: true, deviceProfile: getBrowserLikeDeviceProfile() },
+      {
+        origin: baseOrigin,
+        "sec-fetch-site": "same-origin",
+        "user-agent": "AgeGateValidator-SameOrigin-Retry",
+      },
+    );
+  }
   ensure(sameOriginVerify.response.status === 200, "Same-origin verify should succeed with 200");
   ensure(hasNoStoreHeader(sameOriginVerify.response.headers), "Successful verify response must be no-store");
   ensure(

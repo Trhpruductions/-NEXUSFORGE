@@ -1,5 +1,5 @@
 param(
-  [string] $BaseUrl = "https://www.nexusforge.app",
+  [string] $BaseUrl = "",
   [string] $LocalBaseUrl = "http://127.0.0.1:3200",
   [switch] $Insecure,
   [switch] $SkipLocal
@@ -17,18 +17,19 @@ function Invoke-HeadRequest {
     [switch] $AllowInsecure
   )
 
-  $args = @("-sS", "-L", "-I")
+  $escapedUrl = $Url.Replace('"', '\"')
+  $curlCommand = 'curl.exe -sS -L -I'
   if ($AllowInsecure) {
-    $args += "-k"
+    $curlCommand += ' -k'
   }
-  $args += $Url
+  $curlCommand = '{0} "{1}"' -f $curlCommand, $escapedUrl
 
   $previousErrorPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   $output = @()
 
   try {
-    $output = @( & curl.exe @args 2>&1 )
+    $output = @( & cmd.exe /d /s /c $curlCommand 2>&1 )
     if ($LASTEXITCODE -ne 0) {
       return [PSCustomObject]@{
         StatusCode = 0
@@ -98,17 +99,18 @@ function Invoke-BodySnippetRequest {
     [switch] $AllowInsecure
   )
 
-  $args = @("-sS", "-L", "--range", "0-1023")
+  $escapedUrl = $Url.Replace('"', '\"')
+  $curlCommand = 'curl.exe -sS -L --range 0-1023'
   if ($AllowInsecure) {
-    $args += "-k"
+    $curlCommand += ' -k'
   }
-  $args += $Url
+  $curlCommand = '{0} "{1}"' -f $curlCommand, $escapedUrl
 
   $previousErrorPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
 
   try {
-    $output = @( & curl.exe @args 2>&1 )
+    $output = @( & cmd.exe /d /s /c $curlCommand 2>&1 )
     if ($LASTEXITCODE -ne 0) {
       return [PSCustomObject]@{
         Snippet = ""
@@ -147,6 +149,58 @@ function New-CheckResult {
     Check = $Name
     Passed = $Passed
     Details = $Details
+  }
+}
+
+function Test-BaseUrlReachable {
+  param([Parameter(Mandatory = $true)] [string] $Url)
+
+  try {
+    $uri = [System.Uri]$Url
+    $port = if ($uri.Port -gt 0) { $uri.Port } elseif ($uri.Scheme -eq "https") { 443 } else { 80 }
+    $host = [string]$uri.Host
+
+    if ([string]::IsNullOrWhiteSpace($host)) {
+      return $false
+    }
+
+    $connection = Test-NetConnection -ComputerName $host -Port $port -WarningAction SilentlyContinue
+    return [bool]$connection.TcpTestSucceeded
+  }
+  catch {
+    return $false
+  }
+}
+
+function Resolve-BaseUrlFromDownloadUrl {
+  param([string] $Url)
+
+  $candidate = [string]$Url
+  if ([string]::IsNullOrWhiteSpace($candidate)) {
+    return ""
+  }
+
+  try {
+    $uri = [System.Uri]$candidate
+    $builder = New-Object System.UriBuilder($uri)
+    $path = [string]$builder.Path
+
+    if ([string]::IsNullOrWhiteSpace($path) -or $path -eq "/") {
+      $builder.Path = "/"
+    }
+    else {
+      $lastSlashIndex = $path.LastIndexOf("/")
+      if ($lastSlashIndex -ge 0) {
+        $builder.Path = if ($lastSlashIndex -eq 0) { "/" } else { $path.Substring(0, $lastSlashIndex + 1) }
+      }
+    }
+
+    $builder.Query = ""
+    $builder.Fragment = ""
+    return $builder.Uri.AbsoluteUri.TrimEnd("/")
+  }
+  catch {
+    return ""
   }
 }
 
@@ -204,8 +258,6 @@ function Test-InstallerHead {
 }
 
 try {
-  $normalizedBaseUrl = $BaseUrl.TrimEnd("/")
-  $normalizedLocalBaseUrl = $LocalBaseUrl.TrimEnd("/")
   $manifestPath = Join-Path $repoRoot "apps\web\public\desktop-update.json"
 
   if (-not (Test-Path -Path $manifestPath)) {
@@ -224,6 +276,24 @@ try {
     throw "Manifest downloadUrl is missing."
   }
 
+  $resolvedBaseUrl = [string]$BaseUrl
+  if ([string]::IsNullOrWhiteSpace($resolvedBaseUrl)) {
+    $resolvedBaseUrl = [string]$env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL
+  }
+  if ([string]::IsNullOrWhiteSpace($resolvedBaseUrl) -and ($manifest.PSObject.Properties.Name -contains "downloadFolderUrl")) {
+    $resolvedBaseUrl = [string]$manifest.downloadFolderUrl
+  }
+  if ([string]::IsNullOrWhiteSpace($resolvedBaseUrl)) {
+    $resolvedBaseUrl = Resolve-BaseUrlFromDownloadUrl -Url $manifestDownloadUrl
+  }
+  if ([string]::IsNullOrWhiteSpace($resolvedBaseUrl)) {
+    $resolvedBaseUrl = "https://www.nexusforge.app"
+  }
+
+  $normalizedBaseUrl = $resolvedBaseUrl.TrimEnd("/")
+  $normalizedLocalBaseUrl = $LocalBaseUrl.TrimEnd("/")
+  $effectiveSkipLocal = [bool]$SkipLocal
+
   $encodedLatest = [System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe")
   $encodedVersioned = [System.Uri]::EscapeDataString(("NexusForge Desktop Setup {0}.exe" -f $version))
 
@@ -236,6 +306,11 @@ try {
   Write-Host ("[desktop-release-verify] Base URL: {0}" -f $normalizedBaseUrl) -ForegroundColor Cyan
   Write-Host ("[desktop-release-verify] Local URL: {0}" -f $normalizedLocalBaseUrl) -ForegroundColor Cyan
   Write-Host ("[desktop-release-verify] Manifest version: {0}" -f $version) -ForegroundColor Cyan
+
+  if (-not $effectiveSkipLocal -and -not (Test-BaseUrlReachable -Url $normalizedLocalBaseUrl)) {
+    Write-Host ("[desktop-release-verify] Local base URL is unreachable; skipping local checks for {0}. Use -SkipLocal explicitly to silence this warning." -f $normalizedLocalBaseUrl) -ForegroundColor Yellow
+    $effectiveSkipLocal = $true
+  }
 
   $manifestCommandText = "node ./scripts/validate-desktop-update-endpoints.mjs --base `"$normalizedBaseUrl`""
   if ($Insecure) {
@@ -262,7 +337,7 @@ try {
   $checks.Add((Test-InstallerHead -Name "Public stable installer" -Url $publicLatestUrl -AllowInsecure:$Insecure)) | Out-Null
   $checks.Add((Test-InstallerHead -Name "Public versioned installer" -Url $publicVersionUrl -AllowInsecure:$Insecure)) | Out-Null
 
-  if (-not $SkipLocal) {
+  if (-not $effectiveSkipLocal) {
     $localLatestUrl = "{0}/{1}" -f $normalizedLocalBaseUrl, $encodedLatest
     $localVersionUrl = "{0}/{1}" -f $normalizedLocalBaseUrl, $encodedVersioned
     $checks.Add((Test-InstallerHead -Name "Local stable installer" -Url $localLatestUrl)) | Out-Null

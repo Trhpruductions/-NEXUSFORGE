@@ -1,0 +1,12 @@
+=== PD-REL-01 DESKTOP RELEASE PUBLISH GATE ===
+Date: 2026-07-01
+Status: FAIL (deploy target/env incomplete)
+
+Commands and outcomes:
+- npm run desktop:release:deploy:env -> FAIL (fast-fail placeholder guard: NEXUSFORGE_DEPLOY_HOST is still 'your-host.example.com')
+- npm run desktop:update:validate:persistent -> FAIL (NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL is not set)
+
+Required fix:
+- Configure real deployment host values in scripts/desktop-release-deploy.env.
+- Set NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL to the intended persistent distribution base.
+- Rerun both commands.

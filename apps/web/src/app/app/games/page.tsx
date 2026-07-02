@@ -1,80 +1,124 @@
-import type { Metadata } from "next";
-import { getCustomDesignImageUrl } from "@/lib/custom-design-client";
-import { DynamicBackground } from "@/components/ui/dynamic-background";
+"use client";
 
-export const metadata: Metadata = {
-  title: "NEXUSFORGE | Games",
-  description: "Browse game hubs and launch directly into the experience.",
-};
+import { Gamepad2, Users, Search, Play, Star, Trophy, Target } from "lucide-react";
 
 const hubs = [
-  { name: "Call of Duty: MWIII", genre: "FPS", players: "1.2K" },
-  { name: "Rocket League", genre: "Sports", players: "892" },
-  { name: "Minecraft", genre: "Survival", players: "2.1K" },
-  { name: "Valorant", genre: "Competitive", players: "3.4K" },
-  { name: "Elden Ring", genre: "RPG", players: "1.7K" },
+  { name: "Call of Duty: MWIII", genre: "FPS", players: "1.2K", status: "READY" },
+  { name: "Rocket League", genre: "SPORTS", players: "892", status: "SYNCED" },
+  { name: "Minecraft", genre: "SURVIVAL", players: "2.1K", status: "READY" },
+  { name: "Valorant", genre: "COMPETITIVE", players: "3.4K", status: "CONNECTED" },
+  { name: "Elden Ring", genre: "RPG", players: "1.7K", status: "READY" },
 ];
 
 export default function GamesPage() {
-  const heroImage = getCustomDesignImageUrl(["app-games-desktop.jpg"], "/app-hero.png");
-
   return (
-    <div className="space-y-6">
-      <DynamicBackground
-        url={heroImage}
-        className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-slate-700/70 bg-[#09040b]/95 shadow-[0_30px_90px_rgba(0,0,0,0.45)] bg-cover bg-center"
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09040b]/95 via-[#09040b]/20 to-[#09040b]/95" />
-        <div className="absolute inset-0 bg-[#09040b]/60" />
-        <div className="relative p-6 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Game hubs</p>
-          <h1 className="mt-3 text-4xl font-semibold text-white">Play ready arenas</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Browse live game zones, community arenas, and listening-ready matches with the same custom command center visuals.</p>
-        </div>
-      </DynamicBackground>
-
-      <section className="rounded-[32px] border border-[#5b1716]/70 bg-[#0c0508]/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Game hubs</p>
-            <h2 className="mt-2 text-4xl font-semibold text-white">Play ready arenas</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Launch into curated arenas, join friends faster, and discover what communities are listening to while they play.</p>
-          </div>
-          <button className="nexus-button-primary rounded-full px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Browse all</button>
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {hubs.map((hub) => (
-            <div key={hub.name} className="rounded-[28px] border border-[#4e1c16]/70 bg-[#0a0407]/95 p-5 transition hover:border-amber-400/50">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{hub.genre}</p>
-                  <h3 className="mt-2 text-xl font-semibold text-white">{hub.name}</h3>
-                </div>
-                <span className="rounded-full bg-[#1f0a0e] px-3 py-1 text-xs uppercase tracking-[0.18em] text-amber-200">{hub.players}</span>
-              </div>
-              <div className="mt-6 h-36 rounded-[24px] bg-gradient-to-br from-[#15040a] via-[#0d0407] to-[#060204]" />
-              <button className="mt-5 rounded-full border border-amber-400/20 bg-[#17080b] px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/10">Play</button>
+    <div className="flex flex-col gap-1">
+      {/* HEADER: ARENA COMMAND */}
+      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+         <div className="space-y-2">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-1 bg-amber-500" />
+               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Arena_Deployment_v3</span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-[32px] border border-[#5b1716]/70 bg-[#0c0508]/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
-        <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Hot recommendations</p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { title: "Dark Souls III", score: "4.7" },
-            { title: "Hollow Knight", score: "4.9" },
-            { title: "God of War Ragnarök", score: "4.8" },
-            { title: "Starfield", score: "4.6" },
-          ].map((item) => (
-            <div key={item.title} className="rounded-[28px] border border-[#4e1c16]/70 bg-[#0a0407]/95 p-5">
-              <p className="text-sm font-semibold text-white">{item.title}</p>
-              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">Rating {item.score}</p>
+            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
+               Combat_Zones_&_Arcs
+            </h1>
+         </div>
+         <div className="flex gap-2">
+            <button className="px-6 py-3 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:border-amber-500/50 hover:bg-amber-500/10 transition-all flex items-center gap-2">
+               <Target className="w-3 h-3" /> Auto_Match
+            </button>
+            <div className="h-12 w-px bg-white/10 mx-2" />
+            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
+               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Active_Players</span>
+               <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">12,452 NODES</span>
             </div>
-          ))}
-        </div>
-      </section>
+         </div>
+      </div>
+
+      <div className="grid grid-cols-12 gap-1">
+         {/* MAIN HUB GRID */}
+         <div className="col-span-9 space-y-1">
+            <div className="grid grid-cols-2 gap-1">
+               {hubs.map((hub, idx) => (
+                  <div key={idx} className="p-8 border border-white/10 bg-black/40 space-y-8 group hover:bg-white/5 transition-all">
+                     <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">{hub.genre}_MODULE</span>
+                           <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">{hub.name}</h3>
+                        </div>
+                        <div className="w-10 h-10 border border-white/10 bg-slate-900 flex items-center justify-center">
+                           <Gamepad2 className="w-5 h-5 text-amber-500/50 group-hover:text-amber-500 transition-colors" />
+                        </div>
+                     </div>
+
+                     <div className="h-48 border border-white/5 bg-slate-950 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <div className="absolute bottom-4 left-4 flex gap-4">
+                           <div className="px-3 py-1 bg-black/60 border border-white/10 text-[10px] font-black text-emerald-500 uppercase tracking-widest">
+                              {hub.status}
+                           </div>
+                           <div className="px-3 py-1 bg-black/60 border border-white/10 text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                              <Users className="w-3 h-3" /> {hub.players}
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="flex gap-2">
+                        <button className="flex-1 py-4 bg-amber-500 text-black font-black uppercase tracking-[0.2em] text-[11px] hover:bg-amber-400 transition-all flex items-center justify-center gap-2">
+                           <Play className="w-3 h-3 fill-current" /> Initialize_Instance
+                        </button>
+                        <button 
+                           title="Favorite"
+                           className="w-14 h-14 border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all"
+                        >
+                           <Star className="w-4 h-4 text-slate-500" />
+                        </button>
+                     </div>
+                  </div>
+               ))}
+            </div>
+         </div>
+
+         {/* RANKINGS & COMMS */}
+         <div className="col-span-3 space-y-1">
+            <div className="p-6 border border-white/10 bg-black/40 space-y-6">
+               <div className="flex items-center gap-2 text-amber-500">
+                  <Trophy className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Global_Leaders</span>
+               </div>
+               <div className="space-y-1">
+                  {[
+                     { user: "Void_1", score: "482k", rank: 1 },
+                     { user: "Neon_A", score: "475k", rank: 2 },
+                     { user: "Crusade", score: "461k", rank: 3 },
+                  ].map(item => (
+                     <div key={item.user} className="p-4 border border-white/5 bg-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                           <span className="text-[10px] font-black text-slate-600">0{item.rank}</span>
+                           <span className="text-[10px] font-black text-white uppercase tracking-widest">{item.user}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-amber-500">{item.score}</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+
+            <div className="p-6 border border-white/10 bg-amber-500/5 space-y-4">
+               <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-amber-500" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Recent_Searches</span>
+               </div>
+               <div className="flex flex-wrap gap-2">
+                  {["#FPS", "#MMO", "#ASSETS", "#COOP"].map(tag => (
+                     <span key={tag} className="px-3 py-1 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:border-amber-500/50 hover:text-amber-500">
+                        {tag}
+                     </span>
+                  ))}
+               </div>
+            </div>
+         </div>
+      </div>
     </div>
   );
 }

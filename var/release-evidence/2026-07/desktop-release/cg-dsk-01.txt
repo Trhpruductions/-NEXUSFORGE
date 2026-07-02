@@ -1,0 +1,13 @@
+=== CG-DSK-01 DESKTOP UPDATE/DISTRIBUTION GATE ===
+Date: 2026-07-01
+Status: PASS (using active public base URL)
+
+Commands and outcomes:
+- npm run desktop:update:validate:insecure -- --base "https://queens-workshops-protest-russia.trycloudflare.com" -> FAIL (DNS not found)
+- npm run desktop:update:validate:insecure -- --base "https://trhpruductions.github.io/-NEXUSFORGE" -> PASS
+- npm run desktop:artifact:validate -> PASS
+- npm run desktop:release:verify:insecure -> PASS
+
+Notes:
+- The tracker's historical tunnel URL is no longer resolvable.
+- Validation against the live public distribution base passed and is the authoritative result for this cycle.

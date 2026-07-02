@@ -58,7 +58,7 @@ export function VerifyEmailClient({ token }: { token: string }) {
         </p>
         <Link
           href="/login"
-          className="nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold tracking-wide border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,184,108,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px]"
+          className="nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-none px-5 text-sm font-semibold tracking-wide border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,184,108,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px]"
         >
           Continue to login
         </Link>

@@ -33,7 +33,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
 
   if (activities.length === 0) {
     return (
-      <div className="nexus-display-panel rounded-[24px] py-8 text-center text-slate-400">
+      <div className="nexus-display-panel rounded-none py-8 text-center text-slate-400">
         No activity yet
       </div>
     );
@@ -44,9 +44,9 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
       {activities.map((activity) => (
         <div
           key={activity.id}
-          className="nexus-metric-card nexus-interactive-card flex gap-4 rounded-2xl border border-slate-700/70 p-3"
+          className="nexus-metric-card nexus-interactive-card flex gap-4 rounded-none border border-slate-700/70 p-3"
         >
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-700/80 bg-slate-900/70 text-xl">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-none border border-slate-700/80 bg-slate-900/70 text-xl">
             {getActivityIcon(activity.type)}
           </div>
           <div className="flex-1 min-w-0">
@@ -67,3 +67,4 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
     </div>
   );
 }
+

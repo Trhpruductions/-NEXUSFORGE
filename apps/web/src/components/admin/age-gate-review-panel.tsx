@@ -44,7 +44,7 @@ export function AgeGateReviewPanel() {
 
   return (
     <div className="grid gap-6">
-      <div className="nexus-panel rounded-[28px] p-5">
+      <div className="nexus-panel rounded-none p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm uppercase tracking-[0.24em] text-amber-300">Age Gate Review</h2>
@@ -92,16 +92,16 @@ export function AgeGateReviewPanel() {
 
       <div className="grid gap-4">
         {(ageGateAuditQuery.data?.logs ?? []).map((entry) => (
-          <article key={entry.id} className="rounded-[24px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-5 text-sm text-slate-200">
+          <article key={entry.id} className="rounded-none border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-5 text-sm text-slate-200">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-amber-100">{entry.action === "verify" ? "Age verification attempt" : "Age verification reject"}</p>
                 <p className="mt-1 text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-                <span className="rounded-full border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.status.toUpperCase()}</span>
-                <span className="rounded-full border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.risk.level.toUpperCase()}</span>
-                <span className="rounded-full border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.action}</span>
+                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.status.toUpperCase()}</span>
+                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.risk.level.toUpperCase()}</span>
+                <span className="rounded-none border border-slate-600/80 bg-slate-950/70 px-2 py-1">{entry.action}</span>
               </div>
             </div>
 
@@ -146,7 +146,7 @@ export function AgeGateReviewPanel() {
                   }))
                 }
                 placeholder="Reviewer note (optional)"
-                className="min-h-[88px] w-full rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-amber-400 focus:outline-none"
+                className="min-h-[88px] w-full rounded-none border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:border-amber-400 focus:outline-none"
               />
               <div className="flex flex-wrap gap-2">
                 {entry.status === "blocked" ? (
@@ -173,7 +173,7 @@ export function AgeGateReviewPanel() {
         ))}
 
         {ageGateAuditQuery.data && ageGateAuditQuery.data.logs.length === 0 ? (
-          <div className="rounded-[24px] border border-slate-700/80 bg-slate-900/80 p-5 text-sm text-slate-400">
+          <div className="rounded-none border border-slate-700/80 bg-slate-900/80 p-5 text-sm text-slate-400">
             No review entries found for the selected filters.
           </div>
         ) : null}
@@ -181,3 +181,4 @@ export function AgeGateReviewPanel() {
     </div>
   );
 }
+

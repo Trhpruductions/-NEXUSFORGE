@@ -1,0 +1,20 @@
+=== HG-SEC-02 SECURITY HARD GATE ===
+Date: 2026-07-01
+Status: PENDING (partial pass)
+
+Commands executed:
+- npm run admin:badge:smoke -> FAIL
+- npm run ops:doctor:archive -> PASS
+
+Failure details (admin badge smoke):
+- Missing auth inputs (request path targets API http://127.0.0.1:4001).
+- Required: NEXUSFORGE_ADMIN_ACCESS_TOKEN, or both NEXUSFORGE_ADMIN_EMAIL and NEXUSFORGE_ADMIN_PASSWORD.
+
+Pass details (ops doctor):
+- release-doctor flow executed and archived.
+- powershell-parser: PASS
+- ops-validate-strict: PASS
+- candidate-quick: PASS after age-gate validator retry-after handling hardening.
+
+Notes:
+- Gate remains pending until admin badge smoke is rerun with valid credentials and passes.

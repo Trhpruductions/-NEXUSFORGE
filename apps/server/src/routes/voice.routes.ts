@@ -68,9 +68,11 @@ voiceRouter.post("/token", async (req, res) => {
 
   const roomName = `forge-${channel.forgeId}-channel-${channel.id}`;
 
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true } });
+
   const accessToken = new AccessToken(env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, {
     identity: req.user!.id,
-    name: req.user!.username,
+    name: user?.username || "Unknown User",
     ttl: "30m",
   });
 
@@ -125,10 +127,12 @@ voiceRouter.post("/state", async (req, res) => {
     return;
   }
 
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true } });
+
   getIo().to(`voice:${parsed.data.channelId}`).emit("voice:state", {
     channelId: parsed.data.channelId,
     userId: req.user!.id,
-    username: req.user!.username,
+    username: user?.username || "Unknown User",
     state: {
       muted: parsed.data.muted ?? false,
       deafened: parsed.data.deafened ?? false,

@@ -55,27 +55,27 @@ export default function BetaFeedbackPage() {
       ]}
       maxWidthClassName="max-w-5xl"
     >
-      <section className="nexus-display-panel rounded-[28px] p-5 sm:p-6">
+      <section className="nexus-display-panel rounded-none p-5 sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Report Template</p>
         <textarea
           aria-label="Beta feedback report template"
           title="Beta feedback report template"
           readOnly
           value={reportTemplate}
-          className="mt-4 min-h-80 w-full rounded-[24px] border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-4 font-mono text-xs text-slate-200 outline-none"
+          className="mt-4 min-h-80 w-full rounded-none border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.14))] p-4 font-mono text-xs text-slate-200 outline-none"
         />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void copyTemplate()}
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-amber-500/40 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-none border border-amber-500/40 bg-amber-950/25 px-4 text-sm font-semibold text-amber-100 hover:border-amber-300"
           >
             {copied ? "Copied" : "Copy Report Template"}
           </button>
           <Link
             href="/beta/checklist"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-xl border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-amber-500/45"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-none border border-slate-700/80 bg-[linear-gradient(155deg,rgba(15,23,42,0.94),rgba(8,47,73,0.12))] px-4 text-sm font-semibold text-slate-100 hover:border-amber-500/45"
           >
             Return to Checklist
           </Link>
@@ -84,3 +84,4 @@ export default function BetaFeedbackPage() {
     </ExperienceShell>
   );
 }
+

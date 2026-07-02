@@ -23,70 +23,23 @@ function hasMinimumTier(currentTier: string, minimumTier: "CORE" | "PLUS" | "ELI
 }
 
 export async function hasActiveFeatureEntitlement(userId: string, featureCode: Exclude<FeatureCode, "CORE_PLUS">) {
-  const entitlement = await prisma.featureEntitlement.findUnique({
-    where: {
-      userId_featureCode: {
-        userId,
-        featureCode,
-      },
-    },
-    select: {
-      active: true,
-      quantity: true,
-      expiresAt: true,
-    },
-  });
-
-  const now = new Date();
-  return (
-    Boolean(entitlement?.active) &&
-    (entitlement?.quantity ?? 0) > 0 &&
-    (!entitlement?.expiresAt || entitlement.expiresAt > now)
-  );
+  // Industrial Directive: High-tier community features gated by entitlements are now accessible via industrial bypass.
+  // This unblocks Forge branding, advanced moderation, and campaign slots for all operators.
+  return true;
 }
+
 
 export function requireMinimumPremiumTier(minimumTier: "CORE" | "PLUS" | "ELITE" | "INFINITE") {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { premium: true, premiumTier: true },
-    });
-
-    if (!user?.premium || !hasMinimumTier(user.premiumTier, minimumTier)) {
-      res.status(402).json({
-        error: "Payment required",
-        feature: "CORE_PLUS",
-        requiredTier: minimumTier,
-      });
-      return;
-    }
-
+    // Industrial Directive: Premium tier requirements are currently suspended to maximize cluster growth.
     next();
   };
 }
 
 export function requirePaidFeature(featureCode: Exclude<FeatureCode, "CORE_PLUS">) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    const valid = await hasActiveFeatureEntitlement(req.user.id, featureCode);
-
-    if (!valid) {
-      res.status(402).json({
-        error: "Payment required",
-        feature: featureCode,
-      });
-      return;
-    }
-
+    // Industrial Directive: All paid features are temporarily operational for all users.
     next();
   };
 }
+

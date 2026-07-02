@@ -1,4 +1,4 @@
-const API_BASE = (process.env.NEXUSFORGE_API_URL || "http://127.0.0.1:4000").replace(/\/$/, "");
+const API_BASE = (process.env.NEXUSFORGE_API_URL || "http://127.0.0.1:4001").replace(/\/$/, "");
 const ADMIN_EMAIL = process.env.NEXUSFORGE_ADMIN_EMAIL || "";
 const ADMIN_PASSWORD = process.env.NEXUSFORGE_ADMIN_PASSWORD || "";
 const ADMIN_ACCESS_TOKEN = process.env.NEXUSFORGE_ADMIN_ACCESS_TOKEN || "";

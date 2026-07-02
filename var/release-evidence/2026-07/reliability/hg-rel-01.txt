@@ -1,0 +1,37 @@
+﻿=== HG-REL-01 FINAL :: reliability strict soak guard ===
+Date: 2026-07-01
+Status: PASS
+
+Commands:
+- npm run ops:validate:soak:deep:strict:archive
+- npm run ops:validate:soak:history:guard:strict:full
+
+Latest archived soak report:
+- apps/desktop/.network-smoke/history/ops-soak-strict-r10-20260701-222127.json
+- passed: true
+- runs: 10
+- totalDurationMs: 246358
+- avgRunDurationMs: 24636
+- runDurationsMs: 59944, 21054, 25166, 21833, 18845, 19684, 21072, 19349, 18867, 20517
+
+Latest strict summary report:
+- apps/desktop/.network-smoke/history/summary-latest.json
+- thresholdResult.passed: true
+- observedPassRate: 100
+- observedTotalRuns: 10
+- observedWeightedAvgRunDurationMs: 24636
+- observedSampleMaxRunDurationMs: 59944
+- observedSampleP95RunDurationMs: 59944
+
+Threshold profile (strict full):
+- MinPassRate: 100
+- MinTotalRuns: 10
+- MaxWeightedAvgRunDurationMs: 90000
+- MaxLatestAvgRunDurationMs: 90000
+- MaxLatestAvgRunDurationDeltaMs: 30000
+- MaxSampleRunDurationMs: 120000
+- MaxP95RunDurationMs: 90000
+
+Notes:
+- A prior strict sample in history contained a 159169 ms outlier and briefly failed strict full guard thresholds.
+- A fresh strict r10 archive and guard rerun replaced the threshold window and restored full PASS.

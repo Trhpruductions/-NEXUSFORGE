@@ -17,7 +17,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $repoRoot
 
 $modeLabel = if ($Strict) { "strict" } else { "standard" }
-$scriptName = if ($Strict) { "ops:validate:strict" } else { "ops:validate" }
+$scriptName = if ($Strict) { "ops:validate:strict:soak" } else { "ops:validate" }
 $summary = New-Object System.Collections.Generic.List[object]
 $startedAt = Get-Date
 

@@ -87,13 +87,13 @@ export default function LeaderboardsPage() {
           registerHref="/register?redirect=/leaderboards"
         />
       ) : (
-        <div className="nexus-display-panel mb-5 rounded-[28px] p-5">
+        <div className="nexus-display-panel mb-5 rounded-none p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Leaderboard pulse</p>
               <p className="mt-2 text-sm text-slate-300">The ranking feed refreshes live with reputation, streaks, and medal momentum.</p>
             </div>
-            <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">
+            <div className="rounded-none border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">
               Season closes in 2d
             </div>
           </div>
@@ -102,13 +102,13 @@ export default function LeaderboardsPage() {
 
       {isSignedIn ? (
         <>
-          <div className="nexus-display-panel rounded-[24px] p-1.5">
-            <div className="flex gap-1 rounded-2xl border border-slate-700/80 bg-slate-900/60 p-1">
+          <div className="nexus-display-panel rounded-none p-1.5">
+            <div className="flex gap-1 rounded-none border border-slate-700/80 bg-slate-900/60 p-1">
               {(["reputation", "streaks", "medals"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition ${
+                  className={`flex-1 rounded-none py-2 text-xs font-semibold capitalize transition ${
                     activeTab === tab
                       ? "bg-amber-950/60 text-amber-200 shadow-[inset_0_1px_0_rgba(255,184,108,0.12)]"
                       : "text-slate-400 hover:text-slate-300"
@@ -121,11 +121,11 @@ export default function LeaderboardsPage() {
           </div>
 
           {loading ? (
-            <div className="nexus-display-panel rounded-[24px] p-5 text-center text-sm text-slate-400">Loading leaderboard...</div>
+            <div className="nexus-display-panel rounded-none p-5 text-center text-sm text-slate-400">Loading leaderboard...</div>
           ) : (
             <div className="space-y-2">
               {!leaderboard.length ? (
-                <div className="nexus-display-panel rounded-[24px] p-8 text-center">
+                <div className="nexus-display-panel rounded-none p-8 text-center">
                   <p className="text-sm text-slate-400">No entries yet for this category</p>
                 </div>
               ) : null}
@@ -141,9 +141,9 @@ export default function LeaderboardsPage() {
                   <Link
                     key={entry.id}
                     href={`/profiles/${entry.id}`}
-                    className="nexus-interactive-card flex items-center gap-4 rounded-[24px] border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.16))] px-4 py-4"
+                    className="nexus-interactive-card flex items-center gap-4 rounded-none border border-slate-800 bg-[linear-gradient(155deg,rgba(15,23,42,0.96),rgba(8,47,73,0.16))] px-4 py-4"
                   >
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-sm font-bold ${getMedalColor(entry.premiumTier)}`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-none bg-gradient-to-br text-sm font-bold ${getMedalColor(entry.premiumTier)}`}>
                       {index + 1}
                     </div>
 
@@ -153,11 +153,10 @@ export default function LeaderboardsPage() {
                         alt={entry.username}
                         width={40}
                         height={40}
-                        className="h-10 w-10 rounded-xl object-cover"
-                        style={{ width: "auto", height: "auto" }}
+                        className="h-10 w-10 rounded-none object-cover aspect-square"
                       />
                     ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 bg-slate-800 text-sm font-bold text-slate-300">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border border-slate-700 bg-slate-800 text-sm font-bold text-slate-300">
                         {entry.username[0]?.toUpperCase()}
                       </div>
                     )}
@@ -170,7 +169,7 @@ export default function LeaderboardsPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0 rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-right">
+                    <div className="shrink-0 rounded-none border border-slate-800 bg-slate-950/60 px-3 py-2 text-right">
                       {activeTab === "reputation" ? <span className="text-lg font-bold text-amber-300">{entry.reputation ?? 0}</span> : null}
                       {activeTab === "streaks" ? (
                         <div>
@@ -191,3 +190,4 @@ export default function LeaderboardsPage() {
     </ExperienceShell>
   );
 }
+

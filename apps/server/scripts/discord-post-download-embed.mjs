@@ -164,7 +164,7 @@ function resolveManifestUrl() {
     return manifestOverride;
   }
 
-  return "https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json";
+  return "https://www.nexusforge.app/desktop-update.json";
 }
 
 function isReleaseMessage(message, meId) {

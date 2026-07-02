@@ -356,15 +356,8 @@ forgesRouter.post("/", async (req, res) => {
 
   const requestedBranding = Boolean(parsed.data.icon || parsed.data.banner);
   if (requestedBranding) {
-    const hasBrandingKit = await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT");
-    if (!hasBrandingKit) {
-      res.status(402).json({
-        error: "Payment required",
-        feature: "TEAM_BRANDING_KIT",
-        message: "Custom forge icon and banner branding require the Team Branding Kit.",
-      });
-      return;
-    }
+    // Industrial Directive: Forge Branding (Icons/Banners) is now free for all users to promote community growth.
+    // Safeguard check bypassed.
   }
 
   const inviteCode = normalizeInviteCode(parsed.data.inviteCode ?? randomUUID().slice(0, 8));

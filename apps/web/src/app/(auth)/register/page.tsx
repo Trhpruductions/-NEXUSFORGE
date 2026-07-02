@@ -17,6 +17,7 @@ const schema = z
   .object({
     username: z.string().min(3, "Username needs at least 3 characters"),
     email: z.string().email("Use a valid email"),
+    birthdate: z.string().min(1, "Birthdate is required"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
   })
@@ -56,6 +57,7 @@ export default function RegisterPage() {
         username: values.username,
         email: values.email,
         password: values.password,
+        birthdate: values.birthdate,
       });
 
       setSession({
@@ -83,25 +85,25 @@ export default function RegisterPage() {
             Registration is wired for immediate session activation, route handoff, and premium posture visibility from first login.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Onboarding</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Create forge-ready access</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Redirects into app</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Verification</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Demo token issued</p>
             </article>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="glass-cut auth-hero-card rounded-3xl border border-slate-700/70 bg-slate-950/80 p-4">
+            <div className="glass-cut auth-hero-card rounded-none border border-slate-700/70 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Instant activation</p>
               <p className="mt-2 text-sm text-slate-300">Account setup completes quickly so your Forge is ready to deploy immediately.</p>
             </div>
-            <div className="glass-cut rounded-3xl border border-fuchsia-400/20 bg-fuchsia-500/10 p-4">
+            <div className="glass-cut rounded-none border border-fuchsia-400/20 bg-fuchsia-500/10 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200">Forge ready</p>
               <p className="mt-2 text-sm text-fuchsia-100">Start building your command network with premium tools from first login.</p>
             </div>
@@ -123,6 +125,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
           <Input id="register-username" label="Username" autoComplete="username" error={errors.username?.message} {...register("username")} />
           <Input id="register-email" label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
+          <Input id="register-birthdate" label="Birthdate" type="date" error={errors.birthdate?.message} {...register("birthdate")} />
           <Input
             id="register-password"
             label="Password"
@@ -145,7 +148,7 @@ export default function RegisterPage() {
             </p>
           ) : null}
           {verificationToken ? (
-            <div className="grid gap-2 rounded-[20px] border border-amber-400/20 bg-slate-950/80 px-3 py-2 text-xs text-amber-200">
+            <div className="grid gap-2 rounded-none border border-amber-400/20 bg-slate-950/80 px-3 py-2 text-xs text-amber-200">
               <p>Demo verification token: {verificationToken}</p>
               <Link
                 href={`/verify-email?token=${encodeURIComponent(verificationToken)}`}

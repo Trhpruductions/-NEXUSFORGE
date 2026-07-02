@@ -1,0 +1,15 @@
+=== PD-ENV-01 DEPLOYMENT ENV GATE ===
+Date: 2026-07-01
+Status: FAIL (placeholder deploy host config)
+
+Command:
+- npm run desktop:release:deploy:env
+
+Outcome:
+- Deploy-from-env now fast-fails before remote upload when placeholder values are detected.
+- Current failure message:
+  "Deploy value NEXUSFORGE_DEPLOY_HOST is still placeholder 'your-host.example.com'."
+
+Required fix:
+- Update scripts/desktop-release-deploy.env with real values for:
+  NEXUSFORGE_DEPLOY_HOST, NEXUSFORGE_DEPLOY_USER, NEXUSFORGE_DEPLOY_WEBROOT (and optional key path/port).

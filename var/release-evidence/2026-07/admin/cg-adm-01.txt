@@ -1,0 +1,14 @@
+=== CG-ADM-01 ADMIN/OWNER CONTROL GATE ===
+Date: 2026-07-01
+Status: PENDING (blocked on admin auth inputs)
+
+Commands and outcomes:
+- npm run admin:badge:smoke -> FAIL
+- npm run smoke:local -> PASS
+
+Failure details:
+- Missing auth inputs (API target now defaults correctly to http://127.0.0.1:4001).
+- Required: NEXUSFORGE_ADMIN_ACCESS_TOKEN, or both NEXUSFORGE_ADMIN_EMAIL and NEXUSFORGE_ADMIN_PASSWORD.
+
+Notes:
+- Gate cannot be closed until admin badge smoke is rerun with valid credentials and passes.

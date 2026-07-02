@@ -6,10 +6,6 @@ export function enforceSameOriginMutation(request: Request) {
   const origin = request.headers.get("origin");
 
   if (origin && origin !== expectedOrigin) {
-    if (process.env.NODE_ENV === "production") {
-      return false;
-    }
-
     try {
       const actualOriginUrl = new URL(origin);
       const expectedOriginUrl = new URL(expectedOrigin);

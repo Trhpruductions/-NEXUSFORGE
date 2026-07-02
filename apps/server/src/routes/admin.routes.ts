@@ -323,12 +323,19 @@ async function createSampleGenerationJobIfAvailable(
 }
 
 adminRouter.get("/summary", async (_req, res) => {
-  const [users, forges, messages, notifications, pendingFriends] = await Promise.all([
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  
+  const [users, forges, messages, notifications, pendingFriends, liveUsers] = await Promise.all([
     prisma.user.count(),
     prisma.forge.count(),
     prisma.message.count(),
     prisma.notification.count(),
     prisma.friend.count({ where: { status: "PENDING" } }),
+    prisma.user.count({
+      where: {
+        lastSeenAt: { gt: fiveMinutesAgo },
+      },
+    }),
   ]);
 
   res.json({
@@ -337,7 +344,26 @@ adminRouter.get("/summary", async (_req, res) => {
     messages,
     notifications,
     pendingFriends,
+    liveUsers,
   });
+});
+
+adminRouter.get("/live-users", async (req, res) => {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const users = await prisma.user.findMany({
+    where: { lastSeenAt: { gt: fiveMinutesAgo } },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      appRole: true,
+      lastSeenAt: true,
+    },
+    orderBy: { lastSeenAt: "desc" },
+    take: 12,
+  });
+
+  res.json({ users });
 });
 
 adminRouter.get("/revenue", async (_req, res) => {
@@ -1446,6 +1472,84 @@ adminRouter.post("/users/:id/set-role", async (req, res) => {
       isAdmin: hasAdminAccess(updated.appRole as AppRole | null, updated.isAdmin),
     },
   });
+});
+
+/**
+ * @route POST /api/admin/users/:userId/creator-config
+ * @desc Configure creator features for a user
+ * @access Admin
+ */
+const creatorConfigSchema = z.object({
+  isCreator: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  isStaff: z.boolean().optional(),
+  isRep: z.boolean().optional(),
+  isPartner: z.boolean().optional(),
+  socialLinks: z.any().optional(),
+});
+
+adminRouter.post("/users/:userId/creator-config", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const validated = creatorConfigSchema.parse(req.body);
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isCreator: validated.isCreator,
+        isFeatured: validated.isFeatured,
+        isStaff: validated.isStaff,
+        isRep: validated.isRep,
+        isPartner: validated.isPartner,
+        socialLinks: validated.socialLinks || undefined,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.issues });
+    }
+    res.status(500).json({ error: "Failed to configure creator" });
+  }
+});
+
+/**
+ * @route POST /api/admin/users/:userId/live-status
+ * @desc Manually override live status (Admin/Staff only)
+ * @access Admin
+ */
+const adminLiveStatusSchema = z.object({
+  creatorStatus: z.enum(["OFFLINE", "LIVE"]),
+  livePlatform: z.string().optional(),
+  liveStreamTitle: z.string().optional(),
+  liveStreamUrl: z.string().optional(),
+  liveGameCategory: z.string().optional(),
+  liveViewerCount: z.number().int().optional(),
+});
+
+adminRouter.post("/users/:userId/live-status", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const validated = adminLiveStatusSchema.parse(req.body);
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        creatorStatus: validated.creatorStatus,
+        livePlatform: validated.livePlatform,
+        liveStreamTitle: validated.liveStreamTitle,
+        liveStreamUrl: validated.liveStreamUrl,
+        liveGameCategory: validated.liveGameCategory,
+        liveViewerCount: validated.liveViewerCount,
+        liveStartedAt: validated.creatorStatus === "LIVE" ? new Date() : null,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ error: "Failed to update live status" });
+  }
 });
 
 adminRouter.get("/ai-insights", requirePaidFeature("ADVANCED_MODERATION_AI"), async (_req, res) => {

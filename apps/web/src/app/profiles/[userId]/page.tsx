@@ -94,7 +94,7 @@ export default function PublicProfilePage() {
         metrics={[{ label: "Status", value: "Syncing", tone: "amber" }]}
         maxWidthClassName="max-w-6xl"
       >
-        <div className="nexus-display-panel rounded-[24px] p-5 text-amber-300">Loading profile...</div>
+        <div className="nexus-display-panel rounded-none p-5 text-amber-300">Loading profile...</div>
       </ExperienceShell>
     );
   }
@@ -108,7 +108,7 @@ export default function PublicProfilePage() {
         metrics={[{ label: "Status", value: "Unavailable", tone: "amber" }]}
         maxWidthClassName="max-w-6xl"
       >
-        <div className="nexus-display-panel rounded-[24px] p-5 text-red-400">{error || "Profile not found"}</div>
+        <div className="nexus-display-panel rounded-none p-5 text-red-400">{error || "Profile not found"}</div>
       </ExperienceShell>
     );
   }
@@ -133,14 +133,14 @@ export default function PublicProfilePage() {
       maxWidthClassName="max-w-6xl"
     >
       {profile.banner ? (
-        <div className="nexus-hero relative h-40 w-full overflow-hidden rounded-3xl bg-slate-900 sm:h-48">
+        <div className="nexus-hero relative h-40 w-full overflow-hidden rounded-none bg-slate-900 sm:h-48">
           <Image src={profile.banner} alt="Banner" fill className="object-cover" sizes="(max-width: 768px) 100vw, 1200px" />
         </div>
       ) : (
-        <div className="nexus-hero h-40 w-full rounded-3xl bg-gradient-to-r from-amber-900 to-slate-900 sm:h-48" />
+        <div className="nexus-hero h-40 w-full rounded-none bg-gradient-to-r from-amber-900 to-slate-900 sm:h-48" />
       )}
 
-      <div className="nexus-panel-glass rounded-3xl px-4 py-6 md:px-8 md:py-8">
+      <div className="nexus-panel-glass rounded-none px-4 py-6 md:px-8 md:py-8">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <div className="-mt-24 relative z-10">
             {profile.avatar ? (
@@ -149,10 +149,10 @@ export default function PublicProfilePage() {
                 alt={profile.username}
                 width={120}
                 height={120}
-                className="rounded-lg border-4 border-slate-950"
+                className="rounded-none border-4 border-slate-950"
               />
             ) : (
-              <div className="w-[120px] h-[120px] rounded-lg border-4 border-slate-950 bg-slate-800 flex items-center justify-center">
+              <div className="w-[120px] h-[120px] rounded-none border-4 border-slate-950 bg-slate-800 flex items-center justify-center">
                 <span className="text-2xl font-bold text-amber-300">{profile.username[0]}</span>
               </div>
             )}
@@ -177,26 +177,26 @@ export default function PublicProfilePage() {
                 imageClassName="h-auto w-full"
                 imageWidth={192}
                 imageHeight={72}
-                itemClassName="rounded-xl border-slate-700/75 bg-slate-950/65"
+                itemClassName="rounded-none border-slate-700/75 bg-slate-950/65"
               />
             ) : null}
 
             {profile.bio && <p className="text-slate-300 mb-4">{profile.bio}</p>}
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
                 <div className="text-amber-300 font-semibold">{profile.reputation}</div>
                 <div className="text-sm text-slate-400">Reputation</div>
               </div>
-              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
                 <div className="text-amber-300 font-semibold">#{profile.appRank}</div>
                 <div className="text-sm text-slate-400">App Rank</div>
               </div>
-              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
                 <div className="text-amber-300 font-semibold">#{profile.boostRank}</div>
                 <div className="text-sm text-slate-400">Boost Rank</div>
               </div>
-              <div className="nexus-metric-card nexus-interactive-card rounded-3xl p-4">
+              <div className="nexus-metric-card nexus-interactive-card rounded-none p-4">
                 <div className="text-violet-300 font-semibold">{medals.length}</div>
                 <div className="text-sm text-slate-400">Medals</div>
               </div>
@@ -224,14 +224,14 @@ export default function PublicProfilePage() {
         </div>
 
         {medals.length > 0 && (
-          <div className="nexus-display-panel mt-12 rounded-[24px] p-4">
+          <div className="nexus-display-panel mt-12 rounded-none p-4">
             <h2 className="text-2xl font-bold mb-4">Medals</h2>
             <MedalsDisplay medals={medals} />
           </div>
         )}
 
         {activities.length > 0 && (
-          <div className="nexus-display-panel mt-12 rounded-[24px] p-4">
+          <div className="nexus-display-panel mt-12 rounded-none p-4">
             <h2 className="text-2xl font-bold mb-4">Recent Activity</h2>
             <ActivityFeed activities={activities} />
           </div>

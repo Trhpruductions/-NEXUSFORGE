@@ -6,6 +6,18 @@ const steps = [
     args: ["run", "desktop:installer"],
   },
   {
+    label: "Verify packaged splash assets",
+    args: ["run", "desktop:splash:verify:strict"],
+  },
+  {
+    label: "Generate desktop artifact integrity report",
+    args: ["run", "desktop:artifact:report"],
+  },
+  {
+    label: "Validate desktop artifact consistency",
+    args: ["run", "desktop:artifact:validate"],
+  },
+  {
     label: "Launch unpacked desktop app",
     args: ["run", "desktop:open:unpacked"],
   },

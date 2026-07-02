@@ -59,7 +59,7 @@ export function ProfileBadgeStrip({
           key={badge.key}
           title={`${badge.label} (${badge.rarity.toUpperCase()}) - ${badge.description}`}
           className={cx(
-            "overflow-hidden rounded-md border bg-slate-900/75",
+            "overflow-hidden rounded-none border bg-slate-900/75",
             rarityClass(badge.rarity),
             itemClassName,
           )}
@@ -81,3 +81,4 @@ export function ProfileBadgeStrip({
     </div>
   );
 }
+

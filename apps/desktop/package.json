@@ -8,13 +8,13 @@
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
     "dev:full": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
-    "dev:hosted": "powershell -NoProfile -Command \"$env:NEXUSFORGE_ALLOW_HOSTED_DEV='true'; $env:NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS='true'; if (-not $env:NEXUSFORGE_DESKTOP_URL -or [string]::IsNullOrWhiteSpace($env:NEXUSFORGE_DESKTOP_URL)) { $env:NEXUSFORGE_DESKTOP_URL='https://trhpruductions.github.io/-NEXUSFORGE/download.html' }; npx --yes electron --user-data-dir=\"$PWD\\.electron-profile\" --disk-cache-dir=\"$PWD\\.electron-cache\" --disable-gpu-shader-disk-cache .\"",
+    "dev:hosted": "powershell -NoProfile -Command \"$env:NEXUSFORGE_ALLOW_HOSTED_DEV='true'; $env:NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS='true'; if (-not $env:NEXUSFORGE_DESKTOP_URL -or [string]::IsNullOrWhiteSpace($env:NEXUSFORGE_DESKTOP_URL)) { $env:NEXUSFORGE_DESKTOP_URL='https://www.nexusforge.app/app' }; npx --yes electron --user-data-dir=\"$PWD\\.electron-profile\" --disk-cache-dir=\"$PWD\\.electron-cache\" --disable-gpu-shader-disk-cache .\"",
     "package:win": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; if (Test-Path 'release\\NexusForge Desktop-win32-x64') { Remove-Item 'release\\NexusForge Desktop-win32-x64' -Recurse -Force }; if (Test-Path 'release\\win-unpacked') { Remove-Item 'release\\win-unpacked' -Recurse -Force }; exit 0\" && set \"PATH=%CD%\\node_modules\\7zip-bin\\win\\x64;%PATH%\" && npx electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "com.nexusforge.desktop",
     "productName": "NexusForge Desktop",
-    "electronVersion": "42.0.1",
+    "electronVersion": "42.3.0",
     "directories": {
       "output": "release"
     },
@@ -42,7 +42,7 @@
   "devDependencies": {
     "@electron/packager": "^20.0.0",
     "7zip-bin": "^5.2.0",
-    "electron": "^42.2.0",
+    "electron": "^42.3.0",
     "electron-builder": "^26.8.1",
     "png-to-ico": "^3.0.1",
     "wait-on": "^9.0.10"

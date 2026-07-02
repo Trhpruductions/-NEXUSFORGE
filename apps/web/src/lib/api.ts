@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "./config";
+import { useAuthStore } from "@/store/auth-store";
 
 export type User = {
   id: string;
@@ -21,10 +22,45 @@ export type User = {
   isAdmin?: boolean;
   currentActivity?: string | null;
   activityDetails?: string | null;
+  
+  // Creator & Live Status
+  isCreator?: boolean;
+  isFeatured?: boolean;
+  creatorStatus?: "OFFLINE" | "LIVE";
+  livePlatform?: string | null;
+  liveStreamTitle?: string | null;
+  liveStreamUrl?: string | null;
+  liveGameCategory?: string | null;
+  liveViewerCount?: number;
+  liveStartedAt?: string | null;
+  
+  // Badges
+  isStaff?: boolean;
+  isRep?: boolean;
+  isPartner?: boolean;
+  
+  // Enhanced Activity
+  activityType?: "GAME" | "MUSIC" | "STREAMING" | "SOCIAL" | null;
+  activityStatus?: string | null;
+  activityMetadata?: any;
+  showActivity?: boolean;
+  socialLinks?: {
+    discord?: string;
+    x?: string;
+    instagram?: string;
+    kick?: string;
+    youtube?: string;
+    twitch?: string;
+  } | null;
+
   game?: string | null;
   lastSeenAt?: string | null;
   appRank?: number;
   boostRank?: number;
+  economyAccounts?: {
+    currencyType: string;
+    balance: string;
+  }[];
 };
 
 export type Channel = {
@@ -215,6 +251,34 @@ export type BotApp = {
   intents?: string[];
   ownerId?: string;
   createdAt: string;
+};
+
+export type DeveloperApiKey = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  lastUsedAt?: string | null;
+  createdAt: string;
+};
+
+export type DeveloperOAuthClient = {
+  id: string;
+  name: string;
+  clientId: string;
+  redirectUris: string[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DeveloperWebhook = {
+  id: string;
+  url: string;
+  description?: string | null;
+  events: string[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type BotCommand = {
@@ -526,6 +590,14 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 interface RetriableRequestConfig extends AxiosRequestConfig {
   __retriedOnFallbackPort?: boolean;
 }
@@ -599,7 +671,7 @@ export function authHeaders(
   };
 }
 
-export async function register(payload: { username: string; email: string; password: string }) {
+export async function register(payload: { username: string; email: string; password: string; birthdate: string }) {
   const response = await api.post<{
     accessToken: string;
     csrfToken: string;
@@ -968,6 +1040,183 @@ export async function updateBotApp(
   return response.data;
 }
 
+export async function deleteBotApp(accessToken: string, csrfToken: string, botId: string) {
+  const response = await api.delete(`/api/bots/${botId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function listDeveloperApiKeys(accessToken: string) {
+  const response = await api.get<{ keys: DeveloperApiKey[] }>("/api/developer/keys", {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function createDeveloperApiKey(accessToken: string, csrfToken: string, payload: { name: string }) {
+  const response = await api.post<{ apiKey: DeveloperApiKey; secret: string }>("/api/developer/keys", payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function updateDeveloperApiKey(
+  accessToken: string,
+  csrfToken: string,
+  keyId: string,
+  payload: { name?: string; enabled?: boolean },
+) {
+  const response = await api.patch<{ apiKey: DeveloperApiKey }>(`/api/developer/keys/${keyId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function revokeDeveloperApiKey(accessToken: string, csrfToken: string, keyId: string) {
+  const response = await api.delete(`/api/developer/keys/${keyId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function listDeveloperOAuthClients(accessToken: string) {
+  const response = await api.get<{ clients: DeveloperOAuthClient[] }>("/api/developer/oauth-clients", {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function createDeveloperOAuthClient(
+  accessToken: string,
+  csrfToken: string,
+  payload: { name: string; redirectUris?: string[] },
+) {
+  const response = await api.post<{ client: DeveloperOAuthClient; secret: string }>(
+    "/api/developer/oauth-clients",
+    payload,
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export async function updateDeveloperOAuthClient(
+  accessToken: string,
+  csrfToken: string,
+  clientId: string,
+  payload: { name?: string; redirectUris?: string[]; enabled?: boolean },
+) {
+  const response = await api.patch<{ client: DeveloperOAuthClient }>(`/api/developer/oauth-clients/${clientId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function revokeDeveloperOAuthClient(accessToken: string, csrfToken: string, clientId: string) {
+  const response = await api.delete(`/api/developer/oauth-clients/${clientId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function rotateDeveloperOAuthClientSecret(accessToken: string, csrfToken: string, clientId: string) {
+  const response = await api.post<{ client: DeveloperOAuthClient; secret: string }>(
+    `/api/developer/oauth-clients/${clientId}/rotate-secret`,
+    {},
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
+export type OAuthTokenPayload =
+  | { grant_type: "client_credentials"; client_id: string; client_secret: string }
+  | {
+      grant_type: "authorization_code";
+      client_id: string;
+      client_secret: string;
+      code: string;
+      redirect_uri: string;
+    };
+
+export async function requestOAuthToken(payload: OAuthTokenPayload) {
+  const body = new URLSearchParams();
+  body.append("grant_type", payload.grant_type);
+  body.append("client_id", payload.client_id);
+  body.append("client_secret", payload.client_secret);
+
+  if (payload.grant_type === "authorization_code") {
+    body.append("code", payload.code);
+    body.append("redirect_uri", payload.redirect_uri);
+  }
+
+  const response = await api.post<{
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+  }>(
+    "/api/oauth/token",
+    body.toString(),
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    },
+  );
+  return response.data;
+}
+
+export async function listDeveloperWebhooks(accessToken: string) {
+  const response = await api.get<{ webhooks: DeveloperWebhook[] }>("/api/developer/webhooks", {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function createDeveloperWebhook(
+  accessToken: string,
+  csrfToken: string,
+  payload: { url: string; description?: string; events?: string[]; enabled?: boolean },
+) {
+  const response = await api.post<{ webhook: DeveloperWebhook; secret: string }>("/api/developer/webhooks", payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function updateDeveloperWebhook(
+  accessToken: string,
+  csrfToken: string,
+  webhookId: string,
+  payload: { url?: string; description?: string; events?: string[]; enabled?: boolean },
+) {
+  const response = await api.patch<{ webhook: DeveloperWebhook }>(`/api/developer/webhooks/${webhookId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function deleteDeveloperWebhook(accessToken: string, csrfToken: string, webhookId: string) {
+  const response = await api.delete(`/api/developer/webhooks/${webhookId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function testDeveloperWebhook(accessToken: string, csrfToken: string, webhookId: string) {
+  const response = await api.post<{ ok: boolean; status: number; response: string }>(
+    `/api/developer/webhooks/${webhookId}/test`,
+    {},
+    {
+      headers: authHeaders(accessToken, csrfToken),
+    },
+  );
+  return response.data;
+}
+
 export async function setBotInstallationEnabled(
   accessToken: string,
   csrfToken: string,
@@ -1220,6 +1469,25 @@ export async function adminGenerateSampleProfiles(
       headers: authHeaders(accessToken, csrfToken),
     },
   );
+  return response.data;
+}
+
+export async function getLiveCreators(accessToken: string, csrfToken: string) {
+  const response = await api.get<User[]>("/api/profiles/creators/live", {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function updateActivity(accessToken: string, csrfToken: string, data: {
+  activityType: "GAME" | "MUSIC" | "STREAMING" | "SOCIAL" | "CLEAR";
+  activityStatus?: string;
+  activityMetadata?: any;
+  showActivity?: boolean;
+}) {
+  const response = await api.post("/api/profiles/activity", data, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
   return response.data;
 }
 

@@ -24,9 +24,24 @@ import { voiceRouter } from "./routes/voice.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { profilesRouter } from "./routes/profiles.routes.js";
 import { runtimeRouter } from "./routes/runtime.routes.js";
+import { developerRouter } from "./routes/developer.routes.js";
+import { oauthRouter } from "./routes/oauth.routes.js";
 import { billingRouter, billingWebhookHandler } from "./routes/billing.routes.js";
+import economyRouter from "./routes/economy-routes.js";
+import miningRouter from "./routes/mining-routes.js";
+import jackpotRouter from "./routes/jackpot.routes.js";
+import cryptoRouter from "./routes/crypto.routes.js";
+import { ageRouter } from "./routes/age.routes.js";
+import { JackpotEngine } from "./lib/jackpot-engine.js";
 import { reportDiscordAlert, startDiscordBot, stopDiscordBot } from "./lib/discord-bot.js";
 import { discordInteractionHandler } from "./routes/discord.routes.js";
+import { globalErrorHandler } from "./middleware/error-handler.js";
+import { anonymizeIP } from "./lib/ip-security.js";
+
+// Custom morgan token for anonymized IP
+morgan.token('remote-addr-masked', (req: any) => {
+  return anonymizeIP(req.ip || req.connection.remoteAddress || 'unknown').substring(0, 12) + "...";
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,7 +108,7 @@ app.use(
   }),
 );
 app.use(helmet());
-app.use(morgan("dev"));
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms [GHOST-IP: :remote-addr-masked]'));
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
 app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
 app.use(express.json({ limit: "10mb" }));
@@ -111,16 +126,19 @@ app.use("/api/search", searchRouter);
 app.use("/api/voice", voiceRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/bots", botsRouter);
+app.use("/api/developer", developerRouter);
+app.use("/api/oauth", express.urlencoded({ extended: true }), oauthRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/runtime", runtimeRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/economy", economyRouter);
+app.use("/api/mining", miningRouter);
+app.use("/api/jackpot", jackpotRouter);
+app.use("/api/crypto", cryptoRouter);
+app.use("/api/age", ageRouter);
 
-app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("[server] Unhandled error:", error);
-  const message = error instanceof Error ? error.message : String(error);
-  res.status(500).json({ error: message });
-});
+app.use(globalErrorHandler);
 
 io.use((socket, next) => {
   const raw = socket.handshake.auth?.token;
@@ -133,8 +151,8 @@ io.use((socket, next) => {
     const payload = verifyAccessToken(token);
     socket.data.user = {
       id: payload.sub,
-      username: payload.username,
-      email: payload.email,
+      // Username and Email removed from realtime context for security.
+      // Load from DB/Cache if needed for presence logic.
     };
     next();
   } catch {
@@ -158,7 +176,6 @@ io.on("connection", (socket) => {
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
-      username: socket.data.user.username,
       action: "joined",
     });
   });
@@ -168,7 +185,6 @@ io.on("connection", (socket) => {
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
-      username: socket.data.user.username,
       action: "left",
     });
   });
@@ -185,7 +201,6 @@ io.on("connection", (socket) => {
     socket.to(`channel:${channelId}`).emit("typing:start", {
       channelId,
       userId: socket.data.user.id,
-      username: socket.data.user.username,
     });
   });
 
@@ -235,6 +250,10 @@ httpServer.on("error", (error: NodeJS.ErrnoException) => {
 
 httpServer.listen(env.PORT, () => {
   console.log(`NexusForge API running on http://localhost:${env.PORT}`);
+  
+  // Engage Industrial Engines
+  JackpotEngine.start();
+  
   void startDiscordBot().catch((error) => {
     console.error("[discord] Failed to start bot:", error);
     const message = error instanceof Error ? error.message : String(error);

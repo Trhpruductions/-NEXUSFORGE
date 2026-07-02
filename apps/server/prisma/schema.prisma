@@ -13,6 +13,11 @@ enum UserStatus {
   OFFLINE
 }
 
+enum CreatorStatus {
+  OFFLINE
+  LIVE
+}
+
 enum ChannelType {
   TEXT
   VOICE
@@ -129,12 +134,38 @@ model User {
   reputation         Int            @default(0)
   currentActivity    String?
   activityDetails    String?
+  
+  // Creator & Live Features
+  isCreator          Boolean        @default(false)
+  isFeatured         Boolean        @default(false)
+  creatorStatus      CreatorStatus  @default(OFFLINE)
+  livePlatform       String?        // Kick, Twitch, YouTube, TikTok, Spotify
+  liveStreamTitle    String?
+  liveStreamUrl      String?
+  liveGameCategory   String?
+  liveViewerCount    Int            @default(0)
+  liveStartedAt      DateTime?
+  
+  // Badges & Roles
+  isStaff            Boolean        @default(false)
+  isRep              Boolean        @default(false)
+  isPartner          Boolean        @default(false)
+  
+  // Enhanced Activity
+  activityType       String?        // "GAME", "MUSIC", "STREAMING", "SOCIAL"
+  activityStatus     String?        // "Playing Call of Duty", "Listening to Spotify"
+  activityMetadata   Json?          // { gameName, spotifyTrackId, albumArt, viewers, platform }
+  showActivity       Boolean        @default(true)
+  socialLinks        Json?          // { discord, x, instagram, kick, youtube, twitch }
+
   lastSeenAt         DateTime?
   emailVerified      Boolean        @default(false)
   emailVerifyToken   String?        @unique
   emailVerifyExpires DateTime?
   resetToken         String?        @unique
   resetTokenExpires  DateTime?
+  birthdate          DateTime?
+  ageVerified        Boolean        @default(false)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   refreshTokens      RefreshToken[]
@@ -154,8 +185,136 @@ model User {
   billingSubscriptions BillingSubscription[]
   paymentTransactions PaymentTransaction[]
   featureEntitlements FeatureEntitlement[]
-  botApps             BotApp[]
-  botInstallations    ForgeBotInstallation[] @relation("BotInstaller")
+  economyAccounts      EconomyAccount[]
+  miningRigs          MiningRig[]
+  botApps            BotApp[]
+  botInstallations   ForgeBotInstallation[] @relation("BotInstaller")
+  apiKeys            ApiKey[]
+  webhookSubscriptions WebhookSubscription[]
+  oAuthClients       OAuthClient[]
+  authorizationCodes  OAuthAuthorizationCode[]
+}
+
+model EconomyAccount {
+  id               String   @id @default(uuid())
+  userId           String
+  currencyType     String   @default("NC") // NC, FS, AC, FR
+  balance          BigInt   @default(0)
+  frozenBalance    BigInt   @default(0)
+  lifetimeEarnings BigInt   @default(0)
+  lastSyncAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions     EconomyTransaction[]
+
+  @@unique([userId, currencyType])
+  @@index([userId])
+}
+
+model EconomyTransaction {
+  id               String   @id @default(uuid())
+  accountId        String
+  amount           BigInt
+  type             String   // CREDIT, DEBIT, FREEZE, UNFREEZE
+  reason           String?
+  metadata         Json?
+  referenceId      String?  @unique
+  timestamp        DateTime @default(now())
+  account          EconomyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, timestamp])
+}
+
+model MiningRig {
+  id               String   @id @default(uuid())
+  userId           String
+  slug             String   @unique
+  name             String
+  tier             Int      @default(1)
+  hashRate         Float    @default(0.0)
+  efficiency       Float    @default(1.0)
+  status           String   @default("IDLE") // IDLE, ACTIVE, OVERHEAT, MAINTENANCE
+  lastHarvestAt    DateTime @default(now())
+  installedAt      DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model ProgressiveJackpot {
+  id               String   @id @default(uuid())
+  slug             String   @unique
+  currentValue     BigInt   @default(0)
+  minValue         BigInt   @default(1000)
+  maxValue         BigInt?
+  growthRate       Float    @default(0.01)
+  lastWinnerId     String?
+  lastWinValue     BigInt?
+  lastWonAt        DateTime?
+  updatedAt        DateTime @updatedAt
+}
+
+model ApiKey {
+  id         String   @id @default(uuid())
+  userId     String
+  name       String
+  secretHash String
+  enabled    Boolean  @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model WebhookSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  url        String
+  description String?
+  secretHash String
+  events     String[] @default([])
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model OAuthClient {
+  id                 String   @id @default(uuid())
+  userId             String
+  name               String
+  clientId           String   @unique
+  clientSecretHash   String
+  redirectUris       String[] @default([])
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authorizationCodes OAuthAuthorizationCode[]
+
+  @@index([userId, createdAt])
+}
+
+model OAuthAuthorizationCode {
+  id          String   @id @default(uuid())
+  clientId    String
+  userId      String
+  codeHash    String   @unique
+  redirectUri String
+  scope       String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, userId, expiresAt])
 }
 
 model RefreshToken {

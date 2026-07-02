@@ -1,0 +1,119 @@
+"use client";
+
+import React, { useEffect, useState, useCallback } from "react";
+import { Coins, TrendingUp, Trophy, Sparkles, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+
+interface ProgressiveJackpotProps {
+  slug: string;
+  initialValue?: number;
+}
+
+export function ProgressiveJackpot({ slug, initialValue = 1250482 }: ProgressiveJackpotProps) {
+  const [value, setValue] = useState(initialValue);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [error, setError] = useState(false);
+
+  const fetchJackpot = useCallback(async () => {
+    try {
+      const resp = await api.get(`/api/jackpot/${slug}`);
+      const data = resp.data;
+      const newValue = Number(data.currentValue);
+      
+      if (newValue !== value) {
+        setValue(newValue);
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 800);
+      }
+      setError(false);
+    } catch (err) {
+      setError(true);
+    }
+  }, [slug, value]);
+
+
+
+  // Real-time synchronization
+  useEffect(() => {
+    fetchJackpot();
+    const interval = setInterval(fetchJackpot, 5000);
+    return () => clearInterval(interval);
+  }, [fetchJackpot]);
+
+  return (
+    <div className={cn(
+      "group relative overflow-hidden rounded-none border p-5 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl transition-all",
+      error ? "border-nexus-crimson/30" : "border-yellow-500/30 hover:border-yellow-500/50 hover:shadow-[0_24px_80px_rgba(251,191,36,0.15)]"
+    )}>
+      {/* Animated Background Glows */}
+      <div className={cn(
+        "absolute -left-10 -top-10 h-32 w-32 rounded-none blur-[60px] animate-pulse",
+        error ? "bg-nexus-crimson/10" : "bg-yellow-500/10"
+      )} />
+      
+      {/* Authority Stamp */}
+      <div className="absolute -bottom-2 -right-4 rotate-[-15deg] opacity-20 group-hover:opacity-40 transition-opacity">
+        <div className={cn("border-4 p-2 rounded-none", error ? "border-nexus-crimson" : "border-emerald-500")}>
+          <p className={cn("text-[14px] font-black uppercase tracking-tighter", error ? "text-nexus-crimson" : "text-emerald-500")}>
+            {error ? "Desync Alert" : "Authority Verified"}
+          </p>
+          <p className={cn("text-[8px] font-mono text-center", error ? "text-nexus-crimson" : "text-emerald-500")}>
+            {error ? "RETRYING_PROTOCOL..." : "BACKEND_SYNC_STABLE"}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-none ring-1",
+              error ? "bg-nexus-crimson/20 ring-nexus-crimson/50" : "bg-yellow-500/20 ring-yellow-500/50"
+            )}>
+              {error ? <AlertCircle className="w-3.5 h-3.5 text-nexus-crimson" /> : <Trophy className="w-3.5 h-3.5 text-yellow-500" />}
+            </div>
+            <span className={cn("text-[10px] font-black uppercase tracking-[0.25em]", error ? "text-nexus-crimson" : "text-yellow-500")}>
+              {slug.replace(/-/g, '_').toUpperCase()}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-none bg-emerald-500/10 ring-1 ring-emerald-500/30">
+            <TrendingUp className="w-3 h-3 text-emerald-500" />
+            <span className="text-[9px] font-mono font-bold text-emerald-500">LIVE RELAY</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Coins className={cn(
+              "w-10 h-10 transition-all duration-500",
+              error ? "text-nexus-crimson opacity-50" : "text-yellow-500",
+              isAnimating ? "scale-110 rotate-[15deg] filter brightness-125" : "scale-100"
+            )} />
+            {!error && <Sparkles className="absolute -top-1 -right-1 w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />}
+          </div>
+          <div className="flex flex-col">
+            <div className={cn(
+              "text-5xl font-black font-mono tracking-tighter transition-all duration-300 tabular-nums leading-none",
+              error ? "text-nexus-crimson/60" : isAnimating ? "text-yellow-400 scale-[1.02] drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]" : "text-white"
+            )}>
+              {value.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">
+                {error ? "TRANSACTION_STREAM_INTERRUPTED" : "Global Liquid Reserve"}
+              </span>
+              <div className="h-[2px] w-8 bg-yellow-500/20 rounded-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Hover Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/0 via-yellow-500/0 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+}
+
+
+

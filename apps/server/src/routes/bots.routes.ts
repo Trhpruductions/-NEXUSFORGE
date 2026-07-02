@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { botCommandPresetOptions, botPermissionOptions, getBotCommandPreset, renderBotCommandResponse } from "../lib/bot-commands.js";
 import { prisma } from "../lib/prisma.js";
+import { dispatchDeveloperWebhookEvent } from "../lib/webhooks.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
@@ -188,6 +189,16 @@ botsRouter.post("/", async (req, res) => {
     },
   });
 
+  void dispatchDeveloperWebhookEvent(req.user!.id, "bot.app.created", {
+    botId: bot.id,
+    name: bot.name,
+    description: bot.description,
+    inviteCode: bot.inviteCode,
+    isPublic: bot.isPublic,
+    intents: bot.intents,
+    createdAt: bot.createdAt,
+  });
+
   res.status(201).json({ bot });
 });
 
@@ -234,7 +245,49 @@ botsRouter.patch("/:botId", async (req, res) => {
     },
   });
 
+  void dispatchDeveloperWebhookEvent(req.user!.id, "bot.app.updated", {
+    botId: bot.id,
+    name: bot.name,
+    description: bot.description,
+    inviteCode: bot.inviteCode,
+    isPublic: bot.isPublic,
+    intents: bot.intents,
+    updatedAt: new Date().toISOString(),
+  });
+
   res.status(200).json({ bot });
+});
+
+botsRouter.delete("/:botId", async (req, res) => {
+  const existing = await prisma.botApp.findUnique({
+    where: { id: req.params.botId },
+    select: { id: true, ownerId: true, name: true, inviteCode: true, isPublic: true, intents: true },
+  });
+
+  if (!existing) {
+    res.status(404).json({ error: "Bot not found" });
+    return;
+  }
+
+  if (existing.ownerId !== req.user!.id) {
+    res.status(403).json({ error: "Only bot owners can delete bot applications" });
+    return;
+  }
+
+  await prisma.botApp.delete({
+    where: { id: existing.id },
+  });
+
+  void dispatchDeveloperWebhookEvent(req.user!.id, "bot.app.deleted", {
+    botId: existing.id,
+    name: existing.name,
+    inviteCode: existing.inviteCode,
+    isPublic: existing.isPublic,
+    intents: existing.intents,
+    deletedAt: new Date().toISOString(),
+  });
+
+  res.status(204).send();
 });
 
 botsRouter.post("/install", async (req, res) => {
@@ -307,6 +360,16 @@ botsRouter.post("/install", async (req, res) => {
         },
       },
     },
+  });
+
+  void dispatchDeveloperWebhookEvent(bot.ownerId, "bot.installation.created", {
+    installationId: installation.id,
+    botId: bot.id,
+    botName: bot.name,
+    forgeId: forge.id,
+    installedById: req.user!.id,
+    enabled: installation.enabled,
+    createdAt: installation.createdAt,
   });
 
   res.status(201).json({ installation });
@@ -486,6 +549,7 @@ botsRouter.post("/commands/execute", async (req, res) => {
               id: true,
               name: true,
               intents: true,
+              ownerId: true,
             },
           },
         },
@@ -512,7 +576,7 @@ botsRouter.post("/commands/execute", async (req, res) => {
     select: { name: true },
   });
 
-  res.status(200).json({
+  const result = {
     ok: true,
     output: {
       command: command.name,
@@ -528,5 +592,19 @@ botsRouter.post("/commands/execute", async (req, res) => {
         args: "",
       }),
     },
+  };
+
+  void dispatchDeveloperWebhookEvent(command.installation.bot.ownerId, "bot.command.executed", {
+    forgeId: parsed.data.forgeId,
+    commandId: command.id,
+    commandName: command.name,
+    botId: command.installation.bot.id,
+    botName: command.installation.bot.name,
+    executedById: req.user!.id,
+    executedByUsername: req.user!.username,
+    requiredPermission: command.requiredPermission,
+    createdAt: new Date().toISOString(),
   });
+
+  res.status(200).json(result);
 });

@@ -131,15 +131,37 @@ async function resolveReportChannels(rest, guildId, statusName, errorsName, aler
 
   return {
     status: pick([statusName, "bot-status", "announcements"]),
+    appHealth: pick([String(process.env.DISCORD_REPORT_CHANNEL_APP_HEALTH || "app-health").trim(), "app-health"]),
     errors: pick([errorsName, "bot-errors", "bug-reports", "bugs"]),
     alerts: pick([alertsName, "bot-alerts", "incident-log", "alerts"]),
   };
 }
 
 async function postChannelMessage(rest, channelId, content) {
+  const normalized = String(content || "").trim();
+  const lower = normalized.toLowerCase();
+  const isAlert = lower.includes("[probe][alert]");
+  const isError = lower.includes("[probe][error]");
+  const title = isAlert ? "Alert Probe" : isError ? "Error Probe" : "Status Probe";
+  const color = isAlert ? 0xef4444 : isError ? 0xf59e0b : 0x22d3ee;
+
   await rest.post(Routes.channelMessages(channelId), {
     body: {
-      content,
+      embeds: [
+        {
+          title,
+          color,
+          fields: [
+            {
+              name: "Details",
+              value: normalized.slice(0, 1024),
+              inline: false,
+            },
+          ],
+          footer: { text: "NexusForge Bot Operations" },
+          timestamp: new Date().toISOString(),
+        },
+      ],
       allowed_mentions: { parse: [] },
     },
   });
@@ -192,14 +214,14 @@ async function main() {
 
   const channels = await resolveReportChannels(rest, guildId, statusChannelName, errorsChannelName, alertsChannelName);
 
-  if (!channels.status || !channels.errors || !channels.alerts) {
+  if ((!channels.status && !channels.appHealth) || !channels.errors || !channels.alerts) {
     throw new Error(
-      `Missing report channels. resolved status=${channels.status || "none"}, errors=${channels.errors || "none"}, alerts=${channels.alerts || "none"}`,
+      `Missing report channels. resolved status=${channels.status || "none"}, appHealth=${channels.appHealth || "none"}, errors=${channels.errors || "none"}, alerts=${channels.alerts || "none"}`,
     );
   }
 
   const stamp = new Date().toISOString();
-  await postChannelMessage(rest, channels.status, `[probe][status] Bot runtime healthy at ${stamp}`);
+  await postChannelMessage(rest, channels.appHealth || channels.status, `[probe][status] Bot runtime healthy at ${stamp}`);
   await postChannelMessage(rest, channels.errors, `[probe][error] Test issue message from NexusForge ops probe at ${stamp}`);
   await postChannelMessage(rest, channels.alerts, `[probe][alert] Test alert message from NexusForge ops probe at ${stamp}`);
 

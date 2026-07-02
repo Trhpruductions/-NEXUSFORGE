@@ -18,6 +18,12 @@ const categoryName = "NexusForge Ops";
 
 const channelPlan = [
   { name: "app-downloads", topic: "Official NexusForge app installer, launcher links, and update notices." },
+  { name: "app-health", topic: "Service uptime checks, API health, and runtime readiness updates." },
+  { name: "app-runtime", topic: "Runtime mode changes, startup diagnostics, and operational state transitions." },
+  { name: "app-release-ops", topic: "Release readiness checks, deployment notes, and rollback coordination." },
+  { name: "app-security", topic: "Security findings, hardening actions, and incident triage updates." },
+  { name: "app-performance", topic: "Performance regressions, latency trends, and optimization tracking." },
+  { name: "app-user-feedback", topic: "User-facing issues, UX pain points, and improvement requests." },
   { name: "bot-status", topic: "Bot heartbeat, startup/shutdown, and service state updates." },
   { name: "bot-errors", topic: "Runtime exceptions and command failures from the NexusForge bot." },
   { name: "bot-alerts", topic: "Actionable alerts requiring moderator/admin attention." },
@@ -152,7 +158,11 @@ async function ensureTextChannel(rest, guildId, channels, parentId, spec) {
 
 async function main() {
   const token = process.env.DISCORD_BOT_TOKEN || "";
-  const targetId = process.argv[2] || process.env.DISCORD_GUILD_ID || "";
+  const targetId =
+    process.argv[2] ||
+    process.env.DISCORD_REPORT_CATEGORY_ID ||
+    process.env.DISCORD_GUILD_ID ||
+    "";
 
   if (!token) {
     console.error("[discord:setup:channels] FAIL: DISCORD_BOT_TOKEN is missing");
@@ -161,7 +171,7 @@ async function main() {
   }
 
   if (!targetId) {
-    console.error("[discord:setup:channels] FAIL: Provide guild/category ID as argv[2] or DISCORD_GUILD_ID");
+    console.error("[discord:setup:channels] FAIL: Provide guild/category ID as argv[2], DISCORD_REPORT_CATEGORY_ID, or DISCORD_GUILD_ID");
     process.exitCode = 1;
     return;
   }

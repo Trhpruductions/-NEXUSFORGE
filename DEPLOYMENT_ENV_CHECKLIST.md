@@ -93,3 +93,52 @@ Expected body includes:
 
 - Stripe redirect returns to localhost:
   - `APP_WEB_URL` still set to localhost on API.
+
+## 6) Gate Unblock Quickstart (Current Blockers)
+
+Use this section to clear the last blocked gates quickly.
+
+### A) Admin and Security Gate Inputs
+
+`admin:badge:smoke` requires one of these auth input sets:
+
+- `NEXUSFORGE_ADMIN_ACCESS_TOKEN`
+- or both `NEXUSFORGE_ADMIN_EMAIL` and `NEXUSFORGE_ADMIN_PASSWORD`
+
+PowerShell example (session-only env vars):
+
+```powershell
+$env:NEXUSFORGE_API_URL = "http://127.0.0.1:4001"
+$env:NEXUSFORGE_ADMIN_EMAIL = "admin@example.com"
+$env:NEXUSFORGE_ADMIN_PASSWORD = "<your-password>"
+npm run admin:badge:smoke
+```
+
+If you already have a bearer token:
+
+```powershell
+$env:NEXUSFORGE_API_URL = "http://127.0.0.1:4001"
+$env:NEXUSFORGE_ADMIN_ACCESS_TOKEN = "<your-admin-token>"
+npm run admin:badge:smoke
+```
+
+### B) Deployment Gate Inputs
+
+Update `scripts/desktop-release-deploy.env` with real values (placeholders are rejected):
+
+- `NEXUSFORGE_DEPLOY_HOST`
+- `NEXUSFORGE_DEPLOY_USER`
+- `NEXUSFORGE_DEPLOY_WEBROOT`
+- `NEXUSFORGE_DEPLOY_PORT`
+
+Then run:
+
+```powershell
+npm run desktop:release:deploy:env
+```
+
+Optional verification-only check before upload:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-deploy-from-env.ps1 -WhatIf
+```

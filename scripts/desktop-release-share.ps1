@@ -188,8 +188,11 @@ function Wait-ForUrl {
     foreach ($path in $Paths) {
       if (Test-Path $path) {
         $content = Get-Content $path -Raw -ErrorAction SilentlyContinue
-        if ($content -match $Pattern) {
-          return $Matches[0]
+        if (![string]::IsNullOrEmpty($content)) {
+          $match = [regex]::Match($content, $Pattern)
+          if ($match.Success) {
+            return $match.Value
+          }
         }
       }
     }
@@ -637,6 +640,14 @@ Copy-Item -Path $manifestPath -Destination $releaseManifestPath -Force
 
 Invoke-CommandWithRetry -Description "desktop manifest validation" -MaxAttempts 2 -DelaySeconds 2 -Action {
   & npm.cmd run desktop:manifest:validate -w @nexusforge/server
+}
+
+Invoke-CommandWithRetry -Description "desktop artifact report" -MaxAttempts 2 -DelaySeconds 2 -Action {
+  & npm.cmd run desktop:artifact:report
+}
+
+Invoke-CommandWithRetry -Description "desktop artifact consistency validation" -MaxAttempts 2 -DelaySeconds 2 -Action {
+  & npm.cmd run desktop:artifact:validate
 }
 
 $httpServerPid = if ($httpProc) { $httpProc.ProcessId } else { "" }

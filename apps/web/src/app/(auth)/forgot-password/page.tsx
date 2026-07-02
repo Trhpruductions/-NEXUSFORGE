@@ -53,25 +53,25 @@ export default function ForgotPasswordPage() {
             Generate a one-time recovery token and return to authenticated command flow with minimal friction.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Recovery Mode</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Token generation</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Security</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">One-time flow</p>
             </article>
-            <article className="nexus-metric-card auth-hero-card rounded-2xl px-3 py-2">
+            <article className="nexus-metric-card auth-hero-card rounded-none px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Next Step</p>
               <p className="mt-1 text-sm font-semibold text-amber-200">Back to sign in</p>
             </article>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="glass-cut auth-hero-card rounded-3xl border border-slate-700/70 bg-slate-950/80 p-4">
+            <div className="glass-cut auth-hero-card rounded-none border border-slate-700/70 bg-slate-950/80 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Fast recovery</p>
               <p className="mt-2 text-sm text-slate-300">Reset tokens are issued quickly to get you back into command flow without delay.</p>
             </div>
-            <div className="glass-cut rounded-3xl border border-sky-400/20 bg-sky-500/10 p-4">
+            <div className="glass-cut rounded-none border border-sky-400/20 bg-sky-500/10 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-sky-200">Safe return</p>
               <p className="mt-2 text-sm text-sky-100">Your account recovery keeps your workspace secure while restoring access.</p>
             </div>

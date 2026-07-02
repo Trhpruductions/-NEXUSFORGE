@@ -3,6 +3,96 @@ import { createPublicKey, verify as verifySignature } from "node:crypto";
 import { InteractionResponseType, InteractionType, MessageFlags, PermissionFlagsBits } from "discord.js";
 import { env } from "../config/env.js";
 import { getLaunchMode, setLaunchModeDesktopOnly } from "../lib/launch-mode.js";
+import { getDiscordBotStatus, getOpsSummarySnapshot, reportDiscordOpsSummary, reportDiscordSocial } from "../lib/discord-bot.js";
+
+let reportDiscordSocialImpl = reportDiscordSocial;
+export function setDiscordSocialReporter(fn: typeof reportDiscordSocial) {
+  reportDiscordSocialImpl = fn;
+}
+
+let reportDiscordOpsSummaryImpl = reportDiscordOpsSummary;
+export function setDiscordOpsSummaryReporter(fn: typeof reportDiscordOpsSummary) {
+  reportDiscordOpsSummaryImpl = fn;
+}
+
+export async function processDiscordCommand(interaction: DiscordInteraction) {
+  const commandName = interaction.data?.name;
+
+  if (commandName === "ping") {
+    return reply("Pong from NexusForge interactions webhook.");
+  }
+
+  if (commandName === "app") {
+    const installUrl = env.DISCORD_INSTALL_URL || "Install URL is not configured";
+    return reply(`App: ${env.APP_WEB_URL}\nInstall bot: ${installUrl}`);
+  }
+
+  if (commandName === "status") {
+    const snapshot = await getOpsSummarySnapshot();
+    return reply({
+      content: snapshot.lines[0] || "NexusForge API: online",
+      embeds: [snapshot.embed],
+    });
+  }
+
+  if (commandName === "ops-summary") {
+    if (!hasManageGuildPermission(interaction)) {
+      return reply("You need Manage Server permission to use this command.");
+    }
+
+    const publish = getBooleanOption(interaction, "publish") === true;
+    const snapshot = await getOpsSummarySnapshot();
+    if (publish) {
+      await reportDiscordOpsSummaryImpl("webhook-manual-summary");
+    }
+    return reply({
+      content: [snapshot.lines[0], publish ? "Published to app-runtime." : null].filter(Boolean).join("\n"),
+      embeds: [snapshot.embed],
+    });
+  }
+
+  if (commandName === "launchmode") {
+    if (!hasManageGuildPermission(interaction)) {
+      return reply("You need Manage Server permission to use this command.");
+    }
+
+    const desktopOnly = getBooleanOption(interaction, "desktop_only");
+    if (desktopOnly === null) {
+      const current = await getLaunchMode();
+      return reply(`Current launch mode: ${current.desktopOnly ? "desktop-only" : "web + desktop"}`);
+    }
+
+    const actorId = interaction.user?.id || "discord-webhook";
+    const actorUsername = interaction.user?.username || "discord-webhook";
+    const updated = await setLaunchModeDesktopOnly(desktopOnly, {
+      id: actorId,
+      username: actorUsername,
+    });
+
+    return reply(`Launch mode updated: ${updated.desktopOnly ? "desktop-only" : "web + desktop"}`);
+  }
+
+  if (commandName === "social") {
+    if (!hasManageGuildPermission(interaction)) {
+      return reply("You need Manage Server permission to use this command.");
+    }
+
+    const input = interaction.data?.options?.find((item) => item.name === "message")?.value;
+    const message = typeof input === "string" ? input.trim() : "";
+    if (!message) {
+      return reply("Please provide a message to post.");
+    }
+
+    if (message.length > 2000) {
+      return reply("Message is too long. Please keep it under 2000 characters.");
+    }
+
+    await reportDiscordSocialImpl(message);
+    return reply("Social message posted.");
+  }
+
+  return reply(`Unknown command: ${commandName || "(empty)"}`);
+}
 
 type DiscordInteraction = {
   type: number;
@@ -38,11 +128,17 @@ function hasManageGuildPermission(interaction: DiscordInteraction) {
   }
 }
 
-function reply(content: string) {
+function reply(contentOrPayload: string | { content: string; embeds?: Array<Record<string, unknown>> }) {
+  const payload =
+    typeof contentOrPayload === "string"
+      ? { content: contentOrPayload }
+      : contentOrPayload;
+
   return {
     type: InteractionResponseType.ChannelMessageWithSource,
     data: {
-      content,
+      content: payload.content,
+      ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
       flags: MessageFlags.Ephemeral,
     },
   };
@@ -112,51 +208,8 @@ export async function discordInteractionHandler(req: Request, res: Response) {
     return;
   }
 
-  const commandName = interaction.data?.name;
-
   try {
-    if (commandName === "ping") {
-      res.status(200).json(reply("Pong from NexusForge interactions webhook."));
-      return;
-    }
-
-    if (commandName === "app") {
-      const installUrl = env.DISCORD_INSTALL_URL || "Install URL is not configured";
-      res.status(200).json(reply(`App: ${env.APP_WEB_URL}\nInstall bot: ${installUrl}`));
-      return;
-    }
-
-    if (commandName === "status") {
-      const launchMode = await getLaunchMode();
-      res.status(200).json(reply(`Launch mode: ${launchMode.desktopOnly ? "desktop-only" : "web + desktop"}`));
-      return;
-    }
-
-    if (commandName === "launchmode") {
-      if (!hasManageGuildPermission(interaction)) {
-        res.status(200).json(reply("You need Manage Server permission to use this command."));
-        return;
-      }
-
-      const desktopOnly = getBooleanOption(interaction, "desktop_only");
-      if (desktopOnly === null) {
-        const current = await getLaunchMode();
-        res.status(200).json(reply(`Current launch mode: ${current.desktopOnly ? "desktop-only" : "web + desktop"}`));
-        return;
-      }
-
-      const actorId = interaction.user?.id || "discord-webhook";
-      const actorUsername = interaction.user?.username || "discord-webhook";
-      const updated = await setLaunchModeDesktopOnly(desktopOnly, {
-        id: actorId,
-        username: actorUsername,
-      });
-
-      res.status(200).json(reply(`Launch mode updated: ${updated.desktopOnly ? "desktop-only" : "web + desktop"}`));
-      return;
-    }
-
-    res.status(200).json(reply(`Unknown command: ${commandName || "(empty)"}`));
+    res.status(200).json(await processDiscordCommand(interaction));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[discord] Webhook interaction handler failed:", message);

@@ -1,0 +1,39 @@
+import Image from "next/image";
+import styles from "./loading.module.css";
+import { cn } from "@/lib/utils";
+
+export default function Loading() {
+  return (
+    <main className={styles.screen} role="status" aria-live="polite" aria-label="Loading NexusForge app">
+      <div className={styles.gridBackground} aria-hidden="true" />
+      <div className={styles.scanline} aria-hidden="true" />
+
+      <section className={styles.content}>
+        <div className={styles.logoContainer}>
+          <div className={styles.glow} aria-hidden="true" />
+          <div className={styles.spinnerContainer} aria-hidden="true" />
+          <div className={styles.spinnerOuter} aria-hidden="true" />
+          <Image
+            src="/brand/nexusforge-logo.png"
+            alt="NexusForge"
+            width={120}
+            height={120}
+            className={styles.logo}
+            priority
+            draggable={false}
+          />
+        </div>
+
+        <div className={styles.brandInfo}>
+          <h1 className={styles.title}>NEXUSFORGE</h1>
+          <div className={styles.statusText}>
+            <span className={styles.statusDot} aria-hidden="true" />
+            <span>Synchronizing Nexus...</span>
+          </div>
+        </div>
+
+        <p className="sr-only">NexusForge is preparing your command network. Please wait.</p>
+      </section>
+    </main>
+  );
+}

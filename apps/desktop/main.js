@@ -62,11 +62,17 @@ function parseBooleanEnv(name, defaultValue = false) {
   return ["1", "true", "yes", "y", "on"].includes(raw);
 }
 const configuredDesktopUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || "") || "";
+const configuredPublicBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PUBLIC_BASE_URL || "") || "";
+const configuredPublicDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PUBLIC_DOWNLOAD_BASE_URL || "") || "";
 const configuredPersistentDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || "") || "";
-const configuredDownloadPageUrl = configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/download.html` : "";
-const configuredStartUrl = configuredDesktopUrl || (configuredPersistentDownloadBaseUrl ? `${configuredPersistentDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
+const effectiveDownloadBaseUrl = configuredPersistentDownloadBaseUrl || configuredPublicDownloadBaseUrl || configuredPublicBaseUrl;
+const configuredDownloadPageUrl = effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/download.html` : "";
+const configuredStartUrl =
+  configuredDesktopUrl ||
+  (configuredPublicBaseUrl ? `${configuredPublicBaseUrl.replace(/\/+$/, "")}/app` : "") ||
+  (effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
 const defaultPackagedHostedStartUrl = "https://www.nexusforge.app/app";
-const defaultPackagedHostedFallbackUrl = "https://trhpruductions.github.io/-NEXUSFORGE/download.html";
+const defaultPackagedHostedFallbackUrl = "https://www.nexusforge.app/download.html";
 const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
 const defaultHostedCertBypass = app.isPackaged || /(^|\.)nexusforge\.app$/i.test(new URL(configuredStartUrl || "https://www.nexusforge.app/app").hostname);
@@ -102,8 +108,8 @@ const stableCodeCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-co
 const manifestOverride = normalizeUrl(process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || "");
 const updateManifestUrl = manifestOverride
   ? manifestOverride
-  : configuredPersistentDownloadBaseUrl
-  ? `${configuredPersistentDownloadBaseUrl.replace(/\/$/, "")}/desktop-update.json`
+  : effectiveDownloadBaseUrl
+  ? `${effectiveDownloadBaseUrl.replace(/\/$/, "")}/desktop-update.json`
   : app.isPackaged
   ? `${new URL(packagedHostedFallbackUrl).origin}/desktop-update.json`
   : null;
@@ -1061,6 +1067,10 @@ async function revealMainWindow() {
       accent: "ready",
     });
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      const savedState = readWindowState();
+      if (savedState?.isMaximized) {
+        mainWindow.maximize();
+      }
       mainWindow.show();
       mainWindow.focus();
       markStartupTiming("main-window-show");
@@ -1414,8 +1424,10 @@ function resolveHostedStartTargets() {
     packagedHostedFallbackUrl,
     "https://www.nexusforge.app/app",
     "https://www.nexusforge.app",
+    "https://www.nexusforge.app/download.html",
     "https://nexusforge.app/app",
     "https://nexusforge.app",
+    "https://nexusforge.app/download.html",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
     "https://trhpruductions.github.io/-NEXUSFORGE",
   ];
@@ -1453,6 +1465,7 @@ function resolveHostedRecoveryTargets() {
     ...resolveHostedStartTargets(),
     "https://www.nexusforge.app/login?redirect=/app",
     "https://nexusforge.app/login?redirect=/app",
+    "https://www.nexusforge.app/download.html",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
   ];
 
@@ -2176,6 +2189,7 @@ function createWindow() {
     y: savedState?.y,
     minWidth: 1100,
     minHeight: 760,
+    fullscreen: true,
     show: false,
     icon: appIconPath,
     backgroundColor: "#020617",

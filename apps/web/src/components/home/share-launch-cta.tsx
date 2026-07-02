@@ -43,7 +43,7 @@ export function ShareLaunchCTA() {
   }
 
   return (
-    <section className="share-launch-card reveal-section rounded-[28px] border border-amber-500/20 bg-slate-950/80 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.32)]">
+    <section className="share-launch-card reveal-section rounded-none border border-amber-500/20 bg-slate-950/80 p-6 shadow-[0_24px_70px_rgba(2,6,23,0.32)]">
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-amber-200">Squad share</p>
@@ -57,7 +57,7 @@ export function ShareLaunchCTA() {
             <button
               type="button"
               onClick={handleCopy}
-              className="nexus-glow-button inline-flex h-12 items-center rounded-2xl px-6 text-sm font-semibold text-amber-50 transition hover:-translate-y-0.5"
+              className="nexus-glow-button inline-flex h-12 items-center rounded-none px-6 text-sm font-semibold text-amber-50 transition hover:-translate-y-0.5"
             >
               Copy invite
             </button>
@@ -65,21 +65,21 @@ export function ShareLaunchCTA() {
               <span
                 role="status"
                 aria-live="polite"
-                className="share-launch-status rounded-full bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 ring-1 ring-amber-400/20"
+                className="share-launch-status rounded-none bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 ring-1 ring-amber-400/20"
               >
                 {status}
               </span>
             )}
             <Link
               href="/app"
-              className="nexus-outline-button inline-flex h-12 items-center rounded-2xl px-6 text-sm font-semibold text-amber-100 transition hover:-translate-y-0.5"
+              className="nexus-outline-button inline-flex h-12 items-center rounded-none px-6 text-sm font-semibold text-amber-100 transition hover:-translate-y-0.5"
             >
               Open the hub
             </Link>
           </div>
         </div>
-        <div className="grid gap-3 rounded-3xl border border-slate-700/70 bg-slate-900/75 p-5 text-slate-200 shadow-[0_24px_50px_rgba(2,6,23,0.24)]">
-          <div className="share-launch-pill rounded-3xl bg-slate-950/40 p-4">
+        <div className="grid gap-3 rounded-none border border-slate-700/70 bg-slate-900/75 p-5 text-slate-200 shadow-[0_24px_50px_rgba(2,6,23,0.24)]">
+          <div className="share-launch-pill rounded-none bg-slate-950/40 p-4">
             <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Invite code</p>
             <p className="mt-2 text-lg font-semibold text-white">{inviteCode}</p>
           </div>
@@ -93,3 +93,4 @@ export function ShareLaunchCTA() {
     </section>
   );
 }
+

@@ -1,0 +1,23 @@
+=== CG-OPS-01 OPERATIONS/SUPPORT GATE ===
+Date: 2026-07-02
+Status: COMPLETE
+
+Commands and outcomes:
+- npm run pm2:workspace:validate:managed -> PASS
+- npm run ops:watchdog:summary:guard -> PASS
+- npm run ops:doctor:archive -> PASS
+
+Operational hardening applied during validation:
+- PM2 web start path now enforces dev port cleanup before launch, eliminating recurring EADDRINUSE flapping.
+- Watchdog history window was refreshed to full-pass records and guard thresholds now hold.
+- Persistent watchdog process enabled via PM2 (nexusforge-watchdog-workspace) and PM2 state saved.
+
+Latest watchdog guard snapshot:
+- passRate: 100%
+- latestAgeSeconds: 0
+- avgDurationMs: 6400
+- p95DurationMs: 11433
+
+Notes:
+- Gate is complete with current evidence and revalidated after an outlier-window regression.
+- Freshness threshold can fail if watchdog is not scheduled; PM2 watchdog process remains online to prevent stale-age regressions.

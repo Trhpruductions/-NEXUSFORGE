@@ -39,16 +39,16 @@ export function DesktopLaunchInstructions({ envAppUrl }: DesktopLaunchInstructio
     : "If no environment target is configured, this page will update to your browser host once hydrated.";
 
   return (
-    <div className="mt-8 rounded-[24px] border border-slate-700/70 bg-slate-900/90 p-5 text-sm text-slate-200">
+    <div className="mt-8 rounded-none border border-slate-700/70 bg-slate-900/90 p-5 text-sm text-slate-200">
       <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">Desktop launch instructions</p>
       <p className="mt-3 text-slate-300">
         To use the full desktop experience, install the beta desktop client and launch it with the following target.
       </p>
-      <div className="mt-4 rounded-2xl border border-slate-700/70 bg-slate-950/90 p-4 text-xs font-mono text-slate-200">
+      <div className="mt-4 rounded-none border border-slate-700/70 bg-slate-950/90 p-4 text-xs font-mono text-slate-200">
         <p className="mb-2">Desktop launch target:</p>
         <p className="break-all text-sm text-amber-200">{desktopTarget}</p>
       </div>
-      <div className="mt-4 rounded-2xl border border-slate-700/70 bg-slate-950/90 p-4 text-xs font-mono text-slate-200">
+      <div className="mt-4 rounded-none border border-slate-700/70 bg-slate-950/90 p-4 text-xs font-mono text-slate-200">
         <p className="mb-2">Use these PowerShell commands:</p>
         <pre className="whitespace-pre-wrap break-all text-sm">{commandText}</pre>
       </div>

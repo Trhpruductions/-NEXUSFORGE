@@ -87,7 +87,7 @@ export function AgeGateClient() {
   };
 
   return (
-    <section className="rounded-[32px] border border-amber-500/20 bg-slate-950/95 p-8">
+    <section className="rounded-none border border-amber-500/20 bg-slate-950/95 p-8">
       <div className="space-y-5">
         <div>
           <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Secure access</p>
@@ -98,13 +98,13 @@ export function AgeGateClient() {
         </div>
 
         {status === "error" ? (
-          <div className="rounded-3xl border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-200">
+          <div className="rounded-none border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-200">
             {errorMessage ?? "Verification failed. Please try again."}
           </div>
         ) : null}
 
         {status === "denied" ? (
-          <div className="rounded-3xl border border-slate-700/70 bg-slate-900/90 p-4 text-sm text-slate-200">
+          <div className="rounded-none border border-slate-700/70 bg-slate-900/90 p-4 text-sm text-slate-200">
             Access denied. You must be 18+ to use NexusForge.
           </div>
         ) : null}
@@ -114,7 +114,7 @@ export function AgeGateClient() {
             type="button"
             onClick={confirm18}
             disabled={status === "submitting" || status === "denied"}
-            className="inline-flex h-14 items-center justify-center rounded-3xl bg-amber-500 px-6 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-14 items-center justify-center rounded-none bg-amber-500 px-6 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "submitting" ? "Verifying…" : "I am 18+"}
           </button>
@@ -122,13 +122,13 @@ export function AgeGateClient() {
             type="button"
             onClick={deny}
             disabled={status === "submitting" || status === "denied"}
-            className="inline-flex h-14 items-center justify-center rounded-3xl border border-slate-700/70 bg-slate-900 px-6 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-14 items-center justify-center rounded-none border border-slate-700/70 bg-slate-900 px-6 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             I am under 18
           </button>
         </div>
 
-        <div className="rounded-[28px] border border-slate-700/70 bg-slate-900/90 p-4 text-sm text-slate-300">
+        <div className="rounded-none border border-slate-700/70 bg-slate-900/90 p-4 text-sm text-slate-300">
           <p className="font-medium text-white">Need support?</p>
           <p className="mt-2">If you want details about age verification, review our policies or contact support.</p>
           <div className="mt-3 flex flex-wrap gap-3 text-sm">

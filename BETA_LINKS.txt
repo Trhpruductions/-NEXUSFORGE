@@ -1,18 +1,18 @@
 ﻿NexusForge Beta Links
-Generated: 2026-05-21T16:03:44
+Generated: 2026-05-26T19:38:04
 
-Tester Hub: https://serious-measured-johnston-satisfactory.trycloudflare.com/beta
-Checklist:  https://serious-measured-johnston-satisfactory.trycloudflare.com/beta/checklist
-Feedback:   https://serious-measured-johnston-satisfactory.trycloudflare.com/beta/feedback
-API Health: https://dealing-thesaurus-speaks-lanka.trycloudflare.com/api/health
+Tester Hub: https://omaha-reprints-thousand-kyle.trycloudflare.com/beta
+Checklist:  https://omaha-reprints-thousand-kyle.trycloudflare.com/beta/checklist
+Feedback:   https://omaha-reprints-thousand-kyle.trycloudflare.com/beta/feedback
+API Health: https://enormous-ist-expiration-emotions.trycloudflare.com/api/health
 
-Desktop launch target: https://serious-measured-johnston-satisfactory.trycloudflare.com/app
-Desktop launch env: NEXUSFORGE_DESKTOP_URL=https://serious-measured-johnston-satisfactory.trycloudflare.com/app
+Desktop launch target: https://omaha-reprints-thousand-kyle.trycloudflare.com/app
+Desktop launch env: NEXUSFORGE_DESKTOP_URL=https://omaha-reprints-thousand-kyle.trycloudflare.com/app
 
 Process IDs
-api=35196
-apiTunnel=29376
-web=30144
-webTunnel=35144
+api=8704
+apiTunnel=38496
+web=45728
+webTunnel=48388
 
-Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260521-160304
+Logs: D:\NEXUSFORGE GAMGING APP\.beta-logs\20260526-193704

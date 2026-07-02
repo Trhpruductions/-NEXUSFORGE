@@ -1,0 +1,16 @@
+=== HG-SEC-01 SECURITY HARD GATE ===
+Date: 2026-07-01
+Status: PENDING (blocked on admin auth inputs)
+
+Commands executed:
+- npm run smoke:local -> PASS
+- npm run age:gate:validate -> PASS
+- npm run admin:badge:smoke -> FAIL
+
+Failure details:
+- [admin-badge-smoke] FAIL: Missing auth inputs (request path targets API http://127.0.0.1:4001).
+- Required: NEXUSFORGE_ADMIN_ACCESS_TOKEN, or both NEXUSFORGE_ADMIN_EMAIL and NEXUSFORGE_ADMIN_PASSWORD.
+
+Notes:
+- Smoke and age-gate validations passed with no critical failures in this run.
+- Gate cannot be marked complete until admin badge smoke is rerun with valid admin credentials and passes.

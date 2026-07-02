@@ -2,6 +2,18 @@
 
 NexusForge is a futuristic communication platform foundation for gamers, creators, and online communities.
 
+## Strategy and Planning
+
+- Product blueprint and phased roadmap: `NEXUSFORGE_PRODUCT_BLUEPRINT.md`
+- Sprint-ready execution board: `PRODUCT_EXECUTION_BOARD.md`
+- Technical architecture checklist: `TECHNICAL_ARCHITECTURE_CHECKLIST.md`
+- Beta go-live decision scorecard: `BETA_GO_LIVE_SCORECARD.md`
+- 6-week delivery schedule: `SPRINT_6_WEEK_EXECUTION_PLAN.md`
+- Release operations playbook: `RELEASE_COMMAND_CENTER.md`
+- Quantified risk register: `RISK_REGISTER_AND_TRIGGERS.md`
+- Unified command dashboard: `MASTER_RELEASE_DASHBOARD.md`
+- Gate evidence tracker: `EVIDENCE_GATE_TRACKER.md`
+
 ## Stack
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS, Framer Motion, Zustand, Socket.IO client
@@ -248,6 +260,8 @@ npm run desktop:open:hosted
 
 - If you want the desktop app to launch a specific hosted app origin, set:
   - `NEXUSFORGE_DESKTOP_URL=https://app.your-domain.com/app`
+	- `NEXUSFORGE_PUBLIC_BASE_URL=https://app.your-domain.com` (desktop derives `/app` automatically)
+	- `NEXUSFORGE_PUBLIC_DOWNLOAD_BASE_URL=https://downloads.your-domain.com` (desktop derives `/download.html` and `/desktop-update.json`)
   - `NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL=https://downloads.your-domain.com`
   - `NEXUSFORGE_UPDATE_MANIFEST_URL=https://downloads.your-domain.com/desktop-update.json`
 
@@ -458,6 +472,8 @@ Bot runtime and issue-notification probe:
 	- `DISCORD_REPORT_CHANNEL_STATUS` (default `bot-status`)
 	- `DISCORD_REPORT_CHANNEL_ERRORS` (default `bot-errors`)
 	- `DISCORD_REPORT_CHANNEL_ALERTS` (default `bot-alerts`)
+- `DISCORD_REPORT_CHANNEL_SOCIAL` (default `bot-social`)
+- `DISCORD_SOCIAL_CHANNEL_ID` (optional direct channel override)
 
 Environment variables (apps/server/.env):
 
@@ -474,9 +490,8 @@ DISCORD_REPORT_GUILD_ID=<optional-reporting-guild-id>
 DISCORD_REPORT_CHANNEL_STATUS=bot-status
 DISCORD_REPORT_CHANNEL_ERRORS=bot-errors
 DISCORD_REPORT_CHANNEL_ALERTS=bot-alerts
-```
-
-Notes:
+DISCORD_REPORT_CHANNEL_SOCIAL=bot-social
+DISCORD_SOCIAL_CHANNEL_ID=<optional-direct-channel-id>
 
 - `DISCORD_GUILD_ID` is optional. If provided, commands register instantly in that guild.
 - Without `DISCORD_GUILD_ID`, commands are registered globally and can take longer to appear.
@@ -484,6 +499,7 @@ Notes:
 - Set `DISCORD_REGISTER_COMMANDS_ON_START=false` if you want to run the bot without command auto-registration.
 - If `DISCORD_INSTALL_URL` is not set, the generated install URL is pinned to `DISCORD_GUILD_ID` when provided.
 - If reporting is enabled, the bot posts startup and error events to the configured ops channels.
+- The bot also supports a `/social` command to post messages into the configured social report channel.
 
 Discord interactions webhook endpoint:
 

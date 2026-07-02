@@ -74,7 +74,7 @@ export function GlobalNotificationCenter() {
   return (
     <div className="pointer-events-none fixed right-4 top-24 z-[120] flex max-h-screen w-[min(90vw,420px)] flex-col gap-2 overflow-y-auto">
       {updateMessage && !desktopUpdateBannerActive && (
-        <div className={`pointer-events-auto rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors("update")}`}>
+        <div className={`pointer-events-auto rounded-none border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors("update")}`}>
           <div className="flex items-start gap-3">
             <AlertCircle size={18} className="mt-0.5 flex-shrink-0 text-amber-400" />
             <div className="flex-1">
@@ -97,7 +97,7 @@ export function GlobalNotificationCenter() {
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`pointer-events-auto rounded-[24px] border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors(notification.type)}`}
+          className={`pointer-events-auto rounded-none border p-3 shadow-[0_16px_36px_rgba(2,6,23,0.45)] backdrop-blur ${getColors(notification.type)}`}
         >
           <div className="flex items-start gap-3">
             {getIcon(notification.type)}

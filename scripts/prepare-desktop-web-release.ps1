@@ -9,7 +9,9 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $repoRoot
 
 try {
-  $manifestPath = Join-Path $repoRoot "apps\web\public\desktop-update.json"
+  $releaseManifestPath = Join-Path $repoRoot "apps\desktop\release\desktop-update.json"
+  $webManifestPath = Join-Path $repoRoot "apps\web\public\desktop-update.json"
+  $manifestPath = if (Test-Path -Path $releaseManifestPath) { $releaseManifestPath } else { $webManifestPath }
   if (-not (Test-Path -Path $manifestPath)) {
     throw ("Manifest not found: {0}" -f $manifestPath)
   }
@@ -50,11 +52,22 @@ try {
   }
   Copy-Item -Path $downloadPagePath -Destination (Join-Path $bundleDir "download.html") -Force
 
-  # Rewrite the bundled manifest to use a root-relative installer URL for static host deployment.
+  # Rewrite the bundled manifest to use root-relative installer URLs for static host deployment.
   $bundleManifest = Get-Content -Path $bundleManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-  $bundleManifest.downloadUrl = [System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe")
+  $encodedLatestInstaller = [System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe")
+  $encodedVersionedInstaller = [System.Uri]::EscapeDataString($versionedInstallerName)
+  $bundleManifest.downloadUrl = $encodedLatestInstaller
   if ($bundleManifest.PSObject.Properties.Name -contains "downloadUrls") {
-    $bundleManifest.downloadUrls = @([System.Uri]::EscapeDataString("NexusForge Desktop Setup Latest.exe"))
+    $bundleManifest.downloadUrls = @($encodedLatestInstaller, $encodedVersionedInstaller)
+  }
+
+  if ($bundleManifest.PSObject.Properties.Name -contains "downloadFolderUrl") {
+    $bundleManifest.downloadFolderUrl = "./"
+  }
+
+  # Keep manifest sha256 aligned with the bundled versioned installer.
+  if ($bundleManifest.PSObject.Properties.Name -contains "sha256") {
+    $bundleManifest.sha256 = (Get-FileHash -Path (Join-Path $bundleDir $versionedInstallerName) -Algorithm SHA256).Hash.ToLowerInvariant()
   }
   $bundleManifestJson = $bundleManifest | ConvertTo-Json -Depth 10
   [System.IO.File]::WriteAllText($bundleManifestPath, $bundleManifestJson, [System.Text.UTF8Encoding]::new($false))

@@ -1,3 +1,10 @@
+param(
+  [switch]$KeepServerAlive,
+  [switch]$SkipBuild,
+  [switch]$SkipLint,
+  [switch]$SkipServerTests
+)
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -93,9 +100,23 @@ $buildArgs = @("run", "build")
 $lintArgs = @("run", "lint", "-w", "web")
 $serverTestArgs = @("run", "test", "-w", "server")
 
-Invoke-NpmChecked -Label "Build workspace" -CommandArguments $buildArgs -RetryOnTransientFavicon
-Invoke-NpmChecked -Label "Lint web" -CommandArguments $lintArgs
-Invoke-NpmChecked -Label "Run server tests" -CommandArguments $serverTestArgs
+if (-not $SkipBuild) {
+  Invoke-NpmChecked -Label "Build workspace" -CommandArguments $buildArgs -RetryOnTransientFavicon
+} else {
+  Write-Host "[smoke] Skipping workspace build" -ForegroundColor Yellow
+}
+
+if (-not $SkipLint) {
+  Invoke-NpmChecked -Label "Lint web" -CommandArguments $lintArgs
+} else {
+  Write-Host "[smoke] Skipping web lint" -ForegroundColor Yellow
+}
+
+if (-not $SkipServerTests) {
+  Invoke-NpmChecked -Label "Run server tests" -CommandArguments $serverTestArgs
+} else {
+  Write-Host "[smoke] Skipping server tests" -ForegroundColor Yellow
+}
 
 function Test-ApiProbe {
   param([Parameter(Mandatory = $true)] [string] $Url)
@@ -243,7 +264,7 @@ try {
     }
   }
 
-  if ($serverStartedBySmoke) {
+  if ($serverStartedBySmoke -and -not $KeepServerAlive) {
     Write-Host "[smoke] Stopping temporary server instance" -ForegroundColor Cyan
     & powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" | Out-Null
     if ($serverProcess -and -not $serverProcess.HasExited) {

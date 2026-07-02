@@ -7,11 +7,15 @@ import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
+import { anonymizeIP } from "../lib/ip-security.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
   email: z.string().email(),
   password: z.string().min(8).max(72),
+  birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format",
+  }),
 });
 
 const loginSchema = z.object({
@@ -87,6 +91,7 @@ async function issueTokens(user: { id: string; username: string; email: string; 
     username: user.username,
     email: user.email,
     appRole: user.appRole,
+    jti: randomToken(16), // Entropy for the access token id
   });
 
   const refreshToken = randomToken();
@@ -113,6 +118,20 @@ authRouter.post("/register", async (req, res) => {
   const email = parsed.data.email.toLowerCase();
   const username = parsed.data.username.trim();
 
+  // Age Verification Logic
+  const birthDate = new Date(parsed.data.birthdate);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age < 18) {
+    res.status(403).json({ error: "Access denied. You must be at least 18 years old to create an account." });
+    return;
+  }
+
   const existing = await prisma.user.findFirst({
     where: {
       OR: [{ email }, { username }],
@@ -132,6 +151,8 @@ authRouter.post("/register", async (req, res) => {
       username,
       email,
       password: passwordHash,
+      birthdate: birthDate,
+      ageVerified: true, // They proved it by providing a valid date (in a real app, you'd verify ID)
       corePlusBoostLevel: 3,
       emailVerifyToken: sha256(emailVerifyToken),
       emailVerifyExpires: new Date(Date.now() + 1000 * 60 * 60 * 24),
@@ -149,6 +170,7 @@ authRouter.post("/register", async (req, res) => {
       createdAt: true,
       emailVerified: true,
       isAdmin: true,
+      ageVerified: true,
     },
   });
 
@@ -194,6 +216,11 @@ authRouter.post("/login", async (req, res) => {
 
   const tokens = await issueTokens(user);
   const csrfToken = randomToken(16);
+
+  // Auditing: Log anonymized IP (Unreversible protection)
+  const secureIP = anonymizeIP(req.ip || "unknown");
+  console.log(`[AUTH] User ${user.id} logged in. Secure-IP: ${secureIP}`);
+
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
 
@@ -268,6 +295,38 @@ authRouter.post("/logout", async (req, res) => {
   res.status(204).send();
 });
 
+authRouter.post("/verify-email", async (req, res) => {
+  const { token } = req.body;
+  if (!token || typeof token !== "string") {
+    res.status(400).json({ error: "Token is required" });
+    return;
+  }
+
+  const tokenHash = sha256(token);
+  const user = await prisma.user.findFirst({
+    where: {
+      emailVerifyToken: tokenHash,
+      emailVerifyExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    res.status(400).json({ error: "Invalid or expired verification token" });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerified: true,
+      emailVerifyToken: null,
+      emailVerifyExpires: null,
+    },
+  });
+
+  res.json({ message: "Email verified successfully" });
+});
+
 authRouter.get("/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
@@ -292,6 +351,12 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       emailVerified: true,
       appRole: true,
       isAdmin: true,
+      economyAccounts: {
+        select: {
+          currencyType: true,
+          balance: true,
+        }
+      },
     },
   });
 

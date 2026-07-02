@@ -1,0 +1,16 @@
+=== CG-PROD-01 CORE PRODUCT GATE ===
+Date: 2026-07-01
+Status: PASS
+
+Command:
+- npm run smoke:local -> PASS
+
+Evidence:
+- Workspace build completed.
+- Web lint reported warnings only (no errors).
+- Server tests passed.
+- API probes passed.
+- Local age-gate validation passed.
+
+Notes:
+- No blocking failures observed in the local smoke command path.

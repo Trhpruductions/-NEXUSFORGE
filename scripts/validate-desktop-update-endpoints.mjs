@@ -1,7 +1,11 @@
 import http from "node:http";
 import https from "node:https";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const defaultBaseUrl = "https://www.nexusforge.app";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 function getArgValue(flag) {
 	const index = process.argv.indexOf(flag);
@@ -119,8 +123,54 @@ function resolveManifestUrlCandidate(candidateUrl, manifestUrl) {
 	}
 }
 
+function resolveBaseUrlFromDownloadUrl(downloadUrl) {
+	const candidate = String(downloadUrl || "").trim();
+	if (!candidate) {
+		return "";
+	}
+
+	try {
+		const parsed = new URL(candidate);
+		const pathname = String(parsed.pathname || "");
+		if (!pathname || pathname === "/") {
+			parsed.pathname = "/";
+		} else {
+			const lastSlashIndex = pathname.lastIndexOf("/");
+			parsed.pathname = lastSlashIndex <= 0 ? "/" : pathname.slice(0, lastSlashIndex + 1);
+		}
+		parsed.search = "";
+		parsed.hash = "";
+		return parsed.toString().replace(/\/+$/, "");
+	} catch {
+		return "";
+	}
+}
+
+function getWorkspaceManifestBaseUrl() {
+	const manifestPath = path.resolve(scriptDir, "../apps/web/public/desktop-update.json");
+	if (!fs.existsSync(manifestPath)) {
+		return "";
+	}
+
+	try {
+		const parsed = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+		const folderUrl = String(parsed.downloadFolderUrl || "").trim();
+		if (folderUrl) {
+			return folderUrl.replace(/\/+$/, "");
+		}
+
+		return resolveBaseUrlFromDownloadUrl(parsed.downloadUrl);
+	} catch {
+		return "";
+	}
+}
+
 async function main() {
-	const rawBase = getArgValue("--base") || process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || defaultBaseUrl;
+	const rawBase =
+		getArgValue("--base") ||
+		process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL ||
+		getWorkspaceManifestBaseUrl() ||
+		defaultBaseUrl;
 	const baseUrl = String(rawBase || "").trim().replace(/\/+$/, "");
 	const manifestUrl = `${baseUrl}/desktop-update.json`;
 

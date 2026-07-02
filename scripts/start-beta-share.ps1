@@ -66,8 +66,11 @@ function Wait-ForPattern {
   while ((Get-Date) -lt $deadline) {
     if (Test-Path $Path) {
       $content = Get-Content $Path -Raw -ErrorAction SilentlyContinue
-      if ($content -match $Pattern) {
-        return $Matches[0]
+      if (![string]::IsNullOrEmpty($content)) {
+        $match = [regex]::Match($content, $Pattern)
+        if ($match.Success) {
+          return $match.Value
+        }
       }
     }
 
@@ -113,8 +116,11 @@ function Wait-ForUrl {
     foreach ($path in $Paths) {
       if (Test-Path $path) {
         $content = Get-Content $path -Raw -ErrorAction SilentlyContinue
-        if ($content -match $pattern) {
-          return $Matches[0]
+        if (![string]::IsNullOrEmpty($content)) {
+          $match = [regex]::Match($content, $pattern)
+          if ($match.Success) {
+            return $match.Value
+          }
         }
       }
     }
@@ -145,7 +151,7 @@ $apiEnv = @{
   CLIENT_ORIGIN = $webUrl
   PORT = "4001"
 }
-$api = Start-LoggedProcess -Name "api" -FilePath "npm.cmd" -Arguments @( "run", "beta:api" ) -WorkingDirectory $repoRoot -EnvironmentVariables $apiEnv
+$api = Start-LoggedProcess -Name "api" -FilePath "npm.cmd" -Arguments @( "run", "beta:api:tunnel" ) -WorkingDirectory $repoRoot -EnvironmentVariables $apiEnv
 $null = Wait-ForHttpUrl -Url "http://127.0.0.1:4001/api/health" -TimeoutSeconds 60
 
 Write-Host "[beta] Starting API tunnel..."

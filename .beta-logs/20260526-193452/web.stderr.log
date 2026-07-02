@@ -1,0 +1,9 @@
+⚠ Slow filesystem detected. The benchmark took 420ms. If D:\NEXUSFORGE GAMGING APP\apps/web/.next-dev/dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
+npm error Lifecycle script `dev` failed with error:
+npm error code 4294967295
+npm error path D:\NEXUSFORGE GAMGING APP\apps\web
+npm error workspace web@1.0.11
+npm error location D:\NEXUSFORGE GAMGING APP\apps\web
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c npm run dev:guard && npm run dev:reset && next dev --hostname 127.0.0.1 --port 3000 --port 3100

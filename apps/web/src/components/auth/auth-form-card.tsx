@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { motion } from "framer-motion";
 import Image from "next/image";
+import { Lock, Cpu, LayoutPanelTop } from "lucide-react";
 
 type AuthFormCardProps = {
   title: string;
@@ -15,55 +15,54 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
   const titleId = useId();
 
   return (
-    <motion.section
+    <section
       role="form"
       aria-labelledby={titleId}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.38, ease: "easeOut" }}
-      className="w-full max-w-[32.5rem] lg:max-w-[34rem]"
+      className="w-full max-w-[480px] bg-black/60 border border-white/5 p-10 relative overflow-hidden group shadow-[0_50px_100px_rgba(0,0,0,0.8)] backdrop-blur-md"
     >
-      <div className="nexus-form-shell relative overflow-hidden rounded-[1.75rem] p-6 sm:p-8">
-        <div className="nexus-ambient" aria-hidden="true">
-          <div className="nexus-ambient-orb nexus-ambient-orb-a" />
-          <div className="nexus-ambient-orb nexus-ambient-orb-c" />
-        </div>
-        <div className="relative mb-6 flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="orbital-logo logo-throb relative h-12 w-12 overflow-hidden rounded-2xl border border-amber-400/20 bg-slate-950/80 shadow-[0_14px_30px_rgba(71,22,23,0.24)]">
-              <Image
-                src="/brand/nexusforge-main-logo.png"
-                alt="NexusForge"
-                fill
-                sizes="48px"
-                className="object-cover"
-              />
+      <div className="absolute top-0 right-0 p-8 opacity-5">
+         <LayoutPanelTop className="w-32 h-32" />
+      </div>
+
+      <div className="relative mb-12 flex items-center justify-between">
+         <div className="flex items-center gap-4">
+            <div className="w-10 h-10 border border-amber-500/30 flex items-center justify-center bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors nexus-corner-tick">
+               <Image 
+                 src="/app-images/all-images/nexusforge-logo.png" 
+                 alt="" 
+                 width={20} 
+                 height={20} 
+                 className="grayscale contrast-125" 
+               />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-amber-300">NEXUSFORGE</p>
-              <h1 id={titleId} className="font-[family-name:var(--font-orbitron)] text-xl font-semibold tracking-tight text-white sm:text-2xl">
-                {title}
-              </h1>
+               <p className="text-[9px] font-black text-amber-500 uppercase tracking-[0.4em] mb-1">Nexus_Auth_v7</p>
+               <h1 id={titleId} className="text-2xl font-black text-white uppercase tracking-tighter italic">{title}</h1>
             </div>
-          </div>
-          <div className="hidden rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100 sm:inline-flex">
-            Secure session
-          </div>
-        </div>
-
-        <div className="nexus-form-note relative mb-5 flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-[11px] sm:text-xs">
-          <span className="inline-flex items-center gap-2">
-            <span className="nexus-signal-dot" />
-            Auth rail secured
-          </span>
-          <span className="text-amber-200">Session restore enabled</span>
-        </div>
-
-        <p className="relative mb-5 text-sm leading-6 text-slate-300">{subtitle}</p>
-        <div className="relative">{children}</div>
-
-        {footer ? <div className="relative mt-5 text-sm text-slate-400">{footer}</div> : null}
+         </div>
+         <div className="flex items-center gap-2 px-3 py-1 border border-emerald-500/20 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+            <Lock className="w-3 h-3 text-emerald-500" />
+            <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">TLS_Secure</span>
+         </div>
       </div>
-    </motion.section>
+
+      <div className="relative mb-10 pb-6 border-b border-white/5">
+         <p className="text-[11px] text-slate-500 font-medium uppercase tracking-widest leading-relaxed italic">{subtitle}</p>
+      </div>
+
+      <div className="relative space-y-6">
+         {children}
+      </div>
+
+      {footer && (
+         <div className="relative mt-10 pt-8 border-t border-white/5 text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center group-hover:text-slate-300 transition-colors">
+            {footer}
+         </div>
+      )}
+      
+      {/* CORNER DECS */}
+      <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-amber-500/20" />
+      <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-amber-500/20" />
+    </section>
   );
 }

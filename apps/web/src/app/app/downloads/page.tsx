@@ -1,95 +1,154 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { CloudDownload, ShieldCheck } from "lucide-react";
-import { getCustomDesignImageUrl } from "@/lib/custom-design-client";
-import { DynamicBackground } from "@/components/ui/dynamic-background";
+"use client";
 
-export const metadata: Metadata = {
-  title: "NEXUSFORGE | Downloads",
-  description: "Manage your downloads, updates, and launcher content.",
-};
+import { CloudDownload, ShieldCheck, Database, HardDrive, Cpu, Zap, Box } from "lucide-react";
+import { TacticalBar } from "@/components/tactical/tactical-bar";
 
 const downloads = [
-  { title: "NexusForge Launcher", status: "Up to date", size: "124 MB" },
-  { title: "Forge Assets Pack", status: "Downloading", size: "2.1 GB" },
-  { title: "Event Map Pack", status: "Pending", size: "540 MB" },
+  { title: "NEXUSFORGE_LAUNCHER_v4.2", status: "STABLE", size: "124 MB", progress: 100, speed: "0 KB/s" },
+  { title: "FORGE_ASSET_PACK_v2.0", status: "STREAMING", size: "2.1 GB", progress: 64, speed: "12.4 MB/s" },
+  { title: "EVENT_MAP_PACK_BETA", status: "QUEUED", size: "540 MB", progress: 0, speed: "PENDING" },
 ];
 
 export default function DownloadsPage() {
-  const heroImage = getCustomDesignImageUrl(["app-downloads-desktop.jpg"], "/app-hero.png");
-
   return (
-    <div className="space-y-6">
-      <DynamicBackground
-        url={heroImage}
-        className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-slate-700/70 bg-[#09040b]/95 shadow-[0_30px_90px_rgba(0,0,0,0.45)] bg-cover bg-center"
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#09040b]/95 via-[#09040b]/20 to-[#09040b]/95" />
-        <div className="absolute inset-0 bg-[#09040b]/60" />
-        <div className="relative p-6 sm:p-8">
-          <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Downloads</p>
-          <h1 className="mt-3 text-4xl font-semibold text-white">Launcher content</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Keep your Forge content up to date, sync design assets, and stay ready for every listening session.</p>
-        </div>
-      <div className="relative p-6 sm:p-8">
-        <p className="text-xs uppercase tracking-[0.32em] text-amber-300">Downloads</p>
-        <h1 className="mt-3 text-4xl font-semibold text-white">Launcher content</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Keep your Forge content up to date, sync design assets, and stay ready for every listening session.</p>
-        <Link href="/app" className="mt-6 inline-flex rounded-full border border-slate-700/70 bg-slate-950/85 px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-100 transition hover:border-amber-400/70 hover:bg-slate-900/95">
-          Back to dashboard
-        </Link>
+    <div className="flex flex-col gap-1">
+      {/* HEADER: RESOURCE ALLOCATION */}
+      <div className="p-8 border border-white/10 bg-black/40 flex items-center justify-between">
+         <div className="space-y-2">
+            <div className="flex items-center gap-3">
+               <div className="w-8 h-1 bg-amber-500" />
+               <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em]">Payload_Manager_v1.2</span>
+            </div>
+            <h1 className="text-4xl font-black uppercase text-white italic tracking-tighter">
+               Resource_Deployment
+            </h1>
+         </div>
+         <div className="flex gap-4">
+            <div className="px-4 py-2 border border-white/5 bg-white/5 flex flex-col items-end">
+               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Global_Status</span>
+               <span className="text-[10px] text-amber-500 font-black uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-amber-500 animate-pulse" /> Active_Downlink
+               </span>
+            </div>
+         </div>
       </div>
-    </DynamicBackground>
 
-    <section className="rounded-[32px] border border-slate-700/70 bg-slate-950/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Active queue</p>
-            <p className="mt-2 text-2xl font-semibold text-white">Download progress</p>
-          </div>
-          <span className="rounded-full bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.18em] text-amber-100">Syncing</span>
-        </div>
+      <div className="grid grid-cols-12 gap-1">
+         {/* ACTIVE PAYLOADS */}
+         <div className="col-span-8 space-y-1">
+            {downloads.map((dl, idx) => (
+               <div key={idx} className="p-8 border border-white/10 bg-black/40 space-y-6 group">
+                  <div className="flex justify-between items-start">
+                     <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                           <Box className="w-3 h-3 text-amber-500" />
+                           <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Package_Identifier</span>
+                        </div>
+                        <h3 className="text-2xl font-black text-white uppercase italic tracking-wider">{dl.title}</h3>
+                     </div>
+                     <div className="flex flex-col items-end gap-1">
+                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${dl.status === 'STABLE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                           {dl.status}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{dl.speed}</span>
+                     </div>
+                  </div>
 
-        <div className="mt-6 grid gap-4">
-          {downloads.map((download) => (
-            <div key={download.title} className="group rounded-[28px] border border-slate-700/70 bg-[#0a0407]/95 p-5 transition hover:border-amber-400/50">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{download.title}</p>
-                  <h3 className="mt-2 text-xl font-semibold text-white">{download.title}</h3>
-                </div>
-                <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-amber-100">{download.status}</span>
-              </div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto] items-center">
-                <div className="rounded-3xl border border-slate-700/70 bg-slate-900/90 p-4 text-sm text-slate-300">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Size</p>
-                  <p className="mt-2 text-lg font-semibold text-white">{download.size}</p>
-                </div>
-                <button className="nexus-button-primary rounded-full px-5 py-3 text-sm font-semibold">Manage</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+                  <div className="space-y-3">
+                     <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <span>Deployment_Progress</span>
+                        <span className="text-white">{dl.progress}%</span>
+                     </div>
+                     <div className="h-2 bg-white/5 relative overflow-hidden">
+                        <TacticalBar 
+                           value={dl.progress}
+                           className="h-full"
+                           color={dl.status === 'STABLE' ? 'bg-emerald-500' : 'bg-amber-500'}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent w-full animate-[shimmer_2s_infinite]" />
+                     </div>
+                  </div>
 
-      <section className="rounded-[32px] border border-slate-700/70 bg-[#0c0508]/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-          <div className="rounded-[28px] border border-slate-700/70 bg-[#0a0407]/95 p-6">
-            <div className="flex items-center gap-3 text-amber-300">
-              <CloudDownload className="h-5 w-5" />
-              <span className="text-xs uppercase tracking-[0.28em]">Downloads hub</span>
+                  <div className="flex gap-4 pt-4 border-t border-white/5">
+                     <div className="flex-1 grid grid-cols-2 gap-4">
+                        <div className="flex flex-col">
+                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Allocated_Size</span>
+                           <span className="text-[11px] text-white font-bold uppercase">{dl.size}</span>
+                        </div>
+                        <div className="flex flex-col">
+                           <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Verify_Status</span>
+                           <span className="text-[11px] text-emerald-500 font-bold uppercase">CHECKSUM_OK</span>
+                        </div>
+                     </div>
+                     <div className="flex gap-2">
+                        <button className="px-6 py-2 border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-black transition-all">
+                           Manage_FS
+                        </button>
+                        {dl.progress < 100 && dl.progress > 0 && (
+                           <button className="px-6 py-2 border border-rose-500/20 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">
+                              Abort
+                           </button>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            ))}
+         </div>
+
+         {/* STORAGE METRICS */}
+         <div className="col-span-4 space-y-1">
+            <div className="p-8 border border-white/10 bg-black/40 space-y-8">
+               <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                     <HardDrive className="w-4 h-4 text-amber-500" />
+                     <span className="text-[10px] font-black text-white uppercase tracking-widest">Storage_Interface</span>
+                  </div>
+                  <div className="space-y-6">
+                     <div className="space-y-2">
+                        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
+                           <span>Allocated_Volume</span>
+                           <span className="text-white">428.4 GB / 1024 GB</span>
+                        </div>
+                        <div className="h-1 bg-white/5">
+                           <div className="h-full bg-amber-500/50 w-[42%]" />
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                     <Cpu className="w-4 h-4 text-amber-500" />
+                     <span className="text-[10px] font-black text-white uppercase tracking-widest">System_Integrity</span>
+                  </div>
+                  <div className="grid gap-2">
+                     {[
+                        { label: "File_System", status: "HEALTHY", icon: ShieldCheck },
+                        { label: "Downlink_Lock", status: "STABLE", icon: Zap },
+                        { label: "Checksum_Acc", status: "99.9%", icon: Database },
+                     ].map(item => (
+                        <div key={item.label} className="p-4 border border-white/5 bg-white/5 flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                              <item.icon className="w-3 h-3 text-slate-500" />
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</span>
+                           </div>
+                           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">{item.status}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
             </div>
-            <p className="mt-4 text-sm leading-7 text-slate-300">Monitor package integrity, asset versions, and platform updates. NexusForge keeps everything in sync across your launch ecosystem.</p>
-          </div>
-          <div className="rounded-[28px] border border-slate-700/70 bg-[#0a0407]/95 p-6">
-            <div className="flex items-center gap-3 text-amber-300">
-              <ShieldCheck className="h-5 w-5" />
-              <span className="text-xs uppercase tracking-[0.28em]">Protected installs</span>
+
+            <div className="p-8 border border-white/10 bg-slate-900 space-y-4">
+               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] leading-loose">
+                  NexusForge uses automated delta-patching. Only modified binary blocks are synchronized during payload updates.
+               </p>
+               <button className="w-full py-4 border border-amber-500 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-amber-500 hover:text-black transition-all">
+                  Run_Integrity_Check
+               </button>
             </div>
-            <p className="mt-4 text-sm leading-7 text-slate-300">All content passes secure validation before it installs, reducing corrupted assets and giving you a faster launcher experience.</p>
-          </div>
-        </div>
-      </section>
+         </div>
+      </div>
     </div>
   );
 }

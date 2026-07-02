@@ -1,3 +1,4 @@
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '', Justification = 'Script uses inline command checks; lingering warning is a false positive from stale analyzer state.')]
 param(
   [string] $BundleDir = "",
   [string] $RemoteHost = "",
@@ -15,14 +16,6 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $repoRoot
-
-function Require-Command {
-  param([Parameter(Mandatory = $true)] [string] $Name)
-
-  if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-    throw ("Required command '{0}' was not found in PATH." -f $Name)
-  }
-}
 
 function Resolve-LatestBundleDir {
   param([Parameter(Mandatory = $true)] [string] $Root)
@@ -46,8 +39,12 @@ function Assert-FileExists {
 }
 
 try {
-  Require-Command -Name "scp.exe"
-  Require-Command -Name "ssh.exe"
+  if (-not (Get-Command "scp.exe" -ErrorAction SilentlyContinue)) {
+    throw "Required command 'scp.exe' was not found in PATH."
+  }
+  if (-not (Get-Command "ssh.exe" -ErrorAction SilentlyContinue)) {
+    throw "Required command 'ssh.exe' was not found in PATH."
+  }
 
   $bundleRoot = Join-Path $repoRoot "apps\desktop\.network-smoke\deploy-bundles"
   $resolvedBundleDir = if ([string]::IsNullOrWhiteSpace($BundleDir)) {
@@ -139,6 +136,12 @@ try {
 
   Write-Host ("[desktop-release-deploy] Bundle: {0}" -f $resolvedBundleDir) -ForegroundColor Cyan
   Write-Host ("[desktop-release-deploy] Upload target: {0}" -f $remoteWebTarget) -ForegroundColor Cyan
+
+  Write-Host "[desktop-release-deploy] Validating bundle artifact consistency" -ForegroundColor Cyan
+  & node .\scripts\validate-desktop-artifact-consistency.mjs --release-dir $resolvedBundleDir --manifest-path $manifestPath --allow-missing-report
+  if ($LASTEXITCODE -ne 0) {
+    throw "Bundle artifact consistency validation failed. Refusing deploy."
+  }
 
   $uploadFiles = @($manifestPath, $stableInstallerPath, $versionedInstaller.FullName)
   foreach ($source in $uploadFiles) {
