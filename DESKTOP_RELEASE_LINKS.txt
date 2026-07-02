@@ -1,19 +1,19 @@
 ﻿NexusForge Desktop Release Links
-Generated: 2026-05-16T16:28:34
+Generated: 2026-07-02T03:15:41
 
 Download:   https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe
 DownloadStable: https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe
 Directory:  https://trhpruductions.github.io/-NEXUSFORGE/
-SHA256:     87077abb31e96b9c152a4e68c7fd3875d40f2700c233dd5f7d9a15e67e8fbb0f
+SHA256:     353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a
 Version:    1.0.11
-ForceUpdate: False
+ForceUpdate: True
 Ephemeral:  False
 
 Process IDs
 httpServer=
-httpServerExistingPid=16008
+httpServerExistingPid=38420
 tunnel=
 
 Manifest: D:\NEXUSFORGE GAMGING APP\apps\web\public\desktop-update.json
 ManifestUrl: https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json
-Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260516-162550
+Logs:     D:\NEXUSFORGE GAMGING APP\.beta-logs\desktop-release-20260702-031303
