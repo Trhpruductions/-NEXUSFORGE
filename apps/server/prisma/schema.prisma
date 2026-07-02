@@ -84,6 +84,19 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum AuditOperation {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXECUTE
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+}
+
 enum PaidFeatureCode {
   CORE_PLUS
   FORGE_BOOST_PACK
@@ -186,6 +199,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   featureEntitlements FeatureEntitlement[]
   economyAccounts      EconomyAccount[]
+  economyTransactions  EconomyTransaction[] @relation("EconomyTransactions")
   miningRigs          MiningRig[]
   botApps            BotApp[]
   botInstallations   ForgeBotInstallation[] @relation("BotInstaller")
@@ -193,6 +207,7 @@ model User {
   webhookSubscriptions WebhookSubscription[]
   oAuthClients       OAuthClient[]
   authorizationCodes  OAuthAuthorizationCode[]
+  auditLogs          AuditLog[]
 }
 
 model EconomyAccount {
@@ -660,6 +675,43 @@ model Notification {
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt])
+}
+
+model AuditLog {
+  id              String          @id @default(uuid())
+  operation       AuditOperation
+  resourceType    String          // User, Guild, Message, Payment, etc.
+  resourceId      String
+  actorId         String?         // User who performed the action
+  status          AuditStatus     @default(SUCCESS)
+  errorMessage    String?         @db.VarChar(500)
+  
+  // Request context
+  ipAddress       String?
+  userAgent       String?
+  endpoint        String?
+  method          String?         // GET, POST, PUT, DELETE, PATCH
+  
+  // Data changes (for UPDATE operations)
+  beforeValues    Json?           // Previous state
+  afterValues     Json?           // New state
+  changedFields   String[]        // Array of field names that changed
+  
+  // Additional metadata
+  metadata        Json?
+  requestId       String?         @unique
+  
+  // Timestamps & retention
+  createdAt       DateTime        @default(now())
+  archivedAt      DateTime?       // For archival/retention policies
+  
+  actor           User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  
+  @@index([resourceType, resourceId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([operation, createdAt])
+  @@index([createdAt])
+  @@index([status, createdAt])
 }
 
 model PushSubscription {
