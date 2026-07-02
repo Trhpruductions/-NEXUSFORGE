@@ -5,19 +5,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { appServerLinks } from "@/lib/app-servers";
 import { cn } from "@/lib/utils";
-import { Plus, Compass, Terminal, Coins } from "lucide-react";
+import { Plus, Compass, Coins } from "lucide-react";
 
 export function AppLeftDock({ className }: { className?: string }) {
   const pathname = usePathname() ?? "/app";
 
   return (
-    <nav className={cn("flex flex-col items-center py-6 gap-6 bg-black border-r border-white/5 h-screen w-[80px] z-50", className)} aria-label="Nexus Control Dock">
+    <nav className={cn("flex flex-col items-center py-4 md:py-6 gap-4 md:gap-6 bg-black border-r border-white/5 h-dvh w-[64px] md:w-[80px] z-50", className)} aria-label="Nexus Control Dock">
       {/* Nexus Core Link */}
       <div className="relative group">
         <Link
           href="/app"
           className={cn(
-            "relative w-14 h-14 flex items-center justify-center transition-all duration-500",
+            "relative w-11 h-11 md:w-14 md:h-14 flex items-center justify-center transition-all duration-500",
             pathname === "/app" ? "" : "hover:scale-110"
           )}
         >
@@ -25,7 +25,7 @@ export function AppLeftDock({ className }: { className?: string }) {
             "absolute inset-0 border transition-all nexus-corner-tick",
             pathname === "/app" ? "border-nexus-cyan bg-nexus-cyan/10 shadow-[0_0_30px_rgba(0,242,255,0.5)]" : "border-white/10 bg-white/2 group-hover:border-nexus-cyan/50"
           )} />
-          <div className="relative w-10 h-10 flex items-center justify-center">
+          <div className="relative w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
             <Image 
               src="/brand/nexusforge-logo.png" 
               alt="NexusForge" 
@@ -44,7 +44,7 @@ export function AppLeftDock({ className }: { className?: string }) {
         )}
       </div>
 
-      <div className="w-12 h-px bg-white/10" />
+      <div className="w-10 md:w-12 h-px bg-white/10" />
 
         {appServerLinks.filter(s => s.href !== "/app").map((server) => {
           const active = pathname.startsWith(server.href);
@@ -53,7 +53,7 @@ export function AppLeftDock({ className }: { className?: string }) {
               <Link
                 href={server.href}
                 className={cn(
-                  "w-12 h-12 flex items-center justify-center text-[10px] font-black uppercase tracking-tighter border transition-all duration-300 nexus-corner-tick",
+                  "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-[9px] md:text-[10px] font-black uppercase tracking-tighter border transition-all duration-300 nexus-corner-tick",
                   active 
                     ? "bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.4)]" 
                     : "bg-slate-900/40 border-white/5 text-slate-500 hover:border-white/30 hover:text-white",
@@ -75,11 +75,11 @@ export function AppLeftDock({ className }: { className?: string }) {
 
 
       {/* Action System */}
-      <div className="mt-auto space-y-4 pb-12">
+      <div className="mt-auto space-y-3 md:space-y-4 pb-6 md:pb-12">
         <Link
           href="/app/rewards"
           className={cn(
-            "w-12 h-12 flex items-center justify-center bg-transparent border transition-all",
+            "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-transparent border transition-all",
             pathname.startsWith("/app/rewards") 
               ? "border-nexus-gold text-nexus-gold bg-nexus-gold/5 shadow-[0_0_15px_rgba(251,191,36,0.2)]" 
               : "border-white/10 text-slate-600 hover:border-nexus-gold/50 hover:text-nexus-gold"
@@ -89,13 +89,13 @@ export function AppLeftDock({ className }: { className?: string }) {
           <Coins className="w-5 h-5" />
         </Link>
         <button
-          className="w-12 h-12 flex items-center justify-center bg-transparent border border-white/10 text-slate-600 hover:border-nexus-cyan/50 hover:text-nexus-cyan transition-all"
+          className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-transparent border border-white/10 text-slate-600 hover:border-nexus-cyan/50 hover:text-nexus-cyan transition-all"
           aria-label="Deploy New Node"
         >
           <Plus className="w-5 h-5" />
         </button>
         <button
-          className="w-12 h-12 flex items-center justify-center bg-transparent border border-white/10 text-slate-600 hover:border-nexus-purple/50 hover:text-nexus-purple transition-all"
+          className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-transparent border border-white/10 text-slate-600 hover:border-nexus-purple/50 hover:text-nexus-purple transition-all"
           aria-label="Discover Protocols"
         >
           <Compass className="w-5 h-5" />

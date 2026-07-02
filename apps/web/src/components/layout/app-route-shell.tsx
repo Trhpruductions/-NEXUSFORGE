@@ -11,7 +11,6 @@ import {
   Bell, 
   CloudDownload, 
   Gamepad, 
-  Gift, 
   Heart, 
   Home, 
   Layers, 
@@ -22,9 +21,7 @@ import {
   Cpu, 
   Gem, 
   Star, 
-  Trophy, 
   Database, 
-  ShieldCheck,
   Radio
 } from "lucide-react";
 import { SecurityGuard } from "@/components/tactical/security-guard";
@@ -70,6 +67,16 @@ const routeMeta = [
     subtitle: "High-performance game launching and competitive match tracking.",
   },
   {
+    match: (pathname: string) => pathname.startsWith("/app/mining"),
+    title: "Mining_Infrastructure",
+    subtitle: "Monitor rig throughput, thermal load, and harvest operations in real time.",
+  },
+  {
+    match: (pathname: string) => pathname.startsWith("/app/live"),
+    title: "Live_Operations",
+    subtitle: "Track live signals, events, and active operational feeds.",
+  },
+  {
     match: (pathname: string) => pathname.startsWith("/app/activity"),
     title: "System_Logs",
     subtitle: "Real-time activity audit, event telemetry, and decentralized alert feeds.",
@@ -78,6 +85,11 @@ const routeMeta = [
     match: (pathname: string) => pathname.startsWith("/app/rewards"),
     title: "Asset_Vault",
     subtitle: "Claim tactical badges, XP credits, and localized digital currency.",
+  },
+  {
+    match: (pathname: string) => pathname.startsWith("/app/downloads"),
+    title: "Deployment_Channel",
+    subtitle: "Access desktop build channels, package integrity, and release downloads.",
   },
 ];
 
@@ -114,11 +126,11 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="relative min-h-screen h-screen overflow-hidden bg-black text-foreground">
+    <div className="relative min-h-dvh h-dvh overflow-hidden bg-black text-foreground">
       <div className="mx-auto flex h-full">
         <AppLeftDock />
         
-        <aside className="w-[300px] h-screen flex flex-col border-r border-white/10 bg-black/90 backdrop-blur-3xl z-40">
+        <aside className="hidden lg:flex w-[210px] xl:w-[230px] 2xl:w-[250px] h-dvh flex-col border-r border-white/10 bg-black/90 backdrop-blur-3xl z-40 transition-all duration-500">
           <div className="flex h-[64px] shrink-0 items-center px-6 border-b border-white/10 bg-white/5">
             <div className="flex items-center gap-3">
               <div className="w-2.5 h-2.5 bg-nexus-cyan animate-pulse shadow-[0_0_12px_rgba(0,242,255,0.8)]" />
@@ -201,20 +213,20 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="flex-1 h-screen overflow-hidden flex flex-col relative bg-[#02060c]">
-          <header className="h-[64px] shrink-0 border-b border-white/10 flex items-center justify-between px-10 bg-black/80 backdrop-blur-xl z-30">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 text-nexus-gold font-black text-[11px] uppercase tracking-[0.5em] nexus-text-pop">
+        <main className="flex-1 h-dvh overflow-hidden flex flex-col relative bg-[#02060c] min-w-0">
+          <header className="h-[64px] shrink-0 border-b border-white/10 flex items-center justify-between px-4 md:px-6 xl:px-8 2xl:px-10 bg-black/80 backdrop-blur-xl z-30">
+            <div className="flex items-center gap-3 md:gap-8 min-w-0">
+              <div className="hidden md:flex items-center gap-3 text-nexus-gold font-black text-[11px] uppercase tracking-[0.5em] nexus-text-pop">
                 Protocol <span className="text-white tracking-[0.2em] opacity-80">{routeInfo.title.toUpperCase()}</span>
               </div>
-              <div className="h-4 w-px bg-white/10" />
+              <div className="hidden md:block h-4 w-px bg-white/10" />
               <SecurityGuard status="SECURED" clearance={user?.appRole || "USER"} />
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-6">
+              <div className="flex items-center gap-2 md:gap-3">
                  {/* Premium currencies compact view */}
-                 <div className="hidden xl:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
+                 <div className="hidden 2xl:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
                     <div className="flex flex-col items-end gap-0.5" title="Aether Crystals">
                        <div className="flex items-center gap-1.5">
                           <Sparkles className="w-3 h-3 text-nexus-purple drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]" />
@@ -246,8 +258,8 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
                     </div>
                  </div>
 
-                 <div className="flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-4 bg-white/5 border border-white/10 py-2 px-6 nexus-corner-tick relative overflow-hidden group">
+                  <div className="hidden sm:flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-4 bg-white/5 border border-white/10 py-2 px-4 lg:px-6 nexus-corner-tick relative overflow-hidden group">
                        <div className="absolute inset-0 bg-amber-500/5 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                        <Coins className="w-4 h-4 text-amber-500" />
                        <span className="text-[13px] font-black text-white tabular-nums tracking-widest">
@@ -269,14 +281,18 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto no-scrollbar p-12">
-            <div className="w-full mx-auto">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4 md:p-8 xl:p-8 2xl:p-10">
+            <div className="w-full mx-auto animate-in fade-in duration-300">
+              <div className="lg:hidden mb-4 p-4 border border-white/10 bg-black/40 backdrop-blur-md space-y-1.5">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-nexus-gold">{routeInfo.title}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wide leading-relaxed">{routeInfo.subtitle}</p>
+              </div>
               {children}
             </div>
           </div>
         </main>
 
-        <aside className="w-[340px] h-screen flex flex-col border-l border-white/5 bg-black/80 backdrop-blur-3xl z-40">
+        <aside className="hidden 2xl:flex w-[250px] h-dvh flex-col border-l border-white/5 bg-black/80 backdrop-blur-3xl z-40 transition-all duration-500">
           <div className="flex h-[64px] shrink-0 items-center px-8 border-b border-white/5 bg-white/2">
             <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white">Diagnostics</h2>
           </div>

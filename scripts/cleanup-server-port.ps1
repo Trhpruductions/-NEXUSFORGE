@@ -6,6 +6,28 @@ param(
 
 $ErrorActionPreference = "SilentlyContinue"
 
+function Get-ListeningPidsForPort {
+  param([int]$Port)
+
+  $result = @()
+  $lines = cmd.exe /d /s /c "netstat -ano -p tcp | findstr LISTENING | findstr :$Port"
+  foreach ($line in @($lines)) {
+    if (-not $line) {
+      continue
+    }
+
+    $trimmed = $line.Trim()
+    if ($trimmed -match "\s+(\d+)$") {
+      $pidValue = [int]$matches[1]
+      if ($pidValue -gt 0) {
+        $result += $pidValue
+      }
+    }
+  }
+
+  return @($result | Select-Object -Unique)
+}
+
 if (-not $EnvFilePath) {
   $EnvFilePath = Join-Path $PSScriptRoot "../apps/server/.env"
 }
@@ -45,16 +67,15 @@ if ($Ports -and $Ports.Count -gt 0) {
   if ($configuredPort) {
     $ports = @($configuredPort)
   } else {
-    $ports = @(4000)
+    $ports = @(4001)
   }
 }
 
 $stopped = $false
 $listenersByPid = @{}
 foreach ($port in $ports) {
-  $connections = @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
-  foreach ($connection in $connections) {
-    $pidNumber = $connection.OwningProcess
+  $connections = @(Get-ListeningPidsForPort -Port $port)
+  foreach ($pidNumber in $connections) {
     if (-not $pidNumber) {
       continue
     }
