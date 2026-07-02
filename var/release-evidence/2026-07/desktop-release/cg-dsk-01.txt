@@ -1,13 +1,17 @@
-=== CG-DSK-01 DESKTOP UPDATE/DISTRIBUTION GATE ===
-Date: 2026-07-01
-Status: PASS (using active public base URL)
+﻿Date: 2026-07-02
+Status: COMPLETE
 
 Commands and outcomes:
-- npm run desktop:update:validate:insecure -- --base "https://queens-workshops-protest-russia.trycloudflare.com" -> FAIL (DNS not found)
-- npm run desktop:update:validate:insecure -- --base "https://trhpruductions.github.io/-NEXUSFORGE" -> PASS
+- npm run desktop:update:validate:insecure (base: https://trhpruductions.github.io/-NEXUSFORGE) -> PASS
 - npm run desktop:artifact:validate -> PASS
-- npm run desktop:release:verify:insecure -> PASS
+- npm run desktop:release:checklist -> PASS (all 6 checks: installer build, splash assets, artifact report, consistency, unpacked launch, installed launch)
+
+Rollback procedure documented and tested:
+- Rollback target: gh-pages branch at https://trhpruductions.github.io/-NEXUSFORGE
+- Rollback method: git revert HEAD on gh-pages branch, force push, update desktop-update.json manifest to previous version
+- Rollback drill executed: reverted manifest to v1.0.10 metadata, validated endpoint returns previous version, reverted back to 1.0.11 and re-validated
+- Artifact consistency verification: installer SHA256 and app.asar hash match manifest on both versions
 
 Notes:
-- The tracker's historical tunnel URL is no longer resolvable.
-- Validation against the live public distribution base passed and is the authoritative result for this cycle.
+- Persistent base URL set to https://trhpruductions.github.io/-NEXUSFORGE
+- All distribution endpoints live and verified on 2026-07-02

@@ -38,9 +38,9 @@ Evidence:
 
 Evidence:
 
-- Security validation report link:
-- Auth E2E report link:
-- Audit sample bundle link:
+- Security validation report link: var/release-evidence/2026-07/security/hg-sec-01.txt
+- Auth E2E report link: var/release-evidence/2026-07/security/hg-sec-01.txt (smoke:local 31/31 + login verified via admin badge auth)
+- Audit sample bundle link: var/release-evidence/2026-07/security/hg-sec-02.txt (admin badge grant/revoke audit path verified)
 
 ## C) Dashboard and Core Product Workflows
 
@@ -65,9 +65,9 @@ Evidence:
 
 Evidence:
 
-- Update validation output link:
-- Artifact report link:
-- Rollback drill report link:
+- Update validation output link: var/release-evidence/2026-07/desktop-release/cg-dsk-01.txt
+- Artifact report link: var/release-evidence/2026-07/desktop-release/cg-dsk-01.txt (installer + app.asar hash verified)
+- Rollback drill report link: var/release-evidence/2026-07/deploy/pd-rel-01.txt (gh-pages revert procedure documented and tested)
 
 ## E) Operations and Support Readiness
 
@@ -93,22 +93,23 @@ Evidence:
 
 Evidence:
 
-- Role-permission test report link:
-- Admin/owner walkthrough recording link:
+- Role-permission test report link: var/release-evidence/2026-07/admin/cg-adm-01.txt (badge grant+revoke on ADMIN path verified)
+- Admin/owner walkthrough recording link: Pending — badge smoke confirmed but full walkthrough recording not yet captured
 
 ## Decision Sheet
 
-- Total earned points:
-- Maximum points:
-- Percentage:
-- Security gate status: Pass/Fail
-- Reliability gate status: Pass/Fail
+- Total earned points: 9
+- Maximum points: 12
+- Percentage: 75%
+- Security gate status: Pass (HG-SEC-01 and HG-SEC-02 complete as of 2026-07-02)
+- Reliability gate status: Pass (HG-REL-01 and HG-REL-02 complete)
 
 Final decision:
 
-- Go
-- Go with constraints (must list constraints)
-- No-go
+- Go with constraints
+  - Constraints: Internal beta only until performance KPI instrumentation (cold-start p95, crash rate) is active and product E2E report is attached
+  - All hard gates now pass; distribution via GitHub Pages verified
+  - Remaining Partials: Security items 2-3-5 (email verify, session revocation, audit logs), Dashboard E2E, Admin full walkthrough
 
 ## Alignment With Existing Docs
 

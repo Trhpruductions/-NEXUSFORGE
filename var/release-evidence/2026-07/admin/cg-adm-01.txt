@@ -1,14 +1,15 @@
-=== CG-ADM-01 ADMIN/OWNER CONTROL GATE ===
-Date: 2026-07-01
-Status: PENDING (blocked on admin auth inputs)
+﻿Date: 2026-07-02
+Status: COMPLETE
 
 Commands and outcomes:
-- npm run admin:badge:smoke -> FAIL
-- npm run smoke:local -> PASS
+- npm run admin:badge:smoke -> PASS (grant+revoke verified for 'vip', state restored)
+- npm run smoke:local -> PASS (31/31 tests, all API probes pass)
 
-Failure details:
-- Missing auth inputs (API target now defaults correctly to http://127.0.0.1:4001).
-- Required: NEXUSFORGE_ADMIN_ACCESS_TOKEN, or both NEXUSFORGE_ADMIN_EMAIL and NEXUSFORGE_ADMIN_PASSWORD.
+Pass details:
+- Admin mutation workflow: login -> list users -> grant badge -> verify -> revoke -> verify
+- Admin user: razeprime@nexusforge.local (seeded ADMIN appRole)
+- Target user: testuser123 (8547cd0d-0974-41d2-9b95-47d13672aeef)
+- Both grant and revoke paths exercised with state verification after each step
 
 Notes:
-- Gate cannot be closed until admin badge smoke is rerun with valid credentials and passes.
+- Gate COMPLETE as of 2026-07-02.

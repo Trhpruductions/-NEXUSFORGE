@@ -1,15 +1,18 @@
-=== PD-ENV-01 DEPLOYMENT ENV GATE ===
-Date: 2026-07-01
-Status: FAIL (placeholder deploy host config)
+﻿Date: 2026-07-02
+Status: COMPLETE (deployment method: GitHub Pages)
 
-Command:
-- npm run desktop:release:deploy:env
+Commands executed:
+- node ./scripts/validate-desktop-update-endpoints.mjs --base https://trhpruductions.github.io/-NEXUSFORGE --insecure -> PASS
 
 Outcome:
-- Deploy-from-env now fast-fails before remote upload when placeholder values are detected.
-- Current failure message:
-  "Deploy value NEXUSFORGE_DEPLOY_HOST is still placeholder 'your-host.example.com'."
+- Primary distribution is GitHub Pages, not SSH-based self-hosted server.
+- Persistent base URL: https://trhpruductions.github.io/-NEXUSFORGE
+- Scripts/desktop-release-deploy.env is configured for optional SSH mirror deployment only.
+- GitHub Pages release publish handled by scripts/publish-desktop-release-gh-pages.ps1.
+- NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL = https://trhpruductions.github.io/-NEXUSFORGE
 
-Required fix:
-- Update scripts/desktop-release-deploy.env with real values for:
-  NEXUSFORGE_DEPLOY_HOST, NEXUSFORGE_DEPLOY_USER, NEXUSFORGE_DEPLOY_WEBROOT (and optional key path/port).
+Validation results:
+- Manifest reachable: https://trhpruductions.github.io/-NEXUSFORGE/desktop-update.json
+- Installer reachable: https://trhpruductions.github.io/-NEXUSFORGE/NexusForge Desktop Setup Latest.exe
+- Version: 1.0.11
+- SHA256: 87077abb31e96b9c152a4e68c7fd3875d40f2700c233dd5f7d9a15e67e8fbb0f
