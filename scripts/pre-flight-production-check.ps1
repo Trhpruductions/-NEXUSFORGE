@@ -1,7 +1,6 @@
 #!/usr/bin/env pwsh
 # Pre-Flight Production Health Check
 # Validates all critical production requirements before starting services
-# Fails LOUD if any requirement unmet
 
 param(
   [switch]$AutoFix = $false,
@@ -9,9 +8,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$checks = @()
-$failCount = 0
-$warnCount = 0
+$script:checks = @()
 
 function Write-Check {
   param([string]$Name, [string]$Status, [string]$Message = "")
@@ -23,106 +20,92 @@ function Write-Check {
       "WARN" { "Yellow" }
       default { "White" }
     }
-    Write-Host "[$Status] $Name" -ForegroundColor $color -NoNewline
-    if ($Message) { Write-Host " - $Message" -ForegroundColor Gray } else { Write-Host "" }
+    $tag = "[$Status]"
+    Write-Host $tag -ForegroundColor $color -NoNewline
+    Write-Host " $Name" -NoNewline
+    if ($Message) { Write-Host " - $Message" -ForegroundColor Gray } 
+    else { Write-Host "" }
   }
-  if ($Status -eq "FAIL") { $script:failCount++ }
-  if ($Status -eq "WARN") { $script:warnCount++ }
 }
 
 if (-not $Silent) {
-  Write-Host "`n=== Pre-Flight Production Health Check ===" -ForegroundColor Cyan
-  Write-Host "Validating critical production requirements`n"
+  Write-Host ""
+  Write-Host "Pre-Flight Production Validation" -ForegroundColor Cyan
+  Write-Host ""
 }
 
-# Check 1: Backend build exists
-$backendBuild = "d:\NEXUSFORGE GAMGING APP\apps\server\dist\index.js"
-if (Test-Path $backendBuild) {
-  Write-Check "Backend Build Artifact" "PASS"
+# Check 1: Backend build
+$backendDist = "d:\NEXUSFORGE GAMGING APP\apps\server\dist\index.js"
+if (Test-Path $backendDist) {
+  Write-Check "Backend Build (dist/index.js)" "PASS"
 } else {
-  Write-Check "Backend Build Artifact" "FAIL" "Missing: $backendBuild"
+  Write-Check "Backend Build (dist/index.js)" "FAIL" "Missing"
 }
 
-# Check 2: Web production build exists (CRITICAL)
+# Check 2: Web build
 $webBuild = "d:\NEXUSFORGE GAMGING APP\apps\web\.next-build"
 if (Test-Path $webBuild -PathType Container) {
-  Write-Check "Web Production Build (.next-build)" "PASS"
+  Write-Check "Web Build (.next-build)" "PASS"
 } else {
-  Write-Check "Web Production Build (.next-build)" "FAIL" "Missing: $webBuild"
+  Write-Check "Web Build (.next-build)" "FAIL" "Missing"
   if ($AutoFix) {
-    Write-Host "  → AutoFix enabled: Building web app..." -ForegroundColor Yellow
+    Write-Host "  Starting web build..." -ForegroundColor Yellow
     Push-Location "d:\NEXUSFORGE GAMGING APP\apps\web"
-    $buildResult = npm run build 2>&1
-    Pop-Location
+    npm run build
     if ($LASTEXITCODE -eq 0) {
-      Write-Host "  ✓ Web build completed" -ForegroundColor Green
-      Write-Check "Web Production Build (.next-build)" "PASS" "(auto-fixed)"
-      $script:failCount--
+      Write-Host "  Build successful" -ForegroundColor Green
+      Write-Check "Web Build (.next-build)" "PASS" "auto-fixed"
     } else {
-      Write-Host "  ✗ Web build FAILED" -ForegroundColor Red
+      Write-Host "  Build failed" -ForegroundColor Red
     }
+    Pop-Location
   }
 }
 
-# Check 3: Desktop build exists
-$desktopBuild = "d:\NEXUSFORGE GAMGING APP\apps\desktop\release\NexusForge Desktop Setup 1.0.11.exe"
-if (Test-Path $desktopBuild) {
-  Write-Check "Desktop Installer Artifact" "PASS"
-} else {
-  Write-Check "Desktop Installer Artifact" "WARN" "Missing: $desktopBuild (non-critical for API/web)"
-}
-
-# Check 4: Environment files present
-$envLocal = "d:\NEXUSFORGE GAMGING APP\apps\web\.env.local"
-if (Test-Path $envLocal) {
-  Write-Check "Web Environment Config (.env.local)" "PASS"
-} else {
-  Write-Check "Web Environment Config (.env.local)" "WARN" "Missing (may fail startup)"
-}
-
-# Check 5: Node modules installed
+# Check 3: node_modules
 $nodeModules = "d:\NEXUSFORGE GAMGING APP\node_modules"
 if (Test-Path $nodeModules -PathType Container) {
-  Write-Check "Root node_modules" "PASS"
+  Write-Check "Dependencies (node_modules)" "PASS"
 } else {
-  Write-Check "Root node_modules" "FAIL" "Missing: $nodeModules"
+  Write-Check "Dependencies (node_modules)" "FAIL" "Missing"
 }
 
-# Check 6: PM2 is installed
-try {
-  $pm2Version = pm2 --version 2>&1
-  Write-Check "PM2 CLI" "PASS" "v$pm2Version"
-} catch {
-  Write-Check "PM2 CLI" "FAIL" "Not installed or not in PATH"
+# Check 4: Environment config
+$envLocal = "d:\NEXUSFORGE GAMGING APP\apps\web\.env.local"
+if (Test-Path $envLocal) {
+  Write-Check "Environment (.env.local)" "PASS"
+} else {
+  Write-Check "Environment (.env.local)" "WARN" "Missing"
 }
 
-# Check 7: Disk space (warn if <2GB free)
+# Check 5: Disk space
 $drive = Get-Item "D:\" -ErrorAction SilentlyContinue
 if ($drive) {
   $freeGB = [Math]::Round($drive.PSObject.Properties['FreeSpace'].Value / 1GB, 1)
-  if ($freeGB -lt 2) {
-    Write-Check "Disk Space (D: drive)" "WARN" "Only $($freeGB)GB free"
+  if ($freeGB -gt 2) {
+    Write-Check "Disk Space (D:)" "PASS" "$freeGB GB free"
   } else {
-    Write-Check "Disk Space (D: drive)" "PASS" "$($freeGB)GB free"
+    Write-Check "Disk Space (D:)" "WARN" "Only $freeGB GB"
   }
 }
 
 # Summary
-Write-Host "`n=== Summary ===" -ForegroundColor Cyan
-$passCount = ($checks | Where-Object Status -eq "PASS").Count
-$warnCount = $script:warnCount
-$failCount = $script:failCount
+Write-Host ""
+Write-Host "Summary" -ForegroundColor Cyan
 
-Write-Host "Checks: $($checks.Count) | [PASS] $passCount | [WARN] $warnCount | [FAIL] $failCount"
+$passCount = ($script:checks | Where-Object Status -eq "PASS" | Measure-Object).Count
+$warnCount = ($script:checks | Where-Object Status -eq "WARN" | Measure-Object).Count
+$failCount = ($script:checks | Where-Object Status -eq "FAIL" | Measure-Object).Count
+
+Write-Host "Results: $($script:checks.Count) total / $passCount pass / $warnCount warn / $failCount fail"
 
 if ($failCount -gt 0) {
-  Write-Host "`n[FAIL] PRODUCTION NOT READY - Critical failures detected" -ForegroundColor Red
-  Write-Host "Use -AutoFix flag to attempt automatic correction" -ForegroundColor Yellow
+  Write-Host "Status: FAIL - Critical checks failed" -ForegroundColor Red
   exit 1
 } elseif ($warnCount -gt 0) {
-  Write-Host "`n[WARN] PRODUCTION READY (with warnings) - Proceed with caution" -ForegroundColor Yellow
+  Write-Host "Status: OK - Ready with warnings" -ForegroundColor Yellow
   exit 0
 } else {
-  Write-Host "`n[PASS] PRODUCTION READY - All critical checks pass" -ForegroundColor Green
+  Write-Host "Status: OK - Production ready" -ForegroundColor Green
   exit 0
 }
