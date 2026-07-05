@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { useAuthStore } from "@/store/auth-store";
@@ -10,6 +10,7 @@ const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
 const HEALTH_REFRESH_INTERVAL_MS = 30_000;
 const HEALTH_STALE_AFTER_MS = HEALTH_REFRESH_INTERVAL_MS * 3;
 const WORKSPACE_AVATAR_KEY = "nexusforge-workspace-avatar";
+const MAX_AVATAR_FILE_BYTES = 5 * 1024 * 1024;
 
 type AvatarPreset = {
   id: string;
@@ -57,6 +58,59 @@ type GateHealthResponse = {
 
 function appendHealthSample(previous: WorkspaceHealthStatus[], sample: WorkspaceHealthStatus): WorkspaceHealthStatus[] {
   return [...previous, sample].slice(-10);
+}
+
+function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to decode image."));
+    image.src = dataUrl;
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Invalid file payload."));
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed reading image file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function buildSquareAvatarDataUrl(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please upload a valid image file.");
+  }
+
+  if (file.size > MAX_AVATAR_FILE_BYTES) {
+    throw new Error("Image is too large. Max size is 5MB.");
+  }
+
+  const fileDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromDataUrl(fileDataUrl);
+
+  const sourceSize = Math.min(image.width, image.height);
+  const sourceX = Math.floor((image.width - sourceSize) / 2);
+  const sourceY = Math.floor((image.height - sourceSize) / 2);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Canvas processing unavailable.");
+  }
+
+  context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 256, 256);
+  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 function WorkspaceAnalyticsCards({
@@ -215,7 +269,7 @@ function WorkspaceVisualGallery() {
       {imageCards.map((card) => (
         <article key={card.src} className="nexus-display-panel overflow-hidden rounded-[24px] p-0 text-slate-700">
           <div className="relative aspect-[16/10] w-full bg-slate-100">
-            <Image src={card.src} alt={card.alt} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
+            <NextImage src={card.src} alt={card.alt} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
           </div>
           <div className="p-4">
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
@@ -232,16 +286,29 @@ function WorkspaceAvatarSection({
   username,
   roleLabel,
   onSelectAvatar,
+  onUploadAvatar,
   hasCustomAvatar,
   customAvatarUrl,
+  uploadError,
+  isUploading,
 }: {
   activeAvatar: string;
   username: string;
   roleLabel: string;
   onSelectAvatar: (avatarUrl: string) => void;
+  onUploadAvatar: (file: File) => Promise<void>;
   hasCustomAvatar: boolean;
   customAvatarUrl: string;
+  uploadError: string | null;
+  isUploading: boolean;
 }) {
+  async function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+    await onUploadAvatar(selectedFile);
+    event.target.value = "";
+  }
+
   return (
     <section className="mb-4 nexus-display-panel overflow-hidden rounded-[24px] p-5 text-slate-700">
       <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -261,16 +328,24 @@ function WorkspaceAvatarSection({
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Avatar Presets</p>
-            {hasCustomAvatar ? (
-              <button
-                type="button"
-                onClick={() => onSelectAvatar(customAvatarUrl)}
-                className="inline-flex items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                Use Account Avatar
-              </button>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100">
+                {isUploading ? "Processing..." : "Upload Avatar"}
+                <input type="file" accept="image/*" className="hidden" onChange={(event) => void handleAvatarFileChange(event)} disabled={isUploading} />
+              </label>
+              {hasCustomAvatar ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectAvatar(customAvatarUrl)}
+                  className="inline-flex items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
+                >
+                  Use Account Avatar
+                </button>
+              ) : null}
+            </div>
           </div>
+
+          {uploadError ? <p className="mt-2 text-xs text-rose-600">{uploadError}</p> : null}
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {AVATAR_PRESETS.map((preset) => {
@@ -283,7 +358,7 @@ function WorkspaceAvatarSection({
                   className={`group flex items-center gap-3 rounded-[16px] border bg-white/90 p-3 text-left transition-all ${active ? `${preset.tone} shadow-[0_8px_20px_rgba(15,23,42,0.12)]` : "border-slate-200/80 hover:border-slate-300/80"}`}
                 >
                   <div className="relative h-12 w-12 overflow-hidden rounded-full border border-slate-200 bg-white">
-                    <Image src={preset.src} alt={`${preset.label} avatar preset`} fill sizes="48px" className="object-cover" />
+                    <NextImage src={preset.src} alt={`${preset.label} avatar preset`} fill sizes="48px" className="object-cover" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">{preset.label}</p>
@@ -311,6 +386,8 @@ export default function WorkspacePage() {
   const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
   const [healthTimeline, setHealthTimeline] = useState<WorkspaceHealthStatus[]>([]);
   const [activeAvatar, setActiveAvatar] = useState(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -513,9 +590,25 @@ export default function WorkspacePage() {
   const accountAvatarUrl = currentUser?.avatar ?? "";
 
   function handleAvatarSelection(avatarUrl: string) {
+    setAvatarUploadError(null);
     setActiveAvatar(avatarUrl);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(WORKSPACE_AVATAR_KEY, avatarUrl);
+    }
+  }
+
+  async function handleAvatarUpload(file: File) {
+    setAvatarUploading(true);
+    setAvatarUploadError(null);
+
+    try {
+      const processedAvatarDataUrl = await buildSquareAvatarDataUrl(file);
+      handleAvatarSelection(processedAvatarDataUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to process avatar image.";
+      setAvatarUploadError(message);
+    } finally {
+      setAvatarUploading(false);
     }
   }
 
@@ -637,8 +730,11 @@ export default function WorkspacePage() {
         username={avatarDisplayName}
         roleLabel={roleLabel}
         onSelectAvatar={handleAvatarSelection}
+        onUploadAvatar={handleAvatarUpload}
         hasCustomAvatar={Boolean(accountAvatarUrl)}
         customAvatarUrl={accountAvatarUrl}
+        uploadError={avatarUploadError}
+        isUploading={avatarUploading}
       />
 
       {!isReady ? (
