@@ -9,6 +9,23 @@ import { useAuthStore } from "@/store/auth-store";
 const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
 const HEALTH_REFRESH_INTERVAL_MS = 30_000;
 const HEALTH_STALE_AFTER_MS = HEALTH_REFRESH_INTERVAL_MS * 3;
+const WORKSPACE_AVATAR_KEY = "nexusforge-workspace-avatar";
+
+type AvatarPreset = {
+  id: string;
+  label: string;
+  src: string;
+  tone: string;
+};
+
+const AVATAR_PRESETS: AvatarPreset[] = [
+  { id: "vip", label: "VIP", src: "/brand/profile-badge-vip.png", tone: "border-amber-300/60" },
+  { id: "legend", label: "Legend", src: "/brand/profile-badge-legend.png", tone: "border-fuchsia-300/60" },
+  { id: "staff", label: "Staff", src: "/brand/profile-badge-staff.png", tone: "border-sky-300/60" },
+  { id: "moderator", label: "Mod", src: "/brand/profile-badge-moderator.png", tone: "border-emerald-300/60" },
+  { id: "admin", label: "Admin", src: "/brand/profile-badge-admin.png", tone: "border-rose-300/60" },
+  { id: "owner", label: "Owner", src: "/brand/profile-badge-owner.png", tone: "border-indigo-300/60" },
+];
 
 function formatDateLabel(value?: string | null): string {
   if (!value) return "Unknown";
@@ -210,6 +227,78 @@ function WorkspaceVisualGallery() {
   );
 }
 
+function WorkspaceAvatarSection({
+  activeAvatar,
+  username,
+  roleLabel,
+  onSelectAvatar,
+  hasCustomAvatar,
+  customAvatarUrl,
+}: {
+  activeAvatar: string;
+  username: string;
+  roleLabel: string;
+  onSelectAvatar: (avatarUrl: string) => void;
+  hasCustomAvatar: boolean;
+  customAvatarUrl: string;
+}) {
+  return (
+    <section className="mb-4 nexus-display-panel overflow-hidden rounded-[24px] p-5 text-slate-700">
+      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="relative rounded-[20px] border border-slate-200/80 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.18),rgba(255,255,255,0.95)_58%)] p-5">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Avatar Command</p>
+          <div className="mt-3 flex justify-center">
+            <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-white shadow-[0_14px_30px_rgba(15,23,42,0.22)]">
+              {/* Keep preview flexible for both local and account-provided image URLs. */}
+              <img src={activeAvatar} alt={`${username} avatar`} className="h-full w-full object-cover" draggable={false} />
+            </div>
+          </div>
+          <p className="mt-4 text-center text-sm font-semibold text-slate-800">{username}</p>
+          <p className="mt-1 text-center text-xs uppercase tracking-[0.16em] text-slate-500">{roleLabel}</p>
+          <p className="mt-3 text-center text-xs text-slate-600">Selection is saved on this device for instant workspace identity continuity.</p>
+        </div>
+
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Avatar Presets</p>
+            {hasCustomAvatar ? (
+              <button
+                type="button"
+                onClick={() => onSelectAvatar(customAvatarUrl)}
+                className="inline-flex items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
+              >
+                Use Account Avatar
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {AVATAR_PRESETS.map((preset) => {
+              const active = activeAvatar === preset.src;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => onSelectAvatar(preset.src)}
+                  className={`group flex items-center gap-3 rounded-[16px] border bg-white/90 p-3 text-left transition-all ${active ? `${preset.tone} shadow-[0_8px_20px_rgba(15,23,42,0.12)]` : "border-slate-200/80 hover:border-slate-300/80"}`}
+                >
+                  <div className="relative h-12 w-12 overflow-hidden rounded-full border border-slate-200 bg-white">
+                    <Image src={preset.src} alt={`${preset.label} avatar preset`} fill sizes="48px" className="object-cover" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">{preset.label}</p>
+                    <p className="text-[11px] text-slate-500">{active ? "Selected" : "Set as avatar"}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function WorkspacePage() {
   const { user, hydrated } = useAuthStore();
   const [sessionMode, setSessionMode] = useState("local");
@@ -221,6 +310,7 @@ export default function WorkspacePage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
   const [healthTimeline, setHealthTimeline] = useState<WorkspaceHealthStatus[]>([]);
+  const [activeAvatar, setActiveAvatar] = useState(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -229,6 +319,28 @@ export default function WorkspacePage() {
       setSessionMode(mode);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedAvatar = window.localStorage.getItem(WORKSPACE_AVATAR_KEY);
+    if (storedAvatar) {
+      setActiveAvatar(storedAvatar);
+      return;
+    }
+
+    if (user?.avatar) {
+      setActiveAvatar(user.avatar);
+      return;
+    }
+
+    if (user?.isAdmin) {
+      setActiveAvatar("/brand/profile-badge-admin.png");
+      return;
+    }
+
+    setActiveAvatar(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
+  }, [user?.avatar, user?.isAdmin]);
 
   useEffect(() => {
     const tickId = window.setInterval(() => {
@@ -393,6 +505,19 @@ export default function WorkspacePage() {
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
+  const avatarDisplayName = useMemo(() => {
+    if (currentUser?.username) return currentUser.username;
+    return isGuest ? "Guest Commander" : "Forge Commander";
+  }, [currentUser?.username, isGuest]);
+
+  const accountAvatarUrl = currentUser?.avatar ?? "";
+
+  function handleAvatarSelection(avatarUrl: string) {
+    setActiveAvatar(avatarUrl);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(WORKSPACE_AVATAR_KEY, avatarUrl);
+    }
+  }
 
   return (
     <ExperienceShell
@@ -506,6 +631,15 @@ export default function WorkspacePage() {
       </div>
 
       <WorkspaceVisualGallery />
+
+      <WorkspaceAvatarSection
+        activeAvatar={activeAvatar}
+        username={avatarDisplayName}
+        roleLabel={roleLabel}
+        onSelectAvatar={handleAvatarSelection}
+        hasCustomAvatar={Boolean(accountAvatarUrl)}
+        customAvatarUrl={accountAvatarUrl}
+      />
 
       {!isReady ? (
         <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading workspace profile...</div>
