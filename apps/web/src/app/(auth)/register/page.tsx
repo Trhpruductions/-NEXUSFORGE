@@ -28,16 +28,24 @@ const schema = z
 
 type RegisterForm = z.infer<typeof schema>;
 
+function sanitizeRedirectTarget(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/")) return null;
+  if (raw.startsWith("//")) return null;
+  return raw;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
-  const [redirectTarget, setRedirectTarget] = useState("/app");
+  const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   const setSession = useAuthStore((state) => state.setSession);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setRedirectTarget(params.get("redirect") || params.get("next") || "/app");
+    const requested = sanitizeRedirectTarget(params.get("redirect") || params.get("next"));
+    setRedirectTarget(requested);
   }, []);
 
   const {
@@ -67,7 +75,8 @@ export default function RegisterPage() {
         rememberMe: true,
       });
       setVerificationToken(payload.verification.token);
-      router.push(redirectTarget);
+      const defaultDestination = payload.user.isAdmin ? "/admin" : "/workspace";
+      router.push(redirectTarget ?? defaultDestination);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Registration failed");
     }
@@ -116,7 +125,7 @@ export default function RegisterPage() {
         subtitle="Join NexusForge and launch your first Forge"
         footer={
           <div className="flex items-center justify-end">
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget)}`} className="text-amber-700 hover:text-amber-600">
+            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/workspace")}`} className="text-amber-700 hover:text-amber-600">
               Already have an account?
             </Link>
           </div>
