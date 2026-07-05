@@ -4,8 +4,10 @@
 
 param(
   [string]$ReportPath = "var/stability-report-24h.json",
+  [string]$GateOutputPath = "var/stability-gate-latest.json",
   [int]$WatchdogMaxAgeSeconds = 900,
   [int]$ExpectedManagedServiceCount = 3,
+  [switch]$Strict = $false,
   [switch]$Checkpoint = $false,
   [switch]$Summary = $false
 )
@@ -317,18 +319,53 @@ try {
 # Summary
 Write-Host "`n" + ("=" * 60) -ForegroundColor Cyan
 $passCount = ($metrics.checks | Where-Object { $_.status -eq "PASS" }).Count
+$warningCount = ($metrics.checks | Where-Object { $_.status -eq "WARNING" }).Count
 $failCount = ($metrics.checks | Where-Object { $_.status -eq "FAIL" }).Count
 $errorCount = ($metrics.checks | Where-Object { $_.status -eq "ERROR" }).Count
-$blockingCount = $failCount + $errorCount
+$blockingCount = $failCount + $errorCount + $(if ($Strict) { $warningCount } else { 0 })
 $totalChecks = $metrics.checks.Count
 
 Write-Host "Summary: $passCount/$totalChecks checks PASSED" -ForegroundColor $(if ($blockingCount -eq 0) { "Green" } else { "Red" })
+if ($warningCount -gt 0) {
+  Write-Host "Warnings: $warningCount" -ForegroundColor Yellow
+}
+if ($Strict) {
+  Write-Host "Strict Mode: ON (warnings are blocking)" -ForegroundColor Yellow
+}
 
 if ($blockingCount -gt 0) {
   Write-Host "FAILURES DETECTED:" -ForegroundColor Red
-  $metrics.checks | Where-Object { $_.status -in @("FAIL", "ERROR") } | ForEach-Object {
+  $metrics.checks | Where-Object { $_.status -in $(if ($Strict) { @("FAIL", "ERROR", "WARNING") } else { @("FAIL", "ERROR") }) } | ForEach-Object {
     Write-Host "  - $($_.name): $($_.detail)" -ForegroundColor Red
   }
+}
+
+# Emit a machine-readable gate summary for CI/CD and ops dashboards.
+if ($GateOutputPath -and $GateOutputPath.Trim()) {
+  $gateDir = Split-Path -Parent $GateOutputPath
+  if ($gateDir) {
+    New-Item -Path $gateDir -ItemType Directory -Force | Out-Null
+  }
+
+  $gateResult = @{
+    generatedAt = (Get-Date).ToString("o")
+    strictMode = [bool]$Strict
+    passed = ($blockingCount -eq 0)
+    counts = @{
+      total = $totalChecks
+      pass = $passCount
+      warning = $warningCount
+      fail = $failCount
+      error = $errorCount
+      blocking = $blockingCount
+    }
+    checks = $metrics.checks
+    checkpointRequested = [bool]($Checkpoint -or $Summary)
+    reportPath = $ReportPath
+  }
+
+  $gateResult | ConvertTo-Json -Depth 10 | Set-Content -Path $GateOutputPath -Encoding UTF8
+  Write-Host "Gate result saved: $GateOutputPath" -ForegroundColor Gray
 }
 
 # Save report
