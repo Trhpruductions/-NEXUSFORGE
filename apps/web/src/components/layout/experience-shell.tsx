@@ -6,8 +6,6 @@ import Link from "next/link";
 import { globalNavActions } from "./experience-shell-nav";
 
 import type { ExperienceAction, ExperienceMetric } from "./experience-shell-types";
-
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type ExperienceShellProps = {
@@ -55,12 +53,13 @@ export function ExperienceShell({
               <div className="flex flex-wrap items-center gap-4">
                 <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-950/70 p-2 shadow-[inset_0_0_10px_rgba(15,23,42,0.2)] group">
                    <div className="absolute top-0 right-0 h-3 w-3 bg-amber-300/60" />
-                   <Image 
-                     src="/brand/nexusforge-logo.png" 
-                     alt="NF" 
-                     width={100} 
-                     height={25} 
+                   <img
+                     src="/brand/nexusforge-logo.png"
+                     alt="NF"
+                     width={100}
+                     height={25}
                      className="h-auto w-auto transition-all duration-300 group-hover:scale-110"
+                     draggable={false}
                    />
                 </div>
                 {showGlobalNav ? (
@@ -71,6 +70,7 @@ export function ExperienceShell({
                         <Link
                           key={action.href}
                           href={action.href}
+                          prefetch={false}
                           className={cn(
                             "inline-flex h-10 items-center rounded-full border px-4 text-[10px] font-semibold uppercase tracking-[0.25em] transition-all",
                             isActive 
@@ -103,6 +103,7 @@ export function ExperienceShell({
                   <Link
                     key={`${action.href}-${action.label}`}
                     href={action.href}
+                    prefetch={false}
                     className={cn(
                       "inline-flex h-12 items-center rounded-full px-6 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all",
                       action.tone === "primary"
