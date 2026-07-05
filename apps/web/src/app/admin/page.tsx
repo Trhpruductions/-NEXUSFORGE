@@ -8,6 +8,52 @@ import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { getAdminAgeGateAudit } from "@/lib/api";
 
+function RegularUserAccessView() {
+  return (
+    <ExperienceShell
+      eyebrow="Regular User Workspace"
+      title="This Area Is Built For Admin Operations"
+      subtitle="Your account is fully active for community, mining, rewards, and profile features. Admin governance tools remain restricted to administrator roles."
+      metrics={[
+        { label: "Access", value: "User Workspace", tone: "emerald" },
+        { label: "Admin Console", value: "Restricted", tone: "amber" },
+        { label: "Recommended", value: "Go to /app", tone: "cyan" },
+      ]}
+      actions={[
+        { label: "Open Workspace", href: "/app", tone: "primary" },
+        { label: "Notifications", href: "/notifications", tone: "ghost" },
+        { label: "Profile", href: "/app/profile", tone: "ghost" },
+      ]}
+      maxWidthClassName="max-w-7xl"
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700">What You Can Access</p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            <li>Live activity feed, friends, and voice collaboration</li>
+            <li>Mining, rewards, and crypto progression systems</li>
+            <li>Personal profile and notification controls</li>
+          </ul>
+        </section>
+
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Why This Page Is Restricted</p>
+          <p className="mt-3 text-sm text-slate-700">
+            The admin console controls launch governance, moderation, and age-gate review workflows. These operations require elevated trust and are isolated from standard user journeys.
+          </p>
+        </section>
+
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600 md:col-span-2 xl:col-span-1">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-sky-700">Need Elevated Access?</p>
+          <p className="mt-3 text-sm text-slate-700">
+            If you believe you need admin capabilities, contact a current administrator and request role verification through the normal governance path.
+          </p>
+        </section>
+      </div>
+    </ExperienceShell>
+  );
+}
+
 export default function AdminPage() {
   const { accessToken, csrfToken, user, hydrated } = useAuthStore();
 
@@ -73,24 +119,7 @@ export default function AdminPage() {
   }
 
   if (!user.isAdmin) {
-    return (
-      <ExperienceShell
-        eyebrow="Access Denied"
-        title="Admin Only"
-        subtitle="You do not have permission to access moderation and governance controls."
-        metrics={[
-          { label: "Access", value: "Restricted", tone: "amber" },
-          { label: "Required Role", value: "ADMIN", tone: "slate" },
-        ]}
-        actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]}
-        maxWidthClassName="max-w-7xl"
-      >
-        <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-600">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Restricted Access</p>
-          <p className="mt-2">Your current account lacks admin privileges.</p>
-        </div>
-      </ExperienceShell>
-    );
+    return <RegularUserAccessView />;
   }
 
   return (
