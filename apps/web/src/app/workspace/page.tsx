@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth-store";
 
 const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
 const HEALTH_REFRESH_INTERVAL_MS = 30_000;
+const HEALTH_STALE_AFTER_MS = HEALTH_REFRESH_INTERVAL_MS * 3;
 
 function formatDateLabel(value?: string | null): string {
   if (!value) return "Unknown";
@@ -174,6 +175,7 @@ export default function WorkspacePage() {
   const [isHealthRefreshing, setIsHealthRefreshing] = useState(false);
   const [lastHealthCheckedAt, setLastHealthCheckedAt] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -181,7 +183,17 @@ export default function WorkspacePage() {
     if (mode === "local" || mode === "session") {
       setSessionMode(mode);
     }
-  }, [refreshTrigger]);
+  }, []);
+
+  useEffect(() => {
+    const tickId = window.setInterval(() => {
+      setNowEpochMs(Date.now());
+    }, 5_000);
+
+    return () => {
+      window.clearInterval(tickId);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -246,7 +258,7 @@ export default function WorkspacePage() {
         activeController.abort();
       }
     };
-  }, []);
+  }, [refreshTrigger]);
 
   const roleLabel = useMemo(() => {
     if (!user) return "Guest";
@@ -260,7 +272,23 @@ export default function WorkspacePage() {
     return user.premium ? "ACTIVE" : "NONE";
   }, [user]);
 
+  const lastCheckedAgeMs = useMemo(() => {
+    if (!lastHealthCheckedAt) return null;
+    const parsed = new Date(lastHealthCheckedAt).getTime();
+    if (Number.isNaN(parsed)) return null;
+    return Math.max(0, nowEpochMs - parsed);
+  }, [lastHealthCheckedAt, nowEpochMs]);
+
+  const isHealthStale = useMemo(() => {
+    if (lastCheckedAgeMs == null) return false;
+    return lastCheckedAgeMs > HEALTH_STALE_AFTER_MS;
+  }, [lastCheckedAgeMs]);
+
   const healthMetric = useMemo(() => {
+    if (isHealthStale) {
+      return { value: "Stale", tone: "amber" as const };
+    }
+
     if (healthStatus === "healthy") {
       return { value: "Healthy", tone: "emerald" as const };
     }
@@ -270,13 +298,14 @@ export default function WorkspacePage() {
     }
 
     return { value: "Unknown", tone: "slate" as const };
-  }, [healthStatus]);
+  }, [healthStatus, isHealthStale]);
 
   const healthBadgeClass = useMemo(() => {
+    if (isHealthStale) return "text-amber-700 border-amber-300/60 bg-amber-50";
     if (healthStatus === "healthy") return "text-emerald-700 border-emerald-300/60 bg-emerald-50";
     if (healthStatus === "degraded") return "text-amber-700 border-amber-300/60 bg-amber-50";
     return "text-slate-600 border-slate-300/60 bg-slate-100";
-  }, [healthStatus]);
+  }, [healthStatus, isHealthStale]);
 
   const generatedAtLabel = useMemo(() => {
     if (!gateHealth?.generatedAt) return "Unavailable";
@@ -291,6 +320,14 @@ export default function WorkspacePage() {
     if (Number.isNaN(parsed.getTime())) return "Pending";
     return parsed.toLocaleString();
   }, [lastHealthCheckedAt]);
+
+  const freshnessLabel = useMemo(() => {
+    if (isHealthRefreshing) return "Refreshing";
+    if (lastCheckedAgeMs == null) return "Pending";
+    if (lastCheckedAgeMs > HEALTH_STALE_AFTER_MS) return "Stale";
+    if (lastCheckedAgeMs > HEALTH_REFRESH_INTERVAL_MS) return "Aging";
+    return "Fresh";
+  }, [isHealthRefreshing, lastCheckedAgeMs]);
 
   const isGuest = hydrated && !user;
   const isReady = hydrated;
@@ -320,6 +357,7 @@ export default function WorkspacePage() {
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Runtime Health</p>
             <p className="mt-1 text-sm text-slate-700">Inspect live gate results without leaving workspace.</p>
             <p className="mt-1 text-xs text-slate-500">Last checked: {lastCheckedLabel}</p>
+            <p className="mt-1 text-xs text-slate-500">Freshness: {freshnessLabel}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -360,6 +398,16 @@ export default function WorkspacePage() {
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Blocking Issues</p>
               <p className="mt-2 text-sm font-semibold text-slate-800">{gateHealth?.counts ? String(gateHealth.counts.blocking) : "Unavailable"}</p>
             </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Warnings</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{gateHealth?.counts ? String(gateHealth.counts.warning) : "Unavailable"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Failures + Errors</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">
+                {gateHealth?.counts ? String(gateHealth.counts.fail + gateHealth.counts.error) : "Unavailable"}
+              </p>
+            </div>
             <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 sm:col-span-2 xl:col-span-4">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Checkpoint Action</p>
               <p className="mt-2 text-sm text-slate-700">
@@ -371,6 +419,10 @@ export default function WorkspacePage() {
                       : "Checkpoint requested"
                   : "No checkpoint requested in this run"}
               </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 sm:col-span-2 xl:col-span-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Gate Detail</p>
+              <p className="mt-2 text-sm text-slate-700">{gateHealth?.detail ?? "No additional detail"}</p>
             </div>
           </div>
         ) : null}
