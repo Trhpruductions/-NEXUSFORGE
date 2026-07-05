@@ -18,8 +18,13 @@ type WorkspaceHealthStatus = "healthy" | "degraded" | "unknown";
 
 type GateHealthResponse = {
   status: WorkspaceHealthStatus;
+  detail?: string;
   generatedAt?: string | null;
   strictMode?: boolean;
+  checkpointRequested?: boolean;
+  checkpointSaved?: boolean;
+  checkpointSkipped?: boolean;
+  checkpointSkipReason?: string;
   counts?: {
     total: number;
     pass: number;
@@ -163,6 +168,8 @@ export default function WorkspacePage() {
   const { user, hydrated } = useAuthStore();
   const [sessionMode, setSessionMode] = useState("local");
   const [healthStatus, setHealthStatus] = useState<WorkspaceHealthStatus>("unknown");
+  const [healthDetailsOpen, setHealthDetailsOpen] = useState(false);
+  const [gateHealth, setGateHealth] = useState<GateHealthResponse | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -187,6 +194,7 @@ export default function WorkspacePage() {
 
         const payload = (await response.json()) as GateHealthResponse;
         if (active) {
+          setGateHealth(payload);
           if (payload.status === "healthy" || payload.status === "degraded") {
             setHealthStatus(payload.status);
           } else {
@@ -195,6 +203,7 @@ export default function WorkspacePage() {
         }
       } catch {
         if (active) {
+          setGateHealth(null);
           setHealthStatus("unknown");
         }
       }
@@ -231,6 +240,19 @@ export default function WorkspacePage() {
     return { value: "Unknown", tone: "slate" as const };
   }, [healthStatus]);
 
+  const healthBadgeClass = useMemo(() => {
+    if (healthStatus === "healthy") return "text-emerald-700 border-emerald-300/60 bg-emerald-50";
+    if (healthStatus === "degraded") return "text-amber-700 border-amber-300/60 bg-amber-50";
+    return "text-slate-600 border-slate-300/60 bg-slate-100";
+  }, [healthStatus]);
+
+  const generatedAtLabel = useMemo(() => {
+    if (!gateHealth?.generatedAt) return "Unavailable";
+    const parsed = new Date(gateHealth.generatedAt);
+    if (Number.isNaN(parsed.getTime())) return "Unavailable";
+    return parsed.toLocaleString();
+  }, [gateHealth?.generatedAt]);
+
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
@@ -253,6 +275,57 @@ export default function WorkspacePage() {
       ]}
       maxWidthClassName="max-w-7xl"
     >
+      <div className="mb-4 nexus-display-panel rounded-[24px] p-4 text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Runtime Health</p>
+            <p className="mt-1 text-sm text-slate-700">Inspect live gate results without leaving workspace.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setHealthDetailsOpen((current) => !current)}
+            className={`inline-flex items-center rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${healthBadgeClass}`}
+          >
+            {healthMetric.value} · {healthDetailsOpen ? "Hide" : "Show"} Details
+          </button>
+        </div>
+
+        {healthDetailsOpen ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Generated</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{generatedAtLabel}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Strict Mode</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{gateHealth?.strictMode ? "Enabled" : "Disabled"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Pass / Total</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">
+                {gateHealth?.counts ? `${gateHealth.counts.pass}/${gateHealth.counts.total}` : "Unavailable"}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Blocking Issues</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{gateHealth?.counts ? String(gateHealth.counts.blocking) : "Unavailable"}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 sm:col-span-2 xl:col-span-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Checkpoint Action</p>
+              <p className="mt-2 text-sm text-slate-700">
+                {gateHealth?.checkpointRequested
+                  ? gateHealth?.checkpointSaved
+                    ? "Checkpoint saved"
+                    : gateHealth?.checkpointSkipped
+                      ? `Checkpoint skipped (${gateHealth.checkpointSkipReason ?? "unknown-reason"})`
+                      : "Checkpoint requested"
+                  : "No checkpoint requested in this run"}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {!isReady ? (
         <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading workspace profile...</div>
       ) : isGuest ? (
