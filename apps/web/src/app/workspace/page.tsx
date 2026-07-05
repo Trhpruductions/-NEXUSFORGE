@@ -10,6 +10,7 @@ const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
 const HEALTH_REFRESH_INTERVAL_MS = 30_000;
 const HEALTH_STALE_AFTER_MS = HEALTH_REFRESH_INTERVAL_MS * 3;
 const WORKSPACE_AVATAR_KEY = "nexusforge-workspace-avatar";
+const WORKSPACE_BADGE_KEY = "nexusforge-workspace-badge";
 const MAX_AVATAR_FILE_BYTES = 5 * 1024 * 1024;
 
 type AvatarPreset = {
@@ -301,9 +302,11 @@ function WorkspaceVisualGallery() {
 
 function WorkspaceAvatarSection({
   activeAvatar,
+  activeBadge,
   username,
   roleLabel,
   onSelectAvatar,
+  onSelectBadge,
   onStageAvatarUpload,
   onApplyStagedAvatar,
   onCancelStagedAvatar,
@@ -320,9 +323,11 @@ function WorkspaceAvatarSection({
   onOffsetYChange,
 }: {
   activeAvatar: string;
+  activeBadge: string;
   username: string;
   roleLabel: string;
   onSelectAvatar: (avatarUrl: string) => void;
+  onSelectBadge: (badgeUrl: string) => void;
   onStageAvatarUpload: (file: File) => Promise<void>;
   onApplyStagedAvatar: () => Promise<void>;
   onCancelStagedAvatar: () => void;
@@ -365,12 +370,18 @@ function WorkspaceAvatarSection({
           </div>
           <p className="mt-4 text-center text-sm font-semibold text-slate-800">{username}</p>
           <p className="mt-1 text-center text-xs uppercase tracking-[0.16em] text-slate-500">{roleLabel}</p>
+          <div className="mt-3 rounded-xl border border-slate-200/80 bg-white/85 p-2">
+            <p className="text-center text-[9px] uppercase tracking-[0.16em] text-slate-500">Active Badge</p>
+            <div className="relative mt-1 h-8 w-full overflow-hidden rounded-md bg-slate-50">
+                <NextImage src={activeBadge} alt="Active badge" fill sizes="240px" className="object-contain" />
+            </div>
+          </div>
           <p className="mt-3 text-center text-xs text-slate-600">Selection is saved on this device for instant workspace identity continuity.</p>
         </div>
 
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Avatar Presets</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Badge Presets</p>
             <div className="flex flex-wrap items-center gap-2">
               <label
                 className="inline-flex cursor-pointer items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
@@ -469,20 +480,20 @@ function WorkspaceAvatarSection({
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {AVATAR_PRESETS.map((preset) => {
-              const active = activeAvatar === preset.src;
+              const active = activeBadge === preset.src;
               return (
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => onSelectAvatar(preset.src)}
+                  onClick={() => onSelectBadge(preset.src)}
                   className={`group flex items-center gap-3 rounded-[16px] border bg-white/90 p-3 text-left transition-all ${active ? `${preset.tone} shadow-[0_8px_20px_rgba(15,23,42,0.12)]` : "border-slate-200/80 hover:border-slate-300/80"}`}
                 >
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full border border-slate-200 bg-white">
-                    <NextImage src={preset.src} alt={`${preset.label} avatar preset`} fill sizes="48px" className="object-cover" />
+                  <div className="relative h-9 w-20 overflow-hidden rounded-md border border-slate-200 bg-white">
+                    <NextImage src={preset.src} alt={`${preset.label} badge preset`} fill sizes="80px" className="object-contain" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-700">{preset.label}</p>
-                    <p className="text-[11px] text-slate-500">{active ? "Selected" : "Set as avatar"}</p>
+                    <p className="text-[11px] text-slate-500">{active ? "Selected badge" : "Set as badge"}</p>
                   </div>
                 </button>
               );
@@ -506,6 +517,7 @@ export default function WorkspacePage() {
   const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
   const [healthTimeline, setHealthTimeline] = useState<WorkspaceHealthStatus[]>([]);
   const [activeAvatar, setActiveAvatar] = useState(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
+  const [activeBadge, setActiveBadge] = useState(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
   const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [stagedAvatarDataUrl, setStagedAvatarDataUrl] = useState<string | null>(null);
@@ -542,6 +554,16 @@ export default function WorkspacePage() {
 
     setActiveAvatar(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
   }, [user?.avatar, user?.isAdmin]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedBadge = window.localStorage.getItem(WORKSPACE_BADGE_KEY);
+    if (storedBadge) {
+      setActiveBadge(storedBadge);
+      return;
+    }
+    setActiveBadge(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
+  }, []);
 
   useEffect(() => {
     const tickId = window.setInterval(() => {
@@ -722,6 +744,13 @@ export default function WorkspacePage() {
     }
   }
 
+  function handleBadgeSelection(badgeUrl: string) {
+    setActiveBadge(badgeUrl);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(WORKSPACE_BADGE_KEY, badgeUrl);
+    }
+  }
+
   async function handleAvatarUpload(file: File) {
     setAvatarUploading(true);
     setAvatarUploadError(null);
@@ -884,9 +913,11 @@ export default function WorkspacePage() {
 
       <WorkspaceAvatarSection
         activeAvatar={activeAvatar}
+        activeBadge={activeBadge}
         username={avatarDisplayName}
         roleLabel={roleLabel}
         onSelectAvatar={handleAvatarSelection}
+        onSelectBadge={handleBadgeSelection}
         onStageAvatarUpload={handleAvatarUpload}
         onApplyStagedAvatar={handleApplyStagedAvatar}
         onCancelStagedAvatar={handleCancelStagedAvatar}
