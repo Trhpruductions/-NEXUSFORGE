@@ -48,6 +48,35 @@ function WorkspaceUserView() {
   );
 }
 
+function WorkspaceAdminView() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700">Admin Account Detected</p>
+        <p className="mt-3 text-sm text-slate-700">
+          You are signed in with administrative privileges. Workspace remains available, but governance tooling is best handled in the admin console.
+        </p>
+      </section>
+
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-sky-700">Recommended Action</p>
+        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+          <li>Open admin dashboard for launch governance</li>
+          <li>Review age-gate and moderation queues</li>
+          <li>Return to workspace for user-journey audits</li>
+        </ul>
+      </section>
+
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600 md:col-span-2 xl:col-span-1">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Operator Note</p>
+        <p className="mt-3 text-sm text-slate-700">
+          Keep policy and economy operations in admin surfaces to reduce accidental workflow crossover during live operations.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 export default function WorkspacePage() {
   const { user, hydrated } = useAuthStore();
 
@@ -65,7 +94,7 @@ export default function WorkspacePage() {
         { label: "Workspace", value: "Operational", tone: "cyan" },
       ]}
       actions={[
-        { label: "Open App Home", href: "/app", tone: "primary" },
+        { label: user?.isAdmin ? "Open Admin Console" : "Open App Home", href: user?.isAdmin ? "/admin" : "/app", tone: "primary" },
         { label: "Mining", href: "/app/mining", tone: "ghost" },
         { label: "Notifications", href: "/notifications", tone: "ghost" },
       ]}
@@ -75,6 +104,8 @@ export default function WorkspacePage() {
         <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading workspace profile...</div>
       ) : isGuest ? (
         <WorkspaceGuestView />
+      ) : user?.isAdmin ? (
+        <WorkspaceAdminView />
       ) : (
         <WorkspaceUserView />
       )}
