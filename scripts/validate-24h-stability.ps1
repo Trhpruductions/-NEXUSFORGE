@@ -7,6 +7,8 @@ param(
   [string]$GateOutputPath = "var/stability-gate-latest.json",
   [int]$WatchdogMaxAgeSeconds = 900,
   [int]$ExpectedManagedServiceCount = 3,
+  [int]$MinCheckpointIntervalSeconds = 300,
+  [int]$FlapSuppressionWindowSeconds = 300,
   [switch]$Strict = $false,
   [switch]$Checkpoint = $false,
   [switch]$Summary = $false
@@ -136,6 +138,10 @@ function Get-WatchdogHealth {
   }
 
   $ageSeconds = [int][Math]::Floor(($NowUtc - $timestamp.UtcDateTime).TotalSeconds)
+  if ($ageSeconds -lt 0) {
+    # Minor clock skew can produce tiny negative ages; clamp to zero.
+    $ageSeconds = 0
+  }
   $durationMs = [int]$record.durationMs
   $mode = [string]$record.mode
   $runNumber = [int]$record.runNumber
@@ -148,6 +154,49 @@ function Get-WatchdogHealth {
     runNumber = $runNumber
     maxAgeSeconds = $MaxAgeSeconds
   }
+}
+
+function Get-ResultFingerprint {
+  param(
+    [Parameter(Mandatory = $true)][object[]]$Results
+  )
+
+  $normalized = @($Results | Sort-Object name | ForEach-Object {
+    [PSCustomObject]@{
+      name = [string]$_.name
+      status = [string]$_.status
+      # Keep only stable, health-significant fields for dedupe comparisons.
+      statusCode = if ($null -ne $_.statusCode) { [int]$_.statusCode } else { $null }
+      watchdogStatus = if ($null -ne $_.watchdogStatus) { [string]$_.watchdogStatus } else { $null }
+      onlineCount = if ($null -ne $_.onlineCount) { [int]$_.onlineCount } else { $null }
+      totalCount = if ($null -ne $_.totalCount) { [int]$_.totalCount } else { $null }
+    }
+  })
+
+  return ($normalized | ConvertTo-Json -Depth 10 -Compress)
+}
+
+function Get-BlockingCountFromResults {
+  param(
+    [Parameter(Mandatory = $true)][object[]]$Results,
+    [Parameter(Mandatory = $true)][bool]$StrictMode
+  )
+
+  $fails = @($Results | Where-Object { $_.status -eq "FAIL" }).Count
+  $errors = @($Results | Where-Object { $_.status -eq "ERROR" }).Count
+  $warnings = @($Results | Where-Object { $_.status -eq "WARNING" }).Count
+
+  return ($fails + $errors + $(if ($StrictMode) { $warnings } else { 0 }))
+}
+
+function Get-CheckpointState {
+  param(
+    [Parameter(Mandatory = $true)][object[]]$Results,
+    [Parameter(Mandatory = $true)][bool]$StrictMode
+  )
+
+  $blocking = Get-BlockingCountFromResults -Results $Results -StrictMode $StrictMode
+  return $(if ($blocking -eq 0) { "healthy" } else { "degraded" })
 }
 
 # Recovery reference point
@@ -168,6 +217,10 @@ $metrics = @{
   elapsedMinutes = $elapsedMinutes
   checks = @()
 }
+
+$checkpointSaved = $false
+$checkpointSkipped = $false
+$checkpointSkipReason = "not-requested"
 
 # 1. PM2 Process Status
 Write-Host "`n[1/6] PM2 Process Status..." -ForegroundColor Yellow
@@ -318,10 +371,10 @@ try {
 
 # Summary
 Write-Host "`n" + ("=" * 60) -ForegroundColor Cyan
-$passCount = ($metrics.checks | Where-Object { $_.status -eq "PASS" }).Count
-$warningCount = ($metrics.checks | Where-Object { $_.status -eq "WARNING" }).Count
-$failCount = ($metrics.checks | Where-Object { $_.status -eq "FAIL" }).Count
-$errorCount = ($metrics.checks | Where-Object { $_.status -eq "ERROR" }).Count
+$passCount = @($metrics.checks | Where-Object { $_.status -eq "PASS" }).Count
+$warningCount = @($metrics.checks | Where-Object { $_.status -eq "WARNING" }).Count
+$failCount = @($metrics.checks | Where-Object { $_.status -eq "FAIL" }).Count
+$errorCount = @($metrics.checks | Where-Object { $_.status -eq "ERROR" }).Count
 $blockingCount = $failCount + $errorCount + $(if ($Strict) { $warningCount } else { 0 })
 $totalChecks = $metrics.checks.Count
 
@@ -337,6 +390,89 @@ if ($blockingCount -gt 0) {
   Write-Host "FAILURES DETECTED:" -ForegroundColor Red
   $metrics.checks | Where-Object { $_.status -in $(if ($Strict) { @("FAIL", "ERROR", "WARNING") } else { @("FAIL", "ERROR") }) } | ForEach-Object {
     Write-Host "  - $($_.name): $($_.detail)" -ForegroundColor Red
+  }
+}
+
+# Save report
+if ($Checkpoint -or $Summary) {
+  $checkpointSkipReason = "not-evaluated"
+  $reportDir = Split-Path $ReportPath
+  if (-not (Test-Path $reportDir)) {
+    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+  }
+
+  if ($MinCheckpointIntervalSeconds -le 0) {
+    $MinCheckpointIntervalSeconds = 1
+  }
+  if ($FlapSuppressionWindowSeconds -le 0) {
+    $FlapSuppressionWindowSeconds = 1
+  }
+
+  $currentFingerprint = Get-ResultFingerprint -Results @($metrics.checks)
+  $currentState = Get-CheckpointState -Results @($metrics.checks) -StrictMode ([bool]$Strict)
+  
+  if (Test-Path $ReportPath) {
+    $existingReport = Get-Content $ReportPath -Raw | ConvertFrom-Json
+    $checkpoints = @($existingReport.checkpoints)
+    $lastCheckpoint = $null
+    $previousCheckpoint = $null
+    if ($checkpoints.Count -ge 1) {
+      $lastCheckpoint = $checkpoints[-1]
+    }
+    if ($checkpoints.Count -ge 2) {
+      $previousCheckpoint = $checkpoints[-2]
+    }
+
+    $skipCheckpoint = $false
+    if ($null -ne $lastCheckpoint) {
+      $lastTimestamp = [DateTimeOffset]::Parse([string]$lastCheckpoint.timestamp)
+      $secondsSinceLast = [int][Math]::Floor(($currentTime - $lastTimestamp.UtcDateTime).TotalSeconds)
+      $lastFingerprint = Get-ResultFingerprint -Results @($lastCheckpoint.results)
+      $lastState = Get-CheckpointState -Results @($lastCheckpoint.results) -StrictMode ([bool]$Strict)
+
+      if ($secondsSinceLast -lt $MinCheckpointIntervalSeconds -and $lastFingerprint -eq $currentFingerprint) {
+        $skipCheckpoint = $true
+        $checkpointSkipped = $true
+        $checkpointSkipReason = "deduped-identical-within-$MinCheckpointIntervalSeconds-s"
+      }
+
+      if (-not $skipCheckpoint -and $secondsSinceLast -lt $MinCheckpointIntervalSeconds -and $lastState -eq $currentState) {
+        $skipCheckpoint = $true
+        $checkpointSkipped = $true
+        $checkpointSkipReason = "deduped-same-state-within-$MinCheckpointIntervalSeconds-s"
+      }
+
+      if (-not $skipCheckpoint -and $currentState -eq "degraded" -and $null -ne $previousCheckpoint -and $secondsSinceLast -lt $FlapSuppressionWindowSeconds -and $lastState -ne $currentState) {
+        $previousTimestamp = [DateTimeOffset]::Parse([string]$previousCheckpoint.timestamp)
+        $secondsSincePrevious = [int][Math]::Floor(($currentTime - $previousTimestamp.UtcDateTime).TotalSeconds)
+        $previousState = Get-CheckpointState -Results @($previousCheckpoint.results) -StrictMode ([bool]$Strict)
+
+        if ($previousState -eq $currentState -and $secondsSincePrevious -lt ($FlapSuppressionWindowSeconds * 2)) {
+          $skipCheckpoint = $true
+          $checkpointSkipped = $true
+          $checkpointSkipReason = "suppressed-flap-within-$FlapSuppressionWindowSeconds-s"
+        }
+      }
+    }
+
+    if ($skipCheckpoint) {
+      Write-Host "`nCheckpoint skipped ($checkpointSkipReason)" -ForegroundColor Yellow
+    } else {
+      $existingReport.checkpoints += @{ timestamp = $metrics.timestamp; results = $metrics.checks }
+      $existingReport | ConvertTo-Json -Depth 10 | Set-Content $ReportPath
+      $checkpointSaved = $true
+      $checkpointSkipReason = "none"
+      Write-Host "`nCheckpoint saved ($($existingReport.checkpoints.Count) total)" -ForegroundColor Green
+    }
+  } else {
+    $fullReport = @{
+      recoveryTime = "2026-07-04T03:37:00Z"
+      checkpoints = @(@{ timestamp = $metrics.timestamp; results = $metrics.checks })
+    }
+    $fullReport | ConvertTo-Json -Depth 10 | Set-Content $ReportPath
+    $checkpointSaved = $true
+    $checkpointSkipReason = "none"
+    Write-Host "`nInitial report created" -ForegroundColor Green
   }
 }
 
@@ -361,33 +497,14 @@ if ($GateOutputPath -and $GateOutputPath.Trim()) {
     }
     checks = $metrics.checks
     checkpointRequested = [bool]($Checkpoint -or $Summary)
+    checkpointSaved = $checkpointSaved
+    checkpointSkipped = $checkpointSkipped
+    checkpointSkipReason = $checkpointSkipReason
     reportPath = $ReportPath
   }
 
   $gateResult | ConvertTo-Json -Depth 10 | Set-Content -Path $GateOutputPath -Encoding UTF8
   Write-Host "Gate result saved: $GateOutputPath" -ForegroundColor Gray
-}
-
-# Save report
-if ($Checkpoint -or $Summary) {
-  $reportDir = Split-Path $ReportPath
-  if (-not (Test-Path $reportDir)) {
-    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
-  }
-  
-  if (Test-Path $ReportPath) {
-    $existingReport = Get-Content $ReportPath -Raw | ConvertFrom-Json
-    $existingReport.checkpoints += @{ timestamp = $metrics.timestamp; results = $metrics.checks }
-    $existingReport | ConvertTo-Json -Depth 10 | Set-Content $ReportPath
-    Write-Host "`nCheckpoint saved ($($existingReport.checkpoints.Count) total)" -ForegroundColor Green
-  } else {
-    $fullReport = @{
-      recoveryTime = "2026-07-04T03:37:00Z"
-      checkpoints = @(@{ timestamp = $metrics.timestamp; results = $metrics.checks })
-    }
-    $fullReport | ConvertTo-Json -Depth 10 | Set-Content $ReportPath
-    Write-Host "`nInitial report created" -ForegroundColor Green
-  }
 }
 
 Write-Host "`n=== End Validation ===" -ForegroundColor Cyan
