@@ -38,7 +38,7 @@ module.exports = {
         "/d",
         "/s",
         "/c",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\ops-managed-watchdog.ps1 -Silent",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\ops-managed-watchdog.ps1 -Continuous -Silent -IntervalSeconds 300 -MaxRuns 0",
       ],
       cwd: "./",
       instances: 1,

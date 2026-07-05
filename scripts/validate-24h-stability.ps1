@@ -11,6 +11,82 @@ param(
 $ProgressPreference = "SilentlyContinue"
 $ErrorActionPreference = "Continue"
 
+function Get-Pm2ProcessList {
+  try {
+    $raw = pm2 jlist 2>$null | Out-String
+    if (-not $raw -or -not $raw.Trim()) {
+      return @()
+    }
+
+    # PM2 can prepend/append non-JSON lines; parse only the first JSON array segment.
+    $start = $raw.IndexOf("[")
+    $end = $raw.LastIndexOf("]")
+    if ($start -lt 0 -or $end -lt $start) {
+      return @()
+    }
+
+    $json = $raw.Substring($start, ($end - $start + 1))
+    $normalized = $json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const arr=JSON.parse(s);const clean=arr.map(p=>({name:p.name,status:(p.pm2_env&&p.pm2_env.status)||'',pm_uptime:(p.pm2_env&&p.pm2_env.pm_uptime)||null}));process.stdout.write(JSON.stringify(clean));});"
+    if (-not $normalized -or -not $normalized.Trim()) {
+      return @()
+    }
+
+    $parsed = $normalized | ConvertFrom-Json -ErrorAction Stop
+    if ($parsed -is [System.Array]) {
+      return @($parsed)
+    }
+
+    if ($null -ne $parsed) {
+      return @($parsed)
+    }
+
+    return @()
+  } catch {
+    return @()
+  }
+}
+
+function Resolve-UptimeHours {
+  param(
+    [Parameter(Mandatory = $false)]$RawUptime,
+    [Parameter(Mandatory = $true)][datetime]$NowUtc
+  )
+
+  if ($null -eq $RawUptime) {
+    return $null
+  }
+
+  try {
+    $startUtc = $null
+
+    if ($RawUptime -is [string] -and $RawUptime.Trim()) {
+      $parsedStringDate = $null
+      if ([datetime]::TryParse($RawUptime, [ref]$parsedStringDate)) {
+        $startUtc = $parsedStringDate.ToUniversalTime()
+      }
+    } elseif ($RawUptime -is [int] -or $RawUptime -is [long] -or $RawUptime -is [double]) {
+      $uptimeMs = [int64]$RawUptime
+      # PM2 uptime is typically Unix epoch milliseconds.
+      if ($uptimeMs -gt 946684800000) {
+        $startUtc = [DateTimeOffset]::FromUnixTimeMilliseconds($uptimeMs).UtcDateTime
+      }
+    }
+
+    if ($null -eq $startUtc) {
+      return $null
+    }
+
+    $hours = ($NowUtc - $startUtc).TotalHours
+    if ($hours -lt 0 -or $hours -gt 24 * 365 * 5) {
+      return $null
+    }
+
+    return [math]::Round($hours, 1)
+  } catch {
+    return $null
+  }
+}
+
 # Recovery reference point
 $recoveryTime = [datetime]"2026-07-04 03:37:00Z"
 $currentTime = [datetime]::UtcNow
@@ -33,29 +109,26 @@ $metrics = @{
 # 1. PM2 Process Status
 Write-Host "`n[1/6] PM2 Process Status..." -ForegroundColor Yellow
 try {
-  $pm2List = pm2 list --json 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
-  if ($pm2List) {
-    $onlineCount = ($pm2List | Where-Object { $_.pm2_env.status -eq "online" }).Count
-    $totalCount = $pm2List.Count
-    
-    $metrics.checks += @{
-      name = "PM2 Services"
-      status = if ($onlineCount -eq 3) { "PASS" } else { "FAIL" }
-      onlineCount = $onlineCount
-      totalCount = $totalCount
-      detail = "$onlineCount/$totalCount services online"
-    }
-    
-    Write-Host "  Online: $onlineCount/$totalCount" -ForegroundColor $(if ($onlineCount -eq 3) { "Green" } else { "Red" })
-    
-    # Get uptimes
-    foreach ($proc in $pm2List) {
-      $uptime = $proc.pm2_env.pm_uptime
-      if ($uptime) {
-        $startTime = [datetime]$uptime
-        $procUptime = ($currentTime - $startTime).TotalHours
-        Write-Host "    $($proc.name): $([math]::Round($procUptime, 1))h uptime" -ForegroundColor Gray
-      }
+  $pm2List = @(Get-Pm2ProcessList)
+  $managedServices = @($pm2List | Where-Object { $_.name -like "nexusforge-*workspace" })
+  $onlineCount = @($managedServices | Where-Object { $_.status -eq "online" }).Count
+  $totalCount = $managedServices.Count
+
+  $metrics.checks += @{
+    name = "PM2 Services"
+    status = if ($onlineCount -eq 3) { "PASS" } else { "FAIL" }
+    onlineCount = $onlineCount
+    totalCount = $totalCount
+    detail = "$onlineCount/$totalCount services online"
+  }
+
+  Write-Host "  Online: $onlineCount/$totalCount" -ForegroundColor $(if ($onlineCount -eq 3) { "Green" } else { "Red" })
+
+  # Get uptimes when PM2 records are available.
+  foreach ($proc in $managedServices) {
+    $uptimeHours = Resolve-UptimeHours -RawUptime $proc.pm_uptime -NowUtc $currentTime
+    if ($null -ne $uptimeHours) {
+      Write-Host "    $($proc.name): $uptimeHours h uptime" -ForegroundColor Gray
     }
   }
 } catch {
