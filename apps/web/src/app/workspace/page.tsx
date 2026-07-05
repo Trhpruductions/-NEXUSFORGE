@@ -329,6 +329,14 @@ export default function WorkspacePage() {
     return "Fresh";
   }, [isHealthRefreshing, lastCheckedAgeMs]);
 
+  const nextRefreshCountdownLabel = useMemo(() => {
+    if (isHealthRefreshing) return "Refreshing now";
+    if (lastCheckedAgeMs == null) return "Awaiting first sync";
+    const remainingMs = Math.max(0, HEALTH_REFRESH_INTERVAL_MS - lastCheckedAgeMs);
+    const seconds = Math.ceil(remainingMs / 1000);
+    return `${seconds}s`;
+  }, [isHealthRefreshing, lastCheckedAgeMs]);
+
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
@@ -358,6 +366,7 @@ export default function WorkspacePage() {
             <p className="mt-1 text-sm text-slate-700">Inspect live gate results without leaving workspace.</p>
             <p className="mt-1 text-xs text-slate-500">Last checked: {lastCheckedLabel}</p>
             <p className="mt-1 text-xs text-slate-500">Freshness: {freshnessLabel}</p>
+            <p className="mt-1 text-xs text-slate-500">Next refresh in: {nextRefreshCountdownLabel}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
