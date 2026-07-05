@@ -4,6 +4,8 @@
 
 param(
   [string]$ReportPath = "var/stability-report-24h.json",
+  [int]$WatchdogMaxAgeSeconds = 900,
+  [int]$ExpectedManagedServiceCount = 3,
   [switch]$Checkpoint = $false,
   [switch]$Summary = $false
 )
@@ -87,6 +89,65 @@ function Resolve-UptimeHours {
   }
 }
 
+function Get-WatchdogHealth {
+  param(
+    [Parameter(Mandatory = $true)][datetime]$NowUtc,
+    [Parameter(Mandatory = $true)][int]$MaxAgeSeconds
+  )
+
+  if ($MaxAgeSeconds -le 0) {
+    throw "Watchdog max age must be greater than 0 seconds."
+  }
+
+  $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+  $logPath = Join-Path $repoRoot "var\ops-managed-watchdog.jsonl"
+  if (-not (Test-Path -LiteralPath $logPath)) {
+    throw "Watchdog log not found: $logPath"
+  }
+
+  $tail = Get-Content -LiteralPath $logPath -Tail 300 -ErrorAction Stop
+  $lastLine = ($tail | Where-Object { $_ -and $_.Trim() }) | Select-Object -Last 1
+  if (-not $lastLine) {
+    throw "Watchdog log is empty: $logPath"
+  }
+
+  try {
+    $record = $lastLine | ConvertFrom-Json -ErrorAction Stop
+  } catch {
+    throw "Watchdog latest record is invalid JSON."
+  }
+
+  $status = [string]$record.status
+  if (-not $status.Trim()) {
+    throw "Watchdog latest record missing status field."
+  }
+
+  $timestampRaw = [string]$record.timestampUtc
+  if (-not $timestampRaw.Trim()) {
+    throw "Watchdog latest record missing timestampUtc."
+  }
+
+  try {
+    $timestamp = [DateTimeOffset]::Parse($timestampRaw)
+  } catch {
+    throw "Watchdog timestampUtc could not be parsed: $timestampRaw"
+  }
+
+  $ageSeconds = [int][Math]::Floor(($NowUtc - $timestamp.UtcDateTime).TotalSeconds)
+  $durationMs = [int]$record.durationMs
+  $mode = [string]$record.mode
+  $runNumber = [int]$record.runNumber
+
+  return @{
+    status = $status
+    ageSeconds = $ageSeconds
+    durationMs = $durationMs
+    mode = $mode
+    runNumber = $runNumber
+    maxAgeSeconds = $MaxAgeSeconds
+  }
+}
+
 # Recovery reference point
 $recoveryTime = [datetime]"2026-07-04 03:37:00Z"
 $currentTime = [datetime]::UtcNow
@@ -116,13 +177,13 @@ try {
 
   $metrics.checks += @{
     name = "PM2 Services"
-    status = if ($onlineCount -eq 3) { "PASS" } else { "FAIL" }
+    status = if ($onlineCount -eq $ExpectedManagedServiceCount -and $totalCount -eq $ExpectedManagedServiceCount) { "PASS" } else { "FAIL" }
     onlineCount = $onlineCount
     totalCount = $totalCount
     detail = "$onlineCount/$totalCount services online"
   }
 
-  Write-Host "  Online: $onlineCount/$totalCount" -ForegroundColor $(if ($onlineCount -eq 3) { "Green" } else { "Red" })
+  Write-Host "  Online: $onlineCount/$totalCount" -ForegroundColor $(if ($onlineCount -eq $ExpectedManagedServiceCount -and $totalCount -eq $ExpectedManagedServiceCount) { "Green" } else { "Red" })
 
   # Get uptimes when PM2 records are available.
   foreach ($proc in $managedServices) {
@@ -227,34 +288,45 @@ try {
   Write-Host "  Memory check unavailable" -ForegroundColor Gray
 }
 
-# 6. PM2 Error Log Check
-Write-Host "`n[6/6] PM2 Logs..." -ForegroundColor Yellow
+# 6. Watchdog Freshness Check
+Write-Host "`n[6/6] Watchdog Freshness..." -ForegroundColor Yellow
 try {
-  $errorCount = 0
-  
+  $watchdog = Get-WatchdogHealth -NowUtc $currentTime -MaxAgeSeconds $WatchdogMaxAgeSeconds
+  $watchdogHealthy = ($watchdog.status -eq "ok" -and $watchdog.ageSeconds -ge 0 -and $watchdog.ageSeconds -le $watchdog.maxAgeSeconds)
+
   $metrics.checks += @{
-    name = "PM2 Logs"
-    status = "PASS"
-    recentErrors = $errorCount
-    detail = "Log check skipped (async)"
+    name = "Watchdog Freshness"
+    status = if ($watchdogHealthy) { "PASS" } else { "FAIL" }
+    watchdogStatus = $watchdog.status
+    ageSeconds = $watchdog.ageSeconds
+    maxAgeSeconds = $watchdog.maxAgeSeconds
+    mode = $watchdog.mode
+    runNumber = $watchdog.runNumber
+    durationMs = $watchdog.durationMs
+    detail = "status=$($watchdog.status) age=$($watchdog.ageSeconds)s max=$($watchdog.maxAgeSeconds)s mode=$($watchdog.mode)"
   }
-  
-  Write-Host "  Status: Ready (checked via 6-hour monitor)" -ForegroundColor Gray
+
+  Write-Host "  Status: $($watchdog.status)" -ForegroundColor $(if ($watchdogHealthy) { "Green" } else { "Red" })
+  Write-Host "  Age: $($watchdog.ageSeconds)s (max $($watchdog.maxAgeSeconds)s)" -ForegroundColor $(if ($watchdogHealthy) { "Green" } else { "Red" })
+  Write-Host "  Mode: $($watchdog.mode)" -ForegroundColor Gray
 } catch {
-  Write-Host "  Log check unavailable" -ForegroundColor Gray
+  $metrics.checks += @{ name = "Watchdog Freshness"; status = "ERROR"; detail = $_.Exception.Message }
+  Write-Host "  Status: ERROR" -ForegroundColor Red
 }
 
 # Summary
 Write-Host "`n" + ("=" * 60) -ForegroundColor Cyan
 $passCount = ($metrics.checks | Where-Object { $_.status -eq "PASS" }).Count
 $failCount = ($metrics.checks | Where-Object { $_.status -eq "FAIL" }).Count
+$errorCount = ($metrics.checks | Where-Object { $_.status -eq "ERROR" }).Count
+$blockingCount = $failCount + $errorCount
 $totalChecks = $metrics.checks.Count
 
-Write-Host "Summary: $passCount/$totalChecks checks PASSED" -ForegroundColor $(if ($failCount -eq 0) { "Green" } else { "Red" })
+Write-Host "Summary: $passCount/$totalChecks checks PASSED" -ForegroundColor $(if ($blockingCount -eq 0) { "Green" } else { "Red" })
 
-if ($failCount -gt 0) {
+if ($blockingCount -gt 0) {
   Write-Host "FAILURES DETECTED:" -ForegroundColor Red
-  $metrics.checks | Where-Object { $_.status -eq "FAIL" } | ForEach-Object {
+  $metrics.checks | Where-Object { $_.status -in @("FAIL", "ERROR") } | ForEach-Object {
     Write-Host "  - $($_.name): $($_.detail)" -ForegroundColor Red
   }
 }
@@ -283,4 +355,4 @@ if ($Checkpoint -or $Summary) {
 
 Write-Host "`n=== End Validation ===" -ForegroundColor Cyan
 
-exit $(if ($failCount -gt 0) { 1 } else { 0 })
+exit $(if ($blockingCount -gt 0) { 1 } else { 0 })
