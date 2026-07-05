@@ -5,6 +5,8 @@
 param(
   [string]$ReportPath = "var/stability-report-24h.json",
   [string]$GateOutputPath = "var/stability-gate-latest.json",
+  [string]$GateHistoryPath = "var/stability-gate-history.jsonl",
+  [int]$MaxGateHistoryEntries = 200,
   [int]$WatchdogMaxAgeSeconds = 900,
   [int]$ExpectedManagedServiceCount = 3,
   [int]$MinCheckpointIntervalSeconds = 300,
@@ -505,6 +507,39 @@ if ($GateOutputPath -and $GateOutputPath.Trim()) {
 
   $gateResult | ConvertTo-Json -Depth 10 | Set-Content -Path $GateOutputPath -Encoding UTF8
   Write-Host "Gate result saved: $GateOutputPath" -ForegroundColor Gray
+}
+
+# Append rolling gate history for trend analysis and retain only recent entries.
+if ($GateHistoryPath -and $GateHistoryPath.Trim()) {
+  $historyDir = Split-Path -Parent $GateHistoryPath
+  if ($historyDir) {
+    New-Item -Path $historyDir -ItemType Directory -Force | Out-Null
+  }
+
+  if ($MaxGateHistoryEntries -le 0) {
+    $MaxGateHistoryEntries = 1
+  }
+
+  $historyRecord = @{
+    generatedAt = $gateResult.generatedAt
+    strictMode = $gateResult.strictMode
+    passed = $gateResult.passed
+    counts = $gateResult.counts
+    checkpointRequested = $gateResult.checkpointRequested
+    checkpointSaved = $gateResult.checkpointSaved
+    checkpointSkipped = $gateResult.checkpointSkipped
+    checkpointSkipReason = $gateResult.checkpointSkipReason
+  } | ConvertTo-Json -Depth 10 -Compress
+
+  Add-Content -Path $GateHistoryPath -Value $historyRecord -Encoding UTF8
+
+  $historyLines = @((Get-Content -Path $GateHistoryPath -ErrorAction SilentlyContinue) | Where-Object { $_ -and $_.Trim() })
+  if ($historyLines.Count -gt $MaxGateHistoryEntries) {
+    $historyLines = @($historyLines | Select-Object -Last $MaxGateHistoryEntries)
+    Set-Content -Path $GateHistoryPath -Value $historyLines -Encoding UTF8
+  }
+
+  Write-Host "Gate history updated: $GateHistoryPath (entries=$($historyLines.Count))" -ForegroundColor Gray
 }
 
 Write-Host "`n=== End Validation ===" -ForegroundColor Cyan
