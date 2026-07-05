@@ -171,6 +171,9 @@ export default function WorkspacePage() {
   const [healthStatus, setHealthStatus] = useState<WorkspaceHealthStatus>("unknown");
   const [healthDetailsOpen, setHealthDetailsOpen] = useState(false);
   const [gateHealth, setGateHealth] = useState<GateHealthResponse | null>(null);
+  const [isHealthRefreshing, setIsHealthRefreshing] = useState(false);
+  const [lastHealthCheckedAt, setLastHealthCheckedAt] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -178,22 +181,28 @@ export default function WorkspacePage() {
     if (mode === "local" || mode === "session") {
       setSessionMode(mode);
     }
-  }, []);
+  }, [refreshTrigger]);
 
   useEffect(() => {
     let active = true;
     let requestInFlight = false;
+    let activeController: AbortController | null = null;
 
     async function loadGateHealth() {
       if (requestInFlight) return;
       requestInFlight = true;
+      setIsHealthRefreshing(true);
+
+      const controller = new AbortController();
+      activeController = controller;
 
       try {
-        const response = await fetch("/api/ops/stability-gate", { cache: "no-store" });
+        const response = await fetch("/api/ops/stability-gate", { cache: "no-store", signal: controller.signal });
         if (!response.ok) {
           if (active) {
             setGateHealth(null);
             setHealthStatus("unknown");
+            setLastHealthCheckedAt(new Date().toISOString());
           }
           return;
         }
@@ -206,14 +215,22 @@ export default function WorkspacePage() {
           } else {
             setHealthStatus("unknown");
           }
+          setLastHealthCheckedAt(new Date().toISOString());
         }
       } catch {
         if (active) {
           setGateHealth(null);
           setHealthStatus("unknown");
+          setLastHealthCheckedAt(new Date().toISOString());
         }
       } finally {
+        if (activeController === controller) {
+          activeController = null;
+        }
         requestInFlight = false;
+        if (active) {
+          setIsHealthRefreshing(false);
+        }
       }
     }
 
@@ -225,6 +242,9 @@ export default function WorkspacePage() {
     return () => {
       active = false;
       window.clearInterval(intervalId);
+      if (activeController) {
+        activeController.abort();
+      }
     };
   }, []);
 
@@ -265,6 +285,13 @@ export default function WorkspacePage() {
     return parsed.toLocaleString();
   }, [gateHealth?.generatedAt]);
 
+  const lastCheckedLabel = useMemo(() => {
+    if (!lastHealthCheckedAt) return "Pending";
+    const parsed = new Date(lastHealthCheckedAt);
+    if (Number.isNaN(parsed.getTime())) return "Pending";
+    return parsed.toLocaleString();
+  }, [lastHealthCheckedAt]);
+
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
@@ -292,14 +319,25 @@ export default function WorkspacePage() {
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Runtime Health</p>
             <p className="mt-1 text-sm text-slate-700">Inspect live gate results without leaving workspace.</p>
+            <p className="mt-1 text-xs text-slate-500">Last checked: {lastCheckedLabel}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setHealthDetailsOpen((current) => !current)}
-            className={`inline-flex items-center rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${healthBadgeClass}`}
-          >
-            {healthMetric.value} · {healthDetailsOpen ? "Hide" : "Show"} Details
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRefreshTrigger((value) => value + 1)}
+              disabled={isHealthRefreshing}
+              className="inline-flex items-center rounded-full border border-slate-300/70 bg-white/90 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isHealthRefreshing ? "Refreshing" : "Refresh Now"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setHealthDetailsOpen((current) => !current)}
+              className={`inline-flex items-center rounded-full border px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors ${healthBadgeClass}`}
+            >
+              {healthMetric.value} · {healthDetailsOpen ? "Hide" : "Show"} Details
+            </button>
+          </div>
         </div>
 
         {healthDetailsOpen ? (
