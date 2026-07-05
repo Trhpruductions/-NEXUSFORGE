@@ -17,10 +17,10 @@ function RegularUserAccessView() {
       metrics={[
         { label: "Access", value: "User Workspace", tone: "emerald" },
         { label: "Admin Console", value: "Restricted", tone: "amber" },
-        { label: "Recommended", value: "Go to /app", tone: "cyan" },
+        { label: "Recommended", value: "Go to /workspace", tone: "cyan" },
       ]}
       actions={[
-        { label: "Open Workspace", href: "/app", tone: "primary" },
+        { label: "Open Workspace Hub", href: "/workspace", tone: "primary" },
         { label: "Notifications", href: "/notifications", tone: "ghost" },
         { label: "Profile", href: "/app/profile", tone: "ghost" },
       ]}
