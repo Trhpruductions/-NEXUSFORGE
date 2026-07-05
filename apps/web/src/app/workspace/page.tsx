@@ -37,6 +37,10 @@ type GateHealthResponse = {
   };
 };
 
+function appendHealthSample(previous: WorkspaceHealthStatus[], sample: WorkspaceHealthStatus): WorkspaceHealthStatus[] {
+  return [...previous, sample].slice(-10);
+}
+
 function WorkspaceAnalyticsCards({
   roleLabel,
   sessionMode,
@@ -176,6 +180,7 @@ export default function WorkspacePage() {
   const [lastHealthCheckedAt, setLastHealthCheckedAt] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
+  const [healthTimeline, setHealthTimeline] = useState<WorkspaceHealthStatus[]>([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -214,6 +219,7 @@ export default function WorkspacePage() {
           if (active) {
             setGateHealth(null);
             setHealthStatus("unknown");
+            setHealthTimeline((previous) => appendHealthSample(previous, "unknown"));
             setLastHealthCheckedAt(new Date().toISOString());
           }
           return;
@@ -221,18 +227,17 @@ export default function WorkspacePage() {
 
         const payload = (await response.json()) as GateHealthResponse;
         if (active) {
+          const nextStatus = payload.status === "healthy" || payload.status === "degraded" ? payload.status : "unknown";
           setGateHealth(payload);
-          if (payload.status === "healthy" || payload.status === "degraded") {
-            setHealthStatus(payload.status);
-          } else {
-            setHealthStatus("unknown");
-          }
+          setHealthStatus(nextStatus);
+          setHealthTimeline((previous) => appendHealthSample(previous, nextStatus));
           setLastHealthCheckedAt(new Date().toISOString());
         }
       } catch {
         if (active) {
           setGateHealth(null);
           setHealthStatus("unknown");
+          setHealthTimeline((previous) => appendHealthSample(previous, "unknown"));
           setLastHealthCheckedAt(new Date().toISOString());
         }
       } finally {
@@ -337,6 +342,14 @@ export default function WorkspacePage() {
     return `${seconds}s`;
   }, [isHealthRefreshing, lastCheckedAgeMs]);
 
+  const healthTimelineLabel = useMemo(() => {
+    if (!healthTimeline.length) return "No samples yet";
+    const healthyCount = healthTimeline.filter((state) => state === "healthy").length;
+    const degradedCount = healthTimeline.filter((state) => state === "degraded").length;
+    const unknownCount = healthTimeline.filter((state) => state === "unknown").length;
+    return `${healthyCount} healthy · ${degradedCount} degraded · ${unknownCount} unknown`;
+  }, [healthTimeline]);
+
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
@@ -367,6 +380,21 @@ export default function WorkspacePage() {
             <p className="mt-1 text-xs text-slate-500">Last checked: {lastCheckedLabel}</p>
             <p className="mt-1 text-xs text-slate-500">Freshness: {freshnessLabel}</p>
             <p className="mt-1 text-xs text-slate-500">Next refresh in: {nextRefreshCountdownLabel}</p>
+            <p className="mt-1 text-xs text-slate-500">Recent samples: {healthTimelineLabel}</p>
+            <div className="mt-2 flex items-center gap-1">
+              {healthTimeline.length ? (
+                healthTimeline.map((state, index) => (
+                  <span
+                    key={`${state}-${index}`}
+                    className={`h-2.5 w-5 rounded-full ${state === "healthy" ? "bg-emerald-500/85" : state === "degraded" ? "bg-amber-500/85" : "bg-slate-400/80"}`}
+                    title={`Sample ${index + 1}: ${state}`}
+                    aria-label={`Health sample ${index + 1}: ${state}`}
+                  />
+                ))
+              ) : (
+                <span className="text-[10px] text-slate-400">Awaiting samples</span>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
