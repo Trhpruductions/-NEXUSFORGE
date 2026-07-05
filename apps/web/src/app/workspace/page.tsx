@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { useAuthStore } from "@/store/auth-store";
@@ -167,6 +168,45 @@ function WorkspaceAdminView() {
         </p>
       </section>
     </div>
+  );
+}
+
+function WorkspaceVisualGallery() {
+  const imageCards = [
+    {
+      src: "/brand/core-plus-card.png",
+      alt: "Core Plus command interface card",
+      label: "Core+ Surface",
+      note: "Production card art used in premium routes.",
+    },
+    {
+      src: "/brand/boost-tier-badges.png",
+      alt: "Boost tier badges matrix",
+      label: "Tier Ladder",
+      note: "Actual tier progression visuals rendered at full resolution.",
+    },
+    {
+      src: "/brand/boost-pack-icon.png",
+      alt: "Boost pack icon",
+      label: "Boost Pack",
+      note: "Live commerce emblem with native image detail preserved.",
+    },
+  ] as const;
+
+  return (
+    <section className="mb-4 grid gap-3 md:grid-cols-3">
+      {imageCards.map((card) => (
+        <article key={card.src} className="nexus-display-panel overflow-hidden rounded-[24px] p-0 text-slate-700">
+          <div className="relative aspect-[16/10] w-full bg-slate-100">
+            <Image src={card.src} alt={card.alt} fill sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
+          </div>
+          <div className="p-4">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
+            <p className="mt-2 text-sm text-slate-700">{card.note}</p>
+          </div>
+        </article>
+      ))}
+    </section>
   );
 }
 
@@ -464,6 +504,8 @@ export default function WorkspacePage() {
           </div>
         ) : null}
       </div>
+
+      <WorkspaceVisualGallery />
 
       {!isReady ? (
         <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading workspace profile...</div>
