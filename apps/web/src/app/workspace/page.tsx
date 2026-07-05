@@ -6,6 +6,7 @@ import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { useAuthStore } from "@/store/auth-store";
 
 const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
+const HEALTH_REFRESH_INTERVAL_MS = 30_000;
 
 function formatDateLabel(value?: string | null): string {
   if (!value) return "Unknown";
@@ -181,12 +182,17 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     let active = true;
+    let requestInFlight = false;
 
     async function loadGateHealth() {
+      if (requestInFlight) return;
+      requestInFlight = true;
+
       try {
         const response = await fetch("/api/ops/stability-gate", { cache: "no-store" });
         if (!response.ok) {
           if (active) {
+            setGateHealth(null);
             setHealthStatus("unknown");
           }
           return;
@@ -206,13 +212,19 @@ export default function WorkspacePage() {
           setGateHealth(null);
           setHealthStatus("unknown");
         }
+      } finally {
+        requestInFlight = false;
       }
     }
 
     void loadGateHealth();
+    const intervalId = window.setInterval(() => {
+      void loadGateHealth();
+    }, HEALTH_REFRESH_INTERVAL_MS);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 
