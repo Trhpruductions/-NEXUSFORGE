@@ -60,6 +60,10 @@ function appendHealthSample(previous: WorkspaceHealthStatus[], sample: Workspace
   return [...previous, sample].slice(-10);
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -85,6 +89,12 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 async function buildSquareAvatarDataUrl(file: File): Promise<string> {
+  validateAvatarFile(file);
+  const fileDataUrl = await readFileAsDataUrl(file);
+  return buildSquareAvatarDataUrlFromDataUrl(fileDataUrl, 1, 0, 0);
+}
+
+function validateAvatarFile(file: File): void {
   if (!file.type.startsWith("image/")) {
     throw new Error("Please upload a valid image file.");
   }
@@ -92,13 +102,21 @@ async function buildSquareAvatarDataUrl(file: File): Promise<string> {
   if (file.size > MAX_AVATAR_FILE_BYTES) {
     throw new Error("Image is too large. Max size is 5MB.");
   }
+}
 
-  const fileDataUrl = await readFileAsDataUrl(file);
-  const image = await loadImageFromDataUrl(fileDataUrl);
+async function buildSquareAvatarDataUrlFromDataUrl(dataUrl: string, zoom: number, offsetX: number, offsetY: number): Promise<string> {
+  const image = await loadImageFromDataUrl(dataUrl);
 
-  const sourceSize = Math.min(image.width, image.height);
-  const sourceX = Math.floor((image.width - sourceSize) / 2);
-  const sourceY = Math.floor((image.height - sourceSize) / 2);
+  const minSide = Math.min(image.width, image.height);
+  const normalizedZoom = clamp(zoom, 1, 3);
+  const sourceCropSize = minSide / normalizedZoom;
+  const sourceUnitsPerOutputPixel = minSide / 256 / normalizedZoom;
+
+  const sourceCenterX = image.width / 2 - offsetX * sourceUnitsPerOutputPixel;
+  const sourceCenterY = image.height / 2 - offsetY * sourceUnitsPerOutputPixel;
+
+  const sourceX = clamp(sourceCenterX - sourceCropSize / 2, 0, image.width - sourceCropSize);
+  const sourceY = clamp(sourceCenterY - sourceCropSize / 2, 0, image.height - sourceCropSize);
 
   const canvas = document.createElement("canvas");
   canvas.width = 256;
@@ -109,7 +127,7 @@ async function buildSquareAvatarDataUrl(file: File): Promise<string> {
     throw new Error("Canvas processing unavailable.");
   }
 
-  context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 256, 256);
+  context.drawImage(image, sourceX, sourceY, sourceCropSize, sourceCropSize, 0, 0, 256, 256);
   return canvas.toDataURL("image/jpeg", 0.92);
 }
 
@@ -286,27 +304,52 @@ function WorkspaceAvatarSection({
   username,
   roleLabel,
   onSelectAvatar,
-  onUploadAvatar,
+  onStageAvatarUpload,
+  onApplyStagedAvatar,
+  onCancelStagedAvatar,
   hasCustomAvatar,
   customAvatarUrl,
   uploadError,
   isUploading,
+  stagedAvatarDataUrl,
+  stagedZoom,
+  stagedOffsetX,
+  stagedOffsetY,
+  onZoomChange,
+  onOffsetXChange,
+  onOffsetYChange,
 }: {
   activeAvatar: string;
   username: string;
   roleLabel: string;
   onSelectAvatar: (avatarUrl: string) => void;
-  onUploadAvatar: (file: File) => Promise<void>;
+  onStageAvatarUpload: (file: File) => Promise<void>;
+  onApplyStagedAvatar: () => Promise<void>;
+  onCancelStagedAvatar: () => void;
   hasCustomAvatar: boolean;
   customAvatarUrl: string;
   uploadError: string | null;
   isUploading: boolean;
+  stagedAvatarDataUrl: string | null;
+  stagedZoom: number;
+  stagedOffsetX: number;
+  stagedOffsetY: number;
+  onZoomChange: (value: number) => void;
+  onOffsetXChange: (value: number) => void;
+  onOffsetYChange: (value: number) => void;
 }) {
   async function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
-    await onUploadAvatar(selectedFile);
+    await onStageAvatarUpload(selectedFile);
     event.target.value = "";
+  }
+
+  async function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    const selectedFile = event.dataTransfer.files?.[0];
+    if (!selectedFile) return;
+    await onStageAvatarUpload(selectedFile);
   }
 
   return (
@@ -329,7 +372,11 @@ function WorkspaceAvatarSection({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Avatar Presets</p>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100">
+              <label
+                className="inline-flex cursor-pointer items-center rounded-full border border-slate-300/70 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => void handleDrop(event)}
+              >
                 {isUploading ? "Processing..." : "Upload Avatar"}
                 <input type="file" accept="image/*" className="hidden" onChange={(event) => void handleAvatarFileChange(event)} disabled={isUploading} />
               </label>
@@ -346,6 +393,79 @@ function WorkspaceAvatarSection({
           </div>
 
           {uploadError ? <p className="mt-2 text-xs text-rose-600">{uploadError}</p> : null}
+
+          {stagedAvatarDataUrl ? (
+            <div className="mt-3 rounded-[18px] border border-slate-200/80 bg-slate-50/80 p-4">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Avatar Crop Studio</p>
+              <div className="mt-3 grid gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
+                <div className="relative h-[270px] w-[270px] overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
+                  <img
+                    src={stagedAvatarDataUrl}
+                    alt="Staged avatar preview"
+                    className="h-full w-full object-cover"
+                    style={{ transform: `translate(${stagedOffsetX}px, ${stagedOffsetY}px) scale(${stagedZoom})` }}
+                    draggable={false}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Zoom</p>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.05}
+                      value={stagedZoom}
+                      onChange={(event) => onZoomChange(Number(event.target.value))}
+                      className="mt-1 w-full"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Horizontal</p>
+                    <input
+                      type="range"
+                      min={-80}
+                      max={80}
+                      step={1}
+                      value={stagedOffsetX}
+                      onChange={(event) => onOffsetXChange(Number(event.target.value))}
+                      className="mt-1 w-full"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Vertical</p>
+                    <input
+                      type="range"
+                      min={-80}
+                      max={80}
+                      step={1}
+                      value={stagedOffsetY}
+                      onChange={(event) => onOffsetYChange(Number(event.target.value))}
+                      className="mt-1 w-full"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => void onApplyStagedAvatar()}
+                      className="inline-flex items-center rounded-full border border-emerald-300/80 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 transition-colors hover:bg-emerald-100"
+                    >
+                      Apply Avatar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onCancelStagedAvatar}
+                      className="inline-flex items-center rounded-full border border-slate-300/80 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-700 transition-colors hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {AVATAR_PRESETS.map((preset) => {
@@ -388,6 +508,10 @@ export default function WorkspacePage() {
   const [activeAvatar, setActiveAvatar] = useState(AVATAR_PRESETS[0]?.src ?? "/brand/profile-badge-vip.png");
   const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [stagedAvatarDataUrl, setStagedAvatarDataUrl] = useState<string | null>(null);
+  const [stagedAvatarZoom, setStagedAvatarZoom] = useState(1);
+  const [stagedAvatarOffsetX, setStagedAvatarOffsetX] = useState(0);
+  const [stagedAvatarOffsetY, setStagedAvatarOffsetY] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -591,6 +715,7 @@ export default function WorkspacePage() {
 
   function handleAvatarSelection(avatarUrl: string) {
     setAvatarUploadError(null);
+    setStagedAvatarDataUrl(null);
     setActiveAvatar(avatarUrl);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(WORKSPACE_AVATAR_KEY, avatarUrl);
@@ -602,14 +727,46 @@ export default function WorkspacePage() {
     setAvatarUploadError(null);
 
     try {
-      const processedAvatarDataUrl = await buildSquareAvatarDataUrl(file);
-      handleAvatarSelection(processedAvatarDataUrl);
+      validateAvatarFile(file);
+      const stagedDataUrl = await readFileAsDataUrl(file);
+      setStagedAvatarDataUrl(stagedDataUrl);
+      setStagedAvatarZoom(1);
+      setStagedAvatarOffsetX(0);
+      setStagedAvatarOffsetY(0);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to process avatar image.";
       setAvatarUploadError(message);
     } finally {
       setAvatarUploading(false);
     }
+  }
+
+  async function handleApplyStagedAvatar() {
+    if (!stagedAvatarDataUrl) return;
+    setAvatarUploading(true);
+    setAvatarUploadError(null);
+
+    try {
+      const processedAvatarDataUrl = await buildSquareAvatarDataUrlFromDataUrl(
+        stagedAvatarDataUrl,
+        stagedAvatarZoom,
+        stagedAvatarOffsetX,
+        stagedAvatarOffsetY,
+      );
+      handleAvatarSelection(processedAvatarDataUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to apply avatar crop.";
+      setAvatarUploadError(message);
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
+  function handleCancelStagedAvatar() {
+    setStagedAvatarDataUrl(null);
+    setStagedAvatarZoom(1);
+    setStagedAvatarOffsetX(0);
+    setStagedAvatarOffsetY(0);
   }
 
   return (
@@ -730,11 +887,20 @@ export default function WorkspacePage() {
         username={avatarDisplayName}
         roleLabel={roleLabel}
         onSelectAvatar={handleAvatarSelection}
-        onUploadAvatar={handleAvatarUpload}
+        onStageAvatarUpload={handleAvatarUpload}
+        onApplyStagedAvatar={handleApplyStagedAvatar}
+        onCancelStagedAvatar={handleCancelStagedAvatar}
         hasCustomAvatar={Boolean(accountAvatarUrl)}
         customAvatarUrl={accountAvatarUrl}
         uploadError={avatarUploadError}
         isUploading={avatarUploading}
+        stagedAvatarDataUrl={stagedAvatarDataUrl}
+        stagedZoom={stagedAvatarZoom}
+        stagedOffsetX={stagedAvatarOffsetX}
+        stagedOffsetY={stagedAvatarOffsetY}
+        onZoomChange={setStagedAvatarZoom}
+        onOffsetXChange={setStagedAvatarOffsetX}
+        onOffsetYChange={setStagedAvatarOffsetY}
       />
 
       {!isReady ? (
