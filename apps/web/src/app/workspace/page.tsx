@@ -14,6 +14,22 @@ function formatDateLabel(value?: string | null): string {
   return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+type WorkspaceHealthStatus = "healthy" | "degraded" | "unknown";
+
+type GateHealthResponse = {
+  status: WorkspaceHealthStatus;
+  generatedAt?: string | null;
+  strictMode?: boolean;
+  counts?: {
+    total: number;
+    pass: number;
+    warning: number;
+    fail: number;
+    error: number;
+    blocking: number;
+  };
+};
+
 function WorkspaceAnalyticsCards({
   roleLabel,
   sessionMode,
@@ -146,6 +162,7 @@ function WorkspaceAdminView() {
 export default function WorkspacePage() {
   const { user, hydrated } = useAuthStore();
   const [sessionMode, setSessionMode] = useState("local");
+  const [healthStatus, setHealthStatus] = useState<WorkspaceHealthStatus>("unknown");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -153,6 +170,41 @@ export default function WorkspacePage() {
     if (mode === "local" || mode === "session") {
       setSessionMode(mode);
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadGateHealth() {
+      try {
+        const response = await fetch("/api/ops/stability-gate", { cache: "no-store" });
+        if (!response.ok) {
+          if (active) {
+            setHealthStatus("unknown");
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as GateHealthResponse;
+        if (active) {
+          if (payload.status === "healthy" || payload.status === "degraded") {
+            setHealthStatus(payload.status);
+          } else {
+            setHealthStatus("unknown");
+          }
+        }
+      } catch {
+        if (active) {
+          setHealthStatus("unknown");
+        }
+      }
+    }
+
+    void loadGateHealth();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const roleLabel = useMemo(() => {
@@ -167,6 +219,18 @@ export default function WorkspacePage() {
     return user.premium ? "ACTIVE" : "NONE";
   }, [user]);
 
+  const healthMetric = useMemo(() => {
+    if (healthStatus === "healthy") {
+      return { value: "Healthy", tone: "emerald" as const };
+    }
+
+    if (healthStatus === "degraded") {
+      return { value: "Degraded", tone: "amber" as const };
+    }
+
+    return { value: "Unknown", tone: "slate" as const };
+  }, [healthStatus]);
+
   const isGuest = hydrated && !user;
   const isReady = hydrated;
   const currentUser = user ?? null;
@@ -180,6 +244,7 @@ export default function WorkspacePage() {
         { label: "Audience", value: "Regular Users", tone: "emerald" },
         { label: "Admin Tools", value: "Separated", tone: "amber" },
         { label: "Workspace", value: "Operational", tone: "cyan" },
+        { label: "Runtime Health", value: healthMetric.value, tone: healthMetric.tone },
       ]}
       actions={[
         { label: user?.isAdmin ? "Open Admin Console" : "Open App Home", href: user?.isAdmin ? "/admin" : "/app", tone: "primary" },
