@@ -1,8 +1,74 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { useAuthStore } from "@/store/auth-store";
+
+const AUTH_PERSIST_MODE_KEY = "nexusforge-auth-persist-mode";
+
+function formatDateLabel(value?: string | null): string {
+  if (!value) return "Unknown";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Unknown";
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function WorkspaceAnalyticsCards({
+  roleLabel,
+  sessionMode,
+  emailVerified,
+  premiumTier,
+  joinedAt,
+  lastSeenAt,
+}: {
+  roleLabel: string;
+  sessionMode: string;
+  emailVerified: boolean;
+  premiumTier: string;
+  joinedAt: string;
+  lastSeenAt: string;
+}) {
+  return (
+    <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-sky-700">Role & Session</p>
+        <div className="mt-3 space-y-2 text-sm text-slate-700">
+          <p>
+            <span className="font-semibold text-slate-900">Role:</span> {roleLabel}
+          </p>
+          <p>
+            <span className="font-semibold text-slate-900">Session Mode:</span> {sessionMode}
+          </p>
+        </div>
+      </section>
+
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Account Readiness</p>
+        <div className="mt-3 space-y-2 text-sm text-slate-700">
+          <p>
+            <span className="font-semibold text-slate-900">Email:</span> {emailVerified ? "Verified" : "Unverified"}
+          </p>
+          <p>
+            <span className="font-semibold text-slate-900">Premium:</span> {premiumTier}
+          </p>
+        </div>
+      </section>
+
+      <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600 sm:col-span-2 xl:col-span-1">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700">Timeline</p>
+        <div className="mt-3 space-y-2 text-sm text-slate-700">
+          <p>
+            <span className="font-semibold text-slate-900">Joined:</span> {joinedAt}
+          </p>
+          <p>
+            <span className="font-semibold text-slate-900">Last Seen:</span> {lastSeenAt}
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 function WorkspaceGuestView() {
   return (
@@ -79,9 +145,31 @@ function WorkspaceAdminView() {
 
 export default function WorkspacePage() {
   const { user, hydrated } = useAuthStore();
+  const [sessionMode, setSessionMode] = useState("local");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mode = window.localStorage.getItem(AUTH_PERSIST_MODE_KEY);
+    if (mode === "local" || mode === "session") {
+      setSessionMode(mode);
+    }
+  }, []);
+
+  const roleLabel = useMemo(() => {
+    if (!user) return "Guest";
+    if (user.appRole) return user.appRole;
+    return user.isAdmin ? "ADMIN" : "USER";
+  }, [user]);
+
+  const premiumLabel = useMemo(() => {
+    if (!user) return "None";
+    if (user.premiumTier && user.premiumTier !== "NONE") return user.premiumTier;
+    return user.premium ? "ACTIVE" : "NONE";
+  }, [user]);
 
   const isGuest = hydrated && !user;
   const isReady = hydrated;
+  const currentUser = user ?? null;
 
   return (
     <ExperienceShell
@@ -104,10 +192,30 @@ export default function WorkspacePage() {
         <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading workspace profile...</div>
       ) : isGuest ? (
         <WorkspaceGuestView />
-      ) : user?.isAdmin ? (
-        <WorkspaceAdminView />
+      ) : currentUser?.isAdmin ? (
+        <>
+          <WorkspaceAnalyticsCards
+            roleLabel={roleLabel}
+            sessionMode={sessionMode}
+            emailVerified={Boolean(currentUser.emailVerified)}
+            premiumTier={premiumLabel}
+            joinedAt={formatDateLabel(currentUser.createdAt)}
+            lastSeenAt={formatDateLabel(currentUser.lastSeenAt)}
+          />
+          <WorkspaceAdminView />
+        </>
       ) : (
-        <WorkspaceUserView />
+        <>
+          <WorkspaceAnalyticsCards
+            roleLabel={roleLabel}
+            sessionMode={sessionMode}
+            emailVerified={Boolean(currentUser?.emailVerified)}
+            premiumTier={premiumLabel}
+            joinedAt={formatDateLabel(currentUser?.createdAt)}
+            lastSeenAt={formatDateLabel(currentUser?.lastSeenAt)}
+          />
+          <WorkspaceUserView />
+        </>
       )}
     </ExperienceShell>
   );
