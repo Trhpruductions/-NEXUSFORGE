@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ForgeChatClient } from "@/components/chat/forge-chat-client";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ChatPage() {
-  return <ForgeChatClient />;
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Loading chat...</div>}>
+      <ForgeChatClient />
+    </Suspense>
+  );
 }

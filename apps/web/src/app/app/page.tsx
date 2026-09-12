@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { AppHomeScreen } from "@/components/home/app-home-screen";
+import { HomeDashboard } from "@/components/home/home-dashboard";
 
 export const metadata: Metadata = {
-  title: "Vexora Gaming Workspace | Home",
-  description: "Vexora Gaming home dashboard for spaces, voice, and community coordination.",
+  title: "Home",
+  description: "Your forge at a glance: members online, events, activity and creators.",
 };
 
-export default function AppPage() {
-  return <AppHomeScreen />;
+export default function AppHomePage() {
+  return <HomeDashboard />;
 }

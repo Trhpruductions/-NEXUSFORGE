@@ -1,0 +1,240 @@
+import { Router } from "express";
+import xss from "xss";
+import { z } from "zod";
+import { prisma } from "../lib/prisma.js";
+import { createNotification } from "../lib/notifications.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
+
+/** Follows, posts/clips, and the public profile summary used by the Profile page. */
+export const socialRouter = Router();
+
+socialRouter.use(requireAuth);
+socialRouter.use(requireCsrf);
+
+const createPostSchema = z.object({
+  kind: z.enum(["POST", "CLIP"]).default("POST"),
+  content: z.string().trim().min(1).max(2000),
+  mediaUrl: z.string().url().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(8).optional(),
+});
+
+const postInclude = {
+  author: { select: { id: true, username: true, displayName: true, avatar: true, isStaff: true, isPartner: true, isCreator: true } },
+  _count: { select: { likes: true } },
+} as const;
+
+async function attachLiked<T extends { id: string }>(posts: T[], userId: string) {
+  if (!posts.length) return posts.map((post) => ({ ...post, liked: false }));
+  const likes = await prisma.postLike.findMany({
+    where: { userId, postId: { in: posts.map((post) => post.id) } },
+    select: { postId: true },
+  });
+  const liked = new Set(likes.map((like) => like.postId));
+  return posts.map((post) => ({ ...post, liked: liked.has(post.id) }));
+}
+
+// ---------------------------------------------------------------------------
+// Profile summary
+// ---------------------------------------------------------------------------
+
+socialRouter.get("/users/:userId/summary", async (req, res) => {
+  const userId = req.params.userId === "me" ? req.user!.id : req.params.userId;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatar: true,
+      banner: true,
+      bio: true,
+      clanTag: true,
+      status: true,
+      premium: true,
+      premiumTier: true,
+      isStaff: true,
+      isRep: true,
+      isPartner: true,
+      isCreator: true,
+      creatorStatus: true,
+      livePlatform: true,
+      liveStreamTitle: true,
+      liveStreamUrl: true,
+      liveGameCategory: true,
+      liveViewerCount: true,
+      reputation: true,
+      socialLinks: true,
+      avatarConfig: true,
+      createdAt: true,
+      lastSeenAt: true,
+      _count: { select: { followers: true, following: true, posts: true, medals: true, memberships: true } },
+    },
+  });
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [isFollowing, followsYou, reputationAccount] = await Promise.all([
+    userId === req.user!.id
+      ? Promise.resolve(false)
+      : prisma.follow.findUnique({ where: { followerId_followingId: { followerId: req.user!.id, followingId: userId } } }).then(Boolean),
+    userId === req.user!.id
+      ? Promise.resolve(false)
+      : prisma.follow.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: req.user!.id } } }).then(Boolean),
+    prisma.economyAccount.findUnique({ where: { userId_currencyType: { userId, currencyType: "FR" } }, select: { balance: true } }),
+  ]);
+
+  const points = Number(reputationAccount?.balance ?? 0n) + user.reputation;
+
+  res.json({
+    user: { ...user, points },
+    isSelf: userId === req.user!.id,
+    isFollowing,
+    followsYou,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Follows
+// ---------------------------------------------------------------------------
+
+socialRouter.post("/follow/:userId", async (req, res) => {
+  const targetId = req.params.userId;
+  if (targetId === req.user!.id) {
+    res.status(400).json({ error: "You cannot follow yourself" });
+    return;
+  }
+  const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const existing = await prisma.follow.findUnique({
+    where: { followerId_followingId: { followerId: req.user!.id, followingId: targetId } },
+  });
+  if (existing) {
+    res.json({ following: true });
+    return;
+  }
+
+  await prisma.follow.create({ data: { followerId: req.user!.id, followingId: targetId } });
+  void createNotification({
+    userId: targetId,
+    type: "SYSTEM",
+    title: "New follower",
+    body: `${req.user!.username} started following you.`,
+    data: { followerId: req.user!.id },
+  }).catch(() => undefined);
+
+  res.status(201).json({ following: true });
+});
+
+socialRouter.delete("/follow/:userId", async (req, res) => {
+  await prisma.follow.deleteMany({ where: { followerId: req.user!.id, followingId: req.params.userId } });
+  res.json({ following: false });
+});
+
+socialRouter.get("/users/:userId/followers", async (req, res) => {
+  const userId = req.params.userId === "me" ? req.user!.id : req.params.userId;
+  const rows = await prisma.follow.findMany({
+    where: { followingId: userId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: { follower: { select: { id: true, username: true, displayName: true, avatar: true, status: true } } },
+  });
+  res.json({ users: rows.map((row) => row.follower) });
+});
+
+socialRouter.get("/users/:userId/following", async (req, res) => {
+  const userId = req.params.userId === "me" ? req.user!.id : req.params.userId;
+  const rows = await prisma.follow.findMany({
+    where: { followerId: userId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: { following: { select: { id: true, username: true, displayName: true, avatar: true, status: true } } },
+  });
+  res.json({ users: rows.map((row) => row.following) });
+});
+
+// ---------------------------------------------------------------------------
+// Posts and clips
+// ---------------------------------------------------------------------------
+
+socialRouter.get("/posts", async (req, res) => {
+  const authorId = typeof req.query.authorId === "string" ? (req.query.authorId === "me" ? req.user!.id : req.query.authorId) : undefined;
+  const kind = req.query.kind === "CLIP" || req.query.kind === "POST" ? req.query.kind : undefined;
+  const scope = req.query.scope === "following" ? "following" : "all";
+
+  let authorFilter: { in: string[] } | string | undefined = authorId;
+  if (!authorId && scope === "following") {
+    const following = await prisma.follow.findMany({ where: { followerId: req.user!.id }, select: { followingId: true } });
+    authorFilter = { in: [...following.map((entry) => entry.followingId), req.user!.id] };
+  }
+
+  const posts = await prisma.post.findMany({
+    where: {
+      ...(authorFilter ? { authorId: authorFilter } : {}),
+      ...(kind ? { kind } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: postInclude,
+  });
+
+  res.json({ posts: await attachLiked(posts, req.user!.id) });
+});
+
+socialRouter.post("/posts", async (req, res) => {
+  const parsed = createPostSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+
+  const post = await prisma.post.create({
+    data: {
+      authorId: req.user!.id,
+      kind: parsed.data.kind,
+      content: xss(parsed.data.content),
+      mediaUrl: parsed.data.mediaUrl,
+      tags: (parsed.data.tags ?? []).map((tag) => tag.replace(/^#/, "").toLowerCase()),
+    },
+    include: postInclude,
+  });
+
+  res.status(201).json({ post: { ...post, liked: false } });
+});
+
+socialRouter.delete("/posts/:id", async (req, res) => {
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true, authorId: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const isPrivileged = req.user!.appRole === "ADMIN" || req.user!.appRole === "OWNER" || req.user!.appRole === "EXEC";
+  if (post.authorId !== req.user!.id && !isPrivileged) {
+    res.status(403).json({ error: "You cannot delete this post" });
+    return;
+  }
+  await prisma.post.delete({ where: { id: post.id } });
+  res.json({ ok: true, postId: post.id });
+});
+
+socialRouter.post("/posts/:id/like", async (req, res) => {
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const existing = await prisma.postLike.findUnique({ where: { postId_userId: { postId: post.id, userId: req.user!.id } } });
+  if (existing) {
+    await prisma.postLike.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.postLike.create({ data: { postId: post.id, userId: req.user!.id } });
+  }
+  const count = await prisma.postLike.count({ where: { postId: post.id } });
+  res.json({ liked: !existing, likes: count });
+});

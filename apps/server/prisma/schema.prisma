@@ -117,6 +117,49 @@ enum ActivityType {
   CUSTOM
 }
 
+enum EventType {
+  EVENT
+  TOURNAMENT
+}
+
+enum EventStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ParticipantStatus {
+  GOING
+  INTERESTED
+  CHECKED_IN
+  ELIMINATED
+}
+
+enum CosmeticSlot {
+  HEAD
+  FACE
+  TOP
+  BOTTOM
+  SHOES
+  BACK
+  ACCESSORY
+  EMOTE
+}
+
+enum CosmeticRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHIC
+}
+
+enum PostKind {
+  POST
+  CLIP
+}
+
 enum ProfileToolAction {
   GENERATE_SAMPLE_DATA
 }
@@ -170,6 +213,10 @@ model User {
   activityMetadata   Json?          // { gameName, spotifyTrackId, albumArt, viewers, platform }
   showActivity       Boolean        @default(true)
   socialLinks        Json?          // { discord, x, instagram, kick, youtube, twitch }
+  displayName        String?        @db.VarChar(40)
+  avatarConfig       Json?          // layered avatar builder state
+  loadout            Json?          // equipped cosmetic item ids by slot
+  privacySettings    Json?          // { showOnlineStatus, allowFriendRequests, allowDms, showActivity, contentFilter }
 
   lastSeenAt         DateTime?
   emailVerified      Boolean        @default(false)
@@ -210,6 +257,15 @@ model User {
   auditLogs          AuditLog[]
   forgeBans          ForgeBan[]     @relation("ForgeBanTarget")
   issuedForgeBans    ForgeBan[]     @relation("ForgeBanIssuer")
+  channelReads       ChannelReadState[]
+  following          Follow[]       @relation("FollowSource")
+  followers          Follow[]       @relation("FollowTarget")
+  posts              Post[]
+  postLikes          PostLike[]
+  createdEvents      Event[]        @relation("EventCreator")
+  eventEntries       EventParticipant[]
+  cosmetics          UserCosmetic[]
+  avatarPresets      AvatarPreset[]
 }
 
 model EconomyAccount {
@@ -374,8 +430,16 @@ model Forge {
   botCommands BotCommand[]
   inviteSources InviteSourceStat[]
   bans        ForgeBan[]
+  events      Event[]
+  isPublic    Boolean         @default(true)
+  category    String          @default("gaming")
+  tags        String[]        @default([])
+  featured    Boolean         @default(false)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([isPublic, featured, createdAt])
+  @@index([category])
 }
 
 model InviteSourceStat {
@@ -486,10 +550,24 @@ model Channel {
   forge               Forge                 @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   messages            Message[]
   threads             Thread[]
+  readStates          ChannelReadState[]
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
   @@index([forgeId, position])
+}
+
+model ChannelReadState {
+  id            String   @id @default(uuid())
+  userId        String
+  channelId     String
+  lastReadAt    DateTime @default(now())
+  mentionCount  Int      @default(0)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+  @@index([userId])
 }
 
 model Message {
@@ -614,6 +692,124 @@ model DirectMessage {
   author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([threadId, createdAt])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("FollowSource", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("FollowTarget", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model Post {
+  id        String     @id @default(uuid())
+  authorId  String
+  kind      PostKind   @default(POST)
+  content   String     @db.VarChar(2000)
+  mediaUrl  String?
+  tags      String[]   @default([])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes     PostLike[]
+
+  @@index([authorId, createdAt])
+  @@index([kind, createdAt])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Event {
+  id              String             @id @default(uuid())
+  forgeId         String?
+  createdById     String
+  type            EventType          @default(EVENT)
+  status          EventStatus        @default(SCHEDULED)
+  title           String             @db.VarChar(120)
+  description     String?            @db.VarChar(2000)
+  game            String?            @db.VarChar(80)
+  bannerUrl       String?
+  startsAt        DateTime
+  endsAt          DateTime?
+  maxParticipants Int?
+  prizePool       String?            @db.VarChar(120)
+  bracket         Json?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  forge           Forge?             @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  createdBy       User               @relation("EventCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  participants    EventParticipant[]
+
+  @@index([startsAt])
+  @@index([forgeId, startsAt])
+  @@index([type, status])
+}
+
+model EventParticipant {
+  id        String            @id @default(uuid())
+  eventId   String
+  userId    String
+  status    ParticipantStatus @default(GOING)
+  seed      Int?
+  createdAt DateTime          @default(now())
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model CosmeticItem {
+  id          String         @id @default(uuid())
+  key         String         @unique
+  name        String         @db.VarChar(80)
+  description String?        @db.VarChar(300)
+  slot        CosmeticSlot
+  rarity      CosmeticRarity @default(COMMON)
+  priceCoins  Int            @default(0)
+  imageUrl    String?
+  color       String?
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  owners      UserCosmetic[]
+
+  @@index([slot, rarity])
+}
+
+model UserCosmetic {
+  id         String       @id @default(uuid())
+  userId     String
+  itemId     String
+  acquiredAt DateTime     @default(now())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item       CosmeticItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+}
+
+model AvatarPreset {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @db.VarChar(40)
+  tagline   String?  @db.VarChar(60)
+  config    Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Medal {

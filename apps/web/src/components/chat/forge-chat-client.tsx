@@ -58,10 +58,11 @@ import {
 } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
+import { useWorkspaceStore } from "@/store/workspace-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { MessageList } from "@/components/chat/message-list";
@@ -208,7 +209,14 @@ export function ForgeChatClient() {
   const queryClient = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { accessToken, csrfToken, user, hydrated, clearSession } = useAuthStore();
+  const workspaceForgeId = useWorkspaceStore((state) => state.selectedForgeId);
+  const setWorkspaceForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
+  const setWorkspaceChannelId = useWorkspaceStore((state) => state.setActiveChannelId);
+  const requestedForgeId = searchParams?.get("forge") ?? null;
+  const requestedChannelId = searchParams?.get("channel") ?? null;
+  const requestedVoiceId = searchParams?.get("voice") ?? null;
 
   const [selectedForgeId, setSelectedForgeId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -1158,10 +1166,38 @@ export function ForgeChatClient() {
   }, []);
 
   useEffect(() => {
-    if (!selectedForgeId && forgesQuery.data?.forges?.length) {
-      setSelectedForgeId(forgesQuery.data.forges[0].id);
+    const forges = forgesQuery.data?.forges ?? [];
+    if (!forges.length) return;
+    const preferred = [requestedForgeId, workspaceForgeId].find((id) => id && forges.some((forge) => forge.id === id)) ?? null;
+    if (preferred && preferred !== selectedForgeId) {
+      setSelectedForgeId(preferred);
+      setSelectedChannelId(null);
+      return;
     }
-  }, [forgesQuery.data, selectedForgeId]);
+    if (!selectedForgeId) {
+      setSelectedForgeId(forges[0].id);
+    }
+  }, [forgesQuery.data, selectedForgeId, requestedForgeId, workspaceForgeId]);
+
+  // Keep the shell's selected forge in step with the chat view.
+  useEffect(() => {
+    if (selectedForgeId && selectedForgeId !== workspaceForgeId) setWorkspaceForgeId(selectedForgeId);
+  }, [selectedForgeId, workspaceForgeId, setWorkspaceForgeId]);
+
+  // Sidebar channel links land here with ?channel= / ?voice=.
+  useEffect(() => {
+    if (requestedChannelId && requestedChannelId !== selectedChannelId && textChannels.some((channel) => channel.id === requestedChannelId)) {
+      setSelectedChannelId(requestedChannelId);
+    }
+    if (requestedVoiceId && requestedVoiceId !== selectedVoiceChannelId && voiceChannels.some((channel) => channel.id === requestedVoiceId)) {
+      setSelectedVoiceChannelId(requestedVoiceId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedChannelId, requestedVoiceId, textChannels, voiceChannels]);
+
+  useEffect(() => {
+    setWorkspaceChannelId(selectedChannelId);
+  }, [selectedChannelId, setWorkspaceChannelId]);
 
   useEffect(() => {
     if (!selectedChannelId && textChannels.length) {

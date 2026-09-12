@@ -9,6 +9,7 @@ import { antiSpam } from "../middleware/anti-spam.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { messageRateLimit } from "../middleware/rate-limit.js";
+import { recordMentions } from "./reads.routes.js";
 
 const createMessageSchema = z.object({
   channelId: z.string().uuid(),
@@ -262,6 +263,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
 
   const mentionMatches = Array.from(parsed.data.content.matchAll(/@([a-zA-Z0-9_]+)/g));
   const mentionedUsernames = [...new Set(mentionMatches.map((match) => match[1]))];
+  const mentionedUserIds: string[] = [];
 
   if (mentionedUsernames.length) {
     const mentionedUsers = await prisma.user.findMany({
@@ -271,6 +273,8 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       },
       select: { id: true, username: true },
     });
+    mentionedUserIds.push(...mentionedUsers.map((entry) => entry.id));
+    void recordMentions(parsed.data.channelId, mentionedUserIds).catch(() => undefined);
 
     await Promise.all(
       mentionedUsers.map((mentionedUser) =>
@@ -289,6 +293,14 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   io.to(`channel:${parsed.data.channelId}`).emit("message:created", {
     message: created,
     optimisticId: parsed.data.optimisticId,
+  });
+  io.to(`forge:${channel.forgeId}`).emit("channel:activity", {
+    forgeId: channel.forgeId,
+    channelId: parsed.data.channelId,
+    messageId: created.id,
+    authorId: req.user!.id,
+    mentionedUserIds,
+    preview: sanitizedContent.slice(0, 120),
   });
 
   const botResponse = await resolveBotCommandResponse(

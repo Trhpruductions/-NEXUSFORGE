@@ -15,6 +15,15 @@ import { dmsRouter } from "./routes/dms.routes.js";
 import { friendsRouter } from "./routes/friends.routes.js";
 import { forgesRouter } from "./routes/forges.routes.js";
 import { forgeManagementRouter } from "./routes/forge-management.routes.js";
+import { readsRouter } from "./routes/reads.routes.js";
+import { eventsRouter } from "./routes/events.routes.js";
+import { socialRouter } from "./routes/social.routes.js";
+import { cosmeticsRouter } from "./routes/cosmetics.routes.js";
+import { avatarRouter } from "./routes/avatar.routes.js";
+import { discoverRouter } from "./routes/discover.routes.js";
+import { homeRouter } from "./routes/home.routes.js";
+import { settingsRouter } from "./routes/settings.routes.js";
+import { ensureCosmeticCatalog } from "./lib/cosmetic-catalog.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { messagesRouter } from "./routes/messages.routes.js";
 import { notificationsRouter } from "./routes/notifications.routes.js";
@@ -123,6 +132,14 @@ app.use("/api", healthRouter);
 app.use("/api/auth", authRateLimit, authRouter);
 app.use("/api/forges", forgesRouter);
 app.use("/api/forges", forgeManagementRouter);
+app.use("/api/reads", readsRouter);
+app.use("/api/events", eventsRouter);
+app.use("/api/social", socialRouter);
+app.use("/api/cosmetics", cosmeticsRouter);
+app.use("/api/avatar", avatarRouter);
+app.use("/api/discover", discoverRouter);
+app.use("/api/home", homeRouter);
+app.use("/api/settings", settingsRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/friends", friendsRouter);
 app.use("/api/dms", dmsRouter);
@@ -252,6 +269,7 @@ io.on("connection", (socket) => {
 });
 
 setIo(io);
+void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {

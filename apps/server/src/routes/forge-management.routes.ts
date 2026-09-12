@@ -42,6 +42,9 @@ const updateForgeSchema = z
     description: z.string().trim().max(300).nullable().optional(),
     icon: z.string().url().nullable().optional(),
     banner: z.string().url().nullable().optional(),
+    isPublic: z.boolean().optional(),
+    category: z.enum(["gaming", "creators", "esports", "social"]).optional(),
+    tags: z.array(z.string().trim().min(1).max(24)).max(8).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
 
@@ -197,8 +200,8 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
 
   const forge = await prisma.forge.update({
     where: { id: context.forge.id },
-    data: parsed.data,
-    select: { id: true, name: true, description: true, icon: true, banner: true, inviteCode: true, ownerId: true, updatedAt: true },
+    data: { ...parsed.data, tags: parsed.data.tags?.map((tag) => tag.replace(/^#/, "").toLowerCase()) },
+    select: { id: true, name: true, description: true, icon: true, banner: true, inviteCode: true, ownerId: true, isPublic: true, category: true, tags: true, updatedAt: true },
   });
 
   emitForgeEvent(forge.id, "forge:updated", { forge });

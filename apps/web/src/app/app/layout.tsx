@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { AppRouteShell } from "@/components/layout/app-route-shell";
+import { VexoraShell } from "@/components/layout/vexora-shell";
 
 export const metadata: Metadata = {
   title: "Vexora Gaming Workspace",
-  description: "A calmer Vexora Gaming workspace for teams, updates, and community coordination.",
+  description: "Vexora Gaming: built for gamers, connected by community.",
 };
 
 export default function AppSegmentLayout({ children }: { children: ReactNode }) {
-  return <AppRouteShell>{children}</AppRouteShell>;
+  return <VexoraShell>{children}</VexoraShell>;
 }

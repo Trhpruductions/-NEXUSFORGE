@@ -64,7 +64,7 @@ export default function LoginPage() {
         user: payload.user,
         rememberMe: true,
       });
-      const defaultDestination = payload.user.isAdmin ? "/admin" : "/workspace";
+      const defaultDestination = "/app";
       router.push(redirectTarget ?? defaultDestination);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Login failed");

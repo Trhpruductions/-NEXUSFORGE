@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #030813;
+  --background: #070a10;
   --foreground: #e8f0ff;
   --surface: rgba(7, 14, 27, 0.74);
   --surface-strong: rgba(5, 10, 20, 0.92);
@@ -16,23 +16,23 @@
   --nexus-purple: #a855f7;
   --nexus-vibrant-glow: rgba(0, 242, 255, 0.5);
 
-  --button-top: rgba(96, 165, 250, 0.98);
-  --button-mid: rgba(139, 61, 255, 0.96);
-  --button-bottom: rgba(192, 38, 211, 0.92);
-  --button-ink: #f8f4ff;
-  --mood-a: rgba(59, 130, 246, 0.22);
-  --mood-b: rgba(139, 61, 255, 0.18);
-  --mood-c: rgba(192, 38, 211, 0.12);
+  --button-top: rgba(248, 223, 138, 0.98);
+  --button-mid: rgba(230, 179, 37, 0.96);
+  --button-bottom: rgba(176, 130, 15, 0.94);
+  --button-ink: #1a1203;
+  --mood-a: rgba(230, 179, 37, 0.18);
+  --mood-b: rgba(212, 160, 23, 0.14);
+  --mood-c: rgba(138, 101, 12, 0.1);
 }
 
 html[data-theme-mode="command"] {
-  --button-top: rgba(96, 165, 250, 0.98);
-  --button-mid: rgba(124, 58, 237, 0.96);
-  --button-bottom: rgba(168, 85, 247, 0.94);
-  --button-ink: #f8f4ff;
-  --mood-a: rgba(59, 130, 246, 0.28);
-  --mood-b: rgba(139, 61, 255, 0.2);
-  --mood-c: rgba(168, 85, 247, 0.12);
+  --button-top: rgba(248, 223, 138, 0.98);
+  --button-mid: rgba(230, 179, 37, 0.96);
+  --button-bottom: rgba(176, 130, 15, 0.94);
+  --button-ink: #1a1203;
+  --mood-a: rgba(230, 179, 37, 0.24);
+  --mood-b: rgba(212, 160, 23, 0.18);
+  --mood-c: rgba(138, 101, 12, 0.1);
 }
 
 html[data-theme-mode="premium"] {
@@ -75,21 +75,20 @@ html[data-theme-mode="admin"] {
   --font-sans: var(--font-exo);
 }
 
-/* Vexora Gaming brand ramp: the app's accent utilities use the amber scale,
-   so the scale itself is remapped to the logo's blue-violet gradient. */
+/* Vexora Gaming brand ramp: gold accent on deep navy, matching the product mockup. */
 @theme {
-  --color-amber-50: #f4f0ff;
-  --color-amber-100: #e9e0ff;
-  --color-amber-200: #d4c2ff;
-  --color-amber-300: #b99bff;
-  --color-amber-400: #9d6eff;
-  --color-amber-500: #8b3dff;
-  --color-amber-600: #7326e6;
-  --color-amber-700: #5c1cc0;
-  --color-amber-800: #47178f;
-  --color-amber-900: #35136a;
-  --color-amber-950: #1d0a3f;
-  --nexus-gold: #b99bff;
+  --color-amber-50: #fff9e6;
+  --color-amber-100: #fdf0c2;
+  --color-amber-200: #f8df8a;
+  --color-amber-300: #f2c94c;
+  --color-amber-400: #e6b325;
+  --color-amber-500: #d4a017;
+  --color-amber-600: #b0820f;
+  --color-amber-700: #8a650c;
+  --color-amber-800: #634808;
+  --color-amber-900: #3f2e05;
+  --color-amber-950: #241a02;
+  --nexus-gold: #e6b325;
 }
 
 .nexus-text-vibrant {

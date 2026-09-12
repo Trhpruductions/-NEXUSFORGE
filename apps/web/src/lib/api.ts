@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/auth-store";
 export type User = {
   id: string;
   username: string;
+  displayName?: string | null;
   email: string;
   avatar?: string | null;
   banner?: string | null;
@@ -2109,4 +2110,396 @@ export async function grantMedal(accessToken: string, csrfToken: string, userId:
     },
   );
   return response.data;
+}
+
+// ===========================================================================
+// Vexora workspace: unreads, home, events, social, cosmetics, avatar, discover, settings
+// ===========================================================================
+
+export type ChannelUnread = { channelId: string; unread: number; mentions: number; lastReadAt: string | null };
+export type ForgeUnreadSummary = { forgeId: string; unread: number; mentions: number };
+
+export async function getUnreadSummary(accessToken: string) {
+  const response = await api.get<{ forges: ForgeUnreadSummary[] }>("/api/reads/summary", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function getForgeUnreads(accessToken: string, forgeId: string) {
+  const response = await api.get<{ forgeId: string; channels: ChannelUnread[] }>(`/api/reads/forge/${forgeId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function markChannelRead(accessToken: string, csrfToken: string, channelId: string) {
+  const response = await api.post<{ channelId: string; lastReadAt: string }>(`/api/reads/channel/${channelId}`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type HomeSummary = {
+  forge: { id: string; name: string; description?: string | null; icon?: string | null; banner?: string | null; inviteCode: string; ownerId: string; category: string } | null;
+  stats: { members: number; online: number; channels: number; upcomingEvents: number; uptimeHours: number };
+  featuredEvent: (VexoraEvent & { _count: { participants: number } }) | null;
+  recentActivity: Array<{
+    id: string;
+    content: string;
+    createdAt: string;
+    channel: { id: string; name: string };
+    author: { id: string; username: string; displayName?: string | null; avatar?: string | null } | null;
+    reactions: number;
+    replies: number;
+  }>;
+  topCreators: Array<{ id: string; username: string; displayName?: string | null; avatar?: string | null; live: boolean; followers: number; viewers: number }>;
+  liveNow: Array<{
+    id: string;
+    username: string;
+    displayName?: string | null;
+    avatar?: string | null;
+    livePlatform?: string | null;
+    liveStreamTitle?: string | null;
+    liveStreamUrl?: string | null;
+    liveGameCategory?: string | null;
+    liveViewerCount: number;
+    liveStartedAt?: string | null;
+  }>;
+};
+
+export async function getHomeSummary(accessToken: string, forgeId?: string | null) {
+  const response = await api.get<HomeSummary>("/api/home/summary", { headers: authHeaders(accessToken), params: forgeId ? { forgeId } : {} });
+  return response.data;
+}
+
+export type EventParticipant = {
+  id: string;
+  userId: string;
+  status: "GOING" | "INTERESTED" | "CHECKED_IN" | "ELIMINATED";
+  seed?: number | null;
+  user: { id: string; username: string; avatar?: string | null; status: string };
+};
+
+export type BracketMatch = { a: string | null; b: string | null; winner: string | null };
+
+export type VexoraEvent = {
+  id: string;
+  forgeId?: string | null;
+  createdById: string;
+  type: "EVENT" | "TOURNAMENT";
+  status: "SCHEDULED" | "LIVE" | "COMPLETED" | "CANCELLED";
+  title: string;
+  description?: string | null;
+  game?: string | null;
+  bannerUrl?: string | null;
+  startsAt: string;
+  endsAt?: string | null;
+  maxParticipants?: number | null;
+  prizePool?: string | null;
+  bracket?: { rounds: BracketMatch[][]; generatedAt: string } | null;
+  createdAt: string;
+  forge?: { id: string; name: string; icon?: string | null } | null;
+  createdBy?: { id: string; username: string; avatar?: string | null };
+  participants?: EventParticipant[];
+};
+
+export async function listEvents(accessToken: string, params: { scope?: "upcoming" | "live" | "past"; forgeId?: string; type?: "EVENT" | "TOURNAMENT" } = {}) {
+  const response = await api.get<{ events: VexoraEvent[]; selfId: string }>("/api/events", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export async function getEvent(accessToken: string, eventId: string) {
+  const response = await api.get<{ event: VexoraEvent; selfId: string; canManage: boolean }>(`/api/events/${eventId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createEvent(
+  accessToken: string,
+  csrfToken: string,
+  payload: {
+    forgeId?: string;
+    type?: "EVENT" | "TOURNAMENT";
+    title: string;
+    description?: string;
+    game?: string;
+    bannerUrl?: string;
+    startsAt: string;
+    endsAt?: string;
+    maxParticipants?: number;
+    prizePool?: string;
+  },
+) {
+  const response = await api.post<{ event: VexoraEvent }>("/api/events", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function rsvpEvent(accessToken: string, csrfToken: string, eventId: string, status: "GOING" | "INTERESTED") {
+  const response = await api.post<{ participant: EventParticipant }>(`/api/events/${eventId}/rsvp`, { status }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function leaveEvent(accessToken: string, csrfToken: string, eventId: string) {
+  await api.delete(`/api/events/${eventId}/rsvp`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export async function startEvent(accessToken: string, csrfToken: string, eventId: string) {
+  const response = await api.post<{ event: VexoraEvent }>(`/api/events/${eventId}/start`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function reportMatch(accessToken: string, csrfToken: string, eventId: string, payload: { round: number; match: number; winnerUserId: string }) {
+  const response = await api.post<{ event: VexoraEvent; champion: string | null }>(`/api/events/${eventId}/matches`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteEvent(accessToken: string, csrfToken: string, eventId: string) {
+  await api.delete(`/api/events/${eventId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type ProfileSummary = {
+  user: {
+    id: string;
+    username: string;
+    displayName?: string | null;
+    avatar?: string | null;
+    banner?: string | null;
+    bio?: string | null;
+    clanTag?: string | null;
+    status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+    premium: boolean;
+    premiumTier: string;
+    isStaff: boolean;
+    isRep: boolean;
+    isPartner: boolean;
+    isCreator: boolean;
+    creatorStatus: "OFFLINE" | "LIVE";
+    livePlatform?: string | null;
+    liveStreamTitle?: string | null;
+    liveStreamUrl?: string | null;
+    liveGameCategory?: string | null;
+    liveViewerCount: number;
+    reputation: number;
+    socialLinks?: Record<string, string | null> | null;
+    avatarConfig?: AvatarConfig | null;
+    createdAt: string;
+    lastSeenAt?: string | null;
+    points: number;
+    _count: { followers: number; following: number; posts: number; medals: number; memberships: number };
+  };
+  isSelf: boolean;
+  isFollowing: boolean;
+  followsYou: boolean;
+};
+
+export async function getProfileSummary(accessToken: string, userId: string | "me") {
+  const response = await api.get<ProfileSummary>(`/api/social/users/${userId}/summary`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function followUser(accessToken: string, csrfToken: string, userId: string) {
+  const response = await api.post<{ following: boolean }>(`/api/social/follow/${userId}`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function unfollowUser(accessToken: string, csrfToken: string, userId: string) {
+  const response = await api.delete<{ following: boolean }>(`/api/social/follow/${userId}`, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type Post = {
+  id: string;
+  authorId: string;
+  kind: "POST" | "CLIP";
+  content: string;
+  mediaUrl?: string | null;
+  tags: string[];
+  createdAt: string;
+  liked: boolean;
+  author: { id: string; username: string; displayName?: string | null; avatar?: string | null; isStaff: boolean; isPartner: boolean; isCreator: boolean };
+  _count: { likes: number };
+};
+
+export async function listPosts(accessToken: string, params: { authorId?: string | "me"; kind?: "POST" | "CLIP"; scope?: "following" | "all" } = {}) {
+  const response = await api.get<{ posts: Post[] }>("/api/social/posts", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export async function createPost(accessToken: string, csrfToken: string, payload: { kind?: "POST" | "CLIP"; content: string; mediaUrl?: string; tags?: string[] }) {
+  const response = await api.post<{ post: Post }>("/api/social/posts", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deletePost(accessToken: string, csrfToken: string, postId: string) {
+  await api.delete(`/api/social/posts/${postId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export async function togglePostLike(accessToken: string, csrfToken: string, postId: string) {
+  const response = await api.post<{ liked: boolean; likes: number }>(`/api/social/posts/${postId}/like`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type CosmeticSlot = "HEAD" | "FACE" | "TOP" | "BOTTOM" | "SHOES" | "BACK" | "ACCESSORY" | "EMOTE";
+export type CosmeticRarity = "COMMON" | "RARE" | "EPIC" | "LEGENDARY" | "MYTHIC";
+
+export type CosmeticItem = {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  slot: CosmeticSlot;
+  rarity: CosmeticRarity;
+  priceCoins: number;
+  imageUrl?: string | null;
+  color?: string | null;
+  metadata?: { accent?: string } | null;
+  owned: boolean;
+  equipped: boolean;
+  acquiredAt?: string;
+};
+
+export type Loadout = Partial<Record<CosmeticSlot, string>>;
+
+export async function getCosmeticCatalog(accessToken: string, slot?: CosmeticSlot) {
+  const response = await api.get<{ items: CosmeticItem[]; loadout: Loadout; coins: number }>("/api/cosmetics/catalog", { headers: authHeaders(accessToken), params: slot ? { slot } : {} });
+  return response.data;
+}
+
+export async function getCosmeticInventory(accessToken: string) {
+  const response = await api.get<{ items: CosmeticItem[]; loadout: Loadout; coins: number }>("/api/cosmetics/inventory", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function purchaseCosmetic(accessToken: string, csrfToken: string, itemId: string) {
+  const response = await api.post<{ item: CosmeticItem; coins: number }>(`/api/cosmetics/${itemId}/purchase`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function setLoadoutSlot(accessToken: string, csrfToken: string, slot: CosmeticSlot, itemId: string | null) {
+  const response = await api.put<{ loadout: Loadout }>("/api/cosmetics/loadout", { slot, itemId }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type AvatarConfig = {
+  body: "slim" | "athletic" | "broad";
+  skin: string;
+  hair: "spiky" | "fade" | "curls" | "long" | "bun" | "buzz" | "mohawk" | "none";
+  hairColor: string;
+  hairLength: number;
+  eyes: "sharp" | "round" | "calm" | "visor";
+  eyeColor: string;
+  face: "neutral" | "smirk" | "focused" | "grin";
+  accessory: "none" | "shades" | "headset" | "mask" | "bandana";
+  topColor: string;
+  bottomColor: string;
+  shoeColor: string;
+  accent: string;
+  background: "city" | "forge" | "void" | "arena";
+};
+
+export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string };
+
+export async function getAvatar(accessToken: string) {
+  const response = await api.get<{ config: AvatarConfig; presets: AvatarPreset[]; maxPresets: number }>("/api/avatar", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function saveAvatar(accessToken: string, csrfToken: string, config: AvatarConfig) {
+  const response = await api.put<{ config: AvatarConfig }>("/api/avatar", config, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function createAvatarPreset(accessToken: string, csrfToken: string, payload: { name: string; tagline?: string; config: AvatarConfig }) {
+  const response = await api.post<{ preset: AvatarPreset }>("/api/avatar/presets", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteAvatarPreset(accessToken: string, csrfToken: string, presetId: string) {
+  await api.delete(`/api/avatar/presets/${presetId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export async function applyAvatarPreset(accessToken: string, csrfToken: string, presetId: string) {
+  const response = await api.post<{ config: AvatarConfig }>(`/api/avatar/presets/${presetId}/apply`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type DiscoverForge = {
+  id: string;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  banner?: string | null;
+  inviteCode: string;
+  category: string;
+  tags: string[];
+  featured: boolean;
+  createdAt: string;
+  memberCount: number;
+  channelCount: number;
+  joined: boolean;
+};
+
+export async function getDiscover(accessToken: string, params: { category?: string; q?: string } = {}) {
+  const response = await api.get<{
+    categories: string[];
+    featured: DiscoverForge[];
+    recommended: DiscoverForge[];
+    popularTags: Array<{ tag: string; score: number }>;
+    forges: DiscoverForge[];
+  }>("/api/discover", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export type PrivacySettings = {
+  showOnlineStatus: boolean;
+  allowFriendRequests: boolean;
+  allowDmsFromFriends: boolean;
+  allowDmsFromMembers: boolean;
+  showActivity: boolean;
+  showJoinedServers: boolean;
+  contentFilter: "off" | "friends" | "everyone";
+};
+
+export type SettingsPayload = {
+  account: {
+    id: string;
+    username: string;
+    displayName?: string | null;
+    email: string;
+    emailVerified: boolean;
+    bio?: string | null;
+    clanTag?: string | null;
+    avatar?: string | null;
+    banner?: string | null;
+    appRole: string;
+    premiumTier: string;
+    createdAt: string;
+  };
+  privacy: PrivacySettings;
+  linkedAccounts: Record<string, string | null>;
+  sessions: Array<{ id: string; createdAt: string; expiresAt: string }>;
+  twoFactor: { enabled: boolean; available: boolean };
+};
+
+export async function getSettings(accessToken: string) {
+  const response = await api.get<SettingsPayload>("/api/settings", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null }) {
+  const response = await api.patch<{ account: SettingsPayload["account"] }>("/api/settings/account", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updatePrivacySettings(accessToken: string, csrfToken: string, privacy: PrivacySettings) {
+  const response = await api.put<{ privacy: PrivacySettings }>("/api/settings/privacy", privacy, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updateLinkedAccounts(accessToken: string, csrfToken: string, payload: Record<string, string | null>) {
+  const response = await api.put<{ linkedAccounts: Record<string, string | null> }>("/api/settings/linked-accounts", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function changePassword(accessToken: string, csrfToken: string, payload: { currentPassword: string; newPassword: string }) {
+  const response = await api.post<{ ok: true; message: string }>("/api/settings/password", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function revokeSession(accessToken: string, csrfToken: string, sessionId: string) {
+  await api.delete(`/api/settings/sessions/${sessionId}`, { headers: authHeaders(accessToken, csrfToken) });
 }

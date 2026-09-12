@@ -82,7 +82,7 @@ export default function RegisterPage() {
         rememberMe: true,
       });
       setVerificationToken(payload.verification.token);
-      const defaultDestination = payload.user.isAdmin ? "/admin" : "/workspace";
+      const defaultDestination = "/app";
       router.push(redirectTarget ?? defaultDestination);
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Registration failed");
@@ -125,7 +125,7 @@ export default function RegisterPage() {
           <span>
             Already have an account?{" "}
             <Link
-              href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/workspace")}`}
+              href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/app")}`}
               className="font-semibold text-amber-200 transition hover:text-white"
             >
               Sign in <ArrowRight className="ml-1 inline h-3 w-3" />
