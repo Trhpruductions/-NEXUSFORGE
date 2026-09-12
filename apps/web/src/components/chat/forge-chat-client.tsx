@@ -37,6 +37,10 @@ import {
   listFriends,
   postDmMessage,
   postMessage,
+  editMessage,
+  deleteMessage,
+  toggleReaction,
+  getForgePermissions,
   requestVoiceToken,
   searchUsers,
   sendFriendRequest,
@@ -60,6 +64,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
+import { MessageList } from "@/components/chat/message-list";
+import { MemberList } from "@/components/chat/member-list";
 
 const inviteSourcePresets = ["direct", "social", "stream", "partner", "campaign"] as const;
 
@@ -207,6 +213,8 @@ export function ForgeChatClient() {
   const [selectedForgeId, setSelectedForgeId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [forgeSettingsOpen, setForgeSettingsOpen] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const selectedChannelIdRef = useRef<string | null>(null);
   selectedChannelIdRef.current = selectedChannelId;
   const [messageDraft, setMessageDraft] = useState("");
@@ -294,6 +302,13 @@ export function ForgeChatClient() {
     queryFn: () => getForge(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
+
+  const forgeAccessQuery = useQuery({
+    queryKey: ["forge-permissions", selectedForgeId, accessToken],
+    queryFn: () => getForgePermissions(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+  });
+  const canModerateChat = Boolean(forgeAccessQuery.data?.isOwner || forgeAccessQuery.data?.permissions.moderateChat);
 
   const inviteAnalyticsQuery = useQuery({
     queryKey: ["forge-invite-analytics", selectedForgeId, accessToken],
@@ -812,6 +827,7 @@ export function ForgeChatClient() {
       content: string;
       optimisticId: string;
       attachments?: string[];
+      replyToId?: string;
     }) => postMessage(accessToken!, csrfToken!, payload),
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: ["messages", payload.channelId, accessToken] });
@@ -831,6 +847,11 @@ export function ForgeChatClient() {
         createdAt: new Date().toISOString(),
         optimistic: true,
         optimisticId: payload.optimisticId,
+        replyToId: payload.replyToId,
+        replyTo: replyTarget && replyTarget.id === payload.replyToId
+          ? { id: replyTarget.id, content: replyTarget.content, authorId: replyTarget.authorId, botName: replyTarget.botName, author: replyTarget.author ? { id: replyTarget.author.id, username: replyTarget.author.username } : null }
+          : null,
+        reactions: [],
         author: user
           ? {
               id: user.id,
@@ -871,6 +892,63 @@ export function ForgeChatClient() {
       );
     },
   });
+
+  const editMessageMutation = useMutation({
+    mutationFn: (input: { messageId: string; content: string }) => editMessage(accessToken!, csrfToken!, input.messageId, input.content),
+    onSuccess: (data) => {
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", data.message.channelId, accessToken],
+        (current) => current ? { ...current, messages: current.messages.map((msg) => (msg.id === data.message.id ? data.message : msg)) } : current,
+      );
+    },
+    onError: (error) => setStatusMessage(error instanceof Error ? error.message : "Failed to edit message."),
+  });
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: (messageId: string) => deleteMessage(accessToken!, csrfToken!, messageId),
+    onSuccess: (_data, messageId) => {
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => current ? { ...current, messages: current.messages.filter((msg) => msg.id !== messageId) } : current,
+      );
+    },
+    onError: (error) => setStatusMessage(error instanceof Error ? error.message : "Failed to delete message."),
+  });
+
+  const reactMutation = useMutation({
+    mutationFn: (input: { messageId: string; emoji: string }) => toggleReaction(accessToken!, csrfToken!, input.messageId, input.emoji),
+    onSuccess: (data, input) => {
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => current ? { ...current, messages: current.messages.map((msg) => (msg.id === input.messageId ? { ...msg, reactions: data.reactions } : msg)) } : current,
+      );
+    },
+    onError: (error) => setStatusMessage(error instanceof Error ? error.message : "Failed to react."),
+  });
+
+  const loadOlderMessages = async () => {
+    if (!accessToken || !selectedChannelId) return;
+    const current = queryClient.getQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", selectedChannelId, accessToken]);
+    if (!current?.nextCursor) return;
+    setLoadingOlder(true);
+    try {
+      const older = await getMessages(accessToken, selectedChannelId, current.nextCursor);
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (latest) => {
+          const existing = latest?.messages ?? [];
+          const seen = new Set(existing.map((msg) => msg.id));
+          return { messages: [...older.messages.filter((msg) => !seen.has(msg.id)), ...existing], nextCursor: older.nextCursor };
+        },
+      );
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Failed to load older messages.");
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   const sendFriendRequestMutation = useMutation({
     mutationFn: (receiverId: string) => sendFriendRequest(accessToken!, csrfToken!, receiverId),
@@ -1174,6 +1252,15 @@ export function ForgeChatClient() {
       );
     };
 
+    const handleReactions = (payload: { messageId: string; reactions: Message["reactions"] }) => {
+      incrementLiveEvents();
+      if (!selectedChannelId) return;
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(
+        ["messages", selectedChannelId, accessToken],
+        (current) => current ? { ...current, messages: current.messages.map((msg) => (msg.id === payload.messageId ? { ...msg, reactions: payload.reactions ?? [] } : msg)) } : current,
+      );
+    };
+
     const handleDmMessage = (payload: { threadId: string; message: DmMessage }) => {
       incrementLiveEvents();
       queryClient.setQueryData<{ messages: DmMessage[] }>(
@@ -1284,6 +1371,7 @@ export function ForgeChatClient() {
     socket.on("message:created", handleCreated);
     socket.on("message:updated", handleUpdated);
     socket.on("message:deleted", handleDeleted);
+    socket.on("message:reactions", handleReactions);
     socket.on("dm:message", handleDmMessage);
     socket.on("voice:presence", handleVoicePresence);
     socket.on("voice:state", handleVoiceState);
@@ -1298,6 +1386,7 @@ export function ForgeChatClient() {
       socket.off("message:created", handleCreated);
       socket.off("message:updated", handleUpdated);
       socket.off("message:deleted", handleDeleted);
+      socket.off("message:reactions", handleReactions);
       socket.off("dm:message", handleDmMessage);
       socket.off("voice:presence", handleVoicePresence);
       socket.off("voice:state", handleVoiceState);
@@ -1386,6 +1475,7 @@ export function ForgeChatClient() {
     if (!accessToken || !selectedChannelId) return;
     const socket = getSocket(accessToken);
     socket.emit("channel:join", selectedChannelId);
+    setReplyTarget(null);
     return () => {
       socket.emit("channel:leave", selectedChannelId);
     };
@@ -1452,8 +1542,10 @@ export function ForgeChatClient() {
       window.clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
     }
+    const replyToId = replyTarget?.id;
     setMessageDraft("");
     setPendingFiles([]);
+    setReplyTarget(null);
 
     try {
       const attachments = filesToUpload.length ? await uploadFiles(filesToUpload) : undefined;
@@ -1462,6 +1554,7 @@ export function ForgeChatClient() {
         content,
         attachments,
         optimisticId,
+        replyToId,
       });
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : "Failed to send message.");
@@ -1759,7 +1852,7 @@ export function ForgeChatClient() {
   }
 
   return (
-    <div className="cinematic-stage metal-corners relative flex min-h-[calc(100svh-3rem)] flex-col space-y-3 overflow-hidden rounded-[22px] pb-24 xl:space-y-4 xl:pb-0 nf-content-rhythm">
+    <div className="cinematic-stage metal-corners @container relative flex min-h-[calc(100svh-3rem)] flex-col space-y-3 overflow-hidden rounded-[22px] pb-24 xl:space-y-4 xl:pb-0 nf-content-rhythm">
       <div className="cinematic-particles" />
       {selectedForgeId ? (
         <ForgeSettingsPanel
@@ -2141,12 +2234,12 @@ export function ForgeChatClient() {
         <p className="mt-2 text-xs text-slate-400">{tierDistributionLabel}</p>
       </div>
 
-      <div className={`grid min-h-[84vh] grid-cols-1 gap-2 xl:gap-3 ${isCompactLayout ? "xl:grid-cols-[220px_240px_minmax(0,1fr)_300px]" : "xl:grid-cols-[280px_280px_minmax(0,1fr)_360px]"}`}>
+      <div className={`grid min-h-[84vh] grid-cols-1 gap-2 xl:gap-3 ${isCompactLayout ? "@3xl:grid-cols-[200px_220px_minmax(0,1fr)] @6xl:grid-cols-[200px_220px_minmax(0,1fr)_280px]" : "@3xl:grid-cols-[240px_250px_minmax(0,1fr)] @6xl:grid-cols-[250px_260px_minmax(0,1fr)_320px]"}`}>
       <motion.aside
         initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.36, delay: 0.08, ease: "easeOut" }}
-        className="nexus-panel order-2 max-h-[72vh] overflow-y-auto rounded-[14px] p-4 xl:order-none xl:max-h-none"
+        className="nexus-panel order-2 max-h-[72vh] overflow-y-auto rounded-[14px] p-4 @3xl:order-none @3xl:max-h-none"
       >
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
           <Link href="/notifications" className="nexus-pill rounded-[14px] px-2 py-1 hover:border-amber-300/70">
@@ -2921,7 +3014,7 @@ export function ForgeChatClient() {
         initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.36, delay: 0.16, ease: "easeOut" }}
-        className="nexus-panel order-3 max-h-[72vh] overflow-y-auto rounded-[14px] p-4 xl:order-none xl:max-h-none"
+        className="nexus-panel order-3 max-h-[72vh] overflow-y-auto rounded-[14px] p-4 @3xl:order-none @3xl:max-h-none"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -3004,13 +3097,24 @@ export function ForgeChatClient() {
             </button>
           ))}
         </div>
+
+        {forgeDetailQuery.data?.forge ? (
+          <div className="mt-5 border-t border-slate-800/80 pt-4">
+            <MemberList
+              members={forgeDetailQuery.data.forge.members}
+              roles={forgeDetailQuery.data.forge.roles}
+              ownerId={forgeDetailQuery.data.forge.ownerId}
+              selfId={user.id}
+            />
+          </div>
+        ) : null}
       </motion.aside>
 
       <motion.main
         initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.36, delay: 0.24, ease: "easeOut" }}
-        className="nexus-panel-strong order-1 rounded-[14px] p-4 xl:order-none"
+        className="nexus-panel-strong order-1 rounded-[14px] p-4 @3xl:order-none"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -3024,57 +3128,25 @@ export function ForgeChatClient() {
           </div>
         </div>
         <div className="mb-3 h-[46vh] overflow-y-auto rounded-[14px] border border-slate-700/70 bg-slate-900/75 p-3 shadow-[inset_0_1px_0_rgba(148,163,184,0.08)] sm:h-[52vh] xl:h-[60vh]">
-          <div className="grid gap-2">
-            {messagesQuery.data?.messages.map((message) => (
-              <article
-                key={message.id}
-                className={
-                  message.optimistic
-                    ? "relative overflow-hidden rounded-[14px] border px-3 py-2 border-dashed border-amber-600/60 bg-amber-950/20"
-                    : "relative overflow-hidden rounded-[14px] border px-3 py-2 border-slate-700/70 bg-slate-900/80"
-                }
-              >
-                <div className={
-                  message.optimistic
-                    ? "absolute inset-y-0 left-0 w-1 bg-amber-400/70"
-                    : message.authorId === user.id
-                      ? "absolute inset-y-0 left-0 w-1 bg-amber-400/65"
-                      : "absolute inset-y-0 left-0 w-1 bg-indigo-400/60"
-                } />
-                <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
-                  <span className="inline-flex items-center gap-2">
-                    <span className={message.botId ? "inline-block h-2 w-2 rounded-[14px] bg-fuchsia-400/80" : "inline-block h-2 w-2 rounded-[14px] bg-amber-400/80"} />
-                    {message.botName ?? message.author?.username ?? "Unknown"}
-                    {message.botId ? (
-                      <span className="rounded-[14px] border border-fuchsia-500/40 bg-fuchsia-950/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-fuchsia-200">
-                        Bot
-                      </span>
-                    ) : null}
-                  </span>
-                  <span>{formatTime(message.createdAt)}</span>
-                </div>
-                <p className="text-sm text-slate-100">{message.content}</p>
-                {message.attachments?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    {message.attachments.map((url) => (
-                      <a
-                        key={url}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-[14px] border border-amber-600/40 bg-amber-950/40 px-2 py-1 text-amber-200 hover:bg-amber-900/50"
-                      >
-                        Attachment
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-            {!messagesQuery.data?.messages.length && (
-              <p className="text-sm text-slate-500">No messages yet. Start the channel.</p>
-            )}
-          </div>
+          <MessageList
+            messages={messagesQuery.data?.messages ?? []}
+            selfId={user.id}
+            canModerate={canModerateChat}
+            members={forgeDetailQuery.data?.forge.members ?? []}
+            roles={forgeDetailQuery.data?.forge.roles ?? []}
+            ownerId={forgeDetailQuery.data?.forge.ownerId ?? ""}
+            hasOlder={Boolean(messagesQuery.data?.nextCursor)}
+            loadingOlder={loadingOlder}
+            onLoadOlder={() => void loadOlderMessages()}
+            onReply={(message) => setReplyTarget(message)}
+            onEdit={async (messageId, content) => {
+              await editMessageMutation.mutateAsync({ messageId, content });
+            }}
+            onDelete={async (messageId) => {
+              await deleteMessageMutation.mutateAsync(messageId);
+            }}
+            onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
+          />
         </div>
 
         <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/70 bg-white/95 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
@@ -3113,6 +3185,16 @@ export function ForgeChatClient() {
               ) : null}
             </div>
 
+            {replyTarget ? (
+              <div className="mb-2 flex items-center gap-2 rounded-[14px] border border-amber-500/30 bg-amber-950/25 px-3 py-1.5 text-xs text-amber-100">
+                <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-amber-300">Replying to</span>
+                <span className="shrink-0 font-semibold">{replyTarget.botName ?? replyTarget.author?.username ?? "message"}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-300">{replyTarget.content}</span>
+                <button type="button" onClick={() => setReplyTarget(null)} className="shrink-0 rounded-full border border-slate-700/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-300 hover:border-amber-500/50">
+                  Cancel
+                </button>
+              </div>
+            ) : null}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
@@ -3174,7 +3256,7 @@ export function ForgeChatClient() {
         initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ duration: 0.36, delay: 0.32, ease: "easeOut" }}
-        className="nexus-panel order-4 max-h-[76vh] overflow-y-auto rounded-[14px] p-4 xl:order-none xl:max-h-none"
+        className="nexus-panel order-4 max-h-[76vh] overflow-y-auto rounded-[14px] p-4 @3xl:order-none @3xl:max-h-none @3xl:col-span-3 @6xl:col-span-1"
       >
         <h2 className="command-section-title mb-3">Social + Voice</h2>
 

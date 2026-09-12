@@ -28,6 +28,28 @@ const reactionSchema = z.object({
 
 export const messagesRouter = Router();
 
+/** Standard message payload shape shared by list, create, edit and realtime events. */
+export const messageInclude = {
+  author: {
+    select: {
+      id: true,
+      username: true,
+      avatar: true,
+      premium: true,
+    },
+  },
+  reactions: true,
+  replyTo: {
+    select: {
+      id: true,
+      content: true,
+      authorId: true,
+      botName: true,
+      author: { select: { id: true, username: true } },
+    },
+  },
+} as const;
+
 function normalizeBotCommandName(raw: string) {
   return raw.trim().replace(/^\//, "").toLowerCase();
 }
@@ -171,17 +193,7 @@ messagesRouter.get("/:channelId", async (req, res) => {
         }
       : {}),
     orderBy: { createdAt: "desc" },
-    include: {
-      author: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          premium: true,
-        },
-      },
-      reactions: true,
-    },
+    include: messageInclude,
   });
 
   res.json({
@@ -245,17 +257,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       attachments: parsed.data.attachments ?? [],
       replyToId: parsed.data.replyToId,
     },
-    include: {
-      author: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          premium: true,
-        },
-      },
-      reactions: true,
-    },
+    include: messageInclude,
   });
 
   const mentionMatches = Array.from(parsed.data.content.matchAll(/@([a-zA-Z0-9_]+)/g));
@@ -309,17 +311,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
         attachments: [],
         replyToId: created.id,
       },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-            premium: true,
-          },
-        },
-        reactions: true,
-      },
+      include: messageInclude,
     });
 
     io.to(`channel:${parsed.data.channelId}`).emit("message:created", {
@@ -384,17 +376,7 @@ messagesRouter.patch("/:id", async (req, res) => {
       content: xss(parsed.data.content.trim()),
       edited: true,
     },
-    include: {
-      author: {
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          premium: true,
-        },
-      },
-      reactions: true,
-    },
+    include: messageInclude,
   });
 
   getIo().to(`channel:${message.channelId}`).emit("message:updated", { message });
@@ -484,21 +466,26 @@ messagesRouter.post("/:id/reactions", async (req, res) => {
     return;
   }
 
-  await prisma.messageReaction.upsert({
-    where: {
-      messageId_userId_emoji: {
-        messageId: req.params.id,
-        userId: req.user!.id,
-        emoji: parsed.data.emoji,
-      },
-    },
-    update: {},
-    create: {
+  // Toggle: a second reaction with the same emoji removes it.
+  const reactionKey = {
+    messageId_userId_emoji: {
       messageId: req.params.id,
       userId: req.user!.id,
       emoji: parsed.data.emoji,
     },
-  });
+  };
+  const existingReaction = await prisma.messageReaction.findUnique({ where: reactionKey, select: { id: true } });
+  if (existingReaction) {
+    await prisma.messageReaction.delete({ where: { id: existingReaction.id } });
+  } else {
+    await prisma.messageReaction.create({
+      data: {
+        messageId: req.params.id,
+        userId: req.user!.id,
+        emoji: parsed.data.emoji,
+      },
+    });
+  }
 
   const reactions = await prisma.messageReaction.findMany({ where: { messageId: req.params.id } });
   getIo().to(`channel:${message.channelId}`).emit("message:reactions", {
@@ -506,5 +493,5 @@ messagesRouter.post("/:id/reactions", async (req, res) => {
     reactions,
   });
 
-  res.status(201).json({ reactions });
+  res.status(200).json({ reactions, active: !existingReaction });
 });

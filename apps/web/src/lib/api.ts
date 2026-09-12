@@ -296,6 +296,14 @@ export type BotCommand = {
   updatedAt: string;
 };
 
+export type MessageReaction = {
+  id: string;
+  messageId: string;
+  userId: string;
+  emoji: string;
+  createdAt?: string;
+};
+
 export type Message = {
   id: string;
   channelId: string;
@@ -309,6 +317,15 @@ export type Message = {
   createdAt: string;
   optimistic?: boolean;
   optimisticId?: string;
+  replyToId?: string | null;
+  replyTo?: {
+    id: string;
+    content: string;
+    authorId?: string | null;
+    botName?: string | null;
+    author?: { id: string; username: string } | null;
+  } | null;
+  reactions?: MessageReaction[];
   author?: {
     id: string;
     username: string;
@@ -1562,17 +1579,36 @@ export async function executeBotCommand(
   return response.data;
 }
 
-export async function getMessages(accessToken: string, channelId: string) {
+export async function getMessages(accessToken: string, channelId: string, cursor?: string | null) {
   const response = await api.get<{ messages: Message[]; nextCursor: string | null }>(`/api/messages/${channelId}`, {
     headers: authHeaders(accessToken),
+    params: cursor ? { cursor } : {},
   });
+  return response.data;
+}
+
+export async function editMessage(accessToken: string, csrfToken: string, messageId: string, content: string) {
+  const response = await api.patch<{ message: Message }>(
+    `/api/messages/${messageId}`,
+    { content },
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
+  return response.data;
+}
+
+export async function toggleReaction(accessToken: string, csrfToken: string, messageId: string, emoji: string) {
+  const response = await api.post<{ reactions: MessageReaction[]; active: boolean }>(
+    `/api/messages/${messageId}/reactions`,
+    { emoji },
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
   return response.data;
 }
 
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[] },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),
