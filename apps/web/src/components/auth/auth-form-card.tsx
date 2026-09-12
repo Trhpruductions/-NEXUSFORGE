@@ -1,68 +1,47 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import Image from "next/image";
-import { Lock, Cpu, LayoutPanelTop } from "lucide-react";
+import { Lock } from "lucide-react";
 
 type AuthFormCardProps = {
   title: string;
   subtitle: string;
+  eyebrow?: string;
   footer?: ReactNode;
   children: ReactNode;
 };
 
-export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCardProps) {
+export function AuthFormCard({ title, subtitle, eyebrow = "Vexora Gaming", footer, children }: AuthFormCardProps) {
   const titleId = useId();
 
   return (
     <section
       role="form"
       aria-labelledby={titleId}
-      className="w-full max-w-[480px] rounded-[32px] border border-slate-900/10 bg-white/85 p-10 relative overflow-hidden group shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl text-slate-900"
+      className="relative w-full max-w-[480px] overflow-hidden rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-8 text-slate-100 shadow-[0_30px_90px_rgba(139,61,255,0.25)] backdrop-blur-xl sm:p-10"
     >
-      <div className="absolute top-0 right-0 p-8 opacity-10">
-         <LayoutPanelTop className="w-32 h-32" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#60a5fa,#a78bfa,#e879f9,transparent)]" />
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(139,61,255,0.35),transparent_65%)] blur-2xl" />
+
+      <div className="relative mb-8 flex items-start justify-between gap-4">
+        <div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">{eyebrow}</p>
+          <h1 id={titleId} className="nf-heading text-2xl font-bold tracking-tight text-white">
+            {title}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-400">{subtitle}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-1">
+          <Lock className="h-3 w-3 text-emerald-300" />
+          <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-200">Secure</span>
+        </div>
       </div>
 
-      <div className="relative mb-12 flex items-center justify-between">
-         <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 transition-colors group-hover:bg-amber-100">
-               <Image 
-                 src="/brand/vexora-mark.png" 
-                 alt="" 
-                 width={20} 
-                 height={20} 
-                 className="grayscale contrast-125" 
-               />
-            </div>
-            <div>
-               <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.4em] text-amber-600">Vexora Auth</p>
-               <h1 id={titleId} className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
-            </div>
-         </div>
-         <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 shadow-sm">
-            <Lock className="w-3 h-3 text-emerald-600" />
-            <span className="text-[8px] font-semibold uppercase tracking-widest text-emerald-600">TLS secure</span>
-         </div>
-      </div>
+      <div className="relative space-y-5">{children}</div>
 
-      <div className="relative mb-10 pb-6 border-b border-slate-900/5">
-         <p className="text-[11px] font-medium uppercase tracking-widest leading-relaxed text-slate-500">{subtitle}</p>
-      </div>
-
-      <div className="relative space-y-6">
-         {children}
-      </div>
-
-      {footer && (
-         <div className="relative mt-10 pt-8 border-t border-slate-900/5 text-[10px] font-semibold uppercase tracking-widest text-center text-slate-500 transition-colors group-hover:text-slate-700">
-            {footer}
-         </div>
-      )}
-      
-      {/* CORNER DECS */}
-      <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-amber-200" />
-      <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-amber-200" />
+      {footer ? (
+        <div className="relative mt-8 border-t border-white/8 pt-6 text-center text-xs text-slate-400">{footer}</div>
+      ) : null}
     </section>
   );
 }

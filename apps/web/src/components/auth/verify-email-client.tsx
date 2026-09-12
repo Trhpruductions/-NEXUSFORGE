@@ -39,17 +39,17 @@ export function VerifyEmailClient({ token }: { token: string }) {
       subtitle="Confirm your token and return to the login flow"
       footer={
         <div className="flex items-center justify-end gap-4">
-          <Link href="/login" className="text-amber-700 hover:text-amber-600">
+          <Link href="/login" className="text-amber-200 hover:text-amber-200">
             Back to login
           </Link>
-          <Link href="/forgot-password" className="text-amber-700 hover:text-amber-600">
+          <Link href="/forgot-password" className="text-amber-200 hover:text-amber-200">
             Forgot password?
           </Link>
         </div>
       }
     >
       <div className="grid gap-4">
-        <p role="status" aria-live="polite" className="text-sm text-slate-600">
+        <p role="status" aria-live="polite" className="text-sm text-slate-400">
           {status === "loading"
             ? "Verifying your email..."
             : status === "success"

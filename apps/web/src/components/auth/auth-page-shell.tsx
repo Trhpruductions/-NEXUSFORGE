@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 type AuthPageShellProps = {
   hero: ReactNode;
@@ -10,38 +11,34 @@ type AuthPageShellProps = {
 
 export function AuthPageShell({ hero, children }: AuthPageShellProps) {
   return (
-     <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.10),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] px-4 py-8 sm:px-6">
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a06_1px,transparent_1px),linear-gradient(to_bottom,#0f172a06_1px,transparent_1px)] bg-[size:32px_32px]" />
-        <div className="absolute inset-0 scanline-overlay opacity-[0.04] pointer-events-none" />
-        <div className="pointer-events-none absolute top-1/2 left-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500/8 blur-[120px]" />
-      </div>
+    <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-[#05030f] px-4 py-8 text-slate-100 sm:px-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(59,130,246,0.22),transparent_34%),radial-gradient(circle_at_85%_20%,rgba(168,85,247,0.24),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(124,58,237,0.18),transparent_40%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_55%,transparent_100%)]" />
 
-      <div className="mx-auto my-auto grid w-full max-w-7xl gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center relative z-10">
-        <section className="hidden lg:block space-y-12">
-           <div className="relative inline-block rounded-[24px] border border-slate-900/10 bg-white/85 p-4 backdrop-blur-sm group shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
-             <div className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-amber-500" />
-             <div className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-amber-500" />
-             <Image 
-               src="/brand/vexora-mark.png" 
-               alt="Vexora Gaming" 
-               width={160} 
-               height={40} 
-               className="grayscale group-hover:grayscale-0 transition-all duration-700 brightness-75 group-hover:brightness-110"
-             />
-          </div>
+      <div className="relative z-10 mx-auto my-auto grid w-full max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <section className="hidden space-y-10 lg:block">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(139,61,255,0.35)]">
+              <Image src="/brand/vexora-mark.png" alt="Vexora Gaming" width={36} height={36} className="h-9 w-9 object-contain" />
+            </div>
+            <div>
+              <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Vexora</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
+            </div>
+          </Link>
           {hero}
         </section>
-        <div className="relative w-full flex flex-col items-center lg:items-end gap-8">
-          <div className="lg:hidden rounded-[24px] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
-            <Image 
-               src="/brand/vexora-mark.png" 
-               alt="Vexora Gaming" 
-               width={140} 
-               height={35} 
-               className="brightness-110"
-             />
-          </div>
+
+        <div className="relative flex w-full flex-col items-center gap-6 lg:items-end">
+          <Link href="/" className="flex items-center gap-3 lg:hidden">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(139,61,255,0.35)]">
+              <Image src="/brand/vexora-mark.png" alt="Vexora Gaming" width={32} height={32} className="h-8 w-8 object-contain" />
+            </div>
+            <div>
+              <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Vexora</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
+            </div>
+          </Link>
           {children}
         </div>
       </div>

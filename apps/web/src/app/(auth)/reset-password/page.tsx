@@ -10,11 +10,11 @@ export default async function ResetPasswordPage({ searchParams }: any) {
     <AuthPageShell
       hero={
         <>
-          <p className="nexus-eyebrow text-amber-600">Security Rail</p>
-          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-slate-950">
+          <p className="nexus-eyebrow text-amber-200">Security Rail</p>
+          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
             Redeem your reset token and restore access.
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-slate-400">
             Enter the one-time code from your recovery flow, set a fresh password, and return to Vexora Gaming.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -32,9 +32,9 @@ export default async function ResetPasswordPage({ searchParams }: any) {
             </article>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="glass-cut auth-hero-card rounded-[20px] border border-slate-900/10 bg-white/80 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-600">Token validation</p>
-              <p className="mt-2 text-sm text-slate-600">The reset token links your recovery action to your account securely.</p>
+            <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">Token validation</p>
+              <p className="mt-2 text-sm text-slate-400">The reset token links your recovery action to your account securely.</p>
             </div>
             <div className="glass-cut rounded-[20px] border border-cyan-200 bg-cyan-50 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-700">Secure restore</p>

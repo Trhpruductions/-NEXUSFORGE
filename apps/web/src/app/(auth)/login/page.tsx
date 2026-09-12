@@ -6,11 +6,12 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Gamepad2, Mic2, ShieldCheck, Users2 } from "lucide-react";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
+import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { login } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-import { Terminal, ShieldAlert, Activity, ArrowRight } from "lucide-react";
 
 const schema = z.object({
   email: z.string().email("Use a valid email"),
@@ -25,6 +26,13 @@ function sanitizeRedirectTarget(raw: string | null): string | null {
   if (raw.startsWith("//")) return null;
   return raw;
 }
+
+const highlights = [
+  { icon: Gamepad2, label: "Forges", note: "Your squads, channels and invites" },
+  { icon: Mic2, label: "Voice", note: "Low-latency rooms and stages" },
+  { icon: ShieldCheck, label: "Moderation", note: "Ranked roles, kicks and bans" },
+  { icon: Users2, label: "Friends", note: "DMs that follow you everywhere" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,81 +74,80 @@ export default function LoginPage() {
   return (
     <AuthPageShell
       hero={
-        <div className="space-y-12">
-           <div className="flex items-center gap-4">
-              <div className="w-12 h-px bg-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.6)]" />
-              <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.5em]">Command_Access</span>
-           </div>
-           
-           <h2 className="text-6xl font-black uppercase leading-tight italic tracking-tighter text-slate-950">
-             Secure Your <br/> <span className="text-amber-500">Node_Vault</span>.
-           </h2>
-           
-           <p className="max-w-md text-[13px] text-slate-500 uppercase tracking-widest leading-loose">
-             Synchronize session keys and initialize your localized control deck with industrial-grade encryption layers.
-           </p>
-
-           <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: "IP_Masking", status: "ACTIVE", icon: ShieldAlert },
-                { label: "Auth_Sync", status: "READY", icon: Activity },
-              ].map(stat => (
-                 <div key={stat.label} className="flex flex-col gap-4 rounded-[20px] border border-slate-900/10 bg-white/80 p-6">
-                   <stat.icon className="w-4 h-4 text-emerald-500" />
-                   <div>
-                      <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{stat.label}</p>
-                     <p className="text-[10px] text-slate-900 font-black uppercase tracking-widest">{stat.status}</p>
-                   </div>
-                </div>
-              ))}
-           </div>
+        <div className="space-y-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(196,150,255,0.9)]" />
+            Welcome back
+          </div>
+          <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
+            Drop back into
+            <span className="block bg-[linear-gradient(120deg,#60a5fa,#a78bfa_45%,#e879f9)] bg-clip-text text-transparent">
+              the squad.
+            </span>
+          </h2>
+          <p className="max-w-md text-base leading-relaxed text-slate-300">
+            Sign in to pick up your forges, voice rooms, friends and rewards right where you left them.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {highlights.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                <item.icon className="mb-3 h-5 w-5 text-amber-200" />
+                <p className="text-sm font-semibold text-white">{item.label}</p>
+                <p className="mt-1 text-xs text-slate-400">{item.note}</p>
+              </div>
+            ))}
+          </div>
         </div>
       }
     >
-      <AuthFormCard 
-        title="Initialize Session"
-        subtitle="Provide credentials to establish a secure tunnel to the Vexora Gaming grid."
+      <AuthFormCard
+        title="Sign in"
+        subtitle="Use the email and password on your Vexora Gaming account."
         footer={
-          <Link href="/register" className="hover:text-amber-500 transition-colors">
-             No account? Request Node Access <ArrowRight className="inline w-3 h-3 ml-2" />
-          </Link>
+          <span>
+            New here?{" "}
+            <Link href="/register" className="font-semibold text-amber-200 transition hover:text-white">
+              Create a free account <ArrowRight className="ml-1 inline h-3 w-3" />
+            </Link>
+          </span>
         }
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-           <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email_Address</label>
-              <input 
-                 {...register("email")}
-                  className="w-full rounded-[18px] border border-slate-900/10 bg-white p-4 text-[12px] font-bold uppercase tracking-widest text-slate-900 transition-colors focus:border-amber-400/60 focus:outline-none"
-                 placeholder="COMMANDER@VEXORA"
-              />
-              {errors.email && <p className="text-[9px] text-rose-500 uppercase font-black">{errors.email.message}</p>}
-           </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+          <AuthField
+            id="login-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            error={errors.email?.message}
+            {...register("email")}
+          />
+          <AuthField
+            id="login-password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Your password"
+            error={errors.password?.message}
+            {...register("password")}
+          />
 
-           <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Security_Key</label>
-              <input 
-                 type="password"
-                 {...register("password")}
-                  className="w-full rounded-[18px] border border-slate-900/10 bg-white p-4 text-[12px] font-bold uppercase tracking-widest text-slate-900 transition-colors focus:border-amber-400/60 focus:outline-none"
-                 placeholder="********"
-              />
-              {errors.password && <p className="text-[9px] text-rose-500 uppercase font-black">{errors.password.message}</p>}
-           </div>
+          <div className="flex items-center justify-end">
+            <Link href="/forgot-password" className="text-xs text-slate-400 transition hover:text-amber-200">
+              Forgot password?
+            </Link>
+          </div>
 
-           {serverError && (
-              <div className="p-4 bg-rose-500/5 border border-rose-500/20 text-[10px] text-rose-500 font-bold uppercase tracking-widest">
-                 {serverError}
-              </div>
-           )}
+          {serverError ? (
+            <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {serverError}
+            </div>
+          ) : null}
 
-           <button 
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-5 bg-amber-500 text-black font-black uppercase tracking-[0.2em] text-[11px] hover:bg-amber-400 transition-all disabled:opacity-50"
-           >
-              {isSubmitting ? "THROTTLING AUTH..." : "IDENTIFY & SYNC"}
-           </button>
+          <button type="submit" disabled={isSubmitting} className={authPrimaryButtonClass}>
+            {isSubmitting ? "Signing in..." : "Sign in"}
+            {!isSubmitting ? <ArrowRight className="h-4 w-4" /> : null}
+          </button>
         </form>
       </AuthFormCard>
     </AuthPageShell>

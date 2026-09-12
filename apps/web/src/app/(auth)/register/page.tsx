@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Crosshair, Gamepad2, Users2, Wrench } from "lucide-react";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { register as registerApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -34,6 +34,13 @@ function sanitizeRedirectTarget(raw: string | null): string | null {
   if (raw.startsWith("//")) return null;
   return raw;
 }
+
+const pillars = [
+  { icon: Gamepad2, label: "Play", note: "Squads, scrims and LFG channels." },
+  { icon: Users2, label: "Connect", note: "Voice rooms, DMs and friends." },
+  { icon: Wrench, label: "Create", note: "Bots, roles and forge templates." },
+  { icon: Crosshair, label: "Dominate", note: "Leaderboards, rewards and stats." },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -85,91 +92,112 @@ export default function RegisterPage() {
   return (
     <AuthPageShell
       hero={
-        <>
-          <p className="nexus-eyebrow text-amber-600">Onboarding Rail</p>
-          <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-slate-950">
-            Launch your account and drop into the command network fast.
+        <div className="space-y-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(196,150,255,0.9)]" />
+            Built for gamers. Connected by community.
+          </div>
+          <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
+            Forge your
+            <span className="block bg-[linear-gradient(120deg,#60a5fa,#a78bfa_45%,#e879f9)] bg-clip-text text-transparent">
+              community.
+            </span>
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Registration is wired for immediate session activation, route handoff, and premium posture visibility from first login.
+          <p className="max-w-md text-base leading-relaxed text-slate-300">
+            Free to start. Create an account, pick a forge template, and be live with your squad in under a minute.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Onboarding</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">Create forge-ready access</p>
-            </article>
-            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Session</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">Redirects into app</p>
-            </article>
-            <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Verification</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">Demo token issued</p>
-            </article>
+          <div className="grid grid-cols-2 gap-3">
+            {pillars.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                <item.icon className="mb-3 h-5 w-5 text-amber-200" />
+                <p className="nf-heading text-xs font-bold uppercase tracking-[0.3em] text-white">{item.label}</p>
+                <p className="mt-1 text-xs text-slate-400">{item.note}</p>
+              </div>
+            ))}
           </div>
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <div className="glass-cut auth-hero-card rounded-[20px] border border-slate-900/10 bg-white/80 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-600">Instant activation</p>
-              <p className="mt-2 text-sm text-slate-600">Account setup completes quickly so your Forge is ready to deploy immediately.</p>
-            </div>
-            <div className="glass-cut rounded-[20px] border border-fuchsia-200 bg-fuchsia-50 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-700">Forge ready</p>
-              <p className="mt-2 text-sm text-fuchsia-800">Start building your command network with premium tools from first login.</p>
-            </div>
-          </div>
-        </>
+        </div>
       }
     >
       <AuthFormCard
-        title="Create Account"
-        subtitle="Join Vexora Gaming and launch your first Forge"
+        title="Create your account"
+        subtitle="You must be 18 or older to join Vexora Gaming."
         footer={
-          <div className="flex items-center justify-end">
-            <Link href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/workspace")}`} className="text-amber-700 hover:text-amber-600">
-              Already have an account?
+          <span>
+            Already have an account?{" "}
+            <Link
+              href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/workspace")}`}
+              className="font-semibold text-amber-200 transition hover:text-white"
+            >
+              Sign in <ArrowRight className="ml-1 inline h-3 w-3" />
             </Link>
-          </div>
+          </span>
         }
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-          <Input id="register-username" label="Username" autoComplete="username" error={errors.username?.message} {...register("username")} />
-          <Input id="register-email" label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
-          <Input id="register-birthdate" label="Birthdate" type="date" error={errors.birthdate?.message} {...register("birthdate")} />
-          <Input
-            id="register-password"
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            error={errors.password?.message}
-            {...register("password")}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <AuthField
+            id="register-username"
+            label="Username"
+            autoComplete="username"
+            placeholder="gamertag"
+            error={errors.username?.message}
+            {...register("username")}
           />
-          <Input
-            id="register-confirm-password"
-            label="Confirm Password"
-            type="password"
-            autoComplete="new-password"
-            error={errors.confirmPassword?.message}
-            {...register("confirmPassword")}
+          <AuthField
+            id="register-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            error={errors.email?.message}
+            {...register("email")}
           />
+          <AuthField id="register-birthdate" label="Birthdate" type="date" error={errors.birthdate?.message} {...register("birthdate")} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AuthField
+              id="register-password"
+              label="Password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="8+ characters"
+              error={errors.password?.message}
+              {...register("password")}
+            />
+            <AuthField
+              id="register-confirm-password"
+              label="Confirm"
+              type="password"
+              autoComplete="new-password"
+              placeholder="Repeat it"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
+            />
+          </div>
+
           {serverError ? (
-            <p role="alert" className="text-sm text-rose-400">
+            <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
               {serverError}
-            </p>
+            </div>
           ) : null}
+
           {verificationToken ? (
-            <div className="grid gap-2 rounded-[20px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <div className="space-y-1 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
               <p>Demo verification token: {verificationToken}</p>
-              <Link
-                href={`/verify-email?token=${encodeURIComponent(verificationToken)}`}
-                className="text-amber-700 hover:text-amber-600 underline"
-              >
+              <Link href={`/verify-email?token=${encodeURIComponent(verificationToken)}`} className="underline hover:text-white">
                 Verify email now
               </Link>
             </div>
           ) : null}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating account..." : "Create Account"}
-          </Button>
+
+          <button type="submit" disabled={isSubmitting} className={authPrimaryButtonClass}>
+            {isSubmitting ? "Creating account..." : "Create account"}
+            {!isSubmitting ? <ArrowRight className="h-4 w-4" /> : null}
+          </button>
+
+          <p className="text-center text-[11px] leading-relaxed text-slate-500">
+            By joining you agree to the{" "}
+            <Link href="/terms" className="text-slate-300 hover:text-white">Terms</Link> and{" "}
+            <Link href="/privacy" className="text-slate-300 hover:text-white">Privacy Policy</Link>.
+          </p>
         </form>
       </AuthFormCard>
     </AuthPageShell>
