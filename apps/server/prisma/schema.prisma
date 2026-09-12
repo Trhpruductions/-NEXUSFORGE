@@ -208,6 +208,8 @@ model User {
   oAuthClients       OAuthClient[]
   authorizationCodes  OAuthAuthorizationCode[]
   auditLogs          AuditLog[]
+  forgeBans          ForgeBan[]     @relation("ForgeBanTarget")
+  issuedForgeBans    ForgeBan[]     @relation("ForgeBanIssuer")
 }
 
 model EconomyAccount {
@@ -371,6 +373,7 @@ model Forge {
   botInstallations ForgeBotInstallation[]
   botCommands BotCommand[]
   inviteSources InviteSourceStat[]
+  bans        ForgeBan[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -442,6 +445,21 @@ model BotCommand {
 
   @@unique([forgeId, name])
   @@index([installationId, enabled])
+}
+
+model ForgeBan {
+  id         String   @id @default(uuid())
+  forgeId    String
+  userId     String
+  bannedById String
+  reason     String?  @db.VarChar(300)
+  createdAt  DateTime @default(now())
+  forge      Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+  user       User     @relation("ForgeBanTarget", fields: [userId], references: [id], onDelete: Cascade)
+  bannedBy   User     @relation("ForgeBanIssuer", fields: [bannedById], references: [id], onDelete: Cascade)
+
+  @@unique([forgeId, userId])
+  @@index([userId])
 }
 
 model ForgeMember {

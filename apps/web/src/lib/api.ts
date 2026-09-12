@@ -67,6 +67,7 @@ export type Channel = {
   id: string;
   forgeId: string;
   name: string;
+  topic?: string | null;
   type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE";
   position: number;
 };
@@ -602,10 +603,43 @@ api.interceptors.request.use((config) => {
 
 interface RetriableRequestConfig extends AxiosRequestConfig {
   __retriedOnFallbackPort?: boolean;
+  __retriedAfterRefresh?: boolean;
 }
 
 let unauthorizedHandler: (() => void) | null = null;
 let lastUnauthorizedHandledAt = 0;
+
+type RefreshedSession = { accessToken: string; csrfToken: string };
+let refreshInFlight: Promise<RefreshedSession | null> | null = null;
+
+const authEndpointsWithoutRefresh = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout"];
+
+function isNonRefreshableAuthUrl(url?: string) {
+  if (!url) return false;
+  return authEndpointsWithoutRefresh.some((endpoint) => url.includes(endpoint));
+}
+
+/**
+ * Exchange the httpOnly refresh cookie for a new access token. Concurrent 401s share one refresh call.
+ * Returns null when the refresh cookie is missing, expired or revoked.
+ */
+export function refreshAccessToken(): Promise<RefreshedSession | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = axios
+      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      .then((response) => {
+        const data = response.data;
+        if (!data?.accessToken) return null;
+        useAuthStore.setState({ accessToken: data.accessToken, csrfToken: data.csrfToken ?? null });
+        return { accessToken: data.accessToken, csrfToken: data.csrfToken };
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
 
 export function setApiUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
@@ -630,6 +664,27 @@ api.interceptors.response.use(
     }
 
     if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const hadSession = Boolean(useAuthStore.getState().accessToken);
+      const canRetry =
+        hadSession &&
+        config &&
+        !config.__retriedAfterRefresh &&
+        !isNonRefreshableAuthUrl(config.url);
+
+      if (canRetry) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          const headers = { ...(config.headers as Record<string, string> | undefined) };
+          headers.Authorization = `Bearer ${refreshed.accessToken}`;
+          if (refreshed.csrfToken) headers["x-csrf-token"] = refreshed.csrfToken;
+          return api.request({
+            ...(config as RetriableRequestConfig),
+            __retriedAfterRefresh: true,
+            headers,
+          } as RetriableRequestConfig);
+        }
+      }
+
       const now = Date.now();
       if (unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
         lastUnauthorizedHandledAt = now;
@@ -931,30 +986,251 @@ export async function getPublicForgeInvite(inviteCode: string, source?: string) 
   }
 }
 
+export type ForgePermissionKey =
+  | "manageForge"
+  | "manageChannels"
+  | "manageRoles"
+  | "kickUsers"
+  | "banUsers"
+  | "moderateChat"
+  | "streamAccess";
+
+export type ForgePermissionSet = Record<ForgePermissionKey, boolean>;
+
+export const forgePermissionKeys: ForgePermissionKey[] = [
+  "manageForge",
+  "manageChannels",
+  "manageRoles",
+  "kickUsers",
+  "banUsers",
+  "moderateChat",
+  "streamAccess",
+];
+
+export type ForgeRole = {
+  id: string;
+  forgeId: string;
+  name: string;
+  color: string;
+  permissions: Partial<ForgePermissionSet> | null;
+  position: number;
+};
+
+export type ForgeMemberEntry = {
+  id: string;
+  userId: string;
+  nickname?: string | null;
+  joinedAt: string;
+  roleLinks: Array<{ roleId: string }>;
+  user: {
+    id: string;
+    username: string;
+    avatar?: string | null;
+    status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+    premium: boolean;
+  };
+};
+
+export type ForgeBan = {
+  id: string;
+  forgeId: string;
+  userId: string;
+  bannedById: string;
+  reason?: string | null;
+  createdAt: string;
+  user: { id: string; username: string; avatar?: string | null };
+  bannedBy: { id: string; username: string };
+};
+
+export type ForgeAccess = {
+  forgeId: string;
+  isOwner: boolean;
+  topPosition: number;
+  permissions: ForgePermissionSet;
+};
+
+export type ForgeDetail = Forge & {
+  ownerId: string;
+  channels: Channel[];
+  roles: ForgeRole[];
+  botInstallations: Array<{
+    id: string;
+    enabled: boolean;
+    createdAt: string;
+    commands: BotCommand[];
+    bot: BotApp;
+  }>;
+  inviteSources: InviteSourceStat[];
+  members: ForgeMemberEntry[];
+};
+
 export async function getForge(accessToken: string, forgeId: string) {
-  const response = await api.get<{
-    forge: Forge & {
-      channels: Channel[];
-      botInstallations: Array<{
-        id: string;
-        enabled: boolean;
-        createdAt: string;
-        commands: BotCommand[];
-        bot: BotApp;
-      }>;
-      inviteSources: InviteSourceStat[];
-      members: Array<{
-        user: {
-          id: string;
-          username: string;
-          avatar?: string | null;
-          status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
-          premium: boolean;
-        };
-      }>;
-    };
-  }>(`/api/forges/${forgeId}`, {
+  const response = await api.get<{ forge: ForgeDetail }>(`/api/forges/${forgeId}`, {
     headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+// ---------------------------------------------------------------------------
+// Forge management (settings, channels, roles, members, bans)
+// ---------------------------------------------------------------------------
+
+export async function getForgePermissions(accessToken: string, forgeId: string) {
+  const response = await api.get<ForgeAccess>(`/api/forges/${forgeId}/permissions`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function updateForge(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { name?: string; description?: string | null; icon?: string | null; banner?: string | null },
+) {
+  const response = await api.patch<{ forge: Forge & { ownerId: string } }>(`/api/forges/${forgeId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function deleteForge(accessToken: string, csrfToken: string, forgeId: string) {
+  const response = await api.delete<{ ok: true; forgeId: string }>(`/api/forges/${forgeId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function leaveForge(accessToken: string, csrfToken: string, forgeId: string) {
+  const response = await api.post<{ ok: true; forgeId: string }>(`/api/forges/${forgeId}/leave`, {}, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function createForgeChannel(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { name: string; type: Channel["type"]; topic?: string },
+) {
+  const response = await api.post<{ channel: Channel }>(`/api/forges/${forgeId}/channels`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function updateForgeChannel(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  channelId: string,
+  payload: { name?: string; topic?: string | null; position?: number },
+) {
+  const response = await api.patch<{ channel: Channel }>(`/api/forges/${forgeId}/channels/${channelId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function deleteForgeChannel(accessToken: string, csrfToken: string, forgeId: string, channelId: string) {
+  const response = await api.delete<{ ok: true; channelId: string }>(`/api/forges/${forgeId}/channels/${channelId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function createForgeRole(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { name: string; color?: string; permissions?: Partial<ForgePermissionSet>; position?: number },
+) {
+  const response = await api.post<{ role: ForgeRole }>(`/api/forges/${forgeId}/roles`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function updateForgeRole(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  roleId: string,
+  payload: { name?: string; color?: string; permissions?: Partial<ForgePermissionSet>; position?: number },
+) {
+  const response = await api.patch<{ role: ForgeRole }>(`/api/forges/${forgeId}/roles/${roleId}`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function deleteForgeRole(accessToken: string, csrfToken: string, forgeId: string, roleId: string) {
+  const response = await api.delete<{ ok: true; roleId: string }>(`/api/forges/${forgeId}/roles/${roleId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function setForgeMemberRoles(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  userId: string,
+  roleIds: string[],
+) {
+  const response = await api.put<{ userId: string; roleIds: string[] }>(
+    `/api/forges/${forgeId}/members/${userId}/roles`,
+    { roleIds },
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
+  return response.data;
+}
+
+export async function updateForgeMemberNickname(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  userId: string,
+  nickname: string | null,
+) {
+  const response = await api.patch<{ member: { id: string; userId: string; nickname: string | null } }>(
+    `/api/forges/${forgeId}/members/${userId}`,
+    { nickname },
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
+  return response.data;
+}
+
+export async function kickForgeMember(accessToken: string, csrfToken: string, forgeId: string, userId: string) {
+  const response = await api.delete<{ ok: true; userId: string }>(`/api/forges/${forgeId}/members/${userId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function listForgeBans(accessToken: string, forgeId: string) {
+  const response = await api.get<{ bans: ForgeBan[] }>(`/api/forges/${forgeId}/bans`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+export async function banForgeUser(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { userId: string; reason?: string },
+) {
+  const response = await api.post<{ ban: ForgeBan }>(`/api/forges/${forgeId}/bans`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function unbanForgeUser(accessToken: string, csrfToken: string, forgeId: string, userId: string) {
+  const response = await api.delete<{ ok: true; userId: string }>(`/api/forges/${forgeId}/bans/${userId}`, {
+    headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;
 }

@@ -14,6 +14,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { dmsRouter } from "./routes/dms.routes.js";
 import { friendsRouter } from "./routes/friends.routes.js";
 import { forgesRouter } from "./routes/forges.routes.js";
+import { forgeManagementRouter } from "./routes/forge-management.routes.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { messagesRouter } from "./routes/messages.routes.js";
 import { notificationsRouter } from "./routes/notifications.routes.js";
@@ -121,6 +122,7 @@ app.use(globalRateLimit);
 app.use("/api", healthRouter);
 app.use("/api/auth", authRateLimit, authRouter);
 app.use("/api/forges", forgesRouter);
+app.use("/api/forges", forgeManagementRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/friends", friendsRouter);
 app.use("/api/dms", dmsRouter);
@@ -164,7 +166,26 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.emit("welcome", { message: "Connected to NexusForge realtime gateway" });
+  socket.emit("welcome", { message: "Connected to Vexora Gaming realtime gateway" });
+  socket.join(`user:${socket.data.user.id}`);
+
+  socket.on("forge:join", async (forgeId: string) => {
+    if (typeof forgeId !== "string" || !forgeId) return;
+    const membership = await prisma.forgeMember
+      .findUnique({
+        where: { userId_forgeId: { userId: socket.data.user.id, forgeId } },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (membership) {
+      socket.join(`forge:${forgeId}`);
+    }
+  });
+
+  socket.on("forge:leave", (forgeId: string) => {
+    if (typeof forgeId !== "string" || !forgeId) return;
+    socket.leave(`forge:${forgeId}`);
+  });
 
   socket.on("channel:join", (channelId: string) => {
     socket.join(`channel:${channelId}`);
@@ -235,24 +256,24 @@ setIo(io);
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
     console.error(
-      `NexusForge API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
+      `Vexora Gaming API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
     );
     process.exit(1);
     return;
   }
 
   if (error.code === "EACCES") {
-    console.error(`NexusForge API failed to start: insufficient permissions to bind port ${env.PORT}.`);
+    console.error(`Vexora Gaming API failed to start: insufficient permissions to bind port ${env.PORT}.`);
     process.exit(1);
     return;
   }
 
-  console.error("NexusForge API failed to start due to an unexpected server error.", error);
+  console.error("Vexora Gaming API failed to start due to an unexpected server error.", error);
   process.exit(1);
 });
 
 httpServer.listen(env.PORT, () => {
-  console.log(`NexusForge API running on http://localhost:${env.PORT}`);
+  console.log(`Vexora Gaming API running on http://localhost:${env.PORT}`);
   
   // Engage Industrial Engines
   JackpotEngine.start();

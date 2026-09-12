@@ -512,6 +512,15 @@ forgesRouter.post("/join", async (req, res) => {
 
   const inviteSource = normalizeInviteSource(parsed.data.source);
 
+  const activeBan = await prisma.forgeBan.findUnique({
+    where: { forgeId_userId: { forgeId: forge.id, userId: req.user!.id } },
+    select: { id: true },
+  });
+  if (activeBan) {
+    res.status(403).json({ error: "You are banned from this Forge" });
+    return;
+  }
+
   const existingMembership = await prisma.forgeMember.findUnique({
     where: {
       userId_forgeId: {
@@ -1527,7 +1536,7 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
     return;
   }
 
-  const starterBotName = "NexusForge Ops Bot";
+  const starterBotName = "Vexora Gaming Ops Bot";
   const starterCommandName = "ops-pulse";
 
   let bot = await prisma.botApp.findFirst({
@@ -1624,7 +1633,8 @@ forgesRouter.get("/:id", async (req, res) => {
   });
 
   if (!membership) {
-    res.status(403).json({ error: "You are not a member of this Forge" });
+    const exists = await prisma.forge.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    res.status(exists ? 403 : 404).json({ error: exists ? "You are not a member of this Forge" : "Forge not found" });
     return;
   }
 
@@ -1635,7 +1645,15 @@ forgesRouter.get("/:id", async (req, res) => {
         orderBy: { position: "asc" },
       },
       members: {
-        include: {
+        orderBy: { joinedAt: "asc" },
+        select: {
+          id: true,
+          userId: true,
+          nickname: true,
+          joinedAt: true,
+          roleLinks: {
+            select: { roleId: true },
+          },
           user: {
             select: {
               id: true,

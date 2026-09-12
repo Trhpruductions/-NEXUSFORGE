@@ -59,6 +59,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
+import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 
 const inviteSourcePresets = ["direct", "social", "stream", "partner", "campaign"] as const;
 
@@ -205,6 +206,9 @@ export function ForgeChatClient() {
 
   const [selectedForgeId, setSelectedForgeId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [forgeSettingsOpen, setForgeSettingsOpen] = useState(false);
+  const selectedChannelIdRef = useRef<string | null>(null);
+  selectedChannelIdRef.current = selectedChannelId;
   const [messageDraft, setMessageDraft] = useState("");
   const [forgeName, setForgeName] = useState("");
   const [forgeDescription, setForgeDescription] = useState("");
@@ -1307,6 +1311,78 @@ export function ForgeChatClient() {
   }, [accessToken, dmThreadsQuery.data?.threads, forgeDetailQuery.data?.forge.members, queryClient, selectedChannelId, selectedDmThreadId, user?.id]);
 
   useEffect(() => {
+    if (!accessToken || !selectedForgeId) return;
+    const socket = getSocket(accessToken);
+    const forgeId = selectedForgeId;
+
+    const join = () => socket.emit("forge:join", forgeId);
+    join();
+
+    const invalidateForge = (payload: { forgeId: string }) => {
+      if (payload.forgeId !== forgeId) return;
+      setLiveEventCount((count) => count + 1);
+      void queryClient.invalidateQueries({ queryKey: ["forge", forgeId, accessToken] });
+    };
+
+    const handleForgeUpdated = (payload: { forgeId: string }) => {
+      invalidateForge(payload);
+      void queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["home-forges", accessToken] });
+    };
+
+    const handleChannels = (payload: { forgeId: string; action?: string; channelId?: string }) => {
+      invalidateForge(payload);
+      if (payload.forgeId === forgeId && payload.action === "deleted" && payload.channelId && payload.channelId === selectedChannelIdRef.current) {
+        setSelectedChannelId(null);
+        setStatusMessage("The channel you were viewing was deleted.");
+      }
+    };
+
+    const handleBans = (payload: { forgeId: string }) => {
+      if (payload.forgeId !== forgeId) return;
+      void queryClient.invalidateQueries({ queryKey: ["forge-bans", forgeId, accessToken] });
+    };
+
+    const handleGone = (payload: { forgeId: string; reason?: string; name?: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["home-forges", accessToken] });
+      if (payload.forgeId !== forgeId) return;
+      setForgeSettingsOpen(false);
+      setSelectedForgeId(null);
+      setSelectedChannelId(null);
+      const label = payload.name ? `"${payload.name}"` : "that forge";
+      setStatusMessage(
+        payload.reason === "kicked"
+          ? `You were removed from ${label}.`
+          : payload.reason === "banned"
+            ? `You were banned from ${label}.`
+            : `${label} was deleted by its owner.`,
+      );
+    };
+
+    socket.on("connect", join);
+    socket.on("forge:updated", handleForgeUpdated);
+    socket.on("forge:channels", handleChannels);
+    socket.on("forge:roles", invalidateForge);
+    socket.on("forge:members", invalidateForge);
+    socket.on("forge:bans", handleBans);
+    socket.on("forge:deleted", handleGone);
+    socket.on("forge:removed", handleGone);
+
+    return () => {
+      socket.emit("forge:leave", forgeId);
+      socket.off("connect", join);
+      socket.off("forge:updated", handleForgeUpdated);
+      socket.off("forge:channels", handleChannels);
+      socket.off("forge:roles", invalidateForge);
+      socket.off("forge:members", invalidateForge);
+      socket.off("forge:bans", handleBans);
+      socket.off("forge:deleted", handleGone);
+      socket.off("forge:removed", handleGone);
+    };
+  }, [accessToken, selectedForgeId, queryClient]);
+
+  useEffect(() => {
     if (!accessToken || !selectedChannelId) return;
     const socket = getSocket(accessToken);
     socket.emit("channel:join", selectedChannelId);
@@ -1685,13 +1761,26 @@ export function ForgeChatClient() {
   return (
     <div className="cinematic-stage metal-corners relative flex min-h-[calc(100svh-3rem)] flex-col space-y-3 overflow-hidden rounded-[22px] pb-24 xl:space-y-4 xl:pb-0 nf-content-rhythm">
       <div className="cinematic-particles" />
+      {selectedForgeId ? (
+        <ForgeSettingsPanel
+          forgeId={selectedForgeId}
+          open={forgeSettingsOpen}
+          onClose={() => setForgeSettingsOpen(false)}
+          onForgeGone={(goneId) => {
+            if (goneId === selectedForgeId) {
+              setSelectedForgeId(null);
+              setSelectedChannelId(null);
+            }
+          }}
+        />
+      ) : null}
       <div className="command-halo pointer-events-none absolute inset-x-0 top-0 h-80" />
 
       <div className="forge-frame relative flex flex-wrap items-center justify-between gap-3 rounded-[22px] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <motion.img
-            src="/brand/nexusforge-logo.png"
-            alt="NexusForge"
+            src="/brand/vexora-mark.png"
+            alt="Vexora Gaming"
             className="logo-throb h-12 w-12 rounded-[14px] border border-amber-300/45 bg-black/85 object-contain p-1 shadow-[0_8px_20px_rgba(251,113,133,0.24)] ring-1 ring-amber-300/30"
             animate={{ scale: [1, 1.04, 1] }}
             transition={{ repeat: Infinity, duration: 3.4, ease: "easeInOut" }}
@@ -2022,7 +2111,7 @@ export function ForgeChatClient() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Core+ Telemetry</p>
-            <p className="text-sm text-slate-300">Live premium membership pressure across NexusForge.</p>
+            <p className="text-sm text-slate-300">Live premium membership pressure across Vexora Gaming.</p>
           </div>
           <Link
             href="/core-plus"
@@ -2839,9 +2928,20 @@ export function ForgeChatClient() {
             <h2 className="command-section-title">Channels</h2>
             <p className="text-xs text-slate-400">Filter text and voice channels for faster squad routing.</p>
           </div>
-          <span className="rounded-[14px] border border-slate-700/70 bg-slate-900/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
-            {filteredTextChannels.length + filteredVoiceChannels.length} visible
-          </span>
+          <div className="flex items-center gap-2">
+            {selectedForgeId ? (
+              <button
+                type="button"
+                onClick={() => setForgeSettingsOpen(true)}
+                className="rounded-[14px] border border-amber-500/40 bg-amber-950/35 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-100 transition hover:bg-amber-900/45"
+              >
+                Manage
+              </button>
+            ) : null}
+            <span className="rounded-[14px] border border-slate-700/70 bg-slate-900/75 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+              {filteredTextChannels.length + filteredVoiceChannels.length} visible
+            </span>
+          </div>
         </div>
 
         <div className="mb-4">
