@@ -18,7 +18,7 @@ export function DesktopLaunchSnippet({ desktopTarget }: DesktopLaunchSnippetProp
   }, [status]);
 
   async function handleCopy() {
-    const commandText = `$env:NEXUSFORGE_DESKTOP_URL = '${desktopTarget}'\n$env:NEXUSFORGE_DESKTOP_ONLY = 'false'\nStart-Process 'C:\\Program Files\\NexusForge Desktop\\NexusForge Desktop.exe'`;
+    const commandText = `$env:NEXUSFORGE_DESKTOP_URL = '${desktopTarget}'\n$env:NEXUSFORGE_DESKTOP_ONLY = 'false'\nStart-Process 'C:\\Program Files\\Vexora Gaming Desktop\\Vexora Gaming Desktop.exe'`;
 
     try {
       if (navigator.clipboard?.writeText) {

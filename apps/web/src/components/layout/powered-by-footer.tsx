@@ -21,7 +21,7 @@ export function PoweredByFooter() {
 
           {/* Footer Links and Attribution */}
           <div className="flex flex-col items-center gap-4 text-center text-xs text-slate-400 sm:flex-row sm:justify-center sm:gap-6">
-            <p>NexusForge Â© 2026. Built for community.</p>
+            <p>Vexora Gaming © 2026. Built for community.</p>
             <span className="hidden sm:inline">â€¢</span>
             <p className="text-slate-400">Powered by <span className="font-semibold text-slate-100">TRH Development</span></p>
           </div>
@@ -30,7 +30,7 @@ export function PoweredByFooter() {
           <div className="flex flex-wrap justify-center gap-4 text-xs">
             <a href="/pricing" className="text-amber-700 transition hover:text-amber-600">Pricing</a>
             <span className="text-slate-300">â€¢</span>
-            <a href="mailto:support@nexusforge.app" className="text-amber-700 transition hover:text-amber-600">Support</a>
+            <a href="mailto:support@vexoragaming.com" className="text-amber-700 transition hover:text-amber-600">Support</a>
             <span className="text-slate-300">â€¢</span>
             <a href="https://trh.dev" target="_blank" rel="noopener noreferrer" className="text-amber-700 transition hover:text-amber-600">TRH Development</a>
           </div>

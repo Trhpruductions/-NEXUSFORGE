@@ -272,7 +272,7 @@ export default function DeveloperOAuthPage() {
   -d "grant_type=client_credentials&client_id=${selectedClientId || "YOUR_CLIENT_ID"}&client_secret=YOUR_CLIENT_SECRET"`}
                 </pre>
                 <p className="mt-3 text-xs text-slate-500">
-                  Use this request from a secure server environment. The client secret is never stored by NexusForge after creation.
+                  Use this request from a secure server environment. The client secret is never stored by Vexora Gaming after creation.
                 </p>
               </div>
 

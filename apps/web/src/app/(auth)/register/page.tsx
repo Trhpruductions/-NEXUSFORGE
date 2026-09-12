@@ -122,7 +122,7 @@ export default function RegisterPage() {
     >
       <AuthFormCard
         title="Create Account"
-        subtitle="Join NexusForge and launch your first Forge"
+        subtitle="Join Vexora Gaming and launch your first Forge"
         footer={
           <div className="flex items-center justify-end">
             <Link href={`/login?redirect=${encodeURIComponent(redirectTarget ?? "/workspace")}`} className="text-amber-700 hover:text-amber-600">

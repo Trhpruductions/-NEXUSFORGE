@@ -16,7 +16,7 @@ export function NexusforgeBrandShowcase() {
         <div className="absolute -top-24 right-[-72px] h-52 w-52 rounded-full bg-red-500/10 blur-3xl" />
         <div className="absolute -bottom-28 left-[-80px] h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(122deg,rgba(255,184,108,0.06),transparent_30%,rgba(251,146,60,0.08))]" />
-        <p className="relative z-10 text-[11px] uppercase tracking-[0.26em] text-amber-600">NexusForge Identity</p>
+        <p className="relative z-10 text-[11px] uppercase tracking-[0.26em] text-amber-600">Vexora Gaming Identity</p>
         <h2 className="relative z-10 mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950 sm:text-4xl">
           Branded visuals, alive in real time.
         </h2>
@@ -38,8 +38,8 @@ export function NexusforgeBrandShowcase() {
         >
           <div className="ember-frame holo-frame orbital-logo">
             <Image
-              src="/brand/nexusforge-logo.png"
-              alt="NexusForge logo"
+              src="/brand/vexora-mark.png"
+              alt="Vexora Gaming logo"
               width={720}
               height={240}
               className="image-pan max-h-[240px] rounded-[22px] object-contain"
@@ -62,7 +62,7 @@ export function NexusforgeBrandShowcase() {
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
             <Image
               src="/brand/boost-tier-badges.png"
-              alt="NexusForge boost tier badges"
+              alt="Vexora Gaming boost tier badges"
               width={640}
               height={640}
               className="image-pan h-auto w-full rounded-[22px] object-cover"
@@ -83,7 +83,7 @@ export function NexusforgeBrandShowcase() {
           <motion.div whileHover={{ scale: 1.02, rotateX: -1.5, rotateY: 1.5 }} className="ember-frame holo-frame mt-3">
             <Image
               src="/brand/boost-pack-icon.png"
-              alt="NexusForge boost pack icon"
+              alt="Vexora Gaming boost pack icon"
               width={640}
               height={640}
               className="image-pan h-auto w-full rounded-[22px] object-cover"

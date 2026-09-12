@@ -45,7 +45,7 @@ export default function InvitePage() {
   return (
     <ExperienceShell
       eyebrow="Forge Invite"
-      title="Join this NexusForge server"
+      title="Join this Vexora Gaming server"
       subtitle="Review the server details, then join instantly if you are signed in."
       metrics={[
         { label: "Invite Code", value: inviteCode || "N/A", tone: "amber" },

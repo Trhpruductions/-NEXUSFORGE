@@ -8,7 +8,7 @@ test("discord command registration payload includes social command with required
 
   assert.ok(socialCommand, "Expected social command to be present");
   assert.equal(socialCommand?.name, "social");
-  assert.equal(socialCommand?.description, "Post a message to the configured NexusForge social report channel.");
+  assert.equal(socialCommand?.description, "Post a message to the configured Vexora Gaming social report channel.");
   assert.ok(Array.isArray(socialCommand?.options), "Expected social command to have options array");
   assert.equal(socialCommand?.options?.length, 1, "Expected social command to only have one option");
 
@@ -25,7 +25,7 @@ test("discord command registration payload includes ops-summary command", () => 
 
   assert.ok(opsSummaryCommand, "Expected ops-summary command to be present");
   assert.equal(opsSummaryCommand?.name, "ops-summary");
-  assert.equal(opsSummaryCommand?.description, "Show an executive NexusForge operations snapshot.");
+  assert.equal(opsSummaryCommand?.description, "Show an executive Vexora Gaming operations snapshot.");
   assert.equal(opsSummaryCommand?.options?.length ?? 0, 1, "Expected ops-summary command to expose one option");
   const publishOption = opsSummaryCommand?.options?.[0];
   assert.equal(publishOption?.name, "publish");

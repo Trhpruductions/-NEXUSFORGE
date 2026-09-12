@@ -16,23 +16,23 @@
   --nexus-purple: #a855f7;
   --nexus-vibrant-glow: rgba(0, 242, 255, 0.5);
 
-  --button-top: rgba(56, 189, 248, 0.98);
-  --button-mid: rgba(59, 130, 246, 0.94);
-  --button-bottom: rgba(190, 24, 93, 0.9);
-  --button-ink: #050a14;
-  --mood-a: rgba(56, 189, 248, 0.2);
-  --mood-b: rgba(99, 102, 241, 0.16);
-  --mood-c: rgba(190, 24, 93, 0.12);
+  --button-top: rgba(96, 165, 250, 0.98);
+  --button-mid: rgba(139, 61, 255, 0.96);
+  --button-bottom: rgba(192, 38, 211, 0.92);
+  --button-ink: #f8f4ff;
+  --mood-a: rgba(59, 130, 246, 0.22);
+  --mood-b: rgba(139, 61, 255, 0.18);
+  --mood-c: rgba(192, 38, 211, 0.12);
 }
 
 html[data-theme-mode="command"] {
-  --button-top: rgba(255, 152, 64, 0.98);
-  --button-mid: rgba(255, 110, 45, 0.94);
-  --button-bottom: rgba(196, 34, 50, 0.94);
-  --button-ink: #1b1008;
-  --mood-a: rgba(255, 121, 63, 0.28);
-  --mood-b: rgba(255, 84, 36, 0.2);
-  --mood-c: rgba(255, 138, 82, 0.12);
+  --button-top: rgba(96, 165, 250, 0.98);
+  --button-mid: rgba(124, 58, 237, 0.96);
+  --button-bottom: rgba(168, 85, 247, 0.94);
+  --button-ink: #f8f4ff;
+  --mood-a: rgba(59, 130, 246, 0.28);
+  --mood-b: rgba(139, 61, 255, 0.2);
+  --mood-c: rgba(168, 85, 247, 0.12);
 }
 
 html[data-theme-mode="premium"] {
@@ -73,6 +73,23 @@ html[data-theme-mode="admin"] {
   --color-nexus-crimson: var(--nexus-crimson);
   --color-nexus-purple: var(--nexus-purple);
   --font-sans: var(--font-exo);
+}
+
+/* Vexora Gaming brand ramp: the app's accent utilities use the amber scale,
+   so the scale itself is remapped to the logo's blue-violet gradient. */
+@theme {
+  --color-amber-50: #f4f0ff;
+  --color-amber-100: #e9e0ff;
+  --color-amber-200: #d4c2ff;
+  --color-amber-300: #b99bff;
+  --color-amber-400: #9d6eff;
+  --color-amber-500: #8b3dff;
+  --color-amber-600: #7326e6;
+  --color-amber-700: #5c1cc0;
+  --color-amber-800: #47178f;
+  --color-amber-900: #35136a;
+  --color-amber-950: #1d0a3f;
+  --nexus-gold: #b99bff;
 }
 
 .nexus-text-vibrant {

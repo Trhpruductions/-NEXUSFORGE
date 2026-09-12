@@ -13,10 +13,10 @@ export default function AgeGatePage() {
                 One verification gateway
               </span>
               <h1 className="text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                NexusForge access is locked behind one 18+ gate.
+                Vexora Gaming access is locked behind one 18+ gate.
               </h1>
               <p className="text-lg leading-8 text-slate-600 sm:text-xl">
-                No alternate verification routes. No legacy access flows. Verify once here and proceed directly into the secure NexusForge workspace.
+                No alternate verification routes. No legacy access flows. Verify once here and proceed directly into the secure Vexora Gaming workspace.
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-6">
@@ -26,14 +26,14 @@ export default function AgeGatePage() {
                 </div>
                 <div className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-6">
                   <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Step 2</p>
-                  <p className="mt-3 text-xl font-semibold text-slate-950">Enter NexusForge</p>
+                  <p className="mt-3 text-xl font-semibold text-slate-950">Enter Vexora Gaming</p>
                   <p className="mt-2 text-sm leading-6 text-slate-400">Once verified, you will be redirected to the protected app environment.</p>
                 </div>
               </div>
               <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-6 text-slate-700">
                 <p className="font-semibold text-amber-800">Important</p>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  This is the only access path into NexusForge. Any other verification page is deprecated and will not unlock the platform.
+                  This is the only access path into Vexora Gaming. Any other verification page is deprecated and will not unlock the platform.
                 </p>
               </div>
             </div>
@@ -42,7 +42,7 @@ export default function AgeGatePage() {
           <section className="rounded-[32px] border border-slate-900/10 bg-white/88 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] lg:p-10">
             <div className="mb-8 rounded-[24px] border border-amber-200 bg-amber-50 p-6">
               <p className="text-xs uppercase tracking-[0.32em] text-amber-700">Verify now</p>
-              <h2 className="mt-3 text-3xl font-semibold text-slate-950">Unlock NexusForge</h2>
+              <h2 className="mt-3 text-3xl font-semibold text-slate-950">Unlock Vexora Gaming</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
                 Complete the only age verification check for this platform. The server validates access and then sends you into the secure application.
               </p>

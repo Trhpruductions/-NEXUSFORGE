@@ -6,16 +6,16 @@ export default function TermsPage() {
       <main className="mx-auto max-w-4xl space-y-8 rounded-[30px] border border-slate-900/10 bg-white/90 p-8 shadow-[0_24px_70px_rgba(15,23,42,0.1)]">
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.28em] text-amber-700">Terms of Service</p>
-          <h1 className="text-4xl font-semibold text-slate-950">NexusForge Terms of Service</h1>
+          <h1 className="text-4xl font-semibold text-slate-950">Vexora Gaming Terms of Service</h1>
           <p className="text-sm leading-7 text-slate-600">
-            By using NexusForge, you agree to our platform rules, verification requirements, and safety policies.
+            By using Vexora Gaming, you agree to our platform rules, verification requirements, and safety policies.
           </p>
         </div>
 
         <section className="space-y-4 rounded-[24px] border border-slate-900/10 bg-slate-50 p-6 text-sm leading-7 text-slate-600">
           <p className="font-semibold text-slate-950">1. Access and verification</p>
           <p>
-            NexusForge requires users to complete 18+ verification before accessing the full platform. Unauthorized access or bypassing verification is prohibited.
+            Vexora Gaming requires users to complete 18+ verification before accessing the full platform. Unauthorized access or bypassing verification is prohibited.
           </p>
           <p className="font-semibold text-slate-950">2. User obligations</p>
           <p>
@@ -23,7 +23,7 @@ export default function TermsPage() {
           </p>
           <p className="font-semibold text-slate-950">3. Privacy and safety</p>
           <p>
-            Verification data is handled according to our privacy policy. NexusForge reserves the right to review and audit verification submissions for security.
+            Verification data is handled according to our privacy policy. Vexora Gaming reserves the right to review and audit verification submissions for security.
           </p>
         </section>
 

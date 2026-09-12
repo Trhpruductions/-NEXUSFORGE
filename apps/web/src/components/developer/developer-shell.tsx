@@ -28,7 +28,7 @@ export function DeveloperShell({ children }: DeveloperShellProps) {
             <p className="text-[10px] uppercase tracking-[0.28em] text-amber-600">Developer portal</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-950">Developer console</h1>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-              Create, manage, and publish your NexusForge integrations from one central hub.
+              Create, manage, and publish your Vexora Gaming integrations from one central hub.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

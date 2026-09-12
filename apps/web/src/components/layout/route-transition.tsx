@@ -21,7 +21,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
           ? "admin"
           : "nexus";
 
-  const routeAnnouncement = pathname ? `Navigated to ${pathname}` : "Navigated to NexusForge";
+  const routeAnnouncement = pathname ? `Navigated to ${pathname}` : "Navigated to Vexora Gaming";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme-mode", themeMode);

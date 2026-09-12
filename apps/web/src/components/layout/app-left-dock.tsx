@@ -25,8 +25,8 @@ export function AppLeftDock({ className }: { className?: string }) {
           )} />
           <div className="relative flex h-8 w-8 items-center justify-center md:h-10 md:w-10">
             <img 
-              src="/brand/nexusforge-logo.png" 
-              alt="NexusForge" 
+              src="/brand/vexora-mark.png" 
+              alt="Vexora Gaming" 
               width={40}
               height={40}
               className={cn(

@@ -93,7 +93,7 @@ export function AgeGateClient() {
           <p className="text-xs uppercase tracking-[0.32em] text-amber-600">Secure access</p>
           <h3 className="mt-2 text-3xl font-semibold text-slate-950">One verification. One entry.</h3>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            Use the gate below to verify your age and unlock NexusForge. This is the only access flow for the platform.
+            Use the gate below to verify your age and unlock Vexora Gaming. This is the only access flow for the platform.
           </p>
         </div>
 
@@ -105,7 +105,7 @@ export function AgeGateClient() {
 
         {status === "denied" ? (
           <div className="rounded-[20px] border border-slate-900/10 bg-slate-50 p-4 text-sm text-slate-700">
-            Access denied. You must be 18+ to use NexusForge.
+            Access denied. You must be 18+ to use Vexora Gaming.
           </div>
         ) : null}
 

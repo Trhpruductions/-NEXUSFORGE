@@ -23,8 +23,8 @@ export function AuthPageShell({ hero, children }: AuthPageShellProps) {
              <div className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-amber-500" />
              <div className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-amber-500" />
              <Image 
-               src="/app-images/all-images/nexusforge-logo.png" 
-               alt="NexusForge" 
+               src="/brand/vexora-mark.png" 
+               alt="Vexora Gaming" 
                width={160} 
                height={40} 
                className="grayscale group-hover:grayscale-0 transition-all duration-700 brightness-75 group-hover:brightness-110"
@@ -35,8 +35,8 @@ export function AuthPageShell({ hero, children }: AuthPageShellProps) {
         <div className="relative w-full flex flex-col items-center lg:items-end gap-8">
           <div className="lg:hidden rounded-[24px] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
             <Image 
-               src="/app-images/all-images/nexusforge-logo.png" 
-               alt="NexusForge" 
+               src="/brand/vexora-mark.png" 
+               alt="Vexora Gaming" 
                width={140} 
                height={35} 
                className="brightness-110"

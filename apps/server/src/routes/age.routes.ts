@@ -11,7 +11,7 @@ const verifySchema = z.object({
 ageRouter.post("/verify", (req, res) => {
   // Impenetrable check: CSRF protection + strict cookie options
   const origin = req.headers.origin || req.headers.referer;
-  if (origin && !origin.includes("nexusforge.app") && !origin.includes("127.0.0.1") && !origin.includes("localhost")) {
+  if (origin && !origin.includes("nexusforge.app") && !origin.includes("vexoragaming.com") && !origin.includes("127.0.0.1") && !origin.includes("localhost")) {
     res.setHeader("Cache-Control", "no-store, no-cache");
     res.status(403).json({ error: "Cross-origin age gate bypass blocked" });
     return;

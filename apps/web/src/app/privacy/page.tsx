@@ -6,9 +6,9 @@ export default function PrivacyPage() {
       <main className="mx-auto max-w-4xl space-y-8 rounded-[30px] border border-slate-900/10 bg-white/90 p-8 shadow-[0_24px_70px_rgba(15,23,42,0.1)]">
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.28em] text-amber-700">Privacy Policy</p>
-          <h1 className="text-4xl font-semibold text-slate-950">NexusForge Privacy Policy</h1>
+          <h1 className="text-4xl font-semibold text-slate-950">Vexora Gaming Privacy Policy</h1>
           <p className="text-sm leading-7 text-slate-600">
-            We protect verification and account data, and we only process the information necessary to keep NexusForge safe and compliant.
+            We protect verification and account data, and we only process the information necessary to keep Vexora Gaming safe and compliant.
           </p>
         </div>
 
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
           </p>
           <p className="font-semibold text-slate-950">2. Security</p>
           <p>
-            NexusForge uses industry-standard protections for stored verification tokens and session data. Any verification evidence is handled with restricted access.
+            Vexora Gaming uses industry-standard protections for stored verification tokens and session data. Any verification evidence is handled with restricted access.
           </p>
           <p className="font-semibold text-slate-950">3. Rights</p>
           <p>

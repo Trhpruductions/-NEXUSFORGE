@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexusForge Recovery</title>
+    <title>Vexora Gaming Recovery</title>
     <style>
       :root {
         color-scheme: dark;
@@ -201,7 +201,7 @@
     <main class="page">
       <section class="hero">
         <article class="panel hero-card">
-          <p class="hero-label">NexusForge Desktop Recovery</p>
+          <p class="hero-label">Vexora Gaming Desktop Recovery</p>
           <h1 class="hero-title">Your desktop is recovering.</h1>
           <p class="hero-copy" id="subtitle">
             The app is still connecting. Use the controls below to inspect status, retry safely, or recover with local services.
@@ -253,7 +253,7 @@
 
           <div class="workspace-entry">
             <label for="workspace-path-input">Local workspace path</label>
-            <input id="workspace-path-input" type="text" placeholder="C:\\Path\\To\\NexusForge Workspace" />
+            <input id="workspace-path-input" type="text" placeholder="C:\\Path\\To\\Vexora Gaming Workspace" />
             <button id="set-workspace-path" class="secondary">Set Workspace Path</button>
           </div>
         </article>
@@ -354,7 +354,7 @@
           startButton.disabled = false;
           logButton.disabled = !status.workspacePath;
           subtitleEl.textContent = inHostedMode
-            ? "The desktop app is trying to reach hosted NexusForge services. If a local workspace is available, you can still start the local stack for recovery."
+            ? "The desktop app is trying to reach hosted Vexora Gaming services. If a local workspace is available, you can still start the local stack for recovery."
             : "The app could not reach local services yet. Use local recovery controls to restart and reconnect.";
 
           if (!inHostedMode && localStackDetected && !autoRetryInFlight) {

@@ -8,7 +8,7 @@ export default async function BetaPage() {
 
   return (
     <ExperienceShell
-      eyebrow="NexusForge Beta"
+      eyebrow="Vexora Gaming Beta"
       title="Desktop-First Beta Access"
       subtitle="Welcome testers. Use this page as the starting point for account creation, login, and invite acceptance."
       metrics={[
@@ -26,7 +26,7 @@ export default async function BetaPage() {
     >
       <GuestAuthCallout
         title="Welcome testers. Sign in or register to access the beta desktop command experience."
-        description="Create a beta account or login to join the early NexusForge desktop preview and start testing launch workflows."
+        description="Create a beta account or login to join the early Vexora Gaming desktop preview and start testing launch workflows."
         loginHref="/login?redirect=/beta"
         registerHref="/register?redirect=/beta"
       />

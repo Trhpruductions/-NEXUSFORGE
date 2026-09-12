@@ -192,7 +192,7 @@ function WorkspaceGuestView() {
   return (
     <GuestAuthCallout
       title="Sign in to unlock your workspace"
-      description="NexusForge workspace gives regular users direct access to social coordination, mining systems, rewards, and profile controls."
+      description="Vexora Gaming workspace gives regular users direct access to social coordination, mining systems, rewards, and profile controls."
       loginHref="/login?redirect=/workspace"
       registerHref="/register?redirect=/workspace"
       loginLabel="Sign in to Workspace"

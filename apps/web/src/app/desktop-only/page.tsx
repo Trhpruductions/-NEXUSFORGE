@@ -10,7 +10,7 @@ export default function DesktopOnlyPage() {
   return (
     <ExperienceShell
       eyebrow="Launch Mode"
-      title="NexusForge is desktop-only right now"
+      title="Vexora Gaming is desktop-only right now"
       subtitle="Web access is temporarily locked while the desktop experience is hardened."
       metrics={[
         { label: "Desktop Access", value: desktopOnlyEnabled ? "Enabled" : "Disabled", tone: "amber" },
@@ -30,7 +30,7 @@ export default function DesktopOnlyPage() {
             set <span className="font-semibold text-amber-700">NEXUSFORGE_DESKTOP_ONLY=false</span> and redeploy the web app.
           </p>
           <div className="mt-4 rounded-[22px] border border-slate-900/10 bg-slate-50 p-3 text-xs text-slate-500">
-            Desktop users should open NexusForge through the Electron app launcher.
+            Desktop users should open Vexora Gaming through the Electron app launcher.
           </div>
           <div className="mt-4">
             <Link
@@ -43,7 +43,7 @@ export default function DesktopOnlyPage() {
         </section>
         <section className="mt-6">
           <GuestAuthCallout
-            title="Sign in to access your NexusForge desktop preview account."
+            title="Sign in to access your Vexora Gaming desktop preview account."
             description="Register or login to manage your desktop-only beta access, invite flow, and support settings."
             loginHref="/login?redirect=/desktop-only"
             registerHref="/register?redirect=/desktop-only"

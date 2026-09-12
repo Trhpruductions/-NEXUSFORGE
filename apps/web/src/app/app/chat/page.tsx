@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ForgeChatClient } from "@/components/chat/forge-chat-client";
 
 export const metadata: Metadata = {
-  title: "NexusForge Workspace | Chat",
+  title: "Vexora Gaming Workspace | Chat",
   description: "Realtime forge chat, DMs, voice session controls, and moderation workflows.",
 };
 

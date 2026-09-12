@@ -181,7 +181,7 @@ export function AppRouteShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-[64px] shrink-0 items-center px-6 border-b border-slate-700/70 bg-slate-900/55">
             <div className="flex items-center gap-3">
               <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.55)]" />
-              <h2 className="nf-heading text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">Nexus Hub</h2>
+              <h2 className="nf-heading text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">Vexora Hub</h2>
             </div>
           </div>
 

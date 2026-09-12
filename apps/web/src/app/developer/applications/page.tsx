@@ -94,7 +94,7 @@ export default function DeveloperApplicationsPage() {
     <ExperienceShell
       eyebrow="Applications"
       title="Your bot applications"
-      subtitle="Manage your NexusForge bots and create new app integrations from this section."
+      subtitle="Manage your Vexora Gaming bots and create new app integrations from this section."
       metrics={isSignedIn ? [{ label: "Your bots", value: String(myBotsQuery.data?.bots.length ?? 0), tone: "amber" }] : []}
       actions={[]}
       maxWidthClassName="max-w-5xl"
@@ -112,7 +112,7 @@ export default function DeveloperApplicationsPage() {
                 <input
                   value={botName}
                   onChange={(event) => setBotName(event.target.value)}
-                  placeholder="NexusForge Assistant"
+                  placeholder="Vexora Gaming Assistant"
                   className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-amber-300"
                 />
               </label>

@@ -6,7 +6,7 @@ import { getCustomDesignImageUrl } from "@/lib/custom-design-client";
 import { DynamicBackground } from "@/components/ui/dynamic-background";
 
 export const metadata: Metadata = {
-  title: "NEXUSFORGE | Profile",
+  title: "VEXORA GAMING | Profile",
   description: "Customize your commander profile, avatar, and identity settings.",
 };
 
@@ -48,8 +48,8 @@ export default function ProfilePage() {
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-amber-200 to-sky-200 shadow-sm">
                 <Image
-                  src="/brand/nexusforge-logo.png"
-                  alt="NexusForge"
+                  src="/brand/vexora-mark.png"
+                  alt="Vexora Gaming"
                   width={40}
                   height={40}
                   className="object-contain"

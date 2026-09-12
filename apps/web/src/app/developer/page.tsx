@@ -80,7 +80,7 @@ export default function DeveloperPortalPage() {
   return (
     <ExperienceShell
       eyebrow="Developer Portal"
-      title="Build and manage your NexusForge integrations"
+      title="Build and manage your Vexora Gaming integrations"
       subtitle="Create bots, manage API tools, and monitor developer activity from one streamlined portal."
       metrics={
         isSignedIn
@@ -109,7 +109,7 @@ export default function DeveloperPortalPage() {
     >
       {!isSignedIn ? (
         <GuestAuthCallout
-          title="Developer tools require a NexusForge account."
+          title="Developer tools require a Vexora Gaming account."
           description="Sign in to access bot creation, API key management, slash commands, and integration analytics."
           loginHref="/login?redirect=/developer"
           registerHref="/register?redirect=/developer"
@@ -170,7 +170,7 @@ export default function DeveloperPortalPage() {
                     <input
                       value={botName}
                       onChange={(event) => setBotName(event.target.value)}
-                      placeholder="e.g. NexusForge Helper"
+                      placeholder="e.g. Vexora Gaming Helper"
                         className="w-full rounded-[20px] border border-slate-900/10 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-300"
                     />
                   </label>

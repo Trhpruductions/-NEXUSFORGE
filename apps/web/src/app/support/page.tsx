@@ -8,7 +8,7 @@ export default function SupportPage() {
 
   return (
     <div className="relative grid flex-1 gap-8 overflow-x-clip px-4 py-6 sm:px-6 lg:gap-10 lg:px-8">
-      <main id="main-content" aria-label="NexusForge support" className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8">
+      <main id="main-content" aria-label="Vexora Gaming support" className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8">
         <DynamicBackground
           url={supportHeroImage}
           className="relative min-h-[420px] overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] bg-cover bg-center"
@@ -23,7 +23,7 @@ export default function SupportPage() {
         </DynamicBackground>
         <section className="nexus-panel-glass rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
           <GuestAuthCallout
-            title="Access your NexusForge account to restore sessions and join beta forges."
+            title="Access your Vexora Gaming account to restore sessions and join beta forges."
             description="Sign in to manage invites, support tickets, and support resources tailored to your account."
             loginHref="/login?redirect=/support"
             registerHref="/register?redirect=/support"
@@ -32,9 +32,9 @@ export default function SupportPage() {
         <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
           <div className="space-y-6">
             <p className="text-sm uppercase tracking-[0.24em] text-amber-700">Need help?</p>
-            <h1 className="text-4xl font-semibold text-slate-950">NexusForge support</h1>
+            <h1 className="text-4xl font-semibold text-slate-950">Vexora Gaming support</h1>
             <p className="max-w-3xl text-base leading-8 text-slate-600">
-              For help with live rooms, invites, account access, or launcher issues, reach out to the NexusForge support team. We’re here to help you get back into your Forge quickly.
+              For help with live rooms, invites, account access, or launcher issues, reach out to the Vexora Gaming support team. We’re here to help you get back into your Forge quickly.
             </p>
           </div>
 
@@ -42,8 +42,8 @@ export default function SupportPage() {
             <div className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-6">
               <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Email support</p>
               <p className="mt-4 text-sm text-slate-600">Send us a message and include any invite codes or error details.</p>
-              <a href="mailto:support@nexusforge.app" className="mt-6 inline-flex rounded-full border border-slate-900/10 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50">
-                Email support@nexusforge.app
+              <a href="mailto:support@vexoragaming.com" className="mt-6 inline-flex rounded-full border border-slate-900/10 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                Email support@vexoragaming.com
               </a>
             </div>
 

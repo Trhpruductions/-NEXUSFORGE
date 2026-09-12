@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const inviteCode = "NEXUS-BOOST";
-const shareMessage = `Join NexusForge now with invite code ${inviteCode}. Launch your community with premium tools, voice rooms, and share-ready momentum.`;
+const shareMessage = `Join Vexora Gaming now with invite code ${inviteCode}. Launch your community with premium tools, voice rooms, and share-ready momentum.`;
 
 export function ShareLaunchCTA() {
   const [status, setStatus] = useState("Copy invite");
@@ -85,7 +85,7 @@ export function ShareLaunchCTA() {
           </div>
           <div className="grid gap-2">
             <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Share prompts</p>
-            <p className="text-sm text-slate-600">“Join NexusForge and launch your squad with the premium guild toolkit.”</p>
+            <p className="text-sm text-slate-600">“Join Vexora Gaming and launch your squad with the premium guild toolkit.”</p>
             <p className="text-sm text-slate-600">“This is the launch experience your crew needs for live rooms, boosts, and real momentum.”</p>
           </div>
         </div>

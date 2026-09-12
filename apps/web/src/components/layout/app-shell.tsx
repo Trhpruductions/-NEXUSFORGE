@@ -14,10 +14,10 @@ export function AppShell({ homeHeroSrc }: { homeHeroSrc: string }) {
           <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.9fr] lg:items-center">
             <div className="space-y-6">
               <div className="flex items-center gap-3 nf-type-eyebrow text-slate-400">
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">NexusForge workspace</span>
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">Vexora Gaming workspace</span>
               </div>
               <h1 className="nf-type-title text-slate-100 sm:text-6xl">A calmer dashboard for every squad and studio.</h1>
-              <p className="max-w-2xl nf-type-body text-slate-400">NexusForge brings your communities, voice rooms, and live feeds into one focused workspace.</p>
+              <p className="max-w-2xl nf-type-body text-slate-400">Vexora Gaming brings your communities, voice rooms, and live feeds into one focused workspace.</p>
               <div className="flex flex-wrap gap-3">
                 <Link href="/app" className="inline-flex items-center rounded-full border border-slate-700/70 bg-slate-900 px-6 py-4 text-sm font-semibold text-slate-100 shadow-sm transition-colors hover:bg-slate-900/70">Open workspace</Link>
                 <Link href="/pricing" className="inline-flex items-center rounded-full border border-slate-700/70 bg-slate-900 px-6 py-4 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-900/70">Explore Core+</Link>
@@ -94,8 +94,8 @@ export function AppShell({ homeHeroSrc }: { homeHeroSrc: string }) {
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900/70 ring-1 ring-slate-900/5">
               <Image
-                src="/brand/nexusforge-main-logo.png"
-                alt="NexusForge"
+                src="/brand/vexora-logo.png"
+                alt="Vexora Gaming"
                 width={40}
                 height={40}
                 className="w-auto h-auto object-contain"

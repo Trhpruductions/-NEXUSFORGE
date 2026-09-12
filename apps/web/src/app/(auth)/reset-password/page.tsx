@@ -15,7 +15,7 @@ export default async function ResetPasswordPage({ searchParams }: any) {
             Redeem your reset token and restore access.
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            Enter the one-time code from your recovery flow, set a fresh password, and return to NexusForge.
+            Enter the one-time code from your recovery flow, set a fresh password, and return to Vexora Gaming.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">

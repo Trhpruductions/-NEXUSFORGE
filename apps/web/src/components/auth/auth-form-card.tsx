@@ -28,7 +28,7 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
          <div className="flex items-center gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 transition-colors group-hover:bg-amber-100">
                <Image 
-                 src="/app-images/all-images/nexusforge-logo.png" 
+                 src="/brand/vexora-mark.png" 
                  alt="" 
                  width={20} 
                  height={20} 
@@ -36,7 +36,7 @@ export function AuthFormCard({ title, subtitle, footer, children }: AuthFormCard
                />
             </div>
             <div>
-               <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.4em] text-amber-600">Nexus Auth v7</p>
+               <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.4em] text-amber-600">Vexora Auth</p>
                <h1 id={titleId} className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
             </div>
          </div>

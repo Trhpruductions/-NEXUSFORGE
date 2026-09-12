@@ -140,7 +140,7 @@ function buildReportEmbed(kind: ReportKind, content: string) {
     title,
     color: reportColorFor(kind, parsed.tags),
     fields,
-    footer: { text: "NexusForge Bot Operations" },
+    footer: { text: "Vexora Gaming Bot Operations" },
     timestamp: new Date().toISOString(),
   };
 }
@@ -169,11 +169,11 @@ function buildInstallUrl() {
 export function createCommands() {
   const commands = [
     new SlashCommandBuilder().setName("ping").setDescription("Check bot latency and status."),
-    new SlashCommandBuilder().setName("app").setDescription("Get NexusForge app links."),
-    new SlashCommandBuilder().setName("status").setDescription("Show NexusForge API and launch mode status."),
+    new SlashCommandBuilder().setName("app").setDescription("Get Vexora Gaming app links."),
+    new SlashCommandBuilder().setName("status").setDescription("Show Vexora Gaming API and launch mode status."),
     new SlashCommandBuilder()
       .setName("ops-summary")
-      .setDescription("Show an executive NexusForge operations snapshot.")
+      .setDescription("Show an executive Vexora Gaming operations snapshot.")
       .addBooleanOption((option) =>
         option
           .setName("publish")
@@ -182,7 +182,7 @@ export function createCommands() {
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("launchmode")
-      .setDescription("View or set NexusForge launch mode.")
+      .setDescription("View or set Vexora Gaming launch mode.")
       .addBooleanOption((option) =>
         option
           .setName("desktop_only")
@@ -191,17 +191,17 @@ export function createCommands() {
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("social")
-      .setDescription("Post a message to the configured NexusForge social report channel.")
+      .setDescription("Post a message to the configured Vexora Gaming social report channel.")
       .addStringOption((option) =>
         option.setName("message").setDescription("The message to post").setRequired(true),
       )
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("mining")
-      .setDescription("NexusForge Industrial Mining Control Center."),
+      .setDescription("Vexora Gaming Industrial Mining Control Center."),
     new SlashCommandBuilder()
       .setName("balance")
-      .setDescription("Check your NexusForge economic standing."),
+      .setDescription("Check your Vexora Gaming economic standing."),
   ];
 
   return commands.map((command) => command.toJSON());
@@ -593,7 +593,7 @@ async function buildOpsSummaryLines() {
     : "skipped";
 
   return [
-    `NexusForge API: online (http://localhost:${env.PORT})`,
+    `Vexora Gaming API: online (http://localhost:${env.PORT})`,
     `Launch mode: ${launchMode.desktopOnly ? "desktop-only" : "web + desktop"}`,
     `Bot connected: ${botStatus.connected ? "yes" : "no"}`,
     `Security layer: Industrial IP Anonymization (SHA256) is [ACTIVE]`,
@@ -623,10 +623,10 @@ export async function getOpsSummarySnapshot() {
   return {
     lines,
     embed: {
-      title: "NexusForge Operations Summary",
+      title: "Vexora Gaming Operations Summary",
       description,
       color: 0x22d3ee,
-      footer: { text: "NexusForge Bot Operations" },
+      footer: { text: "Vexora Gaming Bot Operations" },
       timestamp: new Date().toISOString(),
     },
   };
@@ -802,7 +802,7 @@ export async function startDiscordBot() {
         const snapshot = await getOpsSummarySnapshot();
 
         await interaction.reply({
-          content: snapshot.lines[0] || "NexusForge API: online",
+          content: snapshot.lines[0] || "Vexora Gaming API: online",
           embeds: [snapshot.embed],
           ephemeral: true,
         });
@@ -824,7 +824,7 @@ export async function startDiscordBot() {
           await reportDiscordOpsSummary("manual-summary");
         }
         await interaction.reply({
-          content: publish ? "Published to app-runtime." : "NexusForge operations snapshot.",
+          content: publish ? "Published to app-runtime." : "Vexora Gaming operations snapshot.",
           embeds: [snapshot.embed],
           ephemeral: true,
         });
@@ -908,7 +908,7 @@ export async function startDiscordBot() {
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Your Discord account is not linked to a NexusForge profile. Please link it in the app settings.",
+            content: "Your Discord account is not linked to a Vexora Gaming profile. Please link it in the app settings.",
             ephemeral: true,
           });
           return;
@@ -944,7 +944,7 @@ export async function startDiscordBot() {
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Please link your NexusForge account to use mining features.",
+            content: "Please link your Vexora Gaming account to use mining features.",
             ephemeral: true,
           });
           return;
@@ -952,13 +952,13 @@ export async function startDiscordBot() {
 
         const report = await MiningAuthority.getOperationalReport(actualUser.id);
         const embed = new EmbedBuilder()
-          .setTitle("NexusForge Industrial Mining Center")
+          .setTitle("Vexora Gaming Industrial Mining Center")
           .setColor(0x16a34a)
           .setDescription("Real-time telemetry and infrastructure status.")
           .setTimestamp();
 
         if (report.length === 0) {
-          embed.setDescription("No mining rigs detected. Deployment required via NexusForge Dashboard.");
+          embed.setDescription("No mining rigs detected. Deployment required via Vexora Gaming Dashboard.");
         } else {
           let totalHashRate = 0;
           let totalPending = 0n;

@@ -76,7 +76,7 @@ export const profileRoleBadges = {
     label: "Developer",
     src: "/brand/profile-badge-developer.png",
     rarity: "epic",
-    description: "Core builder of NexusForge systems.",
+    description: "Core builder of Vexora Gaming systems.",
   },
   VIP: {
     key: "vip",
@@ -90,7 +90,7 @@ export const profileRoleBadges = {
     label: "Investor",
     src: "/brand/profile-badge-investor.png",
     rarity: "legendary",
-    description: "Strategic investor backing NexusForge growth.",
+    description: "Strategic investor backing Vexora Gaming growth.",
   },
   STAFF: {
     key: "staff",

@@ -138,7 +138,7 @@ export default function DownloadsPage() {
 
             <div className="space-y-4 rounded-[28px] border border-slate-700/70 bg-slate-900/75 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
                <p className="text-[10px] font-medium uppercase tracking-[0.2em] leading-loose text-slate-500">
-                  NexusForge uses automated delta patching so only the parts that changed need to move.
+                  Vexora Gaming uses automated delta patching so only the parts that changed need to move.
                </p>
                <button className="w-full rounded-full border border-slate-700/70 bg-slate-900 py-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-100 transition-colors hover:bg-slate-900/70">
                   Run integrity check

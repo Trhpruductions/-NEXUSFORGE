@@ -69,7 +69,7 @@ const manualBadgeReverseMap = Object.entries(manualBadgeMedalMap).reduce<Record<
 );
 
 const sampleMedalCatalog = [
-  { key: "founding-member", name: "Founding Member", description: "Early supporter of NexusForge.", icon: "🏛" },
+  { key: "founding-member", name: "Founding Member", description: "Early supporter of Vexora Gaming.", icon: "🏛" },
   { key: "forge-commander", name: "Forge Commander", description: "Leads high-signal communities.", icon: "🛡" },
   { key: "signal-booster", name: "Signal Booster", description: "Maintains a strong Core+ streak.", icon: "⚡" },
   { key: "legendary-builder", name: "Legendary Builder", description: "Built and scaled a thriving forge.", icon: "🏗" },

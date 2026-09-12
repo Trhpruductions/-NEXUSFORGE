@@ -34,7 +34,7 @@ export default function DeveloperBotsPage() {
     <ExperienceShell
       eyebrow="Marketplace"
       title="Integration marketplace"
-      subtitle="Browse public NexusForge bots and get inspiration for your next integration."
+      subtitle="Browse public Vexora Gaming bots and get inspiration for your next integration."
       metrics={isSignedIn ? [{ label: "Bot listings", value: String(catalogQuery.data?.bots.length ?? 0), tone: "emerald" }] : []}
       actions={[]}
       maxWidthClassName="max-w-5xl"

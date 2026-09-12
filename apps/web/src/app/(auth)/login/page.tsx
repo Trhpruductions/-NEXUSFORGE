@@ -99,7 +99,7 @@ export default function LoginPage() {
     >
       <AuthFormCard 
         title="Initialize Session"
-        subtitle="Provide credentials to establish a secure tunnel to the NexusForge grid."
+        subtitle="Provide credentials to establish a secure tunnel to the Vexora Gaming grid."
         footer={
           <Link href="/register" className="hover:text-amber-500 transition-colors">
              No account? Request Node Access <ArrowRight className="inline w-3 h-3 ml-2" />
@@ -112,7 +112,7 @@ export default function LoginPage() {
               <input 
                  {...register("email")}
                   className="w-full rounded-[18px] border border-slate-900/10 bg-white p-4 text-[12px] font-bold uppercase tracking-widest text-slate-900 transition-colors focus:border-amber-400/60 focus:outline-none"
-                 placeholder="COMMANDER@NEXUS"
+                 placeholder="COMMANDER@VEXORA"
               />
               {errors.email && <p className="text-[9px] text-rose-500 uppercase font-black">{errors.email.message}</p>}
            </div>

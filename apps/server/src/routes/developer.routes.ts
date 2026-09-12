@@ -401,7 +401,7 @@ developerRouter.post("/webhooks/:webhookId/test", requireCsrf, async (req, res) 
     event: "webhook.test",
     timestamp: new Date().toISOString(),
     subscriptionId: webhook.id,
-    message: "This is a test payload from NexusForge webhook delivery.",
+    message: "This is a test payload from Vexora Gaming webhook delivery.",
   };
 
   const controller = new AbortController();

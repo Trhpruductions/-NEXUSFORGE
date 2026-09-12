@@ -333,7 +333,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
               />
             </div>
-            <p className="mt-3 text-xs text-slate-500">Do not close the page. NexusForge is securing your checkout session and handing off to billing.</p>
+            <p className="mt-3 text-xs text-slate-500">Do not close the page. Vexora Gaming is securing your checkout session and handing off to billing.</p>
           </div>
         </motion.div>
       ) : null}
@@ -392,7 +392,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Founder Window</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">Early pricing is intentionally aggressive while NexusForge scales up.</p>
+            <p className="mt-2 text-lg font-semibold text-slate-950">Early pricing is intentionally aggressive while Vexora Gaming scales up.</p>
             <p className="mt-1 text-sm text-slate-600">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
             </p>
@@ -437,7 +437,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <div className="mt-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
               <Image
                 src="/brand/boost-pack-icon.png"
-                alt="NexusForge boost pack icon"
+                alt="Vexora Gaming boost pack icon"
                 width={1200}
                 height={1200}
                 className="h-auto w-full object-cover"

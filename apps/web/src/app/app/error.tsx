@@ -66,7 +66,7 @@ export default function GlobalAppError({
         <div className="flex items-center justify-between border-t border-slate-700/70 pt-6 opacity-60">
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
             <Terminal className="w-3 h-3" />
-            NexusForge recovery mode
+            Vexora Gaming recovery mode
           </div>
           <span className="text-[10px] font-semibold text-slate-500">Code: 0xRECOVER</span>
         </div>

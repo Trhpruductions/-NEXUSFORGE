@@ -1,7 +1,7 @@
 {
   "name": "@nexusforge/server",
   "version": "1.0.11",
-  "description": "NexusForge API service",
+  "description": "Vexora Gaming API service",
   "scripts": {
     "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1",
     "dev": "npm run dev:cleanup-port && npx --yes tsx watch src/index.ts",

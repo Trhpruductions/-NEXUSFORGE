@@ -54,11 +54,11 @@ export function ExperienceShell({
                 <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-950/70 p-2 shadow-[inset_0_0_10px_rgba(15,23,42,0.2)] group">
                    <div className="absolute top-0 right-0 h-3 w-3 bg-amber-300/60" />
                    <img
-                     src="/brand/nexusforge-logo.png"
+                     src="/brand/vexora-mark.png"
                      alt="NF"
-                     width={100}
-                     height={25}
-                     className="h-auto w-auto transition-all duration-300 group-hover:scale-110"
+                     width={56}
+                     height={56}
+                     className="h-14 w-14 object-contain transition-all duration-300 group-hover:scale-110"
                      draggable={false}
                    />
                 </div>

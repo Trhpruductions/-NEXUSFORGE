@@ -30,7 +30,7 @@ export function DesktopLaunchInstructions({ envAppUrl }: DesktopLaunchInstructio
 
   const commandText = useMemo(
     () =>
-      `$env:NEXUSFORGE_DESKTOP_URL = '${desktopTarget}'\n$env:NEXUSFORGE_DESKTOP_ONLY = 'false'\nStart-Process 'C:\\Program Files\\NexusForge Desktop\\NexusForge Desktop.exe'`,
+      `$env:NEXUSFORGE_DESKTOP_URL = '${desktopTarget}'\n$env:NEXUSFORGE_DESKTOP_ONLY = 'false'\nStart-Process 'C:\\Program Files\\Vexora Gaming Desktop\\Vexora Gaming Desktop.exe'`,
     [desktopTarget],
   );
 

@@ -3,8 +3,8 @@ import { getCustomDesignImagePath } from "@/lib/custom-design";
 import { VoiceRoomView } from "@/components/app/voice-room-view";
 
 export const metadata: Metadata = {
-  title: "NexusForge Workspace | Voice",
-  description: "Live audio rooms and spatial voice control for NexusForge teams.",
+  title: "Vexora Gaming Workspace | Voice",
+  description: "Live audio rooms and spatial voice control for Vexora Gaming teams.",
 };
 
 export default function VoicePage() {
