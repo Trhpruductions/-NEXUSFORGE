@@ -428,6 +428,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   res.json({
     user: {
       ...user,
+      economyAccounts: user.economyAccounts.map((account) => ({ currencyType: account.currencyType, balance: account.balance.toString() })),
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   });

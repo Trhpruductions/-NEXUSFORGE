@@ -68,11 +68,14 @@ export class EconomyAuthority {
         // 5. Log transaction
         await tx.economyTransaction.create({
           data: {
+            userId: params.userId,
             accountId: account.id,
             amount: params.amount,
             type: params.amount >= 0n ? "CREDIT" : "DEBIT",
             reason: params.reason,
             referenceId: params.referenceId,
+            balanceBefore: account.balance,
+            balanceAfter: newBalance,
             metadata: {
               ...(params.metadata || {}),
               preBalance: account.balance.toString(),
