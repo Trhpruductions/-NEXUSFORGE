@@ -332,9 +332,11 @@ forgesRouter.get("/", async (req, res) => {
         select: {
           id: true,
           name: true,
+          description: true,
           icon: true,
           banner: true,
           inviteCode: true,
+          ownerId: true,
           createdAt: true,
         },
       },

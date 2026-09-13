@@ -169,14 +169,19 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const handleChannels = (payload: { forgeId: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
     };
+    const handlePresence = (payload: { forgeId: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
+    };
 
     socket.on("connect", join);
     socket.on("channel:activity", handleActivity);
     socket.on("forge:channels", handleChannels);
+    socket.on("presence:changed", handlePresence);
     return () => {
       socket.off("connect", join);
       socket.off("channel:activity", handleActivity);
       socket.off("forge:channels", handleChannels);
+      socket.off("presence:changed", handlePresence);
     };
   }, [accessToken, forges, user?.id, bumpChannel, queryClient]);
 

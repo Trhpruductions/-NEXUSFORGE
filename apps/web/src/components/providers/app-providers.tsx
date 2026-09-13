@@ -53,6 +53,7 @@ export function AppProviders({ children }: AppProvidersProps) {
 
   useEffect(() => {
     setApiUnauthorizedHandler(() => {
+      console.warn("[auth] session ended: the API rejected the token and a refresh did not recover it");
       clearSession();
       void useAuthStore.persist.clearStorage();
       queryClient.clear();

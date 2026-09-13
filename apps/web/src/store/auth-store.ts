@@ -1,5 +1,6 @@
 "use client";
 
+import axios from "axios";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { getMe, type User } from "@/lib/api";
@@ -119,8 +120,14 @@ export const useAuthStore = create<AuthState>()(
         try {
           const payload = await getMe(token);
           set({ user: payload.user });
-        } catch {
-          set({ accessToken: null, csrfToken: null, user: null });
+        } catch (error) {
+          // Only a definitive auth rejection ends the session. Network blips and server
+          // errors keep the user signed in; the API client retries with a refreshed token.
+          const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+          if (status === 401 || status === 403) {
+            console.warn(`[auth] session ended: /api/auth/me returned ${status}`);
+            set({ accessToken: null, csrfToken: null, user: null });
+          }
         } finally {
           set({ loading: false });
         }

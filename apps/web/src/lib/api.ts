@@ -76,6 +76,7 @@ export type Channel = {
 export type Forge = {
   id: string;
   name: string;
+  ownerId?: string;
   description?: string | null;
   icon?: string | null;
   banner?: string | null;
@@ -2574,4 +2575,8 @@ export async function setTwoFactor(accessToken: string, csrfToken: string, paylo
 export async function sendSensitiveChallenge(accessToken: string, csrfToken: string) {
   const response = await api.post<{ ok: true; devCode?: string }>("/api/settings/sensitive-challenge", {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
+}
+
+export async function removeFriend(accessToken: string, csrfToken: string, friendshipId: string) {
+  await api.delete(`/api/friends/${friendshipId}`, { headers: authHeaders(accessToken, csrfToken) });
 }

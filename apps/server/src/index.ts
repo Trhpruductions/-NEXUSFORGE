@@ -184,9 +184,41 @@ io.use((socket, next) => {
   }
 });
 
+const onlineSockets = new Map<string, number>();
+
+async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { status, lastSeenAt: new Date() } });
+    const memberships = await prisma.forgeMember.findMany({ where: { userId }, select: { forgeId: true } });
+    for (const { forgeId } of memberships) {
+      io.to(`forge:${forgeId}`).emit("presence:changed", { forgeId, userId, status });
+    }
+  } catch {
+    // presence is best-effort
+  }
+}
+
 io.on("connection", (socket) => {
   socket.emit("welcome", { message: "Connected to Vexora Gaming realtime gateway" });
   socket.join(`user:${socket.data.user.id}`);
+
+  const presenceUserId: string = socket.data.user.id;
+  const activeSockets = (onlineSockets.get(presenceUserId) ?? 0) + 1;
+  onlineSockets.set(presenceUserId, activeSockets);
+  if (activeSockets === 1) void setPresence(presenceUserId, "ONLINE");
+
+  socket.on("disconnect", () => {
+    const remaining = (onlineSockets.get(presenceUserId) ?? 1) - 1;
+    if (remaining <= 0) {
+      onlineSockets.delete(presenceUserId);
+      // Grace period so a page refresh does not flicker offline.
+      setTimeout(() => {
+        if (!onlineSockets.has(presenceUserId)) void setPresence(presenceUserId, "OFFLINE");
+      }, 8000);
+    } else {
+      onlineSockets.set(presenceUserId, remaining);
+    }
+  });
 
   socket.on("forge:join", async (forgeId: string) => {
     if (typeof forgeId !== "string" || !forgeId) return;

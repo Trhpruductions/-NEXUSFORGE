@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { ForgeChatClient } from "@/components/chat/forge-chat-client";
+import { ChatPage } from "@/components/chat/chat-page";
 
 export const metadata: Metadata = {
-  title: "Vexora Gaming Workspace | Chat",
-  description: "Realtime forge chat, DMs, voice session controls, and moderation workflows.",
+  title: "Chat",
+  description: "Realtime channels, voice rooms and direct messages.",
 };
 
-export default function ChatPage() {
-  return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Loading chat...</div>}>
-      <ForgeChatClient />
-    </Suspense>
-  );
+export default function AppChatPage() {
+  return <ChatPage />;
 }
