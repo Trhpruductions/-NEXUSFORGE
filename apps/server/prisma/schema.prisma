@@ -58,6 +58,8 @@ enum NotificationType {
   FRIEND_ACCEPTED
   DM
   SYSTEM
+  LIVE
+  EVENT
 }
 
 enum BillingInterval {
@@ -826,6 +828,7 @@ model Event {
   maxParticipants Int?
   prizePool       String?            @db.VarChar(120)
   bracket         Json?
+  reminderSentAt  DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   forge           Forge?             @relation(fields: [forgeId], references: [id], onDelete: Cascade)

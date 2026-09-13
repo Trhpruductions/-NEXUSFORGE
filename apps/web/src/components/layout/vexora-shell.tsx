@@ -56,6 +56,30 @@ const railLinks = [
   { label: "Live", href: "/app/live", icon: Radio },
 ];
 
+/** Short two-note chime generated with WebAudio, so no asset is needed. */
+function playNotificationTone() {
+  try {
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const context = new Ctor();
+    const now = context.currentTime;
+    [[880, 0], [1174.66, 0.12]].forEach(([frequency, offset]) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.25);
+    });
+    window.setTimeout(() => void context.close(), 600);
+  } catch {
+    // audio blocked until the user interacts with the page
+  }
+}
+
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/app" && pathname.startsWith(href));
 }
@@ -209,6 +233,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     staleTime: 5 * 60_000,
   });
   const appearance = settingsQuery.data?.preferences.appearance;
+  const soundsEnabledRef = useRef(true);
+  useEffect(() => {
+    soundsEnabledRef.current = settingsQuery.data?.preferences.notifications.sounds ?? true;
+  }, [settingsQuery.data?.preferences.notifications.sounds]);
   useEffect(() => {
     if (!appearance) return;
     const root = document.documentElement;
@@ -249,6 +277,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const handleChannels = (payload: { forgeId: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
     };
+    const handleNotification = (payload: { id: string; title: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      if (soundsEnabledRef.current) playNotificationTone();
+      void payload;
+    };
     const handleVoice = (payload: { channelId: string; count: number }) => {
       setVoiceCounts((current) => ({ ...current, [payload.channelId]: payload.count }));
     };
@@ -264,7 +297,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     socket.on("forge:channels", handleChannels);
     socket.on("presence:changed", handlePresence);
     socket.on("voice:occupancy", handleVoice);
+    socket.on("notification:new", handleNotification);
     return () => {
+      socket.off("notification:new", handleNotification);
       socket.off("voice:occupancy", handleVoice);
       socket.off("connect", join);
       socket.off("channel:activity", handleActivity);

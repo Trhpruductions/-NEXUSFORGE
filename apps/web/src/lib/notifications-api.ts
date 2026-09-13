@@ -3,7 +3,7 @@ import { api, authHeaders } from "./api";
 export type NotificationItem = {
   id: string;
   userId: string;
-  type: "MENTION" | "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "SYSTEM";
+  type: "MENTION" | "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "SYSTEM" | "LIVE" | "EVENT";
   title: string;
   body: string;
   data?: unknown;

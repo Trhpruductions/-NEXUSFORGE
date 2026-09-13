@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Bell, Check, CheckCheck, Loader2, MessageSquare, ShieldAlert, UserPlus, Users } from "lucide-react";
+import { AtSign, Bell, Calendar, Check, CheckCheck, Loader2, MessageSquare, Radio, ShieldAlert, UserPlus, Users } from "lucide-react";
 import { listNotifications, markNotificationsRead, type NotificationItem } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -19,6 +19,8 @@ const typeMeta: Record<NotificationItem["type"], { icon: typeof Bell; tone: stri
   FRIEND_ACCEPTED: { icon: Users, tone: "text-emerald-300 border-emerald-400/40 bg-emerald-500/10", label: "Friend" },
   DM: { icon: MessageSquare, tone: "text-fuchsia-300 border-fuchsia-400/40 bg-fuchsia-500/10", label: "Message" },
   SYSTEM: { icon: ShieldAlert, tone: "text-slate-300 border-white/15 bg-white/5", label: "System" },
+  LIVE: { icon: Radio, tone: "text-rose-300 border-rose-400/40 bg-rose-500/10", label: "Live" },
+  EVENT: { icon: Calendar, tone: "text-amber-300 border-amber-400/40 bg-amber-500/10", label: "Event" },
 };
 
 function timeAgo(iso: string) {
@@ -37,6 +39,8 @@ function linkFor(item: NotificationItem): string | null {
   if (item.type === "MENTION" && data.channelId) return `/app/chat?channel=${data.channelId}`;
   if (item.type === "FRIEND_REQUEST" || item.type === "FRIEND_ACCEPTED") return "/app/friends";
   if (item.type === "DM" && data.threadId) return `/app/chat?dm=${data.threadId}`;
+  if (item.type === "LIVE" && data.creatorId) return `/app/profile?user=${data.creatorId}`;
+  if (item.type === "EVENT") return data.eventId ? `/app/events?event=${data.eventId}` : "/app/events";
   if (data.followerId) return `/app/profile?user=${data.followerId}`;
   if (data.forgeId) return "/app/server";
   return null;

@@ -33,6 +33,7 @@ import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
 import { requireAge, requireAuth } from "./middleware/auth.js";
 import { joinVoice, leaveAllVoice, leaveVoice, voiceMembers, voiceOccupancyFor } from "./lib/voice-occupancy.js";
+import { startEventReminders } from "./lib/event-reminders.js";
 import { ensureCosmeticCatalog } from "./lib/cosmetic-catalog.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { messagesRouter } from "./routes/messages.routes.js";
@@ -367,6 +368,7 @@ io.on("connection", (socket) => {
 
 setIo(io);
 void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
+startEventReminders();
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {

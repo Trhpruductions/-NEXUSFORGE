@@ -303,7 +303,26 @@ socialRouter.put("/live", async (req, res) => {
           activityStatus: parsed.data.title ? `Streaming: ${parsed.data.title}` : "Streaming",
         }
       : { creatorStatus: "OFFLINE", liveViewerCount: 0, liveStartedAt: null, activityType: null, activityStatus: null },
-    select: { id: true, creatorStatus: true, livePlatform: true, liveStreamTitle: true, liveStreamUrl: true, liveGameCategory: true, liveStartedAt: true },
+    select: { id: true, username: true, displayName: true, creatorStatus: true, livePlatform: true, liveStreamTitle: true, liveStreamUrl: true, liveGameCategory: true, liveStartedAt: true },
   });
   res.json({ live: user });
+
+  if (parsed.data.live) {
+    // Live alert to followers (each follower's notification preferences are honoured in createNotification).
+    void (async () => {
+      const followers = await prisma.follow.findMany({ where: { followingId: user.id }, select: { followerId: true } });
+      const name = user.displayName || user.username;
+      await Promise.all(
+        followers.map((entry) =>
+          createNotification({
+            userId: entry.followerId,
+            type: "LIVE",
+            title: `${name} is live`,
+            body: user.liveStreamTitle ? `${user.liveStreamTitle}${user.liveGameCategory ? ` · ${user.liveGameCategory}` : ""}` : `Streaming now on ${user.livePlatform ?? "Vexora"}`,
+            data: { creatorId: user.id, url: user.liveStreamUrl },
+          }).catch(() => undefined),
+        ),
+      );
+    })();
+  }
 });
