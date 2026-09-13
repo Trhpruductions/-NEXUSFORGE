@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
@@ -440,6 +441,7 @@ forgesRouter.post("/", async (req, res) => {
   }
 
   res.status(201).json({ forge });
+  void evaluateAchievements(req.user!.id);
 });
 
 forgesRouter.patch("/:id/invite", async (req, res) => {

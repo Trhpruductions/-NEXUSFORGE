@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
@@ -77,6 +78,7 @@ avatarRouter.post("/presets", async (req, res) => {
     data: { userId: req.user!.id, name: parsed.data.name, tagline: parsed.data.tagline, config: parsed.data.config },
   });
   res.status(201).json({ preset });
+  void evaluateAchievements(req.user!.id);
 });
 
 avatarRouter.patch("/presets/:id", async (req, res) => {

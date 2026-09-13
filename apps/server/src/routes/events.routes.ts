@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements, grantMedal } from "../lib/achievements.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -274,6 +275,7 @@ eventsRouter.post("/:id/rsvp", async (req, res) => {
 
   emitEvent(event, "rsvp");
   res.json({ participant });
+  void evaluateAchievements(req.user!.id);
 });
 
 eventsRouter.delete("/:id/rsvp", async (req, res) => {
@@ -390,4 +392,5 @@ eventsRouter.post("/:id/matches", async (req, res) => {
 
   emitEvent(updated, champion ? "completed" : "match");
   res.json({ event: updated, champion });
+  if (champion) void grantMedal(champion, "champion");
 });

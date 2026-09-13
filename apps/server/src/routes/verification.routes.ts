@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { deliveryStatus } from "../lib/delivery.js";
 import { issueCode, normalizePhone, protectionSummary, verifyCode } from "../lib/verification.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -184,6 +185,7 @@ verificationRouter.put("/two-factor", authRateLimit, async (req, res) => {
     }
     const channels = parsed.data.channels ?? ["EMAIL", "SMS"];
     const updated = await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true, twoFactorChannels: channels }, select: userSelect });
+    void evaluateAchievements(user.id);
     res.json({ ok: true, protection: protectionSummary(updated) });
     return;
   }

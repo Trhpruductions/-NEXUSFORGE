@@ -2,6 +2,7 @@ import { Router } from "express";
 import xss from "xss";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -140,6 +141,7 @@ socialRouter.post("/follow/:userId", async (req, res) => {
   }).catch(() => undefined);
 
   res.status(201).json({ following: true });
+  void evaluateAchievements(targetId);
 });
 
 socialRouter.delete("/follow/:userId", async (req, res) => {
@@ -216,6 +218,7 @@ socialRouter.post("/posts", async (req, res) => {
   });
 
   res.status(201).json({ post: { ...post, liked: false } });
+  void evaluateAchievements(req.user!.id);
 });
 
 socialRouter.delete("/posts/:id", async (req, res) => {
@@ -313,6 +316,7 @@ socialRouter.put("/live", async (req, res) => {
     select: { id: true, username: true, displayName: true, creatorStatus: true, livePlatform: true, liveStreamTitle: true, liveStreamUrl: true, liveGameCategory: true, liveStartedAt: true },
   });
   res.json({ live: user });
+  if (parsed.data.live) void evaluateAchievements(user.id);
 
   if (parsed.data.live) {
     // Live alert to followers (each follower's notification preferences are honoured in createNotification).

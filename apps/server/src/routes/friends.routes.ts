@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -128,6 +129,10 @@ friendsRouter.patch("/:id", async (req, res) => {
   }
 
   res.json({ friend: updated });
+  if (parsed.data.status === "ACCEPTED") {
+    void evaluateAchievements(existing.senderId);
+    void evaluateAchievements(existing.receiverId);
+  }
 });
 
 friendsRouter.delete("/:id", async (req, res) => {

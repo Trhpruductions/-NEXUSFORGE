@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { deleteDocument, isAdult, mimeForStoredPath, readDocument } from "../lib/age-verification.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -96,6 +97,7 @@ adminAgeRouter.post("/:id/approve", requireCsrf, async (req, res) => {
   }).catch(() => undefined);
 
   res.json({ ok: true });
+  void evaluateAchievements(record.userId);
 });
 
 adminAgeRouter.post("/:id/reject", requireCsrf, async (req, res) => {

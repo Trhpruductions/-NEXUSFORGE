@@ -13,7 +13,7 @@ import {
   followUser,
   getAvatar,
   getProfileSummary,
-  getUserMedals,
+  getUserAchievements,
   listFriends,
   listPosts,
   togglePostLike,
@@ -97,11 +97,13 @@ function ProfileInner() {
     queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST" }),
     enabled: Boolean(accessToken && userId && (tab === "posts" || tab === "clips")),
   });
-  const medalsQuery = useQuery({
-    queryKey: ["medals", userId, accessToken],
-    queryFn: () => getUserMedals(accessToken!, userId!),
-    enabled: Boolean(accessToken && userId && tab === "achievements"),
+  const achievementsQuery = useQuery({
+    queryKey: ["achievements", userId, accessToken],
+    queryFn: () => getUserAchievements(accessToken!, userId!),
+    enabled: Boolean(accessToken && userId),
   });
+  const achievements = achievementsQuery.data?.achievements ?? [];
+  const unlockedAchievements = achievements.filter((entry) => entry.unlocked);
   const friendsQuery = useQuery({
     queryKey: ["friends", accessToken],
     queryFn: () => listFriends(accessToken!),
@@ -393,22 +395,29 @@ function ProfileInner() {
 
           {tab === "achievements" ? (
             <div className={panel}>
-              {medalsQuery.isLoading ? (
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-slate-400">
+                  <span className="font-semibold text-white">{unlockedAchievements.length}</span> of {achievements.length} unlocked
+                </p>
+                <span className="flex gap-1">
+                  {achievements.slice(0, 12).map((entry) => <span key={entry.key} className={`h-1.5 w-3 rounded-full ${entry.unlocked ? "bg-amber-400" : "bg-slate-700"}`} />)}
+                </span>
+              </div>
+              {achievementsQuery.isLoading ? (
                 <p className="text-sm text-slate-400">Loading...</p>
-              ) : medalsQuery.data?.medals.length ? (
+              ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {medalsQuery.data.medals.map((medal) => (
-                    <div key={medal.id} className="flex items-center gap-3 rounded-xl border border-white/5 bg-[#11151e] p-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/10 text-xl">{medal.icon ?? <Award className="h-5 w-5 text-amber-300" />}</span>
+                  {[...achievements].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)).map((entry) => (
+                    <div key={entry.key} className={`flex items-center gap-3 rounded-xl border p-3 ${entry.unlocked ? "border-amber-400/40 bg-[#11151e] shadow-[0_0_18px_rgba(230,179,37,0.12)]" : "border-white/5 bg-[#11151e] opacity-60"}`}>
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-xl ${entry.unlocked ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 bg-slate-900 grayscale"}`}>{entry.icon || <Award className="h-5 w-5 text-amber-300" />}</span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white">{medal.name}</p>
-                        <p className="truncate text-[11px] text-slate-400">{medal.description}</p>
+                        <p className="truncate text-sm font-semibold text-white">{entry.name}</p>
+                        <p className="truncate text-[11px] text-slate-400">{entry.description}</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">{entry.unlocked && entry.unlockedAt ? `Unlocked ${new Date(entry.unlockedAt).toLocaleDateString()}` : "Locked"}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-slate-500">No achievements unlocked yet.</p>
               )}
             </div>
           ) : null}
@@ -469,12 +478,31 @@ function ProfileInner() {
           ) : null}
 
           <div className={panel}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className={sectionTitle}>Achievements</h3>
+              <button type="button" onClick={() => setTab("achievements")} className="text-[11px] uppercase tracking-[0.16em] text-amber-300 hover:text-amber-200">View all</button>
+            </div>
+            {unlockedAchievements.length ? (
+              <div className="grid grid-cols-4 gap-2">
+                {unlockedAchievements.slice(0, 8).map((entry) => (
+                  <div key={entry.key} className="flex flex-col items-center gap-1 rounded-lg border border-amber-400/30 bg-[#11151e] px-1 py-2 text-center" title={entry.description}>
+                    <span className="text-xl">{entry.icon}</span>
+                    <span className="w-full truncate text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-300">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500">{achievementsQuery.isLoading ? "Loading..." : "Nothing unlocked yet. Post, chat, make friends and go live to earn medals."}</p>
+            )}
+          </div>
+
+          <div className={panel}>
             <h3 className={`${sectionTitle} mb-3`}>Overview</h3>
             <dl className="space-y-2 text-xs">
               {[
                 ["Member since", new Date(person.createdAt).toLocaleDateString([], { month: "short", year: "numeric" })],
                 ["Forges", String(person._count.memberships)],
-                ["Achievements", String(person._count.medals)],
+                ["Achievements", `${unlockedAchievements.length}/${achievements.length || "…"}`],
                 ["Posts", String(person._count.posts)],
                 ["Status", person.status.toLowerCase()],
               ].map(([label, value]) => (

@@ -3,6 +3,7 @@ import xss from "xss";
 import { z } from "zod";
 import { renderBotCommandResponse } from "../lib/bot-commands.js";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { antiSpam } from "../middleware/anti-spam.js";
@@ -332,6 +333,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   }
 
   res.status(201).json({ message: created });
+  void evaluateAchievements(req.user!.id);
 });
 
 messagesRouter.patch("/:id", async (req, res) => {

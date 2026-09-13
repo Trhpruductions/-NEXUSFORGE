@@ -2755,3 +2755,10 @@ export async function deleteLoadoutPreset(accessToken: string, csrfToken: string
   const response = await api.delete<{ presets: LoadoutPreset[] }>(`/api/cosmetics/presets/${presetId}`, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
+
+export type AchievementEntry = { key: string; name: string; description: string; icon: string; unlocked: boolean; unlockedAt: string | null; met: boolean };
+
+export async function getUserAchievements(accessToken: string, userId: string) {
+  const response = await api.get<{ achievements: AchievementEntry[] }>(`/api/profiles/users/${userId}/achievements`, { headers: authHeaders(accessToken) });
+  return response.data;
+}

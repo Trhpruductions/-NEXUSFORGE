@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { achievementProgress, evaluateAchievements } from "../lib/achievements.js";
 import { hasAdminAccess } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -501,6 +502,22 @@ profilesRouter.get("/users/:userId/activity", requireAuth, async (req, res) => {
 });
 
 // Get user's medals
+/** Every achievement with unlocked state for a player (drives the profile Achievements tab). */
+profilesRouter.get("/users/:userId/achievements", requireAuth, async (req, res) => {
+  const validated = userIdParamSchema.safeParse(req.params.userId);
+  if (!validated.success) {
+    res.status(400).json({ error: "Invalid userId" });
+    return;
+  }
+  const exists = await prisma.user.findUnique({ where: { id: validated.data }, select: { id: true } });
+  if (!exists) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (validated.data === req.user!.id) await evaluateAchievements(validated.data);
+  res.json({ achievements: await achievementProgress(validated.data) });
+});
+
 profilesRouter.get("/users/:userId/medals", requireAuth, async (req, res) => {
   try {
     const { userId } = req.params;

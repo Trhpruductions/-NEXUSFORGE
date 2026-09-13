@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { evaluateAchievements } from "../lib/achievements.js";
 import { EconomyAuthority } from "../lib/economy-authority.js";
 import { ensureCosmeticCatalog } from "../lib/cosmetic-catalog.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -181,6 +182,7 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
 
   await prisma.userCosmetic.create({ data: { userId: req.user!.id, itemId: item.id } });
   res.status(201).json({ item: { ...item, owned: true, equipped: false }, coins: await coinBalance(req.user!.id) });
+  void evaluateAchievements(req.user!.id);
 });
 
 cosmeticsRouter.put("/loadout", async (req, res) => {
