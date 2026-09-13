@@ -199,6 +199,28 @@ io.use((socket, next) => {
 
 const onlineSockets = new Map<string, number>();
 
+// creatorId -> watching socket ids; socketId -> creators it watches
+const streamViewers = new Map<string, Set<string>>();
+const socketWatching = new Map<string, Set<string>>();
+
+function unwatch(creatorId: string, socketId: string) {
+  const viewers = streamViewers.get(creatorId);
+  viewers?.delete(socketId);
+  if (viewers && !viewers.size) streamViewers.delete(creatorId);
+  socketWatching.get(socketId)?.delete(creatorId);
+}
+
+async function publishViewerCount(creatorId: string) {
+  const count = streamViewers.get(creatorId)?.size ?? 0;
+  try {
+    await prisma.user.updateMany({ where: { id: creatorId, creatorStatus: "LIVE" }, data: { liveViewerCount: count } });
+    await prisma.streamSession.updateMany({ where: { userId: creatorId, endedAt: null, peakViewers: { lt: count } }, data: { peakViewers: count } });
+  } catch {
+    // best effort
+  }
+  io.emit("live:viewers", { creatorId, count });
+}
+
 const channelForge = new Map<string, string>();
 async function forgeIdForChannel(channelId: string) {
   const cached = channelForge.get(channelId);
@@ -254,6 +276,11 @@ io.on("connection", (socket) => {
   if (activeSockets === 1) void setPresence(presenceUserId, "ONLINE");
 
   socket.on("disconnect", () => {
+    for (const creatorId of socketWatching.get(socket.id) ?? []) {
+      unwatch(creatorId, socket.id);
+      void publishViewerCount(creatorId);
+    }
+    socketWatching.delete(socket.id);
     for (const channelId of leaveAllVoice(presenceUserId, socket.id)) void broadcastVoiceOccupancy(channelId);
     const remaining = (onlineSockets.get(presenceUserId) ?? 1) - 1;
     if (remaining <= 0) {
@@ -318,6 +345,26 @@ io.on("connection", (socket) => {
       userId: socket.data.user.id,
       action: "left",
     });
+  });
+
+  /** In-app stream viewers: real viewer counts for creators watched inside Vexora. */
+  socket.on("stream:watch", (creatorId: string) => {
+    if (typeof creatorId !== "string" || !creatorId) return;
+    for (const previous of socketWatching.get(socket.id) ?? []) unwatch(previous, socket.id);
+    let viewers = streamViewers.get(creatorId);
+    if (!viewers) {
+      viewers = new Set();
+      streamViewers.set(creatorId, viewers);
+    }
+    viewers.add(socket.id);
+    socketWatching.set(socket.id, new Set([creatorId]));
+    void publishViewerCount(creatorId);
+  });
+
+  socket.on("stream:unwatch", (creatorId: string) => {
+    if (typeof creatorId !== "string" || !creatorId) return;
+    unwatch(creatorId, socket.id);
+    void publishViewerCount(creatorId);
   });
 
   /** WebRTC signaling relay for the built-in voice mode: offers, answers and ICE candidates between two users in a voice channel. */

@@ -343,7 +343,7 @@ socialRouter.put("/live", async (req, res) => {
         data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Vexora" },
       });
     } else {
-      await prisma.streamSession.updateMany({ where: { userId: user.id, endedAt: null }, data: { endedAt: new Date(), peakViewers: before?.liveViewerCount ?? 0 } });
+      await prisma.streamSession.updateMany({ where: { userId: user.id, endedAt: null }, data: { endedAt: new Date() } });
     }
   })().catch(() => undefined);
 

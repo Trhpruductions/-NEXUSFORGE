@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Loader2, Radio, Square, X } from "lucide-react";
+import { ExternalLink, Eye, Loader2, Radio, Square, X } from "lucide-react";
 import { getApiErrorMessage, getLiveCreators, getProfileSummary, setLiveStatus, type User } from "@/lib/api";
+import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
+import { resolveClipEmbed } from "@/components/media/clip-embed";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -38,6 +40,7 @@ export function LivePage() {
   const [game, setGame] = useState("");
   const [url, setUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [watchingId, setWatchingId] = useState<string | null>(null);
 
   const liveQuery = useQuery({
     queryKey: ["live-creators", accessToken],
@@ -52,6 +55,19 @@ export function LivePage() {
   });
   const me = meQuery.data?.user;
   const iAmLive = me?.creatorStatus === "LIVE";
+
+  // Watching inside Vexora counts as a real viewer; counts update live for everyone.
+  useEffect(() => {
+    if (!accessToken) return;
+    const socket = getSocket(accessToken);
+    const onViewers = () => void queryClient.invalidateQueries({ queryKey: ["live-creators"] });
+    socket.on("live:viewers", onViewers);
+    if (watchingId) socket.emit("stream:watch", watchingId);
+    return () => {
+      socket.off("live:viewers", onViewers);
+      if (watchingId) socket.emit("stream:unwatch", watchingId);
+    };
+  }, [accessToken, watchingId, queryClient]);
 
   useEffect(() => {
     if (!me) return;
@@ -73,6 +89,8 @@ export function LivePage() {
   });
 
   const creators = (liveQuery.data ?? []) as User[];
+  const watching = watchingId ? creators.find((creator) => creator.id === watchingId) ?? null : null;
+  const watchingEmbed = watching?.liveStreamUrl ? resolveClipEmbed(watching.liveStreamUrl) : null;
 
   return (
     <div className="space-y-4">
@@ -92,7 +110,31 @@ export function LivePage() {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-4">
+          {watching ? (
+            <div className="overflow-hidden rounded-2xl border border-rose-400/40 bg-[#0d1119]">
+              {watchingEmbed && watchingEmbed.kind === "iframe" ? (
+                <iframe src={watchingEmbed.src} title={watching.liveStreamTitle ?? "Live stream"} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen className="aspect-video w-full bg-black" />
+              ) : watchingEmbed && watchingEmbed.kind === "video" ? (
+                <video src={watchingEmbed.src} autoPlay controls playsInline className="aspect-video w-full bg-black" />
+              ) : (
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_50%_40%,rgba(244,63,94,0.18),transparent_60%),#0b0e15] text-center">
+                  <Radio className="h-8 w-8 text-rose-400" />
+                  <p className="text-sm text-slate-300">{watching.livePlatform ?? "This platform"} does not allow embedding here.</p>
+                  {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Open on {watching.livePlatform ?? "platform"} <ExternalLink className="h-3 w-3" /></a> : null}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3 border-t border-white/5 p-3">
+                <span className="inline-flex items-center gap-1 rounded bg-rose-500 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white"><Radio className="h-3 w-3" /> Live</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">{watching.liveStreamTitle || `${watching.username} is live`}</p>
+                  <p className="truncate text-[11px] text-slate-400">{[watching.displayName || watching.username, watching.liveGameCategory, watching.livePlatform].filter(Boolean).join(" · ")} · <Eye className="inline h-3 w-3" /> {compact(watching.liveViewerCount ?? 0)} watching</p>
+                </div>
+                {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Open <ExternalLink className="h-3 w-3" /></a> : null}
+                <button type="button" onClick={() => setWatchingId(null)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-rose-400/50"><X className="h-3 w-3" /> Close</button>
+              </div>
+            </div>
+          ) : null}
           {liveQuery.isLoading ? (
             <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading streams...</p>
           ) : creators.length ? (
@@ -115,7 +157,7 @@ export function LivePage() {
                       <p className="truncate text-sm font-semibold text-white">{creator.liveStreamTitle || `${creator.username} is live`}</p>
                       <p className="truncate text-[11px] text-slate-400">{[creator.displayName || creator.username, creator.liveGameCategory, creator.livePlatform].filter(Boolean).join(" · ")}</p>
                       <div className="mt-2 flex gap-1.5">
-                        {creator.liveStreamUrl ? <a href={creator.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Watch</a> : null}
+                        <button type="button" onClick={() => setWatchingId(creator.id)} className={goldBtn}>{watchingId === creator.id ? "Watching" : "Watch"}</button>
                         <Link href={`/app/profile?user=${creator.id}`} className="inline-flex items-center rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Profile</Link>
                       </div>
                     </div>
@@ -154,7 +196,7 @@ export function LivePage() {
               </button>
             )}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">Viewer counts sync from linked platforms once Twitch, Kick or YouTube are connected in Settings.</p>
+          <p className="mt-3 text-[11px] text-slate-500">The viewer count is the number of people watching your stream inside Vexora right now.</p>
         </aside>
       </div>
     </div>
