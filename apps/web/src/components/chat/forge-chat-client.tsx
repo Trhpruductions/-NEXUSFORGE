@@ -59,6 +59,7 @@ import {
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useVoiceStore } from "@/store/voice-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -1003,7 +1004,10 @@ export function ForgeChatClient() {
     mutationFn: (channelId: string) => requestVoiceToken(accessToken!, csrfToken!, channelId),
     onSuccess: (data) => {
       if (!selectedVoiceChannelId) return;
+      const channelName = voiceChannels.find((entry) => entry.id === selectedVoiceChannelId)?.name ?? "Voice";
       setVoiceSession({ ...data, channelId: selectedVoiceChannelId });
+      // The app-shell engine runs the actual call.
+      useVoiceStore.getState().join({ ...data, channelId: selectedVoiceChannelId, channelName, forgeId: selectedForgeId ?? null });
       setStatusMessage("Voice session token issued.");
     },
   });
@@ -1627,8 +1631,6 @@ export function ForgeChatClient() {
 
     try {
       await voiceTokenMutation.mutateAsync(selectedVoiceChannelId);
-      const socket = getSocket(accessToken!);
-      socket.emit("voice:join", selectedVoiceChannelId);
       if (user?.id) {
         setVoicePresenceByChannel((current) => {
           const existing = new Set(current[selectedVoiceChannelId] ?? []);
@@ -1647,8 +1649,7 @@ export function ForgeChatClient() {
 
   const onLeaveVoice = () => {
     if (!selectedVoiceChannelId) return;
-    const socket = getSocket(accessToken!);
-    socket.emit("voice:leave", selectedVoiceChannelId);
+    useVoiceStore.getState().leave();
     if (user?.id) {
       setVoicePresenceByChannel((current) => {
         const existing = new Set(current[selectedVoiceChannelId] ?? []);
@@ -1661,26 +1662,6 @@ export function ForgeChatClient() {
     }
     setVoiceSession(null);
     setStatusMessage("Left voice channel.");
-  };
-
-  const onToggleVoiceFlag = async (flag: keyof typeof voiceState) => {
-    if (!selectedVoiceChannelId) return;
-
-    const nextState = {
-      ...voiceState,
-      [flag]: !voiceState[flag],
-    };
-
-    setVoiceState(nextState);
-
-    try {
-      await voiceStateMutation.mutateAsync({
-        channelId: selectedVoiceChannelId,
-        ...nextState,
-      });
-    } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Voice state update failed.");
-    }
   };
 
   const onMessageDraftChange = (value: string) => {
@@ -3306,13 +3287,7 @@ export function ForgeChatClient() {
               Leave
             </Button>
           </div>
-          <VoiceRoomPanel
-            session={voiceSession}
-            voiceState={voiceState}
-            onToggleVoiceFlag={onToggleVoiceFlag}
-            onLeave={onLeaveVoice}
-            statusMessage={statusMessage}
-          />
+          {voiceSession ? <VoiceRoomPanel /> : <p className="text-xs text-slate-500">{statusMessage ?? "Select a voice channel and join."}</p>}
         </div>
 
         <div className="mb-4 rounded-[14px] border border-slate-700/70 bg-slate-900/75 p-3">

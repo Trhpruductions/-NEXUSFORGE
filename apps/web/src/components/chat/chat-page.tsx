@@ -26,18 +26,17 @@ import {
   type DmMessage,
   type DmThread,
   type Message,
-  type VoiceTokenResponse,
 } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useVoiceStore } from "@/store/voice-store";
 import { MessageList } from "@/components/chat/message-list";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 
-type VoiceState = { muted: boolean; deafened: boolean; screenSharing: boolean; noiseSuppression: boolean; voiceActivity: boolean };
 
 const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-amber-200";
 
@@ -84,8 +83,8 @@ function ChatInner() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [typing, setTyping] = useState<Record<string, string[]>>({});
   const [status, setStatus] = useState<string | null>(null);
-  const [voiceSession, setVoiceSession] = useState<(VoiceTokenResponse & { channelId: string }) | null>(null);
-  const [voiceState, setVoiceState] = useState<VoiceState>({ muted: false, deafened: false, screenSharing: false, noiseSuppression: true, voiceActivity: true });
+  const voiceSession = useVoiceStore((state) => state.session);
+  const joinVoiceStore = useVoiceStore((state) => state.join);
   const [dmDraft, setDmDraft] = useState("");
   const typingTimer = useRef<number | null>(null);
   const isTyping = useRef(false);
@@ -329,22 +328,12 @@ function ChatInner() {
     if (!accessToken || !csrfToken) return;
     try {
       const token = await requestVoiceToken(accessToken, csrfToken, target.id);
-      setVoiceSession({ ...token, channelId: target.id });
-      await updateVoiceState(accessToken, csrfToken, { channelId: target.id, ...voiceState }).catch(() => undefined);
+      // The engine in the app shell runs the call, so it keeps going when you leave this page.
+      joinVoiceStore({ ...token, channelId: target.id, channelName: target.name, forgeId: forge?.id ?? null });
+      await updateVoiceState(accessToken, csrfToken, { channelId: target.id, ...useVoiceStore.getState().flags }).catch(() => undefined);
     } catch (error) {
       setStatus(getApiErrorMessage(error));
     }
-  };
-  const leaveVoice = () => {
-    // The voice panel emits voice:leave and tears down the media when it unmounts.
-    setVoiceSession(null);
-  };
-  const toggleVoiceFlag = (flag: keyof VoiceState) => {
-    setVoiceState((current) => {
-      const next = { ...current, [flag]: !current[flag] };
-      if (voiceSession && accessToken && csrfToken) void updateVoiceState(accessToken, csrfToken, { channelId: voiceSession.channelId, ...next }).catch(() => undefined);
-      return next;
-    });
   };
 
   // ---------------------------------------------------------------- DMs
@@ -475,9 +464,21 @@ function ChatInner() {
 
         {mode === "voice" ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6">
-            {voiceSession ? (
+            {voiceSession && voiceSession.channelId === voiceChannel?.id ? (
               <div className="w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-[#0d1119] p-4 text-slate-100">
-                <VoiceRoomPanel session={voiceSession} channelName={voiceChannel?.name} members={forge?.members ?? []} voiceState={voiceState} onToggleVoiceFlag={toggleVoiceFlag} onLeave={leaveVoice} />
+                <VoiceRoomPanel members={forge?.members ?? []} />
+              </div>
+            ) : voiceSession ? (
+              <div className="w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-[#0d1119] p-6 text-center text-slate-100">
+                <p className="text-sm text-slate-300">You are in <span className="font-semibold text-white">{voiceSession.channelName}</span>.</p>
+                <div className="mt-3 flex justify-center gap-2">
+                  {voiceChannel ? (
+                    <button type="button" onClick={() => void joinVoice(voiceChannel)} className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300">
+                      <Mic className="h-3.5 w-3.5" /> Switch to {voiceChannel.name}
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => useVoiceStore.getState().leave()} className="rounded-lg border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-rose-400/50">Leave</button>
+                </div>
               </div>
             ) : (
               <div className="text-center">

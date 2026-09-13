@@ -17,6 +17,7 @@ import {
   Megaphone,
   MessageSquare,
   Mic,
+  MicOff,
   Plus,
   Radio,
   Search,
@@ -35,6 +36,8 @@ import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useVoiceStore } from "@/store/voice-store";
+import { VoiceEngine } from "@/components/chat/voice-engine";
 
 // The six destinations from the design reference (design/vexora-app-mockup.png, Home panel).
 const navLinks = [
@@ -144,6 +147,12 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   }, [statusMenuOpen]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const voiceSession = useVoiceStore((state) => state.session);
+  const voiceFlags = useVoiceStore((state) => state.flags);
+  const voiceConnection = useVoiceStore((state) => state.connection);
+  const voiceRemote = useVoiceStore((state) => state.remote);
+  const toggleVoice = useVoiceStore((state) => state.toggle);
+  const leaveVoice = useVoiceStore((state) => state.leave);
   const forgeMenuRef = useRef<HTMLDivElement | null>(null);
 
   const forgesQuery = useQuery({
@@ -459,7 +468,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => openChannel(channel)}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-400 transition hover:bg-white/[0.04] hover:text-slate-200"
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/[0.04] hover:text-slate-200",
+                  voiceSession?.channelId === channel.id ? "bg-emerald-500/10 text-emerald-200" : "text-slate-400",
+                )}
               >
                 {channel.type === "STAGE" ? <Radio className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Volume2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
                 <span className="min-w-0 flex-1 truncate">{channel.name}</span>
@@ -481,6 +493,21 @@ export function VexoraShell({ children }: { children: ReactNode }) {
         ) : null}
       </div>
 
+      {voiceSession ? (
+        <div className="border-t border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <Link href={`/app/chat?forge=${voiceSession.forgeId ?? selectedForgeId ?? ""}&voice=${voiceSession.channelId}`} className="min-w-0">
+              <span className={cn("block text-[10px] font-semibold uppercase tracking-[0.16em]", voiceConnection === "connected" ? "text-emerald-300" : "text-amber-300")}>
+                {voiceConnection === "connected" ? "Voice connected" : voiceConnection === "disconnected" ? "Voice disconnected" : "Connecting..."}
+              </span>
+              <span className="block truncate text-xs text-slate-300">{voiceSession.channelName} · {voiceRemote.length + 1} in call</span>
+            </Link>
+            <button type="button" onClick={leaveVoice} title="Leave voice" className="rounded-lg border border-white/10 p-1.5 text-slate-300 transition hover:border-rose-400/50 hover:text-rose-200">
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="border-t border-amber-500/15 bg-[#0d1119] p-3">
         <div className="flex items-center gap-2.5">
           <Link href="/app/profile" className="relative shrink-0">
@@ -507,9 +534,20 @@ export function VexoraShell({ children }: { children: ReactNode }) {
               </div>
             ) : null}
           </div>
-          <Link href="/app/chat?voice=1" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-white" title="Voice">
-            <Mic className="h-4 w-4" />
-          </Link>
+          {voiceSession ? (
+            <button
+              type="button"
+              onClick={() => toggleVoice("muted")}
+              className={cn("rounded-md p-1.5 transition hover:bg-white/5", voiceFlags.muted ? "text-rose-300" : "text-emerald-300")}
+              title={voiceFlags.muted ? "Unmute" : "Mute"}
+            >
+              {voiceFlags.muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          ) : (
+            <Link href="/app/chat?voice=1" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-white" title="Voice">
+              <Mic className="h-4 w-4" />
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -528,6 +566,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#070a10] text-slate-100">
+      <VoiceEngine />
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-amber-500/15 bg-[#080b12] py-3 lg:flex">
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(230,179,37,0.25)]" title="Vexora Gaming">
