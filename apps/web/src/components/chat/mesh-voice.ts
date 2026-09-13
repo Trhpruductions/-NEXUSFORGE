@@ -13,6 +13,8 @@ export type MeshPeer = {
   connection: RTCPeerConnection;
   audio: HTMLAudioElement;
   stream: MediaStream | null;
+  /** Remote screen share, when the peer is sharing. */
+  video: MediaStream | null;
   state: RTCPeerConnectionState;
 };
 
@@ -25,6 +27,9 @@ export type MeshVoiceOptions = {
   onPeersChanged: (peers: MeshPeer[]) => void;
   onLevel?: (userId: string, level: number) => void;
   onError: (message: string) => void;
+  /** Fired when the local screen share stops (user pressed the browser's Stop sharing). */
+  onScreenShareEnded?: () => void;
+  onLocalScreen?: (stream: MediaStream | null) => void;
 };
 
 type SignalData =
@@ -35,6 +40,8 @@ type SignalData =
 export class MeshVoice {
   private peers = new Map<string, MeshPeer>();
   private local: MediaStream | null = null;
+  private screen: MediaStream | null = null;
+  private screenSenders = new Map<string, RTCRtpSender>();
   private audioContext: AudioContext | null = null;
   private analysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> }>();
   private meter: number | null = null;
@@ -75,6 +82,7 @@ export class MeshVoice {
     socket.off("voice:signal", this.handleSignal);
     socket.off("voice:occupancy", this.handleOccupancy);
     socket.emit("voice:leave", channelId);
+    this.stopScreenShare(false);
     for (const peer of this.peers.values()) this.drop(peer.userId, false);
     this.peers.clear();
     if (this.meter) window.clearInterval(this.meter);
@@ -99,6 +107,57 @@ export class MeshVoice {
     for (const peer of this.peers.values()) {
       const element = peer.audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
       if (element.setSinkId) void element.setSinkId(deviceId ?? "").catch(() => undefined);
+    }
+  }
+
+  /** Share the screen with everyone in the room (adds a video track to each peer and renegotiates). */
+  async startScreenShare() {
+    if (this.screen) return;
+    try {
+      this.screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+    } catch {
+      this.options.onScreenShareEnded?.();
+      return;
+    }
+    const [track] = this.screen.getVideoTracks();
+    track.onended = () => {
+      this.stopScreenShare(true);
+    };
+    this.options.onLocalScreen?.(this.screen);
+    for (const peer of this.peers.values()) {
+      const sender = peer.connection.addTrack(track, this.screen);
+      this.screenSenders.set(peer.userId, sender);
+      void this.renegotiate(peer.userId);
+    }
+  }
+
+  stopScreenShare(notify: boolean) {
+    if (!this.screen) return;
+    this.screen.getTracks().forEach((entry) => entry.stop());
+    this.screen = null;
+    for (const [userId, sender] of this.screenSenders) {
+      const peer = this.peers.get(userId);
+      try {
+        peer?.connection.removeTrack(sender);
+      } catch {
+        // connection may already be closed
+      }
+      if (peer) void this.renegotiate(userId);
+    }
+    this.screenSenders.clear();
+    this.options.onLocalScreen?.(null);
+    if (notify) this.options.onScreenShareEnded?.();
+  }
+
+  private async renegotiate(userId: string) {
+    const peer = this.peers.get(userId);
+    if (!peer || peer.connection.signalingState !== "stable") return;
+    try {
+      const offer = await peer.connection.createOffer();
+      await peer.connection.setLocalDescription(offer);
+      this.signal(userId, { type: "offer", sdp: offer.sdp ?? "" });
+    } catch (error) {
+      this.options.onError(error instanceof Error ? error.message : "Could not update the call");
     }
   }
 
@@ -137,6 +196,10 @@ export class MeshVoice {
     try {
       if (data.type === "offer") {
         const peer = this.ensurePeer(from);
+        if (peer.connection.signalingState !== "stable") {
+          // Both sides offered at once: drop ours and answer theirs.
+          await peer.connection.setLocalDescription({ type: "rollback" });
+        }
         await peer.connection.setRemoteDescription({ type: "offer", sdp: data.sdp });
         const answer = await peer.connection.createAnswer();
         await peer.connection.setLocalDescription(answer);
@@ -172,16 +235,33 @@ export class MeshVoice {
     audio.setAttribute("playsinline", "true");
     document.body.appendChild(audio);
 
-    const peer: MeshPeer = { userId, connection, audio, stream: null, state: connection.connectionState };
+    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, state: connection.connectionState };
     this.peers.set(userId, peer);
 
     this.local?.getTracks().forEach((track) => connection.addTrack(track, this.local!));
+    if (this.screen) {
+      const [track] = this.screen.getVideoTracks();
+      if (track) this.screenSenders.set(userId, connection.addTrack(track, this.screen));
+    }
 
     connection.onicecandidate = (event) => {
       if (event.candidate) this.signal(userId, { type: "ice", candidate: event.candidate.toJSON() });
     };
     connection.ontrack = (event) => {
       const [stream] = event.streams;
+      if (event.track.kind === "video") {
+        peer.video = stream ?? new MediaStream([event.track]);
+        event.track.onended = () => {
+          peer.video = null;
+          this.emitPeers();
+        };
+        event.track.onmute = () => {
+          peer.video = null;
+          this.emitPeers();
+        };
+        this.emitPeers();
+        return;
+      }
       peer.stream = stream ?? new MediaStream([event.track]);
       audio.srcObject = peer.stream;
       void audio.play().catch(() => undefined);

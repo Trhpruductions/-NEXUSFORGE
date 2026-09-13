@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionState, Room, RoomEvent, Track } from "livekit-client";
-import { Headphones, HeadphoneOff, Loader2, Mic, MicOff, PhoneOff, Radio, Wifi } from "lucide-react";
+import { Headphones, HeadphoneOff, Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Radio, Wifi } from "lucide-react";
 import type { VoiceTokenResponse } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -34,6 +34,19 @@ type VoiceRoomPanelProps = {
 
 type Participant = { userId: string; name: string; avatar?: string | null; connected: boolean; self: boolean };
 
+function ScreenTile({ stream, label, muted = false }: { stream: MediaStream; label: string; muted?: boolean }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return (
+    <div className="overflow-hidden rounded-xl border border-amber-500/30 bg-black">
+      <video ref={ref} autoPlay playsInline muted={muted} className="aspect-video w-full object-contain" />
+      <p className="border-t border-white/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-200">{label}</p>
+    </div>
+  );
+}
+
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
 }
@@ -44,9 +57,11 @@ export function VoiceRoomPanel({ session, channelName, voiceState, members = [],
   const meshRef = useRef<MeshVoice | null>(null);
   const remoteAudioHostRef = useRef<HTMLDivElement | null>(null);
   const [connection, setConnection] = useState<"connecting" | "connected" | "reconnecting" | "disconnected">("connecting");
-  const [remote, setRemote] = useState<Array<{ userId: string; name?: string; connected: boolean }>>([]);
+  const [remote, setRemote] = useState<Array<{ userId: string; name?: string; connected: boolean; video?: MediaStream | null }>>([]);
+  const [localScreen, setLocalScreen] = useState<MediaStream | null>(null);
   const [levels, setLevels] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  const screenFlagRef = useRef(voiceState.screenSharing);
 
   const nameOf = (userId: string) => {
     const member = members.find((entry) => entry.userId === userId || entry.user.id === userId);
@@ -66,8 +81,12 @@ export function VoiceRoomPanel({ session, channelName, voiceState, members = [],
       iceServers: session.iceServers ?? [],
       constraints: { noiseSuppression: voiceState.noiseSuppression, echoCancellation: true, autoGainControl: true },
       onPeersChanged: (peers: MeshPeer[]) => {
-        setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected" })));
+        setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video })));
       },
+      onScreenShareEnded: () => {
+        if (screenFlagRef.current) onToggleVoiceFlag("screenSharing");
+      },
+      onLocalScreen: setLocalScreen,
       onLevel: (userId, level) => setLevels((current) => (current[userId] === level ? current : { ...current, [userId]: level })),
       onError: (message) => setError(message),
     });
@@ -87,6 +106,15 @@ export function VoiceRoomPanel({ session, channelName, voiceState, members = [],
   useEffect(() => {
     meshRef.current?.setMuted(voiceState.muted);
   }, [voiceState.muted]);
+  useEffect(() => {
+    screenFlagRef.current = voiceState.screenSharing;
+  }, [voiceState.screenSharing]);
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    if (voiceState.screenSharing) void mesh.startScreenShare();
+    else mesh.stopScreenShare(false);
+  }, [voiceState.screenSharing]);
   useEffect(() => {
     meshRef.current?.setDeafened(voiceState.deafened);
   }, [voiceState.deafened]);
@@ -196,6 +224,13 @@ export function VoiceRoomPanel({ session, channelName, voiceState, members = [],
 
       {error ? <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{error}</p> : null}
 
+      {localScreen || remote.some((entry) => entry.video) ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {localScreen ? <ScreenTile stream={localScreen} label="Your screen" muted /> : null}
+          {remote.filter((entry) => entry.video).map((entry) => <ScreenTile key={entry.userId} stream={entry.video!} label={`${entry.name || nameOf(entry.userId)}'s screen`} />)}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {participants.map((participant) => {
           const level = levels[participant.self ? "self" : participant.userId] ?? 0;
@@ -227,6 +262,11 @@ export function VoiceRoomPanel({ session, channelName, voiceState, members = [],
         <button type="button" onClick={() => onToggleVoiceFlag("deafened")} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${voiceState.deafened ? "border-rose-400/50 bg-rose-500/10 text-rose-200" : "border-white/10 text-slate-200 hover:border-amber-400/50"}`}>
           {voiceState.deafened ? <HeadphoneOff className="h-3.5 w-3.5" /> : <Headphones className="h-3.5 w-3.5" />} {voiceState.deafened ? "Undeafen" : "Deafen"}
         </button>
+        {session.mode === "mesh" ? (
+          <button type="button" onClick={() => onToggleVoiceFlag("screenSharing")} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${voiceState.screenSharing ? "border-amber-400/60 bg-amber-500/10 text-amber-200" : "border-white/10 text-slate-200 hover:border-amber-400/50"}`}>
+            {voiceState.screenSharing ? <MonitorX className="h-3.5 w-3.5" /> : <MonitorUp className="h-3.5 w-3.5" />} {voiceState.screenSharing ? "Stop sharing" : "Share screen"}
+          </button>
+        ) : null}
         <button type="button" onClick={onLeave} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white hover:bg-rose-400">
           <PhoneOff className="h-3.5 w-3.5" /> Leave
         </button>
