@@ -1,10 +1,10 @@
 import type { ExperienceAction } from "./experience-shell-types";
 
 export const globalNavActions: ExperienceAction[] = [
-  { label: "Command", href: "/app", tone: "ghost" },
-  { label: "Workspace", href: "/workspace", tone: "ghost" },
-  { label: "Search", href: "/search", tone: "ghost" },
+  { label: "App", href: "/app", tone: "ghost" },
+  { label: "Discover", href: "/app/discover", tone: "ghost" },
+  { label: "Events", href: "/app/events", tone: "ghost" },
   { label: "Developer", href: "/developer", tone: "ghost" },
-  { label: "Activity", href: "/notifications", tone: "ghost" },
-  { label: "Settings", href: "/settings", tone: "ghost" },
+  { label: "Pricing", href: "/pricing", tone: "ghost" },
+  { label: "Support", href: "/support", tone: "ghost" },
 ];

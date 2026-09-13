@@ -17,35 +17,35 @@ function RegularUserAccessView() {
       metrics={[
         { label: "Access", value: "User Workspace", tone: "emerald" },
         { label: "Admin Console", value: "Restricted", tone: "amber" },
-        { label: "Recommended", value: "Go to /workspace", tone: "cyan" },
+        { label: "Recommended", value: "Go to the app", tone: "cyan" },
       ]}
       actions={[
-        { label: "Open Workspace Hub", href: "/workspace", tone: "primary" },
+        { label: "Open Workspace Hub", href: "/app", tone: "primary" },
         { label: "Notifications", href: "/notifications", tone: "ghost" },
         { label: "Profile", href: "/app/profile", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-7xl"
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-700">What You Can Access</p>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-400">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-200">What You Can Access</p>
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
             <li>Live activity feed, friends, and voice collaboration</li>
             <li>Mining, rewards, and crypto progression systems</li>
             <li>Personal profile and notification controls</li>
           </ul>
         </section>
 
-        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Why This Page Is Restricted</p>
-          <p className="mt-3 text-sm text-slate-700">
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-400">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Why This Page Is Restricted</p>
+          <p className="mt-3 text-sm text-slate-300">
             The admin console controls launch governance, moderation, and age-gate review workflows. These operations require elevated trust and are isolated from standard user journeys.
           </p>
         </section>
 
-        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-600 md:col-span-2 xl:col-span-1">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-sky-700">Need Elevated Access?</p>
-          <p className="mt-3 text-sm text-slate-700">
+        <section className="nexus-display-panel rounded-[24px] p-5 text-slate-400 md:col-span-2 xl:col-span-1">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-sky-200">Need Elevated Access?</p>
+          <p className="mt-3 text-sm text-slate-300">
             If you believe you need admin capabilities, contact a current administrator and request role verification through the normal governance path.
           </p>
         </section>
@@ -91,7 +91,7 @@ export default function AdminPage() {
         ]}
         maxWidthClassName="max-w-7xl"
       >
-        <div className="nexus-display-panel rounded-[24px] p-5 text-slate-600">Loading authentication status...</div>
+        <div className="nexus-display-panel rounded-[24px] p-5 text-slate-400">Loading authentication status...</div>
       </ExperienceShell>
     );
   }

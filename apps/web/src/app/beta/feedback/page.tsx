@@ -55,27 +55,27 @@ export default function BetaFeedbackPage() {
       ]}
       maxWidthClassName="max-w-5xl"
     >
-      <section className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-6">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-amber-600">Report Template</p>
+      <section className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-5 shadow-[0_24px_60px_rgba(15,23,42,0.08)] sm:p-6">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-amber-300">Report Template</p>
         <textarea
           aria-label="Beta feedback report template"
           title="Beta feedback report template"
           readOnly
           value={reportTemplate}
-          className="mt-4 min-h-80 w-full rounded-[24px] border border-slate-900/10 bg-slate-50 p-4 font-mono text-xs text-slate-700 outline-none"
+          className="mt-4 min-h-80 w-full rounded-[24px] border border-white/10 bg-[#0d1119] p-4 font-mono text-xs text-slate-300 outline-none"
         />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void copyTemplate()}
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-slate-900/10 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-white/10 bg-amber-400 px-4 text-sm font-semibold text-slate-950 hover:bg-[#0d1119]"
           >
             {copied ? "Copied" : "Copy Report Template"}
           </button>
           <Link
             href="/beta/checklist"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-slate-900/10 bg-slate-50 px-4 text-sm font-semibold text-slate-900 hover:bg-white"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-white/10 bg-[#0d1119] px-4 text-sm font-semibold text-slate-950 hover:bg-amber-400"
           >
             Return to Checklist
           </Link>

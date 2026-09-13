@@ -21,10 +21,10 @@ export function GuestAuthCallout({
   children,
 }: GuestAuthCalloutProps) {
   return (
-    <div className="nexus-panel-glass rounded-[28px] border border-slate-900/10 bg-white/85 p-6 text-slate-900 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
+    <div className="nexus-panel-glass rounded-[28px] border border-white/10 bg-[#11151e] p-6 text-white shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
       <div className="max-w-3xl space-y-4">
-        <p className="text-lg font-semibold text-slate-950">{title}</p>
-        <p className="text-sm leading-6 text-slate-600">{description}</p>
+        <p className="text-lg font-semibold text-white">{title}</p>
+        <p className="text-sm leading-6 text-slate-400">{description}</p>
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -36,7 +36,7 @@ export function GuestAuthCallout({
         </Link>
         <Link
           href={registerHref}
-          className="inline-flex h-14 items-center justify-center rounded-full border border-slate-900/10 bg-white px-6 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          className="inline-flex h-14 items-center justify-center rounded-full border border-white/10 bg-amber-400 px-6 text-sm font-semibold text-slate-300 transition-colors hover:bg-[#0d1119]"
         >
           {registerLabel}
         </Link>

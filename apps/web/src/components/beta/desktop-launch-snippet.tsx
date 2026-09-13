@@ -50,12 +50,12 @@ export function DesktopLaunchSnippet({ desktopTarget }: DesktopLaunchSnippetProp
       <button
         type="button"
         onClick={handleCopy}
-        className="nexus-glow-button inline-flex h-11 items-center justify-center rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+        className="nexus-glow-button inline-flex h-11 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/10 px-4 text-sm font-semibold text-amber-200 transition hover:bg-amber-100"
       >
         {status}
       </button>
       {status !== "Copy commands" && (
-        <span role="status" aria-live="polite" className="text-xs text-slate-600">
+        <span role="status" aria-live="polite" className="text-xs text-slate-400">
           {status}
         </span>
       )}

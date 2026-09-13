@@ -195,14 +195,14 @@ export function ProfileSettingsForm() {
         }}
       />
       {intent === "create-forge" ? (
-        <div className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-amber-700">Quick start</p>
+        <div className="mb-4 rounded-[24px] border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Quick start</p>
           <p className="mt-2">Create Forge was selected from the home panel. Continue to the forge tools to launch your new community workspace.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/app" className="inline-flex h-10 items-center rounded-full border border-amber-200 bg-white px-4 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+            <Link href="/app" className="inline-flex h-10 items-center rounded-full border border-amber-400/40 bg-amber-400 px-4 text-xs font-semibold text-amber-200 hover:bg-amber-100">
               Open workspace
             </Link>
-            <Link href="/search?q=community" className="inline-flex h-10 items-center rounded-full border border-slate-900/10 bg-white px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <Link href="/search?q=community" className="inline-flex h-10 items-center rounded-full border border-white/10 bg-amber-400 px-4 text-xs font-semibold text-slate-300 hover:bg-[#0d1119]">
               Explore communities
             </Link>
           </div>
@@ -214,22 +214,22 @@ export function ProfileSettingsForm() {
           <div className="nexus-ambient-orb nexus-ambient-orb-b" />
         </div>
 
-        <div className="relative flex flex-wrap items-center gap-2 rounded-[16px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs">
-          <span className="font-semibold uppercase tracking-[0.18em] text-amber-700">Core+ Status</span>
-          <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-amber-700">
+        <div className="relative flex flex-wrap items-center gap-2 rounded-[16px] border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs">
+          <span className="font-semibold uppercase tracking-[0.18em] text-amber-200">Core+ Status</span>
+          <span className="rounded-full border border-amber-400/40 bg-amber-400 px-2 py-0.5 text-amber-200">
             {user.premium ? user.premiumTier ?? "CORE" : "NONE"}
           </span>
-          <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-amber-700">
+          <span className="rounded-full border border-amber-400/40 bg-amber-400 px-2 py-0.5 text-amber-200">
             Boost {user.corePlusBoostLevel ?? 0}
           </span>
-          <span className="rounded-full border border-amber-200 bg-white px-2 py-0.5 text-amber-700">
+          <span className="rounded-full border border-amber-400/40 bg-amber-400 px-2 py-0.5 text-amber-200">
             Streak {user.corePlusStreakDays ?? 0}d
           </span>
         </div>
 
-        <div className="relative grid gap-3 rounded-[18px] border border-amber-200 bg-amber-50/70 p-4 md:grid-cols-[1.2fr_auto] md:items-center">
-          <div className="space-y-1 text-sm text-slate-700">
-            <p className="text-xs uppercase tracking-[0.2em] text-amber-700">Billing Control</p>
+        <div className="relative grid gap-3 rounded-[18px] border border-amber-400/40 bg-amber-50/70 p-4 md:grid-cols-[1.2fr_auto] md:items-center">
+          <div className="space-y-1 text-sm text-slate-300">
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Billing Control</p>
             <p>
               Subscription: {billingQuery.data?.premium.subscription?.status ?? "NONE"}
               {billingQuery.data?.premium.subscription?.interval ? ` · ${billingQuery.data.premium.subscription.interval}` : ""}
@@ -245,20 +245,20 @@ export function ProfileSettingsForm() {
             <Button variant="ghost" onClick={() => billingPortalMutation.mutate()} disabled={billingPortalMutation.isPending || !billingQuery.data?.premium.subscription}>
               {billingPortalMutation.isPending ? "Opening Portal..." : "Manage Billing"}
             </Button>
-            <Link href="/pricing" className="inline-flex h-11 items-center rounded-full border border-amber-200 bg-white px-4 text-sm font-semibold text-amber-700 hover:bg-amber-100">
+            <Link href="/pricing" className="inline-flex h-11 items-center rounded-full border border-amber-400/40 bg-amber-400 px-4 text-sm font-semibold text-amber-200 hover:bg-amber-100">
               Open Pricing
             </Link>
           </div>
         </div>
 
         <div className="relative grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className="nexus-panel rounded-[20px] border border-slate-900/10 bg-white/85 p-4 sm:p-5">
+          <div className="nexus-panel rounded-[20px] border border-white/10 bg-[#11151e] p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-700">Identity Matrix</p>
-                <p className="mt-1 text-sm text-slate-600">Refine your public identity, presence layer, and current activity feed.</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Identity Matrix</p>
+                <p className="mt-1 text-sm text-slate-400">Refine your public identity, presence layer, and current activity feed.</p>
               </div>
-              <div className="rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              <div className="rounded-full border border-white/10 bg-[#0d1119] px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-500">
                 Live draft
               </div>
             </div>
@@ -270,23 +270,23 @@ export function ProfileSettingsForm() {
               <Input label="Banner URL" value={form.banner} onChange={(e) => updateDraft("banner", e.target.value)} />
               <Input label="Current Activity" value={form.currentActivity} onChange={(e) => updateDraft("currentActivity", e.target.value)} />
               <Input label="Activity Details" value={form.activityDetails} onChange={(e) => updateDraft("activityDetails", e.target.value)} />
-              <label className="grid gap-2 text-sm text-slate-600 md:col-span-2">
-                <span className="font-medium tracking-wide text-slate-700">Bio</span>
+              <label className="grid gap-2 text-sm text-slate-400 md:col-span-2">
+                <span className="font-medium tracking-wide text-slate-300">Bio</span>
                 <textarea
                   value={form.bio}
                   onChange={(e) => updateDraft("bio", e.target.value)}
-                  className="min-h-28 rounded-[14px] border border-slate-900/10 bg-slate-50 px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
+                  className="min-h-28 rounded-[14px] border border-white/10 bg-[#0d1119] px-3 py-2 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
                   placeholder="Tell the community about you"
                 />
               </label>
-              <label className="grid gap-2 text-sm text-slate-600 md:col-span-2">
-                <span className="font-medium tracking-wide text-slate-700">Presence</span>
+              <label className="grid gap-2 text-sm text-slate-400 md:col-span-2">
+                <span className="font-medium tracking-wide text-slate-300">Presence</span>
                 <select
                   value={form.status}
                   onChange={(e) => updateDraft("status", e.target.value as PresenceStatus)}
                   aria-label="Select presence status"
                   title="Select presence status"
-                  className="h-11 rounded-[14px] border border-slate-900/10 bg-slate-50 px-3 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
+                  className="h-11 rounded-[14px] border border-white/10 bg-[#0d1119] px-3 text-white outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20"
                 >
                   <option value="ONLINE">Online</option>
                   <option value="IDLE">Idle</option>
@@ -298,27 +298,27 @@ export function ProfileSettingsForm() {
           </div>
 
           <div className="grid gap-3">
-            <div className="nexus-signal-rail rounded-[16px] border border-slate-900/10 bg-slate-50 px-4 py-4">
+            <div className="nexus-signal-rail rounded-[16px] border border-white/10 bg-[#0d1119] px-4 py-4">
               <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Profile Workspace</p>
-              <p className="mt-2 text-sm text-slate-600">Edit identity and presence details below. Changes apply immediately after save.</p>
+              <p className="mt-2 text-sm text-slate-400">Edit identity and presence details below. Changes apply immediately after save.</p>
             </div>
 
-            <div className="nexus-metric-card rounded-[16px] border border-slate-900/10 bg-white/90 p-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-amber-700">Quick Summary</p>
-              <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                <div className="flex items-center justify-between rounded-[12px] border border-slate-900/10 bg-slate-50 px-3 py-2">
+            <div className="nexus-metric-card rounded-[16px] border border-white/10 bg-[#0d1119] p-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-amber-200">Quick Summary</p>
+              <div className="mt-3 grid gap-2 text-sm text-slate-400">
+                <div className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#0d1119] px-3 py-2">
                   <span>Presence</span>
-                  <span className="text-amber-700">{form.status}</span>
+                  <span className="text-amber-200">{form.status}</span>
                 </div>
-                <div className="flex items-center justify-between rounded-[12px] border border-slate-900/10 bg-slate-50 px-3 py-2">
+                <div className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#0d1119] px-3 py-2">
                   <span>Branding Kit</span>
                   <span className={hasBrandingKit || isBetaCosmeticsBypass ? "text-amber-700" : "text-amber-700"}>
                     {hasBrandingKit ? "Unlocked" : isBetaCosmeticsBypass ? "Beta Override" : "Locked"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-[12px] border border-slate-900/10 bg-slate-50 px-3 py-2">
+                <div className="flex items-center justify-between rounded-[12px] border border-white/10 bg-[#0d1119] px-3 py-2">
                   <span>Push Status</span>
-                  <span className="text-slate-700">{pushState === "idle" ? "Standby" : "Updated"}</span>
+                  <span className="text-slate-300">{pushState === "idle" ? "Standby" : "Updated"}</span>
                 </div>
               </div>
             </div>
@@ -326,21 +326,21 @@ export function ProfileSettingsForm() {
         </div>
 
         {cosmeticUpsellVisible ? (
-          <div className="rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-            <p className="text-xs uppercase tracking-[0.2em] text-amber-700">Premium cosmetics</p>
+          <div className="rounded-[18px] border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-200">Premium cosmetics</p>
             <p className="mt-2">Custom avatar and banner identity require the Team Branding Kit entitlement.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/pricing" className="inline-flex h-10 items-center rounded-full border border-amber-300 bg-amber-500 px-4 text-sm font-semibold text-slate-950 hover:bg-amber-400">
                 Unlock Team Branding Kit
               </Link>
-              <Link href="/core-plus" className="inline-flex h-10 items-center rounded-full border border-amber-200 bg-white px-4 text-sm font-semibold text-amber-700 hover:bg-amber-100">
+              <Link href="/core-plus" className="inline-flex h-10 items-center rounded-full border border-amber-400/40 bg-amber-400 px-4 text-sm font-semibold text-amber-200 hover:bg-amber-100">
                 Review Billing
               </Link>
             </div>
           </div>
         ) : null}
 
-        <div className="flex flex-wrap gap-3 border-t border-slate-900/10 pt-2">
+        <div className="flex flex-wrap gap-3 border-t border-white/10 pt-2">
           <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
             {saveMutation.isPending ? "Saving..." : "Save Profile"}
           </Button>
@@ -349,9 +349,9 @@ export function ProfileSettingsForm() {
           </Button>
         </div>
 
-        {pushState ? <p className="text-xs text-amber-700">{pushState}</p> : null}
-        {saveErrorMessage ? <p className="text-xs text-amber-700">{saveErrorMessage}</p> : null}
-        {billingPortalMutation.error ? <p className="text-xs text-amber-700">Billing portal is unavailable until an active Stripe customer record exists.</p> : null}
+        {pushState ? <p className="text-xs text-amber-200">{pushState}</p> : null}
+        {saveErrorMessage ? <p className="text-xs text-amber-200">{saveErrorMessage}</p> : null}
+        {billingPortalMutation.error ? <p className="text-xs text-amber-200">Billing portal is unavailable until an active Stripe customer record exists.</p> : null}
       </div>
     </>
   );

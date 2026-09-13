@@ -1908,7 +1908,7 @@ export function ForgeChatClient() {
       <div className="forge-frame relative flex flex-wrap items-center justify-between gap-3 rounded-[22px] px-4 py-3 sm:px-5">
         <div className="flex items-center gap-3">
           <motion.img
-            src="/brand/vexora-mark.png"
+            src="/brand/vexora-mark-gold-256.png"
             alt="Vexora Gaming"
             className="logo-throb h-12 w-12 rounded-[14px] border border-amber-300/45 bg-black/85 object-contain p-1 shadow-[0_8px_20px_rgba(251,113,133,0.24)] ring-1 ring-amber-300/30"
             animate={{ scale: [1, 1.04, 1] }}
@@ -2118,7 +2118,7 @@ export function ForgeChatClient() {
             <button
               type="button"
               onClick={() => setDesktopDiagnosticsOpen((current) => !current)}
-              className="rounded-[14px] border border-slate-700/70 bg-slate-50 px-2 py-1 text-[11px] text-slate-100 hover:border-amber-400/70"
+              className="rounded-[14px] border border-slate-700/70 bg-[#0d1119] px-2 py-1 text-[11px] text-slate-100 hover:border-amber-400/70"
             >
               {desktopDiagnosticsOpen ? "Hide Diagnostics" : "Open Diagnostics"}
             </button>
@@ -2322,7 +2322,7 @@ export function ForgeChatClient() {
               className={`w-full rounded-[14px] border px-3 py-2 text-left text-sm transition ${
                 selectedForgeId === forge.id
                   ? "border-amber-400 bg-amber-950/40 text-amber-100 shadow-[0_0_0_1px_rgba(255,184,108,0.25)]"
-                  : "border-slate-700/70 bg-white text-slate-300 hover:border-amber-500/60"
+                  : "border-slate-700/70 bg-amber-400 text-slate-300 hover:border-amber-500/60"
               }`}
             >
               <p>{forge.name}</p>
@@ -2354,7 +2354,7 @@ export function ForgeChatClient() {
             });
           }}
         >
-          <div className="rounded-[14px] border border-slate-700/70 bg-slate-50 p-2.5">
+          <div className="rounded-[14px] border border-slate-700/70 bg-[#0d1119] p-2.5">
             <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Launch Template</p>
             <div className="mt-2 grid gap-1.5">
               {forgeTemplateOptions.map((template) => {
@@ -2459,7 +2459,7 @@ export function ForgeChatClient() {
                 </div>
               ) : null}
               {selectedForgeInviteUrl ? (
-                <div className="grid gap-2 rounded-[14px] border border-amber-500/15 bg-slate-50 px-3 py-3">
+                <div className="grid gap-2 rounded-[14px] border border-amber-500/15 bg-[#0d1119] px-3 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200">Share Source</p>
                     <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tagged link updates analytics</p>
@@ -2541,7 +2541,7 @@ export function ForgeChatClient() {
                   </p>
                 </div>
               </div>
-              <div className="grid gap-2 rounded-[14px] border border-slate-700/70 bg-slate-50 p-3">
+              <div className="grid gap-2 rounded-[14px] border border-slate-700/70 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Invite Conversion</p>
                 <p className="text-sm font-semibold text-slate-100">{inviteConversionRate}% join rate</p>
                 <p className="text-[11px] text-slate-400">{forgeDetailQuery.data?.forge.inviteJoinCount ?? 0} joins from {forgeDetailQuery.data?.forge.inviteViewCount ?? 0} views.</p>
@@ -2776,7 +2776,7 @@ export function ForgeChatClient() {
                       width={176}
                       height={176}
                       unoptimized
-                      className="h-44 w-44 rounded-[14px] bg-white p-2 aspect-square"
+                      className="h-44 w-44 rounded-[14px] bg-amber-400 p-2 aspect-square"
                     />
                   </div>
                 </div>
@@ -2910,7 +2910,7 @@ export function ForgeChatClient() {
                 </div>
                 <div className="mt-2 space-y-1">
                   {installation.commands.map((command) => (
-                    <div key={command.id} className="flex items-center justify-between rounded border border-slate-700/70 bg-slate-50 px-2 py-1 text-[11px]">
+                    <div key={command.id} className="flex items-center justify-between rounded border border-slate-700/70 bg-[#0d1119] px-2 py-1 text-[11px]">
                       <span>
                         /{command.name} {command.enabled ? "(on)" : "(off)"} Â· {command.commandPreset} Â· {command.requiredPermission}
                       </span>
@@ -3185,7 +3185,7 @@ export function ForgeChatClient() {
           />
         </div>
 
-        <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/70 bg-white/95 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
+        <div className="sticky bottom-0 z-20 -mx-4 border-t border-slate-700/70 bg-[#0d1119]/95 px-4 pb-2 pt-3 backdrop-blur md:pb-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:px-0 xl:pb-0 xl:pt-0">
           <div className="nexus-display-panel rounded-[14px] border border-slate-700/70 p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-slate-300">
               <label className="nexus-interactive-btn cursor-pointer rounded-[14px] border border-slate-700/70 bg-slate-900/75 px-2 py-1 hover:border-amber-500/70">
@@ -3252,7 +3252,7 @@ export function ForgeChatClient() {
                   className="h-11 w-full rounded-[14px] border border-slate-700/70 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
                 />
                 {slashCommandSuggestions.length ? (
-                  <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-[14px] border border-indigo-500/25 bg-white/95 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
+                  <div className="absolute inset-x-0 bottom-[calc(100%+0.5rem)] z-30 rounded-[14px] border border-indigo-500/25 bg-[#0d1119]/95 p-2 shadow-[0_12px_30px_rgba(15,23,42,0.55)]">
                     <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-indigo-200">Slash Commands</p>
                     <div className="space-y-1">
                       {slashCommandSuggestions.map((command) => (
@@ -3321,7 +3321,7 @@ export function ForgeChatClient() {
             value={friendQuery}
             onChange={(event) => setFriendQuery(event.target.value)}
             placeholder="Search users"
-            className="mb-2 h-10 w-full rounded-[14px] border border-slate-700/70 bg-white px-3 text-sm text-slate-100"
+            className="mb-2 h-10 w-full rounded-[14px] border border-slate-700/70 bg-amber-400 px-3 text-sm text-slate-100"
           />
           <div className="max-h-24 space-y-1 overflow-y-auto">
             {userSearchQuery.data?.users.map((entry) => (
@@ -3421,7 +3421,7 @@ export function ForgeChatClient() {
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">DM Chat</p>
           <div className="mb-2 max-h-28 space-y-1 overflow-y-auto rounded border border-slate-700/70 bg-slate-900/75 p-2">
             {dmMessagesQuery.data?.messages.map((message) => (
-              <div key={message.id} className="rounded-[14px] border border-slate-700/70 bg-slate-50 px-2 py-1 text-xs text-slate-300">
+              <div key={message.id} className="rounded-[14px] border border-slate-700/70 bg-[#0d1119] px-2 py-1 text-xs text-slate-300">
                 <span className="mr-1 text-amber-300">{message.author.username}:</span>
                 {message.content}
               </div>
@@ -3456,7 +3456,7 @@ export function ForgeChatClient() {
                 }
               }}
               placeholder="Message"
-              className="h-9 flex-1 rounded border border-slate-700/70 bg-white px-2 text-xs text-slate-100 outline-none focus:border-amber-500"
+              className="h-9 flex-1 rounded border border-slate-700/70 bg-amber-400 px-2 text-xs text-slate-100 outline-none focus:border-amber-500"
             />
             <Button className="nexus-interactive-btn h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>
               Send

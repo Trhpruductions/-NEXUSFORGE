@@ -2,11 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { globalNavActions } from "./experience-shell-nav";
-
 import type { ExperienceAction, ExperienceMetric } from "./experience-shell-types";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 type ExperienceShellProps = {
   eyebrow: string;
@@ -20,95 +21,93 @@ type ExperienceShellProps = {
 };
 
 function metricToneClass(tone: ExperienceMetric["tone"]) {
-  if (tone === "cyan") return "text-sky-600";
-  if (tone === "emerald") return "text-emerald-600";
-  if (tone === "amber") return "text-amber-600";
-  if (tone === "slate") return "text-slate-300";
-  return "text-slate-500";
+  if (tone === "cyan") return "text-sky-300";
+  if (tone === "emerald") return "text-emerald-300";
+  if (tone === "amber") return "text-amber-300";
+  return "text-white";
 }
 
-export function ExperienceShell({
-  eyebrow,
-  title,
-  subtitle,
-  metrics = [],
-  actions = [],
-  children,
-  maxWidthClassName = "max-w-7xl",
-  showGlobalNav = true,
-}: ExperienceShellProps) {
-  const mergedActions = showGlobalNav
-    ? [...globalNavActions, ...actions.filter((action) => !globalNavActions.some((globalAction) => globalAction.href === action.href))]
-    : actions;
-  const pathname = usePathname();
+/** Shared frame for pages outside the workspace shell: developer portal, pricing, admin, invites, legal. */
+export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], actions = [], children, maxWidthClassName = "max-w-7xl", showGlobalNav = true }: ExperienceShellProps) {
+  const pathname = usePathname() ?? "";
+  const user = useAuthStore((state) => state.user);
 
   return (
-    <div className="nexus-shell cinematic-stage metal-corners text-slate-100 nf-content-rhythm">
-      <div className="cinematic-particles" />
-      <div className={`nexus-shell-inner ${maxWidthClassName} nexus-shell-atmos space-y-4`}>
-        <header className="forge-frame relative overflow-hidden rounded-[32px] p-8 backdrop-blur-xl nf-motion-rise">
-          <div className="absolute top-0 right-0 h-64 w-64 -z-10 bg-rose-400/25 blur-[110px]" />
-          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="relative flex items-center justify-center overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-950/70 p-2 shadow-[inset_0_0_10px_rgba(15,23,42,0.2)] group">
-                   <div className="absolute top-0 right-0 h-3 w-3 bg-amber-300/60" />
-                   <img
-                     src="/brand/vexora-mark.png"
-                     alt="NF"
-                     width={56}
-                     height={56}
-                     className="h-14 w-14 object-contain transition-all duration-300 group-hover:scale-110"
-                     draggable={false}
-                   />
-                </div>
-                {showGlobalNav ? (
-                  <div className="flex flex-wrap gap-1">
-                    {globalNavActions.map((action) => {
-                      const isActive = pathname === action.href || (action.href !== "/app" && pathname?.startsWith(action.href));
-                      return (
-                        <Link
-                          key={action.href}
-                          href={action.href}
-                          prefetch={false}
-                          className={cn(
-                            "inline-flex h-10 items-center rounded-full border px-4 text-[10px] font-semibold uppercase tracking-[0.25em] transition-all",
-                            isActive 
-                              ? "border-amber-300/70 bg-amber-500/20 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.2)]" 
-                              : "border-slate-700/70 bg-slate-900/80 text-slate-400 hover:border-amber-400/50 hover:text-slate-100"
-                          )}
-                        >
-                          {action.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+    <div className="min-h-dvh bg-[#070a10] text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(230,179,37,0.14),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(212,160,23,0.1),transparent_30%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_50%,transparent_100%)]" />
 
-              <div className="space-y-4">
-                <div className="forge-chip inline-flex items-center gap-3 rounded-full px-4 py-1.5 nf-type-eyebrow shadow-sm">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500 shadow-[0_0_8px_#fbbf24]" />
-                  {eyebrow}
-                </div>
-                <h1 className="nf-type-title text-slate-100">
-                  {title}
-                </h1>
-                {subtitle ? <p className="nf-type-subtitle text-slate-400 max-w-2xl">{subtitle}</p> : null}
-              </div>
+      <header className="sticky top-0 z-40 border-b border-amber-500/15 bg-[#0b0e15]/90 backdrop-blur">
+        <div className={cn("mx-auto flex h-14 items-center gap-4 px-4 md:px-6", maxWidthClassName)}>
+          <Link href="/app" className="flex items-center gap-2.5">
+            <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora Gaming" width={34} height={34} className="h-[34px] w-[34px] rounded-lg border border-amber-500/40 object-cover" />
+            <span className="hidden sm:block">
+              <span className="nf-heading block text-xs font-semibold uppercase tracking-[0.3em] text-white">Vexora</span>
+              <span className="block text-[9px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
+            </span>
+          </Link>
+          {showGlobalNav ? (
+            <nav className="ml-2 hidden items-center gap-1 md:flex">
+              {globalNavActions.map((action) => {
+                const active = pathname === action.href || (action.href !== "/app" && pathname.startsWith(action.href));
+                return (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    prefetch={false}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition",
+                      active ? "bg-amber-500/10 text-amber-100 shadow-[inset_0_0_0_1px_rgba(230,179,37,0.3)]" : "text-slate-400 hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    {action.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            {user ? (
+              <Link href="/app" className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-[#11151e] py-1 pl-1 pr-3 text-xs text-slate-200 transition hover:border-amber-400/60">
+                {user.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-[10px] font-bold text-amber-100">{(user.displayName || user.username).slice(0, 2).toUpperCase()}</span>
+                )}
+                Open app
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300 hover:text-white">Sign in</Link>
+                <Link href="/register" className="rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300">Join free</Link>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className={cn("relative mx-auto space-y-4 px-4 py-5 md:px-6", maxWidthClassName)}>
+        <section className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119] p-5 md:p-6">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_20%,rgba(230,179,37,0.18),transparent_45%)]" />
+          <div className="relative flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(230,179,37,0.9)]" /> {eyebrow}
+              </p>
+              <h1 className="nf-heading mt-2 text-2xl font-bold text-white md:text-3xl">{title}</h1>
+              {subtitle ? <p className="mt-1 max-w-2xl text-sm text-slate-400">{subtitle}</p> : null}
             </div>
-            {mergedActions.length ? (
-              <div className="flex flex-wrap gap-2 xl:justify-end mt-4 xl:mt-0">
+            {actions.length ? (
+              <div className="flex flex-wrap gap-2">
                 {actions.map((action) => (
                   <Link
                     key={`${action.href}-${action.label}`}
                     href={action.href}
                     prefetch={false}
                     className={cn(
-                      "inline-flex h-12 items-center rounded-full px-6 text-[11px] font-semibold uppercase tracking-[0.2em] transition-all",
-                      action.tone === "primary"
-                        ? "forge-btn-primary nf-interact"
-                        : "forge-btn-secondary nf-interact"
+                      "inline-flex items-center rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition",
+                      action.tone === "primary" ? "bg-amber-400 text-slate-950 hover:bg-amber-300" : "border border-white/10 text-slate-200 hover:border-amber-400/50",
                     )}
                   >
                     {action.label}
@@ -117,24 +116,21 @@ export function ExperienceShell({
               </div>
             ) : null}
           </div>
-        </header>
+        </section>
 
         {metrics.length ? (
-          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 nf-stagger nf-stagger-base-110">
-            {metrics.map((metric, index) => (
-              <div key={metric.label} className={cn("forge-panel nf-interact group rounded-[24px] px-6 py-5 transition-colors", index === 0 && "nf-stagger-item-0", index === 1 && "nf-stagger-item-1", index === 2 && "nf-stagger-item-2", index === 3 && "nf-stagger-item-3", index === 4 && "nf-stagger-item-4", index === 5 && "nf-stagger-item-5", index >= 6 && "nf-stagger-item-6")}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500 transition-opacity group-hover:opacity-100">{metric.label}</p>
-                <p className={`mt-2 text-xl font-semibold tracking-tight ${metricToneClass(metric.tone)}`}>{metric.value}</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {metrics.map((metric) => (
+              <div key={metric.label} className="rounded-2xl border border-amber-500/15 bg-[#0d1119] px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{metric.label}</p>
+                <p className={cn("nf-heading mt-1 text-lg font-bold", metricToneClass(metric.tone))}>{metric.value}</p>
               </div>
             ))}
           </div>
         ) : null}
 
-        <div className="pt-1">
-          {children}
-        </div>
+        <div className="[&_.forge-panel]:rounded-2xl [&_.forge-panel]:border-amber-500/15 [&_.forge-panel]:bg-[#0d1119] [&_.forge-frame]:rounded-2xl [&_.forge-frame]:border-amber-500/15 [&_.forge-frame]:bg-[#0d1119] [&_.nexus-panel]:bg-[#0d1119] [&_.nexus-panel-glass]:bg-[#0d1119] [&_.nexus-display-panel]:bg-[#11151e]">{children}</div>
       </div>
     </div>
   );
 }
-

@@ -96,10 +96,10 @@ export function DesktopUpdateBanner() {
   const toneClass = state?.lastError
     ? "border-rose-200 bg-rose-50 text-rose-700"
     : state?.downloaded
-      ? "border-amber-200 bg-amber-50 text-amber-700"
+      ? "border-amber-400/40 bg-amber-500/10 text-amber-200"
       : state?.available
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-900/10 bg-white text-slate-700";
+        ? "border-amber-400/40 bg-amber-500/10 text-amber-200"
+        : "border-white/10 bg-amber-400 text-slate-300";
 
   const bridge = (window as { nexusforgeDesktop?: DesktopBridge }).nexusforgeDesktop;
 
@@ -127,7 +127,7 @@ export function DesktopUpdateBanner() {
                 void bridge.downloadUpdateNow().then(setState).catch(() => undefined);
               }
             }}
-            className="h-8 rounded-full border border-amber-200 bg-amber-100 px-3 text-xs text-amber-700 hover:bg-amber-200"
+            className="h-8 rounded-full border border-amber-400/40 bg-amber-100 px-3 text-xs text-amber-200 hover:bg-amber-200"
           >
             Download update now
           </Button>

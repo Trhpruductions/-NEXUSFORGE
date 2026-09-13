@@ -49,15 +49,15 @@ export function LiveTacticalLog() {
   }, []);
 
   return (
-    <div className="flex h-48 flex-col overflow-hidden rounded-[24px] border border-slate-900/10 bg-white/80 shadow-[0_18px_45px_rgba(15,23,42,0.07)] group">
-      <div className="flex items-center justify-between border-b border-slate-900/5 bg-slate-50 px-3 py-2">
+    <div className="flex h-48 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#11151e] shadow-[0_18px_45px_rgba(15,23,42,0.07)] group">
+      <div className="flex items-center justify-between border-b border-white/5 bg-[#0d1119] px-3 py-2">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-amber-500" />
           <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tactical telemetry</span>
         </div>
         <div className="flex items-center gap-1.5">
            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[9px] font-semibold uppercase text-emerald-600">Streaming</span>
+           <span className="text-[9px] font-semibold uppercase text-emerald-300">Streaming</span>
         </div>
       </div>
       
@@ -75,12 +75,12 @@ export function LiveTacticalLog() {
                log.level === "success" ? "text-emerald-600" :
                log.level === "warn" ? "text-amber-600" : "text-rose-600"
              )}>[{log.module}]</span>
-             <span className="truncate text-slate-600">{log.message}</span>
+             <span className="truncate text-slate-400">{log.message}</span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-900/5 bg-slate-50 px-3 py-1.5">
+      <div className="flex items-center justify-between border-t border-white/5 bg-[#0d1119] px-3 py-1.5">
          <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
                <Cpu className="w-2.5 h-2.5 text-slate-500" />

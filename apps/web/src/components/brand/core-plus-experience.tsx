@@ -126,7 +126,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           ? "border-amber-400/60 bg-amber-950/35 text-amber-100"
           : user?.premiumTier === "CORE"
             ? "border-amber-400/55 bg-amber-950/25 text-amber-100"
-            : "border-slate-900/10 bg-slate-50 text-slate-700";
+            : "border-white/10 bg-[#0d1119] text-slate-300";
 
   const selectedPlan = tierCheckoutMeta[selectedTier];
   const displayedPrice = billingInterval === "YEARLY" ? selectedPlan.yearly : selectedPlan.monthly;
@@ -169,22 +169,22 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-700/35 px-4 backdrop-blur-md"
         >
-          <div className="w-full max-w-xl rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+          <div className="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Preparing Core+ checkout</p>
-            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950">{selectedPlan.label}</h3>
-            <p className="mt-2 text-sm text-slate-600">Vexora Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
+            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-white">{selectedPlan.label}</h3>
+            <p className="mt-2 text-sm text-slate-400">Vexora Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedPlan.label}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{selectedPlan.label}</p>
               </div>
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Billing</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</p>
               </div>
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Price</p>
-                <p className="mt-1 text-sm font-semibold text-amber-600">{displayedPrice}</p>
+                <p className="mt-1 text-sm font-semibold text-amber-300">{displayedPrice}</p>
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
@@ -203,74 +203,74 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="nexus-panel-strong relative overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-7 lg:col-span-2"
+        className="nexus-panel-strong relative overflow-hidden rounded-[28px] border border-white/10 bg-[#11151e] p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-7 lg:col-span-2"
       >
         <div className="pointer-events-none absolute -left-20 top-[-72px] h-56 w-56 rounded-full bg-amber-500/12 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
         {checkoutState === "success" ? (
-          <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             Checkout completed. Billing sync is now updating your Core+ access.
           </div>
         ) : null}
         {checkoutState === "cancelled" ? (
-          <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
             Checkout canceled. No subscription changes were made.
           </div>
         ) : null}
-        <p className="text-[11px] uppercase tracking-[0.28em] text-amber-600">Core+ Membership Program</p>
-        <h1 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-slate-950 sm:text-5xl">
+        <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Core+ Membership Program</p>
+        <h1 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white sm:text-5xl">
           Premium infrastructure for serious gaming communities.
         </h1>
-        <p className="mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
+        <p className="mt-3 max-w-2xl text-sm text-slate-400 sm:text-base">
           Core+ combines visual prestige with operational advantages: queue priority, premium surfaces, and tiered
           progression mechanics tuned for creator-led ecosystems.
         </p>
 
-        <div className="nexus-panel-glass mt-6 rounded-[28px] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
+        <div className="nexus-panel-glass mt-6 rounded-[28px] border border-white/10 bg-[#11151e] p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-600">Core+ Snapshot</p>
-              <p className="mt-2 text-sm text-slate-600">Selected tier, billing cadence, and current membership posture at a glance.</p>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-amber-300">Core+ Snapshot</p>
+              <p className="mt-2 text-sm text-slate-400">Selected tier, billing cadence, and current membership posture at a glance.</p>
             </div>
-            <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-700">
+            <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-200">
               {billingReady ? "Checkout ready" : "Billing status pending"}
             </div>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-4">
+            <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-4">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Selected tier</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{selectedPlan.label}</p>
+              <p className="mt-2 text-lg font-semibold text-white">{selectedPlan.label}</p>
             </div>
-            <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-4">
+            <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-4">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Billing cadence</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{displayedPriceSuffix}</p>
+              <p className="mt-2 text-lg font-semibold text-white">{displayedPriceSuffix}</p>
             </div>
-            <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-4">
+            <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-4">
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Tier outcome</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{selectedPlan.outcome}</p>
+              <p className="mt-2 text-lg font-semibold text-white">{selectedPlan.outcome}</p>
             </div>
           </div>
         </div>
 
         {billingStatusMessage ? (
-          <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
             {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <div className="glass-cut rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Queue Gain</p>
-            <p className="mt-1 text-sm font-semibold text-slate-950">+32% priority lane</p>
+          <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Queue Gain</p>
+            <p className="mt-1 text-sm font-semibold text-white">+32% priority lane</p>
           </div>
-          <div className="glass-cut rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Visual Tier</p>
-            <p className="mt-1 text-sm font-semibold text-slate-950">Premium identity skin</p>
+          <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Visual Tier</p>
+            <p className="mt-1 text-sm font-semibold text-white">Premium identity skin</p>
           </div>
-          <div className="glass-cut rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Boost Ladder</p>
-            <p className="mt-1 text-sm font-semibold text-slate-950">Progressive multipliers</p>
+          <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Boost Ladder</p>
+            <p className="mt-1 text-sm font-semibold text-white">Progressive multipliers</p>
           </div>
         </div>
 
@@ -298,10 +298,10 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.12 + index * 0.07, ease: "easeOut" }}
-              className="nexus-metric-card nexus-interactive-card rounded-[22px] border border-slate-900/10 bg-white/85 p-3"
+              className="nexus-metric-card nexus-interactive-card rounded-[22px] border border-white/10 bg-[#11151e] p-3"
             >
-              <p className="text-sm font-semibold text-slate-950">{perk.title}</p>
-              <p className="mt-1 text-xs text-slate-600">{perk.detail}</p>
+              <p className="text-sm font-semibold text-white">{perk.title}</p>
+              <p className="mt-1 text-xs text-slate-400">{perk.detail}</p>
             </motion.div>
           ))}
         </div>
@@ -312,7 +312,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onChange={(event) => setSelectedTier(event.target.value as CorePlusTier)}
             aria-label="Select Core Plus tier"
             title="Select Core Plus tier"
-            className="h-10 rounded-full border border-slate-900/10 bg-white/85 px-3 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
+            className="h-10 rounded-full border border-white/10 bg-[#11151e] px-3 text-sm text-white outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
           >
             <option value="CORE">Core</option>
             <option value="PLUS">Plus</option>
@@ -324,7 +324,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onChange={(event) => setBillingInterval(event.target.value as "MONTHLY" | "YEARLY")}
             aria-label="Select billing interval"
             title="Select billing interval"
-            className="h-10 rounded-full border border-slate-900/10 bg-white/85 px-3 text-sm text-slate-900 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
+            className="h-10 rounded-full border border-white/10 bg-[#11151e] px-3 text-sm text-white outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-500/20"
           >
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
@@ -332,7 +332,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           <Button
             onClick={() => activationMutation.mutate()}
             disabled={!accessToken || !csrfToken || activationMutation.isPending || !billingReady}
-            className="h-10 rounded-full border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] px-4 text-sm text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.26)]"
+            className="h-10 rounded-full border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] px-4 text-sm text-white shadow-[0_16px_30px_rgba(245,158,11,0.26)]"
           >
             {activationCta}
           </Button>
@@ -340,13 +340,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             onClick={() => portalMutation.mutate()}
             disabled={!accessToken || !csrfToken || portalMutation.isPending || !billingReady}
             variant="ghost"
-            className="h-10 rounded-full border-amber-500/35 px-4 text-sm text-amber-700"
+            className="h-10 rounded-full border-amber-500/35 px-4 text-sm text-amber-200"
           >
             {portalMutation.isPending ? "Opening portal..." : "Manage Billing"}
           </Button>
           <Link
             href="/app"
-            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-slate-900/10 bg-white/85 px-4 text-sm font-semibold text-slate-900 hover:border-amber-300"
+            className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-white/10 bg-[#11151e] px-4 text-sm font-semibold text-white hover:border-amber-300"
           >
             Return to workspace
           </Link>
@@ -359,8 +359,8 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 key={tierKey}
                 className={`rounded-full border px-2.5 py-1 ${
                   selectedTier === tierKey
-                    ? "border-amber-400/55 bg-amber-50 text-amber-800"
-                    : "border-slate-900/10 bg-white/85 text-slate-600"
+                    ? "border-amber-400/55 bg-amber-500/10 text-amber-200"
+                    : "border-white/10 bg-[#11151e] text-slate-400"
                 }`}
               >
                 {tier.label}
@@ -369,8 +369,8 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           )}
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
-            <div className="mb-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
+            <div className="mb-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
               <Image
                 src={tierLogoById[selectedTier].src}
                 alt={`${selectedPlan.label} tier artwork`}
@@ -381,34 +381,34 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             </div>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Selected Plan</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{selectedPlan.label}</p>
-                <p className="mt-1 text-sm text-slate-600">{selectedPlan.outcome}</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Selected Plan</p>
+                <p className="mt-2 text-lg font-semibold text-white">{selectedPlan.label}</p>
+                <p className="mt-1 text-sm text-slate-400">{selectedPlan.outcome}</p>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-semibold text-slate-950">{displayedPrice}</p>
+                <p className="text-2xl font-semibold text-white">{displayedPrice}</p>
                 <p className="text-xs text-slate-500">{displayedPriceSuffix}</p>
               </div>
             </div>
-            <div className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
+            <div className="mt-3 inline-flex rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
               {selectedPlan.savings}
             </div>
           </div>
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Checkout Summary</p>
-            <ul className="mt-3 space-y-2 text-xs text-slate-600">
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Summary</p>
+            <ul className="mt-3 space-y-2 text-xs text-slate-400">
               <li>• Tier: {selectedPlan.label}</li>
               <li>• Billing: {billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</li>
               <li>• Price: {displayedPrice} {displayedPriceSuffix}</li>
             </ul>
-            <div className="mt-3 space-y-2 border-t border-slate-900/10 pt-3 text-xs text-slate-500">
+            <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs text-slate-500">
               {checkoutAssurances.map((item) => (
                 <p key={item}>• {item}</p>
               ))}
             </div>
-            <div className="mt-3 rounded-[22px] border border-amber-200 bg-amber-50 p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-600">Billing portal later</p>
-              <div className="mt-2 space-y-1 text-xs text-slate-600">
+            <div className="mt-3 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300">Billing portal later</p>
+              <div className="mt-2 space-y-1 text-xs text-slate-400">
                 {portalAssurances.map((item) => (
                   <p key={item}>• {item}</p>
                 ))}

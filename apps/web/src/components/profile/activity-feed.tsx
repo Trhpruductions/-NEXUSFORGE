@@ -44,13 +44,13 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
       {activities.map((activity) => (
         <div
           key={activity.id}
-          className="nexus-metric-card nexus-interactive-card flex gap-4 rounded-[20px] border border-slate-900/10 p-3"
+          className="nexus-metric-card nexus-interactive-card flex gap-4 rounded-[20px] border border-white/10 p-3"
         >
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] border border-slate-900/10 bg-slate-50 text-xl">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-[#0d1119] text-xl">
             {getActivityIcon(activity.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="truncate font-semibold text-amber-700">
+            <div className="truncate font-semibold text-amber-200">
               {activity.title}
             </div>
             {activity.description && (

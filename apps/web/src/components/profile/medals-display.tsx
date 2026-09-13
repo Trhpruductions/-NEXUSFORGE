@@ -21,7 +21,7 @@ export function MedalsDisplay({ medals, compact = false }: MedalsDisplayProps) {
       {medals.map((medal) => (
         <div
           key={medal.id}
-          className="nexus-metric-card nexus-interactive-card group cursor-help rounded-[20px] border border-slate-900/10 p-4 text-center"
+          className="nexus-metric-card nexus-interactive-card group cursor-help rounded-[20px] border border-white/10 p-4 text-center"
           title={medal.description || medal.name}
         >
           {medal.icon && (
@@ -29,7 +29,7 @@ export function MedalsDisplay({ medals, compact = false }: MedalsDisplayProps) {
               {medal.icon}
             </div>
           )}
-          <div className="text-sm font-semibold text-amber-700 transition group-hover:text-amber-600">
+          <div className="text-sm font-semibold text-amber-200 transition group-hover:text-amber-300">
             {medal.name}
           </div>
           {medal.description && (

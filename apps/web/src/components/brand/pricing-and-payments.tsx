@@ -307,22 +307,22 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-700/35 px-4 backdrop-blur-md"
         >
-          <div className="w-full max-w-xl rounded-[28px] border border-slate-900/10 bg-white/90 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-600">Launching secure checkout</p>
-            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950">{checkoutPreview.label}</h3>
-            <p className="mt-2 text-sm text-slate-600">{checkoutPreview.detail}</p>
+          <div className="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#0d1119] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+            <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Launching secure checkout</p>
+            <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-white">{checkoutPreview.label}</h3>
+            <p className="mt-2 text-sm text-slate-400">{checkoutPreview.detail}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{pendingTierName ?? "One-time purchase"}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{pendingTierName ?? "One-time purchase"}</p>
               </div>
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Billing</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{pendingBillingLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{pendingBillingLabel}</p>
               </div>
-              <div className="rounded-[22px] border border-slate-900/10 bg-slate-50 p-3">
+              <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
-                <p className="mt-1 text-sm font-semibold text-amber-600">Redirecting now</p>
+                <p className="mt-1 text-sm font-semibold text-amber-300">Redirecting now</p>
               </div>
             </div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
@@ -338,12 +338,12 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </motion.div>
       ) : null}
       {checkoutState === "success" ? (
-        <div className="nexus-display-panel rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="nexus-display-panel rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
           Payment completed. Your subscription or entitlement is being activated now.
         </div>
       ) : null}
       {checkoutState === "cancelled" ? (
-        <div className="nexus-display-panel rounded-[22px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="nexus-display-panel rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100">
           Checkout was canceled. Your current access remains unchanged.
         </div>
       ) : null}
@@ -353,44 +353,44 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="nexus-panel-strong relative overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-7"
+        className="nexus-panel-strong relative overflow-hidden rounded-[28px] border border-white/10 bg-[#11151e] p-5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-7"
       >
         <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-full bg-amber-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-[-70px] h-56 w-56 rounded-full bg-amber-500/12 blur-3xl" />
 
-        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-600">Pricing + Payments</p>
-        <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-slate-950 sm:text-4xl">
+        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Pricing + Payments</p>
+        <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-white sm:text-4xl">
           Premium tiers that feel worth upgrading into.
         </h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
+        <p className="mt-2 max-w-3xl text-sm text-slate-400 sm:text-base">
           Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
           better presence, and stronger community momentum than the price suggests.
         </p>
         {billingStatusMessage ? (
-          <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
             {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Founder Window</p>
-            <p className="mt-2 text-lg font-semibold text-slate-950">Early pricing is intentionally aggressive while Vexora Gaming scales up.</p>
-            <p className="mt-1 text-sm text-slate-600">
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Founder Window</p>
+            <p className="mt-2 text-lg font-semibold text-white">Early pricing is intentionally aggressive while Vexora Gaming scales up.</p>
+            <p className="mt-1 text-sm text-slate-400">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
             </p>
-            <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+            <div className="mt-3 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200">
               Founder pricing countdown: {founderCountdown}
             </div>
           </div>
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Why users upgrade</p>
-            <p className="mt-2 text-sm text-slate-600">
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Why users upgrade</p>
+            <p className="mt-2 text-sm text-slate-400">
               Better identity, faster access, stronger visibility, and operational tools that free communities from basic-chat limitations.
             </p>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-3 text-xs text-slate-600">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-3 text-xs text-slate-400">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-500">Billing Interval</span>
             <Button
@@ -408,16 +408,16 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               Yearly
             </Button>
           </div>
-          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
+          <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-amber-200">
             {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
           </div>
         </div>
 
         <div className="mt-4 grid gap-3">
-          <article className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Boost Pack Emblem</p>
-            <p className="mt-1 text-xs text-slate-600">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
-            <div className="mt-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
+          <article className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-3">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Boost Pack Emblem</p>
+            <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
+            <div className="mt-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
               <Image
                 src="/brand/boost-pack-icon.png"
                 alt="Vexora Gaming boost pack icon"
@@ -437,9 +437,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
-              className={`nexus-interactive-card rounded-[28px] border bg-white/85 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(251,191,36,0.12)]" : "border-slate-900/10"}`}
+              className={`nexus-interactive-card rounded-[28px] border bg-[#11151e] p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(251,191,36,0.12)]" : "border-white/10"}`}
             >
-              <div className="mb-3 overflow-hidden rounded-[22px] border border-slate-900/10 bg-slate-50">
+              <div className="mb-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
                 <Image
                   src={tierLogoById[tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE"].src}
                   alt={`${tier.name} tier artwork`}
@@ -449,16 +449,16 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 />
               </div>
               <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex rounded-full border border-slate-900/10 bg-white/85 px-2 py-0.5 text-[11px] text-slate-700">{tier.name}</div>
-                <div className="text-[11px] font-semibold text-amber-600">{tier.badge}</div>
+                <div className="inline-flex rounded-full border border-white/10 bg-[#11151e] px-2 py-0.5 text-[11px] text-slate-300">{tier.name}</div>
+                <div className="text-[11px] font-semibold text-amber-300">{tier.badge}</div>
               </div>
-              <p className="mt-3 text-xs text-slate-600">{tier.description}</p>
+              <p className="mt-3 text-xs text-slate-400">{tier.description}</p>
               <div className="mt-3 flex items-end gap-2">
-                <p className="text-3xl font-semibold text-slate-950">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
+                <p className="text-3xl font-semibold text-white">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
                 <p className="pb-1 text-xs text-slate-500">{interval === "YEARLY" ? "per year" : "per month"}</p>
               </div>
-              <p className="mt-1 text-xs text-amber-600">{tier.yearlySavings}</p>
-              <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+              <p className="mt-1 text-xs text-amber-300">{tier.yearlySavings}</p>
+              <ul className="mt-3 space-y-1.5 text-xs text-slate-400">
                 {tier.perks.map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
@@ -466,7 +466,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               <Button
                 onClick={() => handleCheckout({ featureCode: "CORE_PLUS", tier: tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE" })}
                 disabled={checkoutMutation.isPending || !billingReady}
-                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-slate-950 shadow-[0_16px_30px_rgba(245,158,11,0.16)]" : "border-slate-900/10 bg-white/85 text-slate-900"}`}
+                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-white shadow-[0_16px_30px_rgba(245,158,11,0.16)]" : "border-white/10 bg-[#11151e] text-white"}`}
               >
                 {checkoutMutation.isPending ? "Opening..." : tier.cta}
               </Button>
@@ -481,21 +481,21 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.04 }}
-        className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600">Tier Comparison</p>
-            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-slate-950">See what actually gets better as users move up.</h3>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Tier Comparison</p>
+            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-white">See what actually gets better as users move up.</h3>
           </div>
-          <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-700">
+          <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
             Plus Command is the strongest value-to-price tier
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] border-collapse text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-900/10 text-slate-500">
+              <tr className="border-b border-white/10 text-slate-500">
                 <th className="py-2 pr-3 font-semibold">Feature</th>
                 <th className="py-2 pr-3 font-semibold">Starter Core</th>
                 <th className="py-2 pr-3 font-semibold text-amber-200">Plus Command</th>
@@ -505,10 +505,10 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {comparisonRows.map((row) => (
-                <tr key={row.label} className="border-b border-slate-900/10 text-slate-600">
-                  <td className="py-2 pr-3 font-medium text-slate-950">{row.label}</td>
+                <tr key={row.label} className="border-b border-white/10 text-slate-400">
+                  <td className="py-2 pr-3 font-medium text-white">{row.label}</td>
                   {row.values.map((value, index) => (
-                    <td key={`${row.label}-${index}`} className={`py-2 pr-3 ${index === 1 ? "text-amber-700" : "text-slate-600"}`}>
+                    <td key={`${row.label}-${index}`} className={`py-2 pr-3 ${index === 1 ? "text-amber-700" : "text-slate-400"}`}>
                       {value}
                     </td>
                   ))}
@@ -524,15 +524,15 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
-        className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-5 sm:p-6"
+        className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-5 sm:p-6"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-600">Paid Feature Catalog</p>
-          <p className="text-xs text-slate-600">Payments designed to feel clean, fast, and low-risk.</p>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Paid Feature Catalog</p>
+          <p className="text-xs text-slate-400">Payments designed to feel clean, fast, and low-risk.</p>
         </div>
         <div className="mb-4 grid gap-2 md:grid-cols-4">
           {trustSignals.map((signal) => (
-            <div key={signal} className="glass-cut rounded-full border border-slate-900/10 bg-white/85 px-3 py-2 text-xs text-slate-600">
+            <div key={signal} className="glass-cut rounded-full border border-white/10 bg-[#11151e] px-3 py-2 text-xs text-slate-400">
               {signal}
             </div>
           ))}
@@ -540,7 +540,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] border-collapse text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-900/10 text-slate-500">
+              <tr className="border-b border-white/10 text-slate-500">
                 <th className="py-2 pr-3 font-semibold">Paid Item</th>
                 <th className="py-2 pr-3 font-semibold">Price</th>
                 <th className="py-2 font-semibold">Required For</th>
@@ -548,24 +548,24 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {paidCatalog.map((row) => (
-                <tr key={row.item} className="border-b border-slate-900/10 align-top text-slate-600">
-                  <td className="py-2 pr-3 font-medium text-slate-950">{row.item}</td>
-                  <td className="py-2 pr-3 text-amber-700">{row.price}</td>
-                  <td className="py-2 text-slate-600">{row.requiredFor}</td>
+                <tr key={row.item} className="border-b border-white/10 align-top text-slate-400">
+                  <td className="py-2 pr-3 font-medium text-white">{row.item}</td>
+                  <td className="py-2 pr-3 text-amber-200">{row.price}</td>
+                  <td className="py-2 text-slate-400">{row.requiredFor}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Quick Buy Paths</p>
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Quick Buy Paths</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 onClick={() => handleCheckout({ featureCode: "FORGE_BOOST_PACK", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-full border-amber-500/40 px-3 text-xs text-amber-700"
+                className="h-9 rounded-full border-amber-500/40 px-3 text-xs text-amber-200"
               >
                 Buy Boost Pack
               </Button>
@@ -573,7 +573,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 onClick={() => handleCheckout({ featureCode: "CREATOR_CAMPAIGN_SLOT", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-full border-fuchsia-500/40 px-3 text-xs text-fuchsia-700"
+                className="h-9 rounded-full border-fuchsia-500/40 px-3 text-xs text-fuchsia-200"
               >
                 Buy Campaign Slot
               </Button>
@@ -581,21 +581,21 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 onClick={() => handleCheckout({ featureCode: "ADVANCED_MODERATION_AI", quantity: 1 })}
                 disabled={checkoutMutation.isPending || !billingReady}
                 variant="ghost"
-                className="h-9 rounded-full border-rose-500/40 px-3 text-xs text-rose-700"
+                className="h-9 rounded-full border-rose-500/40 px-3 text-xs text-rose-200"
               >
                 Buy Moderation AI
               </Button>
               <Link
                 href="/core-plus"
-                className="nexus-interactive-btn inline-flex h-9 items-center rounded-full border border-slate-900/10 bg-white/85 px-3 text-xs font-semibold text-slate-900 hover:border-amber-300"
+                className="nexus-interactive-btn inline-flex h-9 items-center rounded-full border border-white/10 bg-[#11151e] px-3 text-xs font-semibold text-white hover:border-amber-300"
               >
                 Manage Billing
               </Link>
             </div>
-            <div className="mt-4 grid gap-3 rounded-[24px] border border-slate-900/10 bg-slate-50 p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-600">Growth Revenue Estimator</p>
+            <div className="mt-4 grid gap-3 rounded-[24px] border border-white/10 bg-[#0d1119] p-3">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300">Growth Revenue Estimator</p>
               <div className="grid gap-2 sm:grid-cols-3">
-                <label className="text-[11px] text-slate-600">
+                <label className="text-[11px] text-slate-400">
                   Members
                   <input
                     type="range"
@@ -606,9 +606,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setProjectedMembers(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-600">{projectedMembers.toLocaleString()}</span>
+                  <span className="mt-1 block text-slate-400">{projectedMembers.toLocaleString()}</span>
                 </label>
-                <label className="text-[11px] text-slate-600">
+                <label className="text-[11px] text-slate-400">
                   Paid adoption
                   <input
                     type="range"
@@ -619,9 +619,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setProjectedAdoptionPct(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-600">{projectedAdoptionPct}%</span>
+                  <span className="mt-1 block text-slate-400">{projectedAdoptionPct}%</span>
                 </label>
-                <label className="text-[11px] text-slate-600">
+                <label className="text-[11px] text-slate-400">
                   Avg paid ARPU
                   <input
                     type="range"
@@ -632,28 +632,28 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                     onChange={(event) => setEstimatedArpu(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
-                  <span className="mt-1 block text-slate-600">${estimatedArpu.toFixed(2)}</span>
+                  <span className="mt-1 block text-slate-400">${estimatedArpu.toFixed(2)}</span>
                 </label>
               </div>
               <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
+                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Paid Members</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
                 </div>
-                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
+                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected MRR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-700">${projectedRevenue.monthly.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.monthly.toLocaleString()}</p>
                 </div>
-                <div className="rounded-[22px] border border-slate-900/10 bg-white/85 px-3 py-2">
+                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected ARR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-700">${projectedRevenue.annual.toLocaleString()}</p>
+                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.annual.toLocaleString()}</p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="nexus-display-panel rounded-[28px] border border-slate-900/10 bg-white/85 p-4 text-sm text-slate-600">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-600">Checkout Confidence</p>
-            <ul className="mt-3 space-y-2 text-xs text-slate-600">
+          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4 text-sm text-slate-400">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Confidence</p>
+            <ul className="mt-3 space-y-2 text-xs text-slate-400">
               <li>• You are redirected instantly to a live checkout session.</li>
               <li>• Subscription changes can be managed later from the billing portal.</li>
               <li>• Successful payments activate subscriptions or entitlements automatically.</li>
@@ -663,9 +663,9 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {upgradeOutcomes.map((outcome) => (
-            <div key={outcome.title} className="glass-cut rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
-              <p className="text-sm font-semibold text-slate-950">{outcome.title}</p>
-              <p className="mt-1 text-xs text-slate-600">{outcome.detail}</p>
+            <div key={outcome.title} className="glass-cut rounded-[24px] border border-white/10 bg-[#11151e] p-4">
+              <p className="text-sm font-semibold text-white">{outcome.title}</p>
+              <p className="mt-1 text-xs text-slate-400">{outcome.detail}</p>
             </div>
           ))}
         </div>

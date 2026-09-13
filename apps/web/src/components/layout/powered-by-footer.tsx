@@ -28,11 +28,11 @@ export function PoweredByFooter() {
 
           {/* Quick Links */}
           <div className="flex flex-wrap justify-center gap-4 text-xs">
-            <a href="/pricing" className="text-amber-700 transition hover:text-amber-600">Pricing</a>
+            <a href="/pricing" className="text-amber-200 transition hover:text-amber-300">Pricing</a>
             <span className="text-slate-300">â€¢</span>
-            <a href="mailto:support@vexoragaming.com" className="text-amber-700 transition hover:text-amber-600">Support</a>
+            <a href="mailto:support@vexoragaming.com" className="text-amber-200 transition hover:text-amber-300">Support</a>
             <span className="text-slate-300">â€¢</span>
-            <a href="https://trh.dev" target="_blank" rel="noopener noreferrer" className="text-amber-700 transition hover:text-amber-600">TRH Development</a>
+            <a href="https://trh.dev" target="_blank" rel="noopener noreferrer" className="text-amber-200 transition hover:text-amber-300">TRH Development</a>
           </div>
         </div>
       </div>

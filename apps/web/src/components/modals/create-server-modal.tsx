@@ -101,21 +101,21 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
          <div className="absolute inset-0 bg-slate-700/35 backdrop-blur-md" onClick={onClose} />
       
-      <div className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-slate-900/10 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
-        <div className="flex items-center justify-between border-b border-slate-900/5 bg-slate-50 p-8">
+      <div className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-[32px] border border-white/10 bg-amber-400 shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+        <div className="flex items-center justify-between border-b border-white/5 bg-[#0d1119] p-8">
            <div className="space-y-2">
               <div className="flex items-center gap-3">
                  <div className="h-1 w-8 rounded-full bg-amber-400" />
                  <span className="text-[10px] font-semibold uppercase tracking-[0.4em] text-slate-500">Node initialization</span>
               </div>
-              <h2 className="text-3xl font-semibold tracking-tight text-slate-950">
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
                  Create a new forge
               </h2>
            </div>
            <button 
              onClick={onClose} 
              title="Close Modal"
-             className="p-2 text-slate-500 transition-colors hover:text-slate-900"
+             className="p-2 text-slate-500 transition-colors hover:text-white"
            >
               <X className="w-8 h-8 font-thin" />
            </button>
@@ -133,16 +133,16 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                     <button 
                       key={tpl.id}
                       onClick={() => { setSelectedTemplate(tpl.id); setStep("details"); }}
-                      className="group space-y-6 rounded-[28px] border border-slate-900/10 bg-slate-50 p-8 text-left transition-colors hover:bg-white"
+                      className="group space-y-6 rounded-[28px] border border-white/10 bg-[#0d1119] p-8 text-left transition-colors hover:bg-amber-400"
                     >
                        <div className="flex justify-between items-start">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-900/10 bg-white transition-all group-hover:border-amber-200">
-                             <tpl.icon className="w-5 h-5 text-slate-500 group-hover:text-amber-600" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-amber-400 transition-all group-hover:border-amber-400/40">
+                             <tpl.icon className="w-5 h-5 text-slate-500 group-hover:text-amber-300" />
                           </div>
-                          <span className="text-[9px] font-mono italic text-slate-500 group-hover:text-amber-600">{tpl.code}</span>
+                          <span className="text-[9px] font-mono italic text-slate-500 group-hover:text-amber-300">{tpl.code}</span>
                        </div>
                        <div className="space-y-1">
-                          <h4 className="text-xl font-semibold tracking-tight text-slate-950">{tpl.label.replace(/_/g, " ")}</h4>
+                          <h4 className="text-xl font-semibold tracking-tight text-white">{tpl.label.replace(/_/g, " ")}</h4>
                           <p className="text-[10px] font-semibold uppercase tracking-widest leading-relaxed text-slate-500">
                              {tpl.description}
                           </p>
@@ -161,7 +161,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                         value={serverName}
                         onChange={(e) => setServerName(e.target.value)}
                         placeholder="Enter forge name..."
-                        className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-2xl font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
+                        className="w-full rounded-[24px] border border-white/10 bg-amber-400 p-6 text-2xl font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                      />
                   </div>
                   <div className="space-y-4">
@@ -170,7 +170,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                         value={serverDescription}
                         onChange={(e) => setServerDescription(e.target.value)}
                         placeholder="Describe the workspace..."
-                        className="h-32 w-full resize-none rounded-[24px] border border-slate-900/10 bg-white p-6 text-lg font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
+                        className="h-32 w-full resize-none rounded-[24px] border border-white/10 bg-amber-400 p-6 text-lg font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                      />
                   </div>
 
@@ -181,7 +181,7 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                           value={serverIcon}
                           onChange={(e) => setServerIcon(e.target.value)}
                           placeholder="https://..."
-                          className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
+                          className="w-full rounded-[24px] border border-white/10 bg-amber-400 p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                       />
                     </div>
                     <div className="space-y-4">
@@ -190,15 +190,15 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
                           value={serverBanner}
                           onChange={(e) => setServerBanner(e.target.value)}
                           placeholder="https://..."
-                          className="w-full rounded-[24px] border border-slate-900/10 bg-white p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
+                          className="w-full rounded-[24px] border border-white/10 bg-amber-400 p-6 text-sm font-semibold tracking-tight text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-300"
                       />
                     </div>
                   </div>
                </div>
 
                {submitError && (
-                  <div className="rounded-[24px] border border-rose-200 bg-rose-50 p-4">
-                     <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-rose-600">
+                  <div className="rounded-[24px] border border-rose-400/40 bg-rose-500/10 p-4">
+                     <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-rose-300">
                         <X className="w-3 h-3" /> {submitError}
                      </p>
                   </div>
@@ -207,21 +207,21 @@ export function CreateServerModal({ isOpen, onClose }: { isOpen: boolean; onClos
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-900/5 bg-slate-50 p-8">
+        <div className="flex items-center justify-between border-t border-white/5 bg-[#0d1119] p-8">
            <div className="flex items-center gap-6">
               {step === "details" && (
-                <button onClick={() => setStep("template")} className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:text-slate-900">
+                <button onClick={() => setStep("template")} className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:text-white">
                    Go back
                 </button>
               )}
-              <div className="flex items-center gap-2 text-slate-600">
+              <div className="flex items-center gap-2 text-slate-400">
                  <ShieldCheck className="w-4 h-4" />
                  <span className="text-[8px] font-semibold uppercase tracking-widest italic">Encryption active</span>
               </div>
            </div>
            
            <div className="flex items-center gap-4">
-              <button onClick={onClose} className="rounded-full border border-slate-900/10 bg-white px-8 py-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:bg-slate-50">
+              <button onClick={onClose} className="rounded-full border border-white/10 bg-amber-400 px-8 py-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:bg-[#0d1119]">
                  Abort
               </button>
               {step === "details" && (

@@ -18,7 +18,7 @@ export function SecurityGuard({ status, clearance }: SecurityGuardProps) {
   }, []);
 
   return (
-    <div className="flex select-none items-center gap-6 rounded-[24px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
+    <div className="flex select-none items-center gap-6 rounded-[24px] border border-white/10 bg-[#11151e] px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <div className={cn(
@@ -54,7 +54,7 @@ export function SecurityGuard({ status, clearance }: SecurityGuardProps) {
         </span>
         <div className="flex items-center gap-1.5">
            <Terminal className="w-2.5 h-2.5 text-amber-500" />
-           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-900">
+           <span className="text-[10px] font-semibold uppercase tracking-wider text-white">
              {clearance || "ANONYMOUS"}
            </span>
         </div>

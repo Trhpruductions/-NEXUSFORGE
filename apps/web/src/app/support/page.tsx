@@ -1,72 +1,54 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { getCustomDesignImageUrl } from "@/lib/custom-design-client";
-import { DynamicBackground } from "@/components/ui/dynamic-background";
-import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
+import { LifeBuoy, Mail, MessageSquare, ShieldCheck, Users, Wrench } from "lucide-react";
+import { ExperienceShell } from "@/components/layout/experience-shell";
+
+export const metadata: Metadata = {
+  title: "Support",
+  description: "Get help with your Vexora Gaming account, forges and the desktop app.",
+};
+
+const topics = [
+  { icon: ShieldCheck, title: "Account & security", body: "Verify your email and phone, turn on two-factor sign-in, or recover a locked account.", href: "/app/settings?verify=1", cta: "Open account protection" },
+  { icon: Users, title: "Forges & invites", body: "Create a forge, manage roles and channels, or fix an invite link that stopped working.", href: "/app/server", cta: "Go to Community" },
+  { icon: MessageSquare, title: "Chat & voice", body: "Messages not sending, voice rooms not connecting, or notifications you did not expect.", href: "/app/chat", cta: "Open chat" },
+  { icon: Wrench, title: "Desktop app", body: "Install or update Vexora Gaming for Windows, or run the recovery mode from the launcher.", href: "/app/downloads", cta: "Downloads" },
+];
 
 export default function SupportPage() {
-  const supportHeroImage = getCustomDesignImageUrl(["app-support-desktop.jpg"], "/app-hero.png");
-
   return (
-    <div className="relative grid flex-1 gap-8 overflow-x-clip px-4 py-6 sm:px-6 lg:gap-10 lg:px-8">
-      <main id="main-content" aria-label="Vexora Gaming support" className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8">
-        <DynamicBackground
-          url={supportHeroImage}
-          className="relative min-h-[420px] overflow-hidden rounded-[28px] border border-slate-900/10 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] bg-cover bg-center"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-[#f5f1ea]/92 via-[#f5f1ea]/20 to-[#f5f1ea]/92" />
-          <div className="absolute inset-0 bg-white/35" />
-          <div className="relative p-6 text-slate-900">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-amber-700">Support visuals</p>
-            <h2 className="mt-2 text-3xl font-semibold text-slate-950">Your support experience now matches the new listening-first app design.</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">This page will display your custom layout visuals when configured for live rooms, invites, and community support.</p>
-          </div>
-        </DynamicBackground>
-        <section className="nexus-panel-glass rounded-[28px] border border-slate-900/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-          <GuestAuthCallout
-            title="Access your Vexora Gaming account to restore sessions and join beta forges."
-            description="Sign in to manage invites, support tickets, and support resources tailored to your account."
-            loginHref="/login?redirect=/support"
-            registerHref="/register?redirect=/support"
-          />
-        </section>
-        <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-          <div className="space-y-6">
-            <p className="text-sm uppercase tracking-[0.24em] text-amber-700">Need help?</p>
-            <h1 className="text-4xl font-semibold text-slate-950">Vexora Gaming support</h1>
-            <p className="max-w-3xl text-base leading-8 text-slate-600">
-              For help with live rooms, invites, account access, or launcher issues, reach out to the Vexora Gaming support team. We’re here to help you get back into your Forge quickly.
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
-            <div className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-6">
-              <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Email support</p>
-              <p className="mt-4 text-sm text-slate-600">Send us a message and include any invite codes or error details.</p>
-              <a href="mailto:support@vexoragaming.com" className="mt-6 inline-flex rounded-full border border-slate-900/10 bg-white px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50">
-                Email support@vexoragaming.com
-              </a>
+    <ExperienceShell
+      eyebrow="Need help?"
+      title="Vexora Gaming support"
+      subtitle="Pick a topic, or email the team and a real person will get back to you."
+      actions={[{ label: "Email support", href: "mailto:support@vexoragaming.com", tone: "primary" }]}
+    >
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-3 md:grid-cols-2">
+          {topics.map((topic) => (
+            <div key={topic.title} className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">
+              <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300"><topic.icon className="h-5 w-5" /></span>
+              <h2 className="text-base font-semibold text-white">{topic.title}</h2>
+              <p className="mt-1 text-sm text-slate-400">{topic.body}</p>
+              <Link href={topic.href} className="mt-3 inline-flex items-center rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{topic.cta}</Link>
             </div>
-
-            <div className="rounded-[24px] border border-slate-900/10 bg-slate-50 p-6">
-              <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Troubleshooting</p>
-              <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                <li>• Verify your invite uses the `/invite/` path.</li>
-                <li>• Refresh the launcher and try again.</li>
-                <li>• If the issue persists, include a screenshot and exact error text.</li>
-              </ul>
+          ))}
+        </div>
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">
+            <h2 className="nf-heading mb-2 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white"><LifeBuoy className="h-4 w-4 text-amber-300" /> Contact</h2>
+            <a href="mailto:support@vexoragaming.com" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><Mail className="h-4 w-4" /> support@vexoragaming.com</a>
+            <p className="mt-2 text-xs text-slate-500">Include your username and, for account issues, the email on the account. Never send passwords or codes.</p>
+          </div>
+          <div className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">
+            <h2 className="nf-heading mb-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">Policies</h2>
+            <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em]">
+              <Link href="/terms" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Terms</Link>
+              <Link href="/privacy" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Privacy</Link>
             </div>
           </div>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/app" className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-slate-900/10 bg-white px-6 text-sm font-semibold text-slate-900 transition hover:bg-slate-50">
-              Back to Workspace
-            </Link>
-            <Link href="/app/join" className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-amber-500 px-6 text-sm font-semibold text-slate-950 transition hover:bg-amber-400">
-              Retry invite join
-            </Link>
-          </div>
-        </section>
-      </main>
-    </div>
+        </aside>
+      </div>
+    </ExperienceShell>
   );
 }

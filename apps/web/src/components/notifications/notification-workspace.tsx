@@ -29,8 +29,8 @@ export function NotificationWorkspace({ panelLabel, panelDescription, filterLink
       <div className="nexus-display-panel mb-5 rounded-[24px] p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-700">{panelLabel}</p>
-            <p className="mt-2 text-sm text-slate-600">{panelDescription}</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">{panelLabel}</p>
+            <p className="mt-2 text-sm text-slate-400">{panelDescription}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {filterLinks.map((filter) => (

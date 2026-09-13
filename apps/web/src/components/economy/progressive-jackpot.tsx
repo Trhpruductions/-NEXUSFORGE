@@ -44,7 +44,7 @@ export function ProgressiveJackpot({ slug, initialValue = 1250482 }: Progressive
   return (
     <div className={cn(
       "group relative overflow-hidden rounded-[24px] border p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl transition-all",
-      error ? "border-rose-200" : "border-amber-200 hover:border-amber-300 hover:shadow-[0_24px_80px_rgba(251,191,36,0.15)]"
+      error ? "border-rose-200" : "border-amber-400/40 hover:border-amber-300 hover:shadow-[0_24px_80px_rgba(251,191,36,0.15)]"
     )}>
       {/* Animated Background Glows */}
       <div className={cn(
@@ -77,7 +77,7 @@ export function ProgressiveJackpot({ slug, initialValue = 1250482 }: Progressive
               {slug.replace(/-/g, '_').toUpperCase()}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 ring-1 ring-emerald-200">
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 ring-1 ring-emerald-200">
             <TrendingUp className="w-3 h-3 text-emerald-500" />
             <span className="text-[9px] font-mono font-bold text-emerald-500">LIVE RELAY</span>
           </div>
@@ -95,7 +95,7 @@ export function ProgressiveJackpot({ slug, initialValue = 1250482 }: Progressive
           <div className="flex flex-col">
             <div className={cn(
               "text-5xl font-black font-mono tracking-tighter transition-all duration-300 tabular-nums leading-none",
-              error ? "text-rose-500/70" : isAnimating ? "scale-[1.02] text-amber-500 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]" : "text-slate-900"
+              error ? "text-rose-500/70" : isAnimating ? "scale-[1.02] text-amber-500 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]" : "text-white"
             )}>
               {value.toLocaleString()}
             </div>

@@ -32,11 +32,11 @@ export function GlobalNotificationCenter() {
       case "error":
         return "border-rose-200 bg-rose-50 text-rose-700";
       case "success":
-        return "border-amber-200 bg-amber-50 text-amber-700";
+        return "border-amber-400/40 bg-amber-500/10 text-amber-200";
       case "update":
-        return "border-amber-200 bg-amber-50 text-amber-700";
+        return "border-amber-400/40 bg-amber-500/10 text-amber-200";
       default:
-        return "border-slate-900/10 bg-white text-slate-700";
+        return "border-white/10 bg-amber-400 text-slate-300";
     }
   };
 
@@ -86,7 +86,7 @@ export function GlobalNotificationCenter() {
                 // Update will clear from updateState
               }}
               aria-label="Dismiss update notification"
-              className="flex-shrink-0 text-slate-400 hover:text-slate-700"
+              className="flex-shrink-0 text-slate-400 hover:text-slate-300"
             >
               <X size={16} />
             </button>
@@ -120,7 +120,7 @@ export function GlobalNotificationCenter() {
               <button
                 onClick={() => removeNotification(notification.id)}
                 aria-label="Dismiss notification"
-                className="flex-shrink-0 text-slate-400 hover:text-slate-700"
+                className="flex-shrink-0 text-slate-400 hover:text-slate-300"
               >
                 <X size={16} />
               </button>
