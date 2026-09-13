@@ -115,10 +115,13 @@ export function HomeDashboard() {
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(230,179,37,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(230,179,37,0.06)_1px,transparent_1px)] bg-[size:36px_36px] opacity-40" />
           <div className="relative flex min-h-[220px] flex-col items-center justify-center px-6 py-10 text-center">
             <Image src="/brand/vexora-mark-gold-256.png" alt="" width={72} height={72} className="mb-3 h-[72px] w-[72px] rounded-2xl border border-amber-500/40 object-cover shadow-[0_0_30px_rgba(230,179,37,0.35)]" />
-            <h1 className="nf-heading text-3xl font-black uppercase tracking-[0.2em] text-white sm:text-4xl">{forge?.name ?? "Vexora Gaming"}</h1>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-300">
-              {forge?.description || "Built for gamers. Connected by community."}
-            </p>
+            <h1 className="nf-heading text-3xl font-black uppercase tracking-[0.2em] text-white sm:text-4xl">Vexora Gaming</h1>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-300">Built for gamers. Connected by community.</p>
+            {forge ? (
+              <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-[#0d1119]/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> {forge.name}
+              </span>
+            ) : null}
           </div>
         </section>
 
@@ -273,6 +276,21 @@ export function HomeDashboard() {
           </div>
         </div>
       </aside>
+
+      {/* Brand strip from the design reference */}
+      <footer className="col-span-full mt-1 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/15 bg-[#0d1119] px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <Image src="/brand/vexora-mark-gold-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-cover" />
+          <span className="nf-heading text-[12px] font-bold uppercase tracking-[0.28em] text-amber-300">Vexora Gaming</span>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500 sm:inline">Built for gamers. Connected by community.</span>
+        </div>
+        <div className="flex items-center gap-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+          <Link href="/app/events" className="hover:text-amber-200">Play</Link>
+          <Link href="/app/friends" className="hover:text-amber-200">Connect</Link>
+          <Link href="/app/avatar" className="hover:text-amber-200">Create</Link>
+          <Link href="/app/events?tab=live" className="hover:text-amber-200">Dominate</Link>
+        </div>
+      </footer>
     </div>
   );
 }

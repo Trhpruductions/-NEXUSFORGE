@@ -15,6 +15,7 @@ import {
   Layers,
   LogOut,
   Megaphone,
+  MessageSquare,
   Mic,
   Plus,
   Radio,
@@ -35,16 +36,24 @@ import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
+// The six destinations from the design reference (design/vexora-app-mockup.png, Home panel).
 const navLinks = [
   { label: "Home", href: "/app", icon: Home },
   { label: "Avatar Studio", href: "/app/avatar", icon: UserRound },
-  { label: "Wardrobe", href: "/app/wardrobe", icon: Shirt },
-  { label: "Profile", href: "/app/profile", icon: User },
   { label: "Community", href: "/app/server", icon: Layers },
-  { label: "Discover", href: "/app/discover", icon: Compass },
   { label: "Events", href: "/app/events", icon: Calendar },
   { label: "Store", href: "/app/store", icon: ShoppingBag },
   { label: "Settings", href: "/app/settings", icon: Settings },
+];
+
+// Everything else lives on the thin icon rail, like the reference.
+const railLinks = [
+  { label: "Profile", href: "/app/profile", icon: User },
+  { label: "Wardrobe & Inventory", href: "/app/wardrobe", icon: Shirt },
+  { label: "Discover", href: "/app/discover", icon: Compass },
+  { label: "Chat", href: "/app/chat", icon: MessageSquare },
+  { label: "Friends", href: "/app/friends", icon: Users },
+  { label: "Live", href: "/app/live", icon: Radio },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -480,9 +489,24 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           <Link href="/app/server" className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-amber-500/30 text-amber-300 transition hover:bg-amber-500/10" title="Create or join">
             <Plus className="h-4 w-4" />
           </Link>
-          <Link href="/app/discover" className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 text-slate-400 transition hover:border-amber-400/50 hover:text-amber-200" title="Discover">
-            <Compass className="h-4 w-4" />
-          </Link>
+          <span className="my-1 h-px w-8 bg-amber-500/25" />
+          {railLinks.map((link) => {
+            const active = isActive(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                title={link.label}
+                aria-label={link.label}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg border transition",
+                  active ? "border-amber-400/60 bg-amber-500/15 text-amber-200" : "border-transparent text-slate-500 hover:border-amber-400/40 hover:text-amber-200",
+                )}
+              >
+                <link.icon className="h-4 w-4" />
+              </Link>
+            );
+          })}
         </div>
         <Link href="/app/settings" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:text-amber-200" title="Settings">
           <Settings className="h-4 w-4" />
@@ -508,7 +532,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={`Search ${forge?.name ?? "Vexora Gaming"}...`}
+              placeholder="Search Vexora Gaming..."
               className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60"
             />
             {search ? (
