@@ -366,23 +366,6 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
           better presence, and stronger community momentum than the price suggests.
         </p>
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Estimated launch revenue</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-950">$28.7k</p>
-            <p className="mt-1 text-xs text-slate-600">Based on Core+, boost, and creator campaign adoption.</p>
-          </div>
-          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Premium adoption</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-950">18%</p>
-            <p className="mt-1 text-xs text-slate-600">Expected upgrade rate for engaged communities.</p>
-          </div>
-          <div className="rounded-[24px] border border-slate-900/10 bg-white/85 p-4">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-600">Average ARPU</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-950">$12.99</p>
-            <p className="mt-1 text-xs text-slate-600">Revenue per active paid user per month.</p>
-          </div>
-        </div>
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             <p>{billingStatusMessage}</p>
