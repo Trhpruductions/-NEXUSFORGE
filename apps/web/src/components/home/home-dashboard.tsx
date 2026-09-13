@@ -247,9 +247,7 @@ export function HomeDashboard() {
                   <div className="p-2.5">
                     <p className="truncate text-sm font-semibold text-white">{live.liveStreamTitle || `${live.username} is live`}</p>
                     <p className="truncate text-[11px] text-slate-400">{[live.liveGameCategory, live.livePlatform].filter(Boolean).join(" · ") || live.username}</p>
-                    {live.liveStreamUrl ? (
-                      <a href={live.liveStreamUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300 hover:text-amber-200">Watch</a>
-                    ) : null}
+                    <Link href={`/app/live?watch=${live.id}`} className="mt-2 inline-block text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-300 hover:text-amber-200">Watch</Link>
                   </div>
                 </li>
               ))}

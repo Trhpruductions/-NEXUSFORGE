@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Eye, Loader2, Radio, Square, X } from "lucide-react";
 import { getApiErrorMessage, getLiveCreators, getProfileSummary, setLiveStatus, type User } from "@/lib/api";
@@ -33,6 +34,15 @@ function elapsed(iso?: string | null) {
 }
 
 export function LivePage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-slate-400">Loading live streams...</p>}>
+      <LivePageInner />
+    </Suspense>
+  );
+}
+
+function LivePageInner() {
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
   const [platform, setPlatform] = useState<(typeof platforms)[number]>("Vexora");
@@ -40,7 +50,7 @@ export function LivePage() {
   const [game, setGame] = useState("");
   const [url, setUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
-  const [watchingId, setWatchingId] = useState<string | null>(null);
+  const [watchingId, setWatchingId] = useState<string | null>(searchParams?.get("watch") ?? null);
 
   const liveQuery = useQuery({
     queryKey: ["live-creators", accessToken],
