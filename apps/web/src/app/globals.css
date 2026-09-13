@@ -91,6 +91,51 @@ html[data-theme-mode="admin"] {
   --nexus-gold: #e6b325;
 }
 
+/* Appearance preferences (Settings → Appearance) are applied as attributes on <html>. */
+html[data-accent="ember"] {
+  --color-amber-100: #ffe4d1;
+  --color-amber-200: #ffc9a3;
+  --color-amber-300: #ffa86b;
+  --color-amber-400: #ff7a2f;
+  --color-amber-500: #e8621a;
+  --color-amber-600: #bf4c0f;
+  --color-amber-700: #933a0b;
+  --nexus-gold: #ff7a2f;
+}
+html[data-accent="ice"] {
+  --color-amber-100: #dff6ff;
+  --color-amber-200: #b6ecff;
+  --color-amber-300: #7fdcff;
+  --color-amber-400: #37c6ff;
+  --color-amber-500: #16a8e6;
+  --color-amber-600: #0f86ba;
+  --color-amber-700: #0b678f;
+  --nexus-gold: #37c6ff;
+}
+html[data-accent="violet"] {
+  --color-amber-100: #efe2ff;
+  --color-amber-200: #dcc2ff;
+  --color-amber-300: #c197ff;
+  --color-amber-400: #a466ff;
+  --color-amber-500: #8a47ea;
+  --color-amber-600: #6d33bf;
+  --color-amber-700: #532694;
+  --nexus-gold: #a466ff;
+}
+html[data-font="small"] { font-size: 14px; }
+html[data-font="large"] { font-size: 17.5px; }
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+html[data-density="compact"] .nf-message { padding-top: 0.125rem; padding-bottom: 0.125rem; border-radius: 8px; }
+html[data-density="compact"] .nf-message-avatar img,
+html[data-density="compact"] .nf-message-avatar span { height: 1.5rem; width: 1.5rem; font-size: 9px; }
+html[data-chat-avatars="off"] .nf-message-avatar { display: none; }
+
 .nexus-text-vibrant {
   text-shadow: 0 0 12px var(--nexus-vibrant-glow);
   color: var(--nexus-cyan);

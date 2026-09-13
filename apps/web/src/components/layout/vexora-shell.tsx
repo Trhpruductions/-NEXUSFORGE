@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { getForge, getForgeUnreads, getProtectionStatus, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -201,6 +201,24 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     enabled: Boolean(accessToken),
     staleTime: 60_000,
   });
+  // Appearance preferences (Settings → Appearance) apply to the whole app.
+  const settingsQuery = useQuery({
+    queryKey: ["settings", accessToken],
+    queryFn: () => getSettings(accessToken!),
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60_000,
+  });
+  const appearance = settingsQuery.data?.preferences.appearance;
+  useEffect(() => {
+    if (!appearance) return;
+    const root = document.documentElement;
+    root.dataset.accent = appearance.accent;
+    root.dataset.density = appearance.density;
+    root.dataset.font = appearance.fontScale;
+    root.dataset.motion = appearance.reduceMotion ? "reduce" : "";
+    root.dataset.chatAvatars = appearance.showAvatarsInChat ? "on" : "off";
+  }, [appearance]);
+
   const protection = protectionQuery.data?.protection;
   const showProtectionBanner = Boolean(protection && !protection.complete && !pathname.startsWith("/app/settings"));
 

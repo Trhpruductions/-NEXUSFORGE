@@ -24,6 +24,49 @@ export const privacySchema = z.object({
 
 export type PrivacySettings = z.infer<typeof privacySchema>;
 
+export const preferencesSchema = z.object({
+  notifications: z
+    .object({
+      mentions: z.boolean().default(true),
+      directMessages: z.boolean().default(true),
+      friendRequests: z.boolean().default(true),
+      eventReminders: z.boolean().default(true),
+      liveAlerts: z.boolean().default(true),
+      system: z.boolean().default(true),
+      sounds: z.boolean().default(true),
+      push: z.boolean().default(true),
+    })
+    .prefault({}),
+  appearance: z
+    .object({
+      accent: z.enum(["gold", "ember", "ice", "violet"]).default("gold"),
+      density: z.enum(["cozy", "compact"]).default("cozy"),
+      fontScale: z.enum(["small", "default", "large"]).default("default"),
+      reduceMotion: z.boolean().default(false),
+      showAvatarsInChat: z.boolean().default(true),
+    })
+    .prefault({}),
+  voice: z
+    .object({
+      inputDeviceId: z.string().max(200).nullable().default(null),
+      outputDeviceId: z.string().max(200).nullable().default(null),
+      inputMode: z.enum(["voice", "ptt"]).default("voice"),
+      inputVolume: z.number().int().min(0).max(100).default(100),
+      outputVolume: z.number().int().min(0).max(100).default(100),
+      noiseSuppression: z.boolean().default(true),
+      echoCancellation: z.boolean().default(true),
+      cameraDeviceId: z.string().max(200).nullable().default(null),
+    })
+    .prefault({}),
+});
+
+export type Preferences = z.infer<typeof preferencesSchema>;
+
+export function parsePreferences(raw: unknown): Preferences {
+  const parsed = preferencesSchema.safeParse(raw ?? {});
+  return parsed.success ? parsed.data : preferencesSchema.parse({});
+}
+
 const accountSchema = z
   .object({
     displayName: z.string().trim().max(40).nullable().optional(),
@@ -75,6 +118,7 @@ settingsRouter.get("/", async (req, res) => {
       twoFactorEnabled: true,
       socialLinks: true,
       privacySettings: true,
+      preferences: true,
       createdAt: true,
       refreshTokens: { where: { revokedAt: null }, select: { id: true, createdAt: true, expiresAt: true }, orderBy: { createdAt: "desc" }, take: 10 },
     },
@@ -100,6 +144,7 @@ settingsRouter.get("/", async (req, res) => {
       createdAt: user.createdAt,
     },
     privacy: privacy.success ? privacy.data : privacySchema.parse({}),
+    preferences: parsePreferences(user.preferences),
     linkedAccounts: (user.socialLinks as Record<string, string | null> | null) ?? {},
     sessions: user.refreshTokens,
     twoFactor: { enabled: user.twoFactorEnabled, available: true },
@@ -166,6 +211,24 @@ settingsRouter.put("/privacy", async (req, res) => {
   }
   await prisma.user.update({ where: { id: req.user!.id }, data: { privacySettings: parsed.data } });
   res.json({ privacy: parsed.data });
+});
+
+settingsRouter.put("/preferences", async (req, res) => {
+  const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { preferences: true } });
+  const base = parsePreferences(current?.preferences);
+  const incoming = (req.body ?? {}) as Partial<Record<keyof Preferences, Record<string, unknown>>>;
+  const merged = {
+    notifications: { ...base.notifications, ...(incoming.notifications ?? {}) },
+    appearance: { ...base.appearance, ...(incoming.appearance ?? {}) },
+    voice: { ...base.voice, ...(incoming.voice ?? {}) },
+  };
+  const parsed = preferencesSchema.safeParse(merged);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { preferences: parsed.data } });
+  res.json({ preferences: parsed.data });
 });
 
 settingsRouter.put("/linked-accounts", async (req, res) => {

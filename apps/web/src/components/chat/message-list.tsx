@@ -154,7 +154,7 @@ export function MessageList({
             ) : null}
 
             <article
-              className={`group relative rounded-[14px] border px-3 py-2 transition ${
+              className={`nf-message group relative rounded-[14px] border px-3 py-2 transition ${
                 message.optimistic
                   ? "border-dashed border-amber-600/60 bg-amber-950/20"
                   : "border-transparent hover:border-slate-700/70 hover:bg-slate-900/60"
@@ -171,7 +171,7 @@ export function MessageList({
               ) : null}
 
               <div className="flex gap-3">
-                <div className="mt-0.5 shrink-0">
+                <div className="nf-message-avatar mt-0.5 shrink-0">
                   {message.botAvatar || message.author?.avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={message.botAvatar ?? message.author?.avatar ?? ""} alt="" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />

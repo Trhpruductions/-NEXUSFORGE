@@ -2472,6 +2472,42 @@ export type PrivacySettings = {
   contentFilter: "off" | "friends" | "everyone";
 };
 
+export type NotificationPreferences = {
+  mentions: boolean;
+  directMessages: boolean;
+  friendRequests: boolean;
+  eventReminders: boolean;
+  liveAlerts: boolean;
+  system: boolean;
+  sounds: boolean;
+  push: boolean;
+};
+
+export type AppearancePreferences = {
+  accent: "gold" | "ember" | "ice" | "violet";
+  density: "cozy" | "compact";
+  fontScale: "small" | "default" | "large";
+  reduceMotion: boolean;
+  showAvatarsInChat: boolean;
+};
+
+export type VoicePreferences = {
+  inputDeviceId: string | null;
+  outputDeviceId: string | null;
+  inputMode: "voice" | "ptt";
+  inputVolume: number;
+  outputVolume: number;
+  noiseSuppression: boolean;
+  echoCancellation: boolean;
+  cameraDeviceId: string | null;
+};
+
+export type Preferences = {
+  notifications: NotificationPreferences;
+  appearance: AppearancePreferences;
+  voice: VoicePreferences;
+};
+
 export type SettingsPayload = {
   account: {
     id: string;
@@ -2488,6 +2524,7 @@ export type SettingsPayload = {
     createdAt: string;
   };
   privacy: PrivacySettings;
+  preferences: Preferences;
   linkedAccounts: Record<string, string | null>;
   sessions: Array<{ id: string; createdAt: string; expiresAt: string }>;
   twoFactor: { enabled: boolean; available: boolean };
@@ -2505,6 +2542,11 @@ export async function updateAccountSettings(accessToken: string, csrfToken: stri
 
 export async function updatePrivacySettings(accessToken: string, csrfToken: string, privacy: PrivacySettings) {
   const response = await api.put<{ privacy: PrivacySettings }>("/api/settings/privacy", privacy, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updatePreferences(accessToken: string, csrfToken: string, payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; voice?: Partial<VoicePreferences> }) {
+  const response = await api.put<{ preferences: Preferences }>("/api/settings/preferences", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
