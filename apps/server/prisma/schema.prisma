@@ -216,6 +216,7 @@ model User {
   displayName        String?        @db.VarChar(40)
   avatarConfig       Json?          // layered avatar builder state
   loadout            Json?          // equipped cosmetic item ids by slot
+  loadoutPresets     Json?          // saved outfit presets [{ id, name, loadout, createdAt }]
   privacySettings    Json?          // { showOnlineStatus, allowFriendRequests, allowDms, showActivity, contentFilter }
   preferences        Json?          // { notifications, appearance, voice } see settings.routes preferencesSchema
 

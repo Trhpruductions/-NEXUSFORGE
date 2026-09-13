@@ -2371,6 +2371,7 @@ export type CosmeticItem = {
 };
 
 export type Loadout = Partial<Record<CosmeticSlot, string>>;
+export type LoadoutPreset = { id: string; name: string; loadout: Loadout; createdAt: string };
 
 export async function getCosmeticCatalog(accessToken: string, slot?: CosmeticSlot) {
   const response = await api.get<{ items: CosmeticItem[]; loadout: Loadout; coins: number }>("/api/cosmetics/catalog", { headers: authHeaders(accessToken), params: slot ? { slot } : {} });
@@ -2378,7 +2379,7 @@ export async function getCosmeticCatalog(accessToken: string, slot?: CosmeticSlo
 }
 
 export async function getCosmeticInventory(accessToken: string) {
-  const response = await api.get<{ items: CosmeticItem[]; loadout: Loadout; coins: number }>("/api/cosmetics/inventory", { headers: authHeaders(accessToken) });
+  const response = await api.get<{ items: CosmeticItem[]; loadout: Loadout; coins: number; presets: LoadoutPreset[]; maxPresets: number }>("/api/cosmetics/inventory", { headers: authHeaders(accessToken) });
   return response.data;
 }
 
@@ -2736,5 +2737,20 @@ export async function rejectAgeReview(accessToken: string, csrfToken: string, id
 
 export async function getVoiceOccupancy(accessToken: string, forgeId: string) {
   const response = await api.get<{ channels: Array<{ channelId: string; userIds: string[] }> }>(`/api/forges/${forgeId}/voice-occupancy`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function saveLoadoutPreset(accessToken: string, csrfToken: string, name: string) {
+  const response = await api.post<{ preset: LoadoutPreset; presets: LoadoutPreset[] }>("/api/cosmetics/presets", { name }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function applyLoadoutPreset(accessToken: string, csrfToken: string, presetId: string) {
+  const response = await api.post<{ loadout: Loadout }>(`/api/cosmetics/presets/${presetId}/apply`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteLoadoutPreset(accessToken: string, csrfToken: string, presetId: string) {
+  const response = await api.delete<{ presets: LoadoutPreset[] }>(`/api/cosmetics/presets/${presetId}`, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

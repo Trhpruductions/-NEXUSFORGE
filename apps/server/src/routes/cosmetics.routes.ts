@@ -31,6 +31,16 @@ function readLoadout(raw: unknown): Loadout {
   return result;
 }
 
+type LoadoutPreset = { id: string; name: string; loadout: Loadout; createdAt: string };
+const MAX_LOADOUT_PRESETS = 8;
+
+function readPresets(raw: unknown): LoadoutPreset[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is LoadoutPreset => Boolean(entry) && typeof entry === "object" && typeof (entry as LoadoutPreset).id === "string" && typeof (entry as LoadoutPreset).name === "string")
+    .map((entry) => ({ id: entry.id, name: entry.name, loadout: readLoadout(entry.loadout), createdAt: entry.createdAt ?? new Date().toISOString() }));
+}
+
 async function coinBalance(userId: string): Promise<number> {
   const account = await prisma.economyAccount.findUnique({
     where: { userId_currencyType: { userId, currencyType: "NC" } },
@@ -69,15 +79,74 @@ cosmeticsRouter.get("/inventory", async (req, res) => {
       orderBy: { acquiredAt: "desc" },
       include: { item: true },
     }),
-    prisma.user.findUnique({ where: { id: req.user!.id }, select: { loadout: true } }),
+    prisma.user.findUnique({ where: { id: req.user!.id }, select: { loadout: true, loadoutPresets: true } }),
   ]);
   const loadout = readLoadout(user?.loadout);
   const equipped = new Set(Object.values(loadout));
   res.json({
     items: owned.map((entry) => ({ ...entry.item, owned: true, equipped: equipped.has(entry.itemId), acquiredAt: entry.acquiredAt })),
     loadout,
+    presets: readPresets(user?.loadoutPresets),
+    maxPresets: MAX_LOADOUT_PRESETS,
     coins: await coinBalance(req.user!.id),
   });
+});
+
+const presetSchema = z.object({ name: z.string().trim().min(1).max(32) });
+
+/** Save the current loadout as a named outfit preset. */
+cosmeticsRouter.post("/presets", async (req, res) => {
+  const parsed = presetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give the outfit a name (up to 32 characters)" });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { loadout: true, loadoutPresets: true } });
+  const loadout = readLoadout(user?.loadout);
+  if (!Object.keys(loadout).length) {
+    res.status(400).json({ error: "Equip at least one item before saving an outfit" });
+    return;
+  }
+  const presets = readPresets(user?.loadoutPresets);
+  if (presets.length >= MAX_LOADOUT_PRESETS) {
+    res.status(400).json({ error: `You can keep up to ${MAX_LOADOUT_PRESETS} outfit presets` });
+    return;
+  }
+  const preset: LoadoutPreset = { id: crypto.randomUUID(), name: parsed.data.name, loadout, createdAt: new Date().toISOString() };
+  presets.push(preset);
+  await prisma.user.update({ where: { id: req.user!.id }, data: { loadoutPresets: presets } });
+  res.status(201).json({ preset, presets });
+});
+
+/** Apply a saved outfit preset; items no longer owned are skipped. */
+cosmeticsRouter.post("/presets/:id/apply", async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { loadoutPresets: true } });
+  const preset = readPresets(user?.loadoutPresets).find((entry) => entry.id === req.params.id);
+  if (!preset) {
+    res.status(404).json({ error: "Outfit preset not found" });
+    return;
+  }
+  const owned = await prisma.userCosmetic.findMany({ where: { userId: req.user!.id }, select: { itemId: true } });
+  const ownedIds = new Set(owned.map((entry) => entry.itemId));
+  const loadout: Loadout = {};
+  for (const slot of slotValues) {
+    const itemId = preset.loadout[slot];
+    if (itemId && ownedIds.has(itemId)) loadout[slot] = itemId;
+  }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { loadout } });
+  res.json({ loadout });
+});
+
+cosmeticsRouter.delete("/presets/:id", async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { loadoutPresets: true } });
+  const presets = readPresets(user?.loadoutPresets);
+  const next = presets.filter((entry) => entry.id !== req.params.id);
+  if (next.length === presets.length) {
+    res.status(404).json({ error: "Outfit preset not found" });
+    return;
+  }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { loadoutPresets: next } });
+  res.json({ presets: next });
 });
 
 cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
