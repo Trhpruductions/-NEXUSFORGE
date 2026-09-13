@@ -8,7 +8,7 @@ export interface MiningStats {
   efficiency: number;
   status: string;
   currentYield: string;
-  nextTemperatureRisk: number;
+  tier: string;
   purchasedAt: Date;
   totalYield: string;
 }
@@ -285,7 +285,7 @@ export class MiningAuthority {
       efficiency: rig.efficiency,
       status: rig.status,
       currentYield: this.calculatePendingYield(rig).toString(),
-      nextTemperatureRisk: Math.random() * 100,
+      tier: rig.tier,
       purchasedAt: rig.purchasedAt,
       totalYield: rig.totalYield?.toString() || "0",
     }));

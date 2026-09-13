@@ -106,7 +106,11 @@ export function HomeDashboard() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={forge.banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-50" />
           ) : (
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(230,179,37,0.22),transparent_55%),linear-gradient(160deg,#0f1420,#070a10_60%,#1a1206)]" />
+            <>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(230,179,37,0.22),transparent_55%),linear-gradient(160deg,#0f1420,#070a10_60%,#1a1206)]" />
+              <Image src="/brand/vexora-gaming-poster-gold.png" alt="" fill sizes="1200px" className="object-cover object-[50%_35%] opacity-[0.22] mix-blend-screen" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0d1119] via-[#0d1119]/40 to-transparent" />
+            </>
           )}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(230,179,37,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(230,179,37,0.06)_1px,transparent_1px)] bg-[size:36px_36px] opacity-40" />
           <div className="relative flex min-h-[220px] flex-col items-center justify-center px-6 py-10 text-center">
