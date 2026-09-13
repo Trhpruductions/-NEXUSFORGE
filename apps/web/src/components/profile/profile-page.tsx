@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Award, Clapperboard, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
+import { Award, Clock, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
 import {
   applyAvatarPreset,
   createPost,
@@ -14,6 +14,7 @@ import {
   getAvatar,
   getProfileSummary,
   getUserAchievements,
+  getUserStreams,
   listFriends,
   listPosts,
   togglePostLike,
@@ -22,6 +23,7 @@ import {
   type Post,
 } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { ClipEmbed } from "@/components/media/clip-embed";
 import { useAuthStore } from "@/store/auth-store";
 
 type Tab = "posts" | "clips" | "streams" | "achievements" | "friends";
@@ -96,6 +98,11 @@ function ProfileInner() {
     queryKey: ["posts", userId, tab === "clips" ? "CLIP" : "POST", accessToken],
     queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST" }),
     enabled: Boolean(accessToken && userId && (tab === "posts" || tab === "clips")),
+  });
+  const streamsQuery = useQuery({
+    queryKey: ["streams", userId, accessToken],
+    queryFn: () => getUserStreams(accessToken!, userId!),
+    enabled: Boolean(accessToken && userId && tab === "streams"),
   });
   const achievementsQuery = useQuery({
     queryKey: ["achievements", userId, accessToken],
@@ -339,9 +346,7 @@ function ProfileInner() {
                         <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">{post.content}</p>
                         {post.mediaUrl ? (
                           post.kind === "CLIP" ? (
-                            <a href={post.mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/20">
-                              <Clapperboard className="h-4 w-4" /> Watch clip
-                            </a>
+                            <ClipEmbed url={post.mediaUrl} className="mt-2 max-w-2xl" />
                           ) : (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={post.mediaUrl} alt="" className="mt-2 max-h-80 rounded-xl border border-white/10 object-cover" />
@@ -390,6 +395,34 @@ function ProfileInner() {
                   ) : null}
                 </div>
               )}
+
+              <div className="mt-4 border-t border-white/5 pt-4">
+                <h3 className={`${sectionTitle} mb-3`}>Past streams</h3>
+                {streamsQuery.isLoading ? (
+                  <p className="text-sm text-slate-400">Loading...</p>
+                ) : streamsQuery.data?.streams.filter((stream) => stream.endedAt).length ? (
+                  <ul className="space-y-2">
+                    {streamsQuery.data.streams.filter((stream) => stream.endedAt).map((stream) => {
+                      const minutes = Math.max(1, Math.round((new Date(stream.endedAt!).getTime() - new Date(stream.startedAt).getTime()) / 60_000));
+                      const duration = minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
+                      return (
+                        <li key={stream.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/5 bg-[#11151e] px-3 py-2.5">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300"><Radio className="h-4 w-4" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-white">{stream.title || "Untitled stream"}</p>
+                            <p className="text-[11px] text-slate-400">{stream.platform}{stream.game ? ` · ${stream.game}` : ""} · {new Date(stream.startedAt).toLocaleDateString()} {new Date(stream.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-300"><Clock className="h-3 w-3 text-slate-500" /> {duration}</span>
+                          {stream.peakViewers > 0 ? <span className="text-[11px] text-slate-400">{compact(stream.peakViewers)} peak</span> : null}
+                          {stream.url ? <a href={stream.url} target="_blank" rel="noopener noreferrer" className="text-[11px] uppercase tracking-[0.14em] text-amber-300 hover:text-amber-200">VOD</a> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500">{profile.isSelf ? "Your finished streams will be listed here." : "No past streams yet."}</p>
+                )}
+              </div>
             </div>
           ) : null}
 

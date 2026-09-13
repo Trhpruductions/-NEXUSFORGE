@@ -279,6 +279,7 @@ model User {
   eventEntries       EventParticipant[]
   cosmetics          UserCosmetic[]
   avatarPresets      AvatarPreset[]
+  streamSessions     StreamSession[]
 }
 
 model EconomyAccount {
@@ -772,6 +773,21 @@ model VerificationCode {
 
   @@index([userId, purpose, createdAt])
   @@index([expiresAt])
+}
+
+model StreamSession {
+  id          String    @id @default(uuid())
+  userId      String
+  platform    String    @db.VarChar(40)
+  title       String?   @db.VarChar(200)
+  game        String?   @db.VarChar(80)
+  url         String?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  peakViewers Int       @default(0)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
 }
 
 model Follow {

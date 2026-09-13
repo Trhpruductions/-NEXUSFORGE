@@ -2762,3 +2762,10 @@ export async function getUserAchievements(accessToken: string, userId: string) {
   const response = await api.get<{ achievements: AchievementEntry[] }>(`/api/profiles/users/${userId}/achievements`, { headers: authHeaders(accessToken) });
   return response.data;
 }
+
+export type StreamSessionSummary = { id: string; platform: string; title: string | null; game: string | null; url: string | null; startedAt: string; endedAt: string | null; peakViewers: number };
+
+export async function getUserStreams(accessToken: string, userId: string | "me") {
+  const response = await api.get<{ streams: StreamSessionSummary[] }>(`/api/social/users/${userId}/streams`, { headers: authHeaders(accessToken) });
+  return response.data;
+}

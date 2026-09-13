@@ -107,6 +107,18 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
   });
 });
 
+/** Past and current broadcasts for a profile's Streams tab. */
+socialRouter.get("/users/:userId/streams", async (req, res) => {
+  const userId = req.params.userId === "me" ? req.user!.id : req.params.userId;
+  const streams = await prisma.streamSession.findMany({
+    where: { userId },
+    orderBy: { startedAt: "desc" },
+    take: 30,
+    select: { id: true, platform: true, title: true, game: true, url: true, startedAt: true, endedAt: true, peakViewers: true },
+  });
+  res.json({ streams });
+});
+
 // ---------------------------------------------------------------------------
 // Follows
 // ---------------------------------------------------------------------------
@@ -298,6 +310,7 @@ socialRouter.put("/live", async (req, res) => {
       return;
     }
   }
+  const before = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { creatorStatus: true, liveViewerCount: true } });
   const user = await prisma.user.update({
     where: { id: req.user!.id },
     data: parsed.data.live
@@ -317,6 +330,22 @@ socialRouter.put("/live", async (req, res) => {
   });
   res.json({ live: user });
   if (parsed.data.live) void evaluateAchievements(user.id);
+
+  // Stream history: open a session when going live, close the open one when going offline.
+  void (async () => {
+    if (parsed.data.live && before?.creatorStatus !== "LIVE") {
+      await prisma.streamSession.create({
+        data: { userId: user.id, platform: user.livePlatform ?? "Vexora", title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl },
+      });
+    } else if (parsed.data.live) {
+      await prisma.streamSession.updateMany({
+        where: { userId: user.id, endedAt: null },
+        data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Vexora" },
+      });
+    } else {
+      await prisma.streamSession.updateMany({ where: { userId: user.id, endedAt: null }, data: { endedAt: new Date(), peakViewers: before?.liveViewerCount ?? 0 } });
+    }
+  })().catch(() => undefined);
 
   if (parsed.data.live) {
     // Live alert to followers (each follower's notification preferences are honoured in createNotification).
