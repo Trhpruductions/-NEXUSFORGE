@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Check, CircleUser, Dices, Eye, Footprints, Glasses, Loader2, Mountain, Redo2, RotateCcw, Save, Scissors, Shirt, Smile, Trash2, Undo2, User, X, ZoomIn } from "lucide-react";
-import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getAvatar, saveAvatar, type AvatarConfig } from "@/lib/api";
+import { Check, CircleUser, Dices, Eye, Footprints, Glasses, Loader2, Mountain, Play, Redo2, RotateCcw, Save, Scissors, Shirt, Smile, Sparkles, Trash2, Undo2, User, X, ZoomIn } from "lucide-react";
+import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getAvatar, getCosmeticInventory, saveAvatar, setLoadoutSlot, type AvatarConfig, type CosmeticItem } from "@/lib/api";
+import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -25,6 +26,14 @@ const categories: Array<{ id: Category; label: string; icon: typeof User }> = [
   { id: "accessories", label: "Accessories", icon: Glasses },
   { id: "background", label: "Scene", icon: Mountain },
 ];
+
+/** Emote playback: each owned emote maps to a keyframe animation on the avatar (see globals.css). */
+function emoteAnimation(key: string) {
+  if (key.includes("salute") || key.includes("gg")) return "nf-emote-salute";
+  if (key.includes("flex")) return "nf-emote-flex";
+  if (key.includes("drop")) return "nf-emote-drop";
+  return "nf-emote-bounce";
+}
 
 const hairLabels: Record<AvatarConfig["hair"], string> = { spiky: "Spiky", fade: "Fade", curls: "Curls", long: "Long", bun: "Bun", buzz: "Buzz", mohawk: "Mohawk", none: "None" };
 const accessoryLabels: Record<AvatarConfig["accessory"], string> = { none: "None", shades: "Shades", headset: "Headset", mask: "Mask", bandana: "Bandana" };
@@ -164,12 +173,30 @@ export function AvatarStudio() {
   const [loaded, setLoaded] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [zoomed, setZoomed] = useState(false);
+  const [playing, setPlaying] = useState<CosmeticItem | null>(null);
 
   const avatarQuery = useQuery({
     queryKey: ["avatar", accessToken],
     queryFn: () => getAvatar(accessToken!),
     enabled: Boolean(accessToken),
   });
+  const inventoryQuery = useQuery({
+    queryKey: ["cosmetics", "wardrobe", accessToken],
+    queryFn: () => getCosmeticInventory(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+  const emotes = useMemo(() => (inventoryQuery.data?.items ?? []).filter((item) => item.slot === "EMOTE"), [inventoryQuery.data]);
+  const equippedEmoteId = inventoryQuery.data?.loadout.EMOTE ?? null;
+  const equipEmote = useMutation({
+    mutationFn: (itemId: string | null) => setLoadoutSlot(accessToken!, csrfToken!, "EMOTE", itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cosmetics"] }),
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+  const playEmote = (item: CosmeticItem) => {
+    setPlaying(null);
+    window.setTimeout(() => setPlaying(item), 20);
+    window.setTimeout(() => setPlaying((current) => (current?.id === item.id ? null : current)), 2200);
+  };
 
   useEffect(() => {
     if (avatarQuery.data && !loaded) {
@@ -302,7 +329,9 @@ export function AvatarStudio() {
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
               ) : (
                 <div className="transition-transform duration-300" style={{ transform: `${flipped ? "scaleX(-1)" : ""} ${zoomed ? "scale(1.35) translateY(12%)" : ""}` }}>
-                  <AvatarRenderer config={config} size={300} className="max-h-[520px] w-auto" />
+                  <div className={playing ? emoteAnimation(playing.key) : undefined}>
+                    <AvatarRenderer config={config} size={300} className="max-h-[520px] w-auto" />
+                  </div>
                 </div>
               )}
             </div>
@@ -521,9 +550,46 @@ export function AvatarStudio() {
       ) : null}
 
       {tab === "animations" ? (
-        <div className={panel}>
-          <h2 className="nf-heading mb-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">Emotes</h2>
-          <p className="text-sm text-slate-400">Emotes you own in the <Link href="/app/wardrobe" className="text-amber-300">Wardrobe</Link> play in voice rooms and on your profile. Animated playback lands with the next studio update.</p>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
+            <div className="relative flex min-h-[420px] items-center justify-center p-4">
+              <div className={playing ? emoteAnimation(playing.key) : undefined}>
+                <AvatarRenderer config={config} size={260} />
+              </div>
+            </div>
+            <p className="relative border-t border-white/5 p-3 text-center text-xs text-slate-400">{playing ? `Playing ${playing.name}` : "Pick an emote to play it on your avatar."}</p>
+          </div>
+          <div className={`${panel} space-y-3`}>
+            <div className="flex items-center justify-between">
+              <h2 className="nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white">Emotes ({emotes.length})</h2>
+              <Link href="/app/store" className={ghostBtn}><Sparkles className="h-3.5 w-3.5" /> Get more</Link>
+            </div>
+            {inventoryQuery.isLoading ? <p className="text-sm text-slate-400"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> Loading emotes...</p> : null}
+            {emotes.length ? (
+              <ul className="space-y-2">
+                {emotes.map((item) => {
+                  const equipped = equippedEmoteId === item.id;
+                  return (
+                    <li key={item.id} className={`flex items-center gap-3 rounded-xl border bg-[#11151e] p-2 ${equipped ? "border-amber-400/50" : "border-white/5"}`}>
+                      <span className="rounded-lg bg-[#0b0e15]"><CosmeticArt item={item} size={48} /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-white">{item.name}</p>
+                        <p className="truncate text-[11px] text-slate-500">{item.description}</p>
+                      </div>
+                      <button type="button" onClick={() => playEmote(item)} className={`${ghostBtn} px-2.5`} title="Play"><Play className="h-3.5 w-3.5" /></button>
+                      <button type="button" onClick={() => equipEmote.mutate(equipped ? null : item.id)} disabled={equipEmote.isPending} className={equipped ? "rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-200" : `${goldBtn} px-2.5`}>
+                        {equipped ? "Profile emote" : "Use"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : inventoryQuery.data ? (
+              <p className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-3 text-sm text-slate-500">You do not own any emotes yet. Pick some up in the <Link href="/app/store" className="text-amber-300">Store</Link>.</p>
+            ) : null}
+            <p className="text-[11px] text-slate-500">Your profile emote plays on your profile card and when you join voice.</p>
+          </div>
         </div>
       ) : null}
 

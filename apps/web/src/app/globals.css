@@ -3219,3 +3219,13 @@ body::after {
 .nf-stagger-item:nth-child(4) { animation-delay: 210ms; }
 .nf-stagger-item:nth-child(5) { animation-delay: 280ms; }
 .nf-stagger-item:nth-child(6) { animation-delay: 350ms; }
+
+/* Emote playback in the Avatar Studio */
+@keyframes nf-emote-salute { 0%,100% { transform: rotate(0deg); } 20% { transform: rotate(-6deg) translateY(-4px); } 40% { transform: rotate(4deg); } 60% { transform: rotate(-3deg) translateY(-2px); } 80% { transform: rotate(2deg); } }
+@keyframes nf-emote-flex { 0%,100% { transform: scale(1); } 30% { transform: scale(1.12) translateY(-6px); } 50% { transform: scale(1.06); } 70% { transform: scale(1.14) translateY(-8px); } }
+@keyframes nf-emote-drop { 0% { transform: translateY(-140%) rotate(-8deg); opacity: 0; } 55% { transform: translateY(6%) rotate(2deg); opacity: 1; } 75% { transform: translateY(-4%); } 100% { transform: translateY(0); } }
+@keyframes nf-emote-bounce { 0%,100% { transform: translateY(0); } 25% { transform: translateY(-14px); } 50% { transform: translateY(0); } 75% { transform: translateY(-8px); } }
+.nf-emote-salute { animation: nf-emote-salute 1.4s ease-in-out; transform-origin: 50% 90%; }
+.nf-emote-flex { animation: nf-emote-flex 1.6s ease-in-out; transform-origin: 50% 90%; }
+.nf-emote-drop { animation: nf-emote-drop 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.nf-emote-bounce { animation: nf-emote-bounce 1.2s ease-in-out; }
