@@ -65,6 +65,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       liveGameCategory: true,
       liveViewerCount: true,
       liveStartedAt: true,
+      ageVerificationLevel: true,
       reputation: true,
       socialLinks: true,
       avatarConfig: true,
@@ -279,6 +280,13 @@ socialRouter.put("/live", async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
+  }
+  if (parsed.data.live) {
+    const gate = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { ageVerificationLevel: true } });
+    if (!gate || gate.ageVerificationLevel === "NONE") {
+      res.status(403).json({ error: "Confirm you are 18 or older before going live", code: "AGE_REQUIRED" });
+      return;
+    }
   }
   const user = await prisma.user.update({
     where: { id: req.user!.id },

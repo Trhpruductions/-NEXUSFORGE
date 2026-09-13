@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
+import { AgeVerificationCard } from "@/components/settings/age-verification";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
@@ -76,6 +77,7 @@ export function SettingsPage() {
 function SettingsInner() {
   const searchParams = useSearchParams();
   const highlightProtection = searchParams?.get("verify") === "1";
+  const highlightAge = searchParams?.get("age") === "1";
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user, clearSession, fetchMe } = useAuthStore();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
@@ -205,6 +207,7 @@ function SettingsInner() {
       ) : null}
 
       <AccountProtection highlight={highlightProtection} />
+      <AgeVerificationCard highlight={highlightAge} />
 
       {settingsQuery.data?.twoFactor.enabled || sensitiveSent ? (
         <div className="rounded-2xl border border-amber-500/25 bg-[#0d1119] p-4">

@@ -135,6 +135,7 @@ export default function AdminPage() {
       actions={[
         { label: "Open Workspace", href: "/app", tone: "ghost" },
         { label: `Age Gate Review${pendingAgeGateCount > 0 ? ` (${pendingAgeGateCount})` : ""}` , href: "/admin/age-gate-review", tone: "primary" },
+        { label: "ID Review Queue", href: "/admin/age-verification", tone: "ghost" },
         { label: "Review Notifications", href: "/notifications", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-7xl"

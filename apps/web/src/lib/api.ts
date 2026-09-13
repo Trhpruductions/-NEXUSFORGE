@@ -2,6 +2,8 @@ import axios, { AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "./config";
 import { useAuthStore } from "@/store/auth-store";
 
+export type AgeVerificationLevel = "NONE" | "ATTESTED" | "VERIFIED";
+
 export type User = {
   id: string;
   username: string;
@@ -21,6 +23,8 @@ export type User = {
   emailVerified?: boolean;
   appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
   isAdmin?: boolean;
+  ageVerificationLevel?: AgeVerificationLevel;
+  hasBirthdate?: boolean;
   currentActivity?: string | null;
   activityDetails?: string | null;
   
@@ -2278,6 +2282,7 @@ export type ProfileSummary = {
     isStaff: boolean;
     isRep: boolean;
     isPartner: boolean;
+    ageVerificationLevel?: AgeVerificationLevel;
     isCreator: boolean;
     creatorStatus: "OFFLINE" | "LIVE";
     livePlatform?: string | null;
@@ -2616,5 +2621,73 @@ export type EconomyAccountSummary = {
 
 export async function getEconomyAccounts(accessToken: string, userId: string) {
   const response = await api.get<EconomyAccountSummary[]>(`/api/economy/${userId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+// ---- Age verification -------------------------------------------------------
+
+export type AgeDocumentType = "DRIVERS_LICENSE" | "PASSPORT" | "NATIONAL_ID" | "OTHER";
+export type AgeReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type AgeSummary = {
+  level: AgeVerificationLevel;
+  birthdate: string | null;
+  age: number | null;
+  isAdult: boolean;
+  verifiedAt: string | null;
+  minimumAge: number;
+  review: { id: string; status: AgeReviewStatus; documentType: AgeDocumentType; submittedAt: string; reviewedAt: string | null; rejectionReason: string | null } | null;
+};
+
+export async function getAgeSummary(accessToken: string) {
+  const response = await api.get<AgeSummary>("/api/age-verification", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function attestAge(accessToken: string, csrfToken: string, birthdate: string) {
+  const response = await api.post<{ ok: true; summary: AgeSummary }>("/api/age-verification/attest", { birthdate, confirm: true }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function submitAgeDocument(accessToken: string, csrfToken: string, payload: { documentType: AgeDocumentType; document: string; selfie?: string; birthdate?: string }) {
+  const response = await api.post<{ ok: true; summary: AgeSummary }>("/api/age-verification/submit", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function withdrawAgeSubmission(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true; summary: AgeSummary }>("/api/age-verification/submit", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type AgeReviewItem = {
+  id: string;
+  status: AgeReviewStatus;
+  documentType: AgeDocumentType;
+  declaredBirthdate: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  hasSelfie: boolean;
+  user: { id: string; username: string; email: string; avatar: string | null; birthdate: string | null; ageVerificationLevel: AgeVerificationLevel; createdAt: string };
+  reviewer: { id: string; username: string } | null;
+};
+
+export async function getAgeReviewQueue(accessToken: string, status: AgeReviewStatus = "PENDING") {
+  const response = await api.get<{ items: AgeReviewItem[]; counts: Partial<Record<AgeReviewStatus, number>> }>("/api/admin/age-verification", { headers: authHeaders(accessToken), params: { status } });
+  return response.data;
+}
+
+export async function fetchAgeReviewFile(accessToken: string, id: string, kind: "document" | "selfie") {
+  const response = await api.get<Blob>(`/api/admin/age-verification/${id}/file/${kind}`, { headers: authHeaders(accessToken), responseType: "blob" });
+  return response.data;
+}
+
+export async function approveAgeReview(accessToken: string, csrfToken: string, id: string) {
+  const response = await api.post<{ ok: true }>(`/api/admin/age-verification/${id}/approve`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function rejectAgeReview(accessToken: string, csrfToken: string, id: string, reason?: string) {
+  const response = await api.post<{ ok: true }>(`/api/admin/age-verification/${id}/reject`, { reason }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

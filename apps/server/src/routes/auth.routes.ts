@@ -12,6 +12,7 @@ import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
 import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
+import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -186,7 +187,9 @@ authRouter.post("/register", async (req, res) => {
       email,
       password: passwordHash,
       birthdate: birthDate,
-      ageVerified: true, // They proved it by providing a valid date (in a real app, you'd verify ID)
+      ageVerified: true,
+      ageVerificationLevel: "ATTESTED",
+      ageVerifiedAt: new Date(),
       corePlusBoostLevel: 3,
       emailVerifyToken: sha256(emailVerifyToken),
       emailVerifyExpires: new Date(Date.now() + 1000 * 60 * 60 * 24),
@@ -248,6 +251,11 @@ authRouter.post("/login", async (req, res) => {
   const validPassword = await comparePassword(parsed.data.password, user.password);
   if (!validPassword) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  if (user.birthdate && !isAdultBirthdate(user.birthdate)) {
+    res.status(403).json({ error: "This account is registered to someone under 18 and cannot sign in.", underage: true });
     return;
   }
 
@@ -535,6 +543,8 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       emailVerified: true,
       appRole: true,
       isAdmin: true,
+      birthdate: true,
+      ageVerificationLevel: true,
       economyAccounts: {
         select: {
           currencyType: true,
@@ -552,6 +562,8 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   res.json({
     user: {
       ...user,
+      birthdate: undefined,
+      hasBirthdate: Boolean(user.birthdate),
       economyAccounts: user.economyAccounts.map((account) => ({ currencyType: account.currencyType, balance: account.balance.toString() })),
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },

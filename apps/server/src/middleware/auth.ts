@@ -40,11 +40,11 @@ export async function requireAge(req: Request, res: Response, next: NextFunction
 
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    select: { ageVerified: true, birthdate: true },
+    select: { ageVerified: true, birthdate: true, ageVerificationLevel: true },
   });
 
-  if (!user || (!user.ageVerified && !isOver18(user.birthdate))) {
-    res.status(403).json({ error: "Access denied: 18+ verification required" });
+  if (!user || user.ageVerificationLevel === "NONE" || !isOver18(user.birthdate)) {
+    res.status(403).json({ error: "Confirm you are 18 or older to use this feature", code: "AGE_REQUIRED" });
     return;
   }
 

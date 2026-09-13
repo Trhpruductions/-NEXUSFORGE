@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Award, Clapperboard, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake } from "lucide-react";
+import { Award, Clapperboard, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
 import {
   applyAvatarPreset,
   createPost,
@@ -148,6 +148,7 @@ function ProfileInner() {
   const badges = useMemo(() => {
     if (!profile) return [];
     const list: Array<{ label: string; icon: typeof Crown; tone: string }> = [];
+    if (profile.user.ageVerificationLevel === "VERIFIED") list.push({ label: "Verified 18+", icon: BadgeCheck, tone: "text-emerald-300 border-emerald-400/40 bg-emerald-500/10" });
     if (profile.user.isStaff) list.push({ label: "Staff", icon: Shield, tone: "text-sky-300 border-sky-400/40 bg-sky-500/10" });
     if (profile.user.isPartner) list.push({ label: "Partner", icon: Handshake, tone: "text-fuchsia-300 border-fuchsia-400/40 bg-fuchsia-500/10" });
     if (profile.user.isCreator) list.push({ label: "Creator", icon: Sparkles, tone: "text-amber-200 border-amber-400/40 bg-amber-500/10" });

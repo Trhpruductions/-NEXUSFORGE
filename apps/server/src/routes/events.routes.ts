@@ -142,6 +142,14 @@ eventsRouter.post("/", async (req, res) => {
     return;
   }
 
+  if (parsed.data.prizePool) {
+    const organizer = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { ageVerificationLevel: true } });
+    if (organizer?.ageVerificationLevel !== "VERIFIED") {
+      res.status(403).json({ error: "Events with a prize pool need an ID-verified organizer. Verify your age in Settings first.", code: "AGE_VERIFIED_REQUIRED" });
+      return;
+    }
+  }
+
   if (parsed.data.forgeId) {
     const allowed = await canManageEvent(req.user!.id, { createdById: "", forgeId: parsed.data.forgeId });
     if (!allowed) {

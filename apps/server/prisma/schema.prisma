@@ -231,6 +231,10 @@ model User {
   resetTokenExpires  DateTime?
   birthdate          DateTime?
   ageVerified        Boolean        @default(false)
+  ageVerificationLevel AgeVerificationLevel @default(NONE)
+  ageVerifiedAt      DateTime?
+  ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
+  ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   refreshTokens      RefreshToken[]
@@ -697,6 +701,44 @@ model DirectMessage {
   author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([threadId, createdAt])
+}
+
+enum AgeVerificationLevel {
+  NONE
+  ATTESTED
+  VERIFIED
+}
+
+enum AgeVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AgeDocumentType {
+  DRIVERS_LICENSE
+  PASSPORT
+  NATIONAL_ID
+  OTHER
+}
+
+model AgeVerification {
+  id              String                @id @default(uuid())
+  userId          String
+  status          AgeVerificationStatus @default(PENDING)
+  documentType    AgeDocumentType
+  documentPath    String
+  selfiePath      String?
+  declaredBirthdate DateTime
+  submittedAt     DateTime              @default(now())
+  reviewedAt      DateTime?
+  reviewerId      String?
+  rejectionReason String?               @db.VarChar(300)
+  user            User                  @relation("AgeVerificationUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer        User?                 @relation("AgeVerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt])
+  @@index([userId, submittedAt])
 }
 
 enum VerificationChannel {

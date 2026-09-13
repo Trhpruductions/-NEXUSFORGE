@@ -181,6 +181,13 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const protection = protectionQuery.data?.protection;
   const showProtectionBanner = Boolean(protection && !protection.complete && !pathname.startsWith("/app/settings"));
 
+  // Nobody without a confirmed 18+ date of birth gets into the workspace.
+  useEffect(() => {
+    if (user && user.ageVerificationLevel === "NONE") {
+      router.replace(`/age-gate?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [user, pathname, router]);
+
   // Join every forge room so unread badges tick live, even for forges not currently open.
   useEffect(() => {
     if (!accessToken || !forges.length) return;
@@ -201,8 +208,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const handleChannels = (payload: { forgeId: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
     };
-    const handlePresence = (payload: { forgeId: string }) => {
+    const handlePresence = (payload: { forgeId: string; userId?: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
+      // Profile pages and friend lists show the same status; keep them live too.
+      void queryClient.invalidateQueries({ queryKey: ["profile-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["friends"] });
     };
 
     socket.on("connect", join);

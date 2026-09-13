@@ -1,78 +1,40 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AgeGateClient } from "./age-gate-client";
 
 export default function AgeGatePage() {
   return (
-    <div className="min-h-screen bg-[#070a10] bg-[radial-gradient(circle_at_top,rgba(230,179,37,0.16),transparent_32%)] text-white">
-      <main id="main-content" className="mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] xl:gap-12">
-          <section className="rounded-[32px] border border-white/10 bg-[#0d1119] p-10 shadow-[0_30px_100px_rgba(15,23,42,0.1)] backdrop-blur-xl lg:p-12">
-            <div className="max-w-3xl space-y-6">
-              <span className="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-xs uppercase tracking-[0.32em] text-amber-200">
-                One verification gateway
-              </span>
-              <h1 className="text-5xl font-semibold tracking-tight text-white sm:text-6xl">
-                Vexora Gaming access is locked behind one 18+ gate.
-              </h1>
-              <p className="text-lg leading-8 text-slate-400 sm:text-xl">
-                No alternate verification routes. No legacy access flows. Verify once here and proceed directly into the secure Vexora Gaming workspace.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[24px] border border-white/10 bg-[#0d1119] p-6">
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Step 1</p>
-                  <p className="mt-3 text-xl font-semibold text-white">Confirm your age</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">Use the gate below to complete the secure age verification check.</p>
-                </div>
-                <div className="rounded-[24px] border border-white/10 bg-[#0d1119] p-6">
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Step 2</p>
-                  <p className="mt-3 text-xl font-semibold text-white">Enter Vexora Gaming</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">Once verified, you will be redirected to the protected app environment.</p>
-                </div>
-              </div>
-              <div className="rounded-[24px] border border-amber-400/40 bg-amber-500/10 p-6 text-slate-300">
-                <p className="font-semibold text-amber-200">Important</p>
-                <p className="mt-3 text-sm leading-7 text-slate-400">
-                  This is the only access path into Vexora Gaming. Any other verification page is deprecated and will not unlock the platform.
-                </p>
-              </div>
-            </div>
-          </section>
+    <div className="relative min-h-screen overflow-hidden bg-[#070a10] text-white">
+      <Image src="/brand/vexora-gaming-poster-gold.png" alt="" fill priority className="object-cover opacity-20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(230,179,37,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,16,0.55),#070a10_70%)]" />
 
-          <section className="rounded-[32px] border border-white/10 bg-[#0d1119] p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] lg:p-10">
-            <div className="mb-8 rounded-[24px] border border-amber-400/40 bg-amber-500/10 p-6">
-              <p className="text-xs uppercase tracking-[0.32em] text-amber-200">Verify now</p>
-              <h2 className="mt-3 text-3xl font-semibold text-white">Unlock Vexora Gaming</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-400">
-                Complete the only age verification check for this platform. The server validates access and then sends you into the secure application.
-              </p>
-            </div>
+      <main id="main-content" className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-10 sm:px-6">
+        <Link href="/" className="mb-6 flex items-center gap-3">
+          <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora Gaming" width={48} height={48} className="h-12 w-12" />
+          <span className="nf-heading text-lg font-bold uppercase tracking-[0.28em] text-amber-300">Vexora Gaming</span>
+        </Link>
 
-            <Suspense fallback={<div className="rounded-[24px] border border-white/10 bg-[#0d1119] p-6 text-sm text-slate-400">Loading secure verification...</div>}>
+        <div className="w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-[#0d1119]/95 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.6)] backdrop-blur sm:p-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-300">18+ only</p>
+          <h1 className="nf-heading mt-2 text-2xl font-bold text-white sm:text-3xl">Confirm your age to enter</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Vexora Gaming has real-money prize tournaments, a store, and creator streams. By law and by our terms you must be 18 or older to use it.
+          </p>
+
+          <div className="mt-6">
+            <Suspense fallback={<div className="rounded-xl border border-white/10 bg-[#11151e] p-4 text-sm text-slate-400">Loading...</div>}>
               <AgeGateClient />
             </Suspense>
+          </div>
 
-            <div className="mt-8 rounded-[24px] border border-white/10 bg-[#0d1119] p-6 text-sm text-slate-400">
-              <p className="font-medium text-white">Need help or want details?</p>
-              <p className="mt-3 leading-7 text-slate-500">
-                Review our policies or contact support if you have questions about the verification requirement.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link href="/support" className="text-amber-200 underline decoration-amber-300/60 underline-offset-4 hover:text-white">
-                  Support
-                </Link>
-                <Link href="/terms" className="text-amber-200 underline decoration-amber-300/60 underline-offset-4 hover:text-white">
-                  Terms
-                </Link>
-                <Link href="/privacy" className="text-amber-200 underline decoration-amber-300/60 underline-offset-4 hover:text-white">
-                  Privacy
-                </Link>
-              </div>
-            </div>
-          </section>
+          <div className="mt-6 flex flex-wrap gap-4 border-t border-white/5 pt-4 text-xs text-slate-500">
+            <Link href="/support" className="hover:text-amber-200">Support</Link>
+            <Link href="/terms" className="hover:text-amber-200">Terms</Link>
+            <Link href="/privacy" className="hover:text-amber-200">Privacy</Link>
+          </div>
         </div>
       </main>
     </div>
   );
 }
-
