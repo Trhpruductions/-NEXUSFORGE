@@ -10,6 +10,8 @@ import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
+import jwt from "jsonwebtoken";
+import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -206,6 +208,7 @@ authRouter.post("/register", async (req, res) => {
     },
   });
 
+  const emailCode = await issueCode({ userId: user.id, channel: "EMAIL", purpose: "VERIFY_EMAIL", target: user.email });
   const tokens = await issueTokens(user);
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
@@ -219,8 +222,10 @@ authRouter.post("/register", async (req, res) => {
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
     verification: {
-      message: "Email verification token generated for integration",
-      token: emailVerifyToken,
+      message: emailCode.ok ? "We sent a 6-digit code to your email" : "Email verification is pending",
+      sentTo: maskEmail(user.email),
+      delivered: emailCode.ok,
+      devCode: emailCode.devCode,
     },
   });
 });
@@ -243,6 +248,16 @@ authRouter.post("/login", async (req, res) => {
   const validPassword = await comparePassword(parsed.data.password, user.password);
   if (!validPassword) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  if (user.twoFactorEnabled) {
+    const challenge = await startTwoFactorChallenge(user);
+    if (!challenge.ok) {
+      res.status(503).json({ error: challenge.error ?? "Could not send your sign-in code. Try again shortly." });
+      return;
+    }
+    res.json({ requiresTwoFactor: true, challengeToken: challenge.token, channels: challenge.channels, devCode: challenge.devCode });
     return;
   }
 
@@ -278,6 +293,115 @@ authRouter.post("/login", async (req, res) => {
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   })
+});
+
+type TwoFactorUser = { id: string; email: string; phoneNumber: string | null; twoFactorChannels: string[] };
+
+async function startTwoFactorChallenge(user: TwoFactorUser) {
+  const channels = user.twoFactorChannels.length ? user.twoFactorChannels : ["EMAIL"];
+  const sends = await Promise.all(
+    channels.map((channel) =>
+      channel === "SMS" && user.phoneNumber
+        ? issueCode({ userId: user.id, channel: "SMS", purpose: "LOGIN", target: user.phoneNumber })
+        : issueCode({ userId: user.id, channel: "EMAIL", purpose: "LOGIN", target: user.email }),
+    ),
+  );
+  const delivered = sends.filter((entry) => entry.ok);
+  if (!delivered.length) {
+    return { ok: false as const, error: sends[0]?.error };
+  }
+  const token = jwt.sign({ sub: user.id, purpose: "2fa" }, env.JWT_ACCESS_SECRET, { expiresIn: "10m" });
+  return {
+    ok: true as const,
+    token,
+    channels: channels.map((channel) => (channel === "SMS" && user.phoneNumber ? `SMS to ${maskPhone(user.phoneNumber)}` : `Email to ${maskEmail(user.email)}`)),
+    devCode: delivered.find((entry) => entry.devCode)?.devCode,
+  };
+}
+
+function readChallenge(token: unknown): string | null {
+  if (typeof token !== "string") return null;
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as { sub?: string; purpose?: string };
+    return payload.purpose === "2fa" && payload.sub ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+const twoFactorVerifySchema = z.object({
+  challengeToken: z.string().min(10),
+  code: z.string().trim().regex(/^\d{6}$/),
+});
+
+authRouter.post("/2fa/verify", async (req, res) => {
+  const parsed = twoFactorVerifySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter the 6-digit code" });
+    return;
+  }
+  const userId = readChallenge(parsed.data.challengeToken);
+  if (!userId) {
+    res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
+    return;
+  }
+  const check = await verifyCode({ userId, purpose: "LOGIN", code: parsed.data.code });
+  if (!check.ok) {
+    res.status(400).json({ error: check.error, attemptsLeft: check.attemptsLeft });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const tokens = await issueTokens(user);
+  const csrfToken = randomToken(16);
+  console.log(`[AUTH] User ${user.id} completed two-factor sign-in. Secure-IP: ${anonymizeIP(req.ip || "unknown")}`);
+  res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
+  res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
+  res.json({
+    accessToken: tokens.accessToken,
+    csrfToken,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      banner: user.banner,
+      bio: user.bio,
+      status: user.status,
+      premium: user.premium,
+      premiumTier: user.premiumTier,
+      corePlusActivatedAt: user.corePlusActivatedAt,
+      corePlusBoostLevel: user.corePlusBoostLevel,
+      corePlusStreakDays: user.corePlusStreakDays,
+      appRole: user.appRole,
+      createdAt: user.createdAt,
+      emailVerified: user.emailVerified,
+      isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
+    },
+  });
+});
+
+authRouter.post("/2fa/resend", async (req, res) => {
+  const userId = readChallenge(req.body?.challengeToken);
+  if (!userId) {
+    res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, phoneNumber: true, twoFactorChannels: true } });
+  if (!user) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  const challenge = await startTwoFactorChallenge(user);
+  if (!challenge.ok) {
+    res.status(429).json({ error: challenge.error ?? "Please wait before requesting another code" });
+    return;
+  }
+  res.json({ ok: true, challengeToken: challenge.token, channels: challenge.channels, devCode: challenge.devCode });
 });
 
 authRouter.post("/refresh", async (req, res) => {

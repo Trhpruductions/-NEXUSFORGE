@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { hashPassword, comparePassword } from "../lib/password.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { issueCode, verifyCode } from "../lib/verification.js";
 
 /** Account, privacy, and linked-account settings for the signed-in user. */
 export const settingsRouter = Router();
@@ -35,7 +36,17 @@ const accountSchema = z
 const passwordSchema = z.object({
   currentPassword: z.string().min(8).max(72),
   newPassword: z.string().min(8).max(72),
+  code: z.string().trim().regex(/^\d{6}$/).optional(),
 });
+
+/** For accounts with two-factor on, password and email changes need a fresh code from a verified channel. */
+async function requireSensitiveCode(userId: string, code: string | undefined): Promise<{ ok: true } | { ok: false; error: string; needsCode: boolean }> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { twoFactorEnabled: true } });
+  if (!user?.twoFactorEnabled) return { ok: true };
+  if (!code) return { ok: false, error: "Enter the confirmation code we sent you", needsCode: true };
+  const check = await verifyCode({ userId, purpose: "SENSITIVE_CHANGE", code });
+  return check.ok ? { ok: true } : { ok: false, error: check.error, needsCode: true };
+}
 
 const linkedAccountsSchema = z.object({
   discord: z.string().trim().max(80).nullable().optional(),
@@ -61,6 +72,7 @@ settingsRouter.get("/", async (req, res) => {
       banner: true,
       appRole: true,
       premiumTier: true,
+      twoFactorEnabled: true,
       socialLinks: true,
       privacySettings: true,
       createdAt: true,
@@ -90,8 +102,28 @@ settingsRouter.get("/", async (req, res) => {
     privacy: privacy.success ? privacy.data : privacySchema.parse({}),
     linkedAccounts: (user.socialLinks as Record<string, string | null> | null) ?? {},
     sessions: user.refreshTokens,
-    twoFactor: { enabled: false, available: false },
+    twoFactor: { enabled: user.twoFactorEnabled, available: true },
   });
+});
+
+/** Sends a SENSITIVE_CHANGE code to every verified channel. */
+settingsRouter.post("/sensitive-challenge", async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { id: true, email: true, emailVerified: true, phoneNumber: true, phoneVerified: true } });
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const sends = await Promise.all([
+    user.emailVerified ? issueCode({ userId: user.id, channel: "EMAIL", purpose: "SENSITIVE_CHANGE", target: user.email }) : null,
+    user.phoneVerified && user.phoneNumber ? issueCode({ userId: user.id, channel: "SMS", purpose: "SENSITIVE_CHANGE", target: user.phoneNumber }) : null,
+  ]);
+  const delivered = sends.filter((entry) => entry?.ok);
+  if (!delivered.length) {
+    const failed = sends.find((entry) => entry && !entry.ok);
+    res.status(failed?.retryAfterSeconds ? 429 : 400).json({ error: failed?.error ?? "Verify your email or phone first" });
+    return;
+  }
+  res.json({ ok: true, devCode: delivered.find((entry) => entry?.devCode)?.devCode });
 });
 
 settingsRouter.patch("/account", async (req, res) => {
@@ -101,6 +133,11 @@ settingsRouter.patch("/account", async (req, res) => {
     return;
   }
   if (parsed.data.email) {
+    const gate = await requireSensitiveCode(req.user!.id, typeof req.body?.code === "string" ? req.body.code : undefined);
+    if (!gate.ok) {
+      res.status(403).json({ error: gate.error, needsCode: gate.needsCode });
+      return;
+    }
     const taken = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase(), id: { not: req.user!.id } }, select: { id: true } });
     if (taken) {
       res.status(409).json({ error: "That email is already in use" });
@@ -161,6 +198,11 @@ settingsRouter.post("/password", async (req, res) => {
   }
   if (parsed.data.currentPassword === parsed.data.newPassword) {
     res.status(400).json({ error: "Choose a different password" });
+    return;
+  }
+  const gate = await requireSensitiveCode(req.user!.id, parsed.data.code);
+  if (!gate.ok) {
+    res.status(403).json({ error: gate.error, needsCode: gate.needsCode });
     return;
   }
   await prisma.$transaction([

@@ -81,9 +81,8 @@ export default function RegisterPage() {
         user: payload.user,
         rememberMe: true,
       });
-      setVerificationToken(payload.verification.token);
-      const defaultDestination = "/app";
-      router.push(redirectTarget ?? defaultDestination);
+      setVerificationToken(payload.verification.devCode ?? null);
+      router.push(redirectTarget ?? "/app/settings?verify=1");
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Registration failed");
     }
@@ -94,12 +93,12 @@ export default function RegisterPage() {
       hero={
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(196,150,255,0.9)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(230,179,37,0.9)]" />
             Built for gamers. Connected by community.
           </div>
           <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
             Forge your
-            <span className="block bg-[linear-gradient(120deg,#60a5fa,#a78bfa_45%,#e879f9)] bg-clip-text text-transparent">
+            <span className="block bg-[linear-gradient(120deg,#f8df8a,#e6b325_45%,#b0820f)] bg-clip-text text-transparent">
               community.
             </span>
           </h2>
@@ -181,10 +180,7 @@ export default function RegisterPage() {
 
           {verificationToken ? (
             <div className="space-y-1 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
-              <p>Demo verification token: {verificationToken}</p>
-              <Link href={`/verify-email?token=${encodeURIComponent(verificationToken)}`} className="underline hover:text-white">
-                Verify email now
-              </Link>
+              <p>Development mode: your email code is <span className="font-mono font-bold">{verificationToken}</span>.</p>
             </div>
           ) : null}
 

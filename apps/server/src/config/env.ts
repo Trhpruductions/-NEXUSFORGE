@@ -93,6 +93,18 @@ const envSchema = z.object({
   UPLOAD_MAX_BYTES: z.coerce.number().default(25 * 1024 * 1024),
   PREMIUM_UPLOAD_MAX_BYTES: z.coerce.number().default(150 * 1024 * 1024),
   APP_WEB_URL: z.string().default("http://localhost:3000"),
+  // Email delivery (SMTP). When unset in development, codes are logged to the server console.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.string().default("false").transform((value) => value.toLowerCase() === "true"),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default("Vexora Gaming <no-reply@vexoragaming.com>"),
+  // SMS delivery (Twilio). When unset in development, codes are logged to the server console.
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM_NUMBER: z.string().optional(),
+  TWILIO_MESSAGING_SERVICE_SID: z.string().optional(),
   DISCORD_BOT_ENABLED: z
     .string()
     .default("true")

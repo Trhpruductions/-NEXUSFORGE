@@ -220,6 +220,11 @@ model User {
 
   lastSeenAt         DateTime?
   emailVerified      Boolean        @default(false)
+  phoneNumber        String?        @unique @db.VarChar(20)
+  phoneVerified      Boolean        @default(false)
+  twoFactorEnabled   Boolean        @default(false)
+  twoFactorChannels  String[]       @default([])
+  verificationCodes  VerificationCode[]
   emailVerifyToken   String?        @unique
   emailVerifyExpires DateTime?
   resetToken         String?        @unique
@@ -692,6 +697,35 @@ model DirectMessage {
   author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([threadId, createdAt])
+}
+
+enum VerificationChannel {
+  EMAIL
+  SMS
+}
+
+enum VerificationPurpose {
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  LOGIN
+  SENSITIVE_CHANGE
+}
+
+model VerificationCode {
+  id         String              @id @default(uuid())
+  userId     String
+  channel    VerificationChannel
+  purpose    VerificationPurpose
+  target     String              @db.VarChar(255)
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int                 @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt])
 }
 
 model Follow {

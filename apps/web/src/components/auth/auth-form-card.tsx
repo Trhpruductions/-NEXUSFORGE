@@ -18,10 +18,10 @@ export function AuthFormCard({ title, subtitle, eyebrow = "Vexora Gaming", foote
     <section
       role="form"
       aria-labelledby={titleId}
-      className="relative w-full max-w-[480px] overflow-hidden rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-8 text-slate-100 shadow-[0_30px_90px_rgba(139,61,255,0.25)] backdrop-blur-xl sm:p-10"
+      className="relative w-full max-w-[480px] overflow-hidden rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-8 text-slate-100 shadow-[0_30px_90px_rgba(230,179,37,0.2)] backdrop-blur-xl sm:p-10"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#60a5fa,#a78bfa,#e879f9,transparent)]" />
-      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(139,61,255,0.35),transparent_65%)] blur-2xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#f8df8a,#e6b325,#b0820f,transparent)]" />
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_65%)] blur-2xl" />
 
       <div className="relative mb-8 flex items-start justify-between gap-4">
         <div>

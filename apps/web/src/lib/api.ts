@@ -751,7 +751,7 @@ export async function register(payload: { username: string; email: string; passw
     accessToken: string;
     csrfToken: string;
     user: User;
-    verification: { token: string };
+    verification: { message: string; sentTo: string; delivered: boolean; devCode?: string };
   }>(
     "/api/auth/register",
     payload,
@@ -759,11 +759,22 @@ export async function register(payload: { username: string; email: string; passw
   return response.data;
 }
 
+export type LoginResponse =
+  | { requiresTwoFactor?: false; accessToken: string; csrfToken: string; user: User }
+  | { requiresTwoFactor: true; challengeToken: string; channels: string[]; devCode?: string };
+
 export async function login(payload: { email: string; password: string }) {
-  const response = await api.post<{ accessToken: string; csrfToken: string; user: User }>(
-    "/api/auth/login",
-    payload,
-  );
+  const response = await api.post<LoginResponse>("/api/auth/login", payload);
+  return response.data;
+}
+
+export async function verifyTwoFactorLogin(payload: { challengeToken: string; code: string }) {
+  const response = await api.post<{ accessToken: string; csrfToken: string; user: User }>("/api/auth/2fa/verify", payload);
+  return response.data;
+}
+
+export async function resendTwoFactorLogin(challengeToken: string) {
+  const response = await api.post<{ ok: true; challengeToken: string; channels: string[]; devCode?: string }>("/api/auth/2fa/resend", { challengeToken });
   return response.data;
 }
 
@@ -2480,7 +2491,7 @@ export async function getSettings(accessToken: string) {
   return response.data;
 }
 
-export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null }) {
+export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null; code?: string }) {
   const response = await api.patch<{ account: SettingsPayload["account"] }>("/api/settings/account", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
@@ -2495,11 +2506,72 @@ export async function updateLinkedAccounts(accessToken: string, csrfToken: strin
   return response.data;
 }
 
-export async function changePassword(accessToken: string, csrfToken: string, payload: { currentPassword: string; newPassword: string }) {
+export async function changePassword(accessToken: string, csrfToken: string, payload: { currentPassword: string; newPassword: string; code?: string }) {
   const response = await api.post<{ ok: true; message: string }>("/api/settings/password", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
 export async function revokeSession(accessToken: string, csrfToken: string, sessionId: string) {
   await api.delete(`/api/settings/sessions/${sessionId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+// ===========================================================================
+// Account protection: email + phone verification, two-factor
+// ===========================================================================
+
+export type ProtectionStatus = {
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  phoneNumber: string | null;
+  email: string;
+  twoFactorEnabled: boolean;
+  twoFactorChannels: string[];
+  complete: boolean;
+};
+
+export type SendCodeResult = { ok: true; sentTo?: string; transport?: string; devCode?: string; alreadyVerified?: boolean };
+
+export async function getProtectionStatus(accessToken: string) {
+  const response = await api.get<{ protection: ProtectionStatus; delivery: { email: string; sms: string } }>("/api/verification/status", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function sendEmailCode(accessToken: string, csrfToken: string) {
+  const response = await api.post<SendCodeResult>("/api/verification/email/send", {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function confirmEmailCode(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; protection: ProtectionStatus }>("/api/verification/email/confirm", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function sendPhoneCode(accessToken: string, csrfToken: string, phoneNumber: string) {
+  const response = await api.post<SendCodeResult>("/api/verification/phone/send", { phoneNumber }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function confirmPhoneCode(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone/confirm", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function removePhone(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function sendTwoFactorChallenge(accessToken: string, csrfToken: string) {
+  const response = await api.post<{ ok: true; channels: string[]; devCode?: string }>("/api/verification/two-factor/challenge", {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function setTwoFactor(accessToken: string, csrfToken: string, payload: { enabled: boolean; channels?: Array<"EMAIL" | "SMS">; code?: string }) {
+  const response = await api.put<{ ok: true; protection: ProtectionStatus }>("/api/verification/two-factor", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function sendSensitiveChallenge(accessToken: string, csrfToken: string) {
+  const response = await api.post<{ ok: true; devCode?: string }>("/api/settings/sensitive-challenge", {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
 }

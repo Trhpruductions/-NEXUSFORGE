@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -10,6 +11,7 @@ import {
   getForge,
   getSettings,
   revokeSession,
+  sendSensitiveChallenge,
   updateAccountSettings,
   updateLinkedAccounts,
   updatePrivacySettings,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { AccountProtection } from "@/components/settings/account-protection";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
@@ -63,6 +66,16 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 }
 
 export function SettingsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-slate-400">Loading settings...</p>}>
+      <SettingsInner />
+    </Suspense>
+  );
+}
+
+function SettingsInner() {
+  const searchParams = useSearchParams();
+  const highlightProtection = searchParams?.get("verify") === "1";
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user, clearSession, fetchMe } = useAuthStore();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
@@ -87,6 +100,8 @@ export function SettingsPage() {
   const [linked, setLinked] = useState<Record<string, string>>({});
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [sensitiveCode, setSensitiveCode] = useState("");
+  const [sensitiveSent, setSensitiveSent] = useState<{ devCode?: string } | null>(null);
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
@@ -118,6 +133,7 @@ export function SettingsPage() {
         email: email !== account?.email ? email : undefined,
         bio: bio !== (account?.bio ?? "") ? bio || null : undefined,
         clanTag: clanTag !== (account?.clanTag ?? "") ? clanTag || null : undefined,
+        code: sensitiveCode || undefined,
       }),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Account updated." });
@@ -141,11 +157,21 @@ export function SettingsPage() {
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
+  const sensitiveMutation = useMutation({
+    mutationFn: () => sendSensitiveChallenge(accessToken!, csrfToken!),
+    onSuccess: (result) => {
+      setSensitiveSent({ devCode: result.devCode });
+      setNotice({ tone: "ok", text: "Confirmation code sent to your verified email and phone." });
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
   const passwordMutation = useMutation({
-    mutationFn: () => changePassword(accessToken!, csrfToken!, { currentPassword, newPassword }),
+    mutationFn: () => changePassword(accessToken!, csrfToken!, { currentPassword, newPassword, code: sensitiveCode || undefined }),
     onSuccess: async (result) => {
       setCurrentPassword("");
       setNewPassword("");
+      setSensitiveCode("");
+      setSensitiveSent(null);
       setNotice({ tone: "ok", text: result.message });
       await refresh();
     },
@@ -175,6 +201,20 @@ export function SettingsPage() {
         <div className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${notice.tone === "ok" ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : "border-rose-400/30 bg-rose-500/10 text-rose-100"}`}>
           {notice.text}
           <button type="button" onClick={() => setNotice(null)} title="Dismiss"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      ) : null}
+
+      <AccountProtection highlight={highlightProtection} />
+
+      {settingsQuery.data?.twoFactor.enabled || sensitiveSent ? (
+        <div className="rounded-2xl border border-amber-500/25 bg-[#0d1119] p-4">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Confirmation code for sensitive changes</p>
+          <p className="mb-2 text-xs text-slate-400">Two-factor is on, so changing your email or password needs a fresh code.</p>
+          {sensitiveSent?.devCode ? <p className="mb-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">Development mode: the code is <span className="font-mono font-bold">{sensitiveSent.devCode}</span>.</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={ghostBtn} disabled={sensitiveMutation.isPending} onClick={() => sensitiveMutation.mutate()}>{sensitiveSent ? "Resend code" : "Send code"}</button>
+            <input className={`${inputClass} max-w-[200px]`} inputMode="numeric" maxLength={6} placeholder="6-digit code" value={sensitiveCode} onChange={(event) => setSensitiveCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+          </div>
         </div>
       ) : null}
 
@@ -219,14 +259,6 @@ export function SettingsPage() {
                 {passwordMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Change password
               </button>
             </div>
-          </div>
-
-          <div className="border-t border-white/5 pt-4">
-            <div className="flex items-center justify-between">
-              <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"><ShieldCheck className="h-3.5 w-3.5" /> Two-factor authentication</p>
-              <Toggle checked={false} onChange={() => undefined} disabled />
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">Authenticator-app 2FA is not available yet. It will appear here when it ships.</p>
           </div>
 
           <div className="border-t border-white/5 pt-4">

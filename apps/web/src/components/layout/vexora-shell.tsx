@@ -29,7 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getUnreadSummary, listForges, markChannelRead, type Channel } from "@/lib/api";
+import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, listForges, markChannelRead, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -143,6 +143,15 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     refetchInterval: 45_000,
   });
   const unreadNotifications = notificationsQuery.data?.unreadCount ?? 0;
+
+  const protectionQuery = useQuery({
+    queryKey: ["protection", accessToken],
+    queryFn: () => getProtectionStatus(accessToken!),
+    enabled: Boolean(accessToken),
+    staleTime: 60_000,
+  });
+  const protection = protectionQuery.data?.protection;
+  const showProtectionBanner = Boolean(protection && !protection.complete && !pathname.startsWith("/app/settings"));
 
   // Join every forge room so unread badges tick live, even for forges not currently open.
   useEffect(() => {
@@ -475,6 +484,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
+          {showProtectionBanner ? (
+            <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-100 md:px-6">
+              <Link href="/app/settings?verify=1" className="flex flex-wrap items-center gap-2 hover:text-white">
+                <span className="rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950">Secure your account</span>
+                {!protection?.emailVerified ? "Verify your email" : !protection?.phoneVerified ? "Add and verify a phone number" : "Turn on two-factor sign-in"} so nobody can take over your account. Open Settings →
+              </Link>
+            </div>
+          ) : null}
           <div className="mx-auto w-full max-w-[1400px] p-4 md:p-6">{children}</div>
         </div>
       </main>

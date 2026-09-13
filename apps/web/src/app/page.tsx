@@ -64,14 +64,14 @@ const stats = [
 export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#05030f] text-slate-100 selection:bg-amber-500/40 selection:text-white scroll-smooth">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(59,130,246,0.22),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(168,85,247,0.24),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(124,58,237,0.18),transparent_40%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(230,179,37,0.16),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(212,160,23,0.14),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(138,101,12,0.14),transparent_40%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_55%,transparent_100%)]" />
 
       <header className="sticky top-0 z-50 border-b border-white/5 bg-[#05030f]/80 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(139,61,255,0.35)]">
-              <Image src="/brand/vexora-mark.png" alt="Vexora Gaming" width={32} height={32} className="h-8 w-8 object-contain" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(230,179,37,0.35)]">
+              <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora Gaming" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
             </div>
             <div>
               <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Vexora</p>
@@ -101,7 +101,7 @@ export default function Home() {
             </Link>
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(120deg,#3b82f6,#8b3dff_55%,#c026d3)] px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_10px_30px_rgba(139,61,255,0.45)] transition hover:-translate-y-px hover:shadow-[0_14px_36px_rgba(139,61,255,0.6)]"
+              className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(120deg,#f8df8a,#e6b325_55%,#b0820f)] px-5 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-950 shadow-[0_10px_30px_rgba(230,179,37,0.35)] transition hover:-translate-y-px hover:shadow-[0_14px_36px_rgba(230,179,37,0.5)]"
             >
               Join free <ArrowRight className="h-3.5 w-3.5" />
             </Link>
@@ -113,12 +113,12 @@ export default function Home() {
         <section className="mx-auto grid max-w-7xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pt-24">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(196,150,255,0.9)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(230,179,37,0.9)]" />
               Built for gamers. Connected by community.
             </div>
             <h1 className="nf-heading text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
               Your squad&apos;s home base,
-              <span className="block bg-[linear-gradient(120deg,#60a5fa,#a78bfa_45%,#e879f9)] bg-clip-text text-transparent">
+              <span className="block bg-[linear-gradient(120deg,#f8df8a,#e6b325_45%,#b0820f)] bg-clip-text text-transparent">
                 forged for the grind.
               </span>
             </h1>
@@ -129,7 +129,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/register"
-                className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(120deg,#3b82f6,#8b3dff_55%,#c026d3)] px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-[0_14px_40px_rgba(139,61,255,0.45)] transition hover:-translate-y-px"
+                className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(120deg,#f8df8a,#e6b325_55%,#b0820f)] px-7 py-3.5 text-sm font-bold uppercase tracking-[0.18em] text-slate-950 shadow-[0_14px_40px_rgba(230,179,37,0.35)] transition hover:-translate-y-px"
               >
                 Create your forge <ArrowRight className="h-4 w-4" />
               </Link>
@@ -151,10 +151,10 @@ export default function Home() {
           </div>
 
           <div className="relative mx-auto w-full max-w-xl">
-            <div className="absolute -inset-10 rounded-full bg-[radial-gradient(circle,rgba(139,61,255,0.35),transparent_60%)] blur-2xl" />
-            <div className="relative overflow-hidden rounded-[32px] border border-amber-400/25 bg-slate-950/70 p-3 shadow-[0_40px_120px_rgba(59,130,246,0.25)]">
+            <div className="absolute -inset-10 rounded-full bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_60%)] blur-2xl" />
+            <div className="relative overflow-hidden rounded-[32px] border border-amber-400/25 bg-slate-950/70 p-3 shadow-[0_40px_120px_rgba(230,179,37,0.25)]">
               <Image
-                src="/brand/vexora-logo.png"
+                src="/brand/vexora-logo-gold.png"
                 alt="Vexora Gaming emblem and wordmark"
                 width={955}
                 height={875}
@@ -190,7 +190,7 @@ export default function Home() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
               <article key={feature.title} className="rounded-[24px] border border-white/8 bg-slate-950/60 p-6 transition hover:border-amber-400/35">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(59,130,246,0.35),rgba(168,85,247,0.35))] text-white">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(230,179,37,0.35),rgba(176,130,15,0.35))] text-white">
                   <feature.icon className="h-5 w-5" />
                 </div>
                 <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
@@ -201,7 +201,7 @@ export default function Home() {
         </section>
 
         <section className="mx-auto max-w-7xl px-6 pb-24 lg:px-8">
-          <div className="relative overflow-hidden rounded-[32px] border border-amber-400/25 bg-[linear-gradient(135deg,rgba(59,130,246,0.18),rgba(139,61,255,0.22)_55%,rgba(192,38,211,0.18))] px-8 py-12 text-center shadow-[0_30px_90px_rgba(139,61,255,0.25)] sm:px-16">
+          <div className="relative overflow-hidden rounded-[32px] border border-amber-400/25 bg-[linear-gradient(135deg,rgba(230,179,37,0.18),rgba(212,160,23,0.22)_55%,rgba(138,101,12,0.18))] px-8 py-12 text-center shadow-[0_30px_90px_rgba(230,179,37,0.2)] sm:px-16">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.12),transparent_50%)]" />
             <p className="relative text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-200">Ready when you are</p>
             <h2 className="nf-heading relative mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Forge your community on Vexora Gaming.</h2>
@@ -229,7 +229,7 @@ export default function Home() {
       <footer className="border-t border-white/5">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 text-xs text-slate-500 sm:flex-row lg:px-8">
           <div className="flex items-center gap-2">
-            <Image src="/brand/vexora-mark.png" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
+            <Image src="/brand/vexora-mark-gold-256.png" alt="" width={20} height={20} className="h-5 w-5 rounded object-cover" />
             <span>Vexora Gaming © 2026. Built for gamers. Connected by community.</span>
           </div>
           <div className="flex items-center gap-5 uppercase tracking-[0.18em]">
