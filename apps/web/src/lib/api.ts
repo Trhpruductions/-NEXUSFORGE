@@ -2691,3 +2691,8 @@ export async function rejectAgeReview(accessToken: string, csrfToken: string, id
   const response = await api.post<{ ok: true }>(`/api/admin/age-verification/${id}/reject`, { reason }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
+
+export async function getVoiceOccupancy(accessToken: string, forgeId: string) {
+  const response = await api.get<{ channels: Array<{ channelId: string; userIds: string[] }> }>(`/api/forges/${forgeId}/voice-occupancy`, { headers: authHeaders(accessToken) });
+  return response.data;
+}

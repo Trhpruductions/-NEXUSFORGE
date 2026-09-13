@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -147,6 +147,20 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const voiceChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "VOICE" || channel.type === "STAGE"), [forge]);
   const onlineCount = useMemo(() => (forge?.members ?? []).filter((member) => member.user.status !== "OFFLINE").length, [forge]);
 
+  // Who is actually sitting in each voice channel right now.
+  const [voiceCounts, setVoiceCounts] = useState<Record<string, number>>({});
+  const occupancyQuery = useQuery({
+    queryKey: ["voice-occupancy", selectedForgeId, accessToken],
+    queryFn: () => getVoiceOccupancy(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+  });
+  useEffect(() => {
+    if (!occupancyQuery.data) return;
+    const next: Record<string, number> = {};
+    for (const entry of occupancyQuery.data.channels) next[entry.channelId] = entry.userIds.length;
+    setVoiceCounts(next);
+  }, [occupancyQuery.data]);
+
   const unreadsQuery = useQuery({
     queryKey: ["forge-unreads", selectedForgeId, accessToken],
     queryFn: () => getForgeUnreads(accessToken!, selectedForgeId!),
@@ -217,6 +231,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const handleChannels = (payload: { forgeId: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
     };
+    const handleVoice = (payload: { channelId: string; count: number }) => {
+      setVoiceCounts((current) => ({ ...current, [payload.channelId]: payload.count }));
+    };
     const handlePresence = (payload: { forgeId: string; userId?: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
       // Profile pages and friend lists show the same status; keep them live too.
@@ -228,7 +245,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     socket.on("channel:activity", handleActivity);
     socket.on("forge:channels", handleChannels);
     socket.on("presence:changed", handlePresence);
+    socket.on("voice:occupancy", handleVoice);
     return () => {
+      socket.off("voice:occupancy", handleVoice);
       socket.off("connect", join);
       socket.off("channel:activity", handleActivity);
       socket.off("forge:channels", handleChannels);
@@ -391,6 +410,12 @@ export function VexoraShell({ children }: { children: ReactNode }) {
               >
                 {channel.type === "STAGE" ? <Radio className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Volume2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
                 <span className="min-w-0 flex-1 truncate">{channel.name}</span>
+                {voiceCounts[channel.id] ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300" title={`${voiceCounts[channel.id]} in voice`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    {voiceCounts[channel.id]}
+                  </span>
+                ) : null}
               </button>
             </li>
           ))}

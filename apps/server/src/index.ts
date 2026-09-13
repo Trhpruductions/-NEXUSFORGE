@@ -32,6 +32,7 @@ import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
 import { requireAge, requireAuth } from "./middleware/auth.js";
+import { joinVoice, leaveAllVoice, leaveVoice, voiceMembers, voiceOccupancyFor } from "./lib/voice-occupancy.js";
 import { ensureCosmeticCatalog } from "./lib/cosmetic-catalog.js";
 import { healthRouter } from "./routes/health.routes.js";
 import { messagesRouter } from "./routes/messages.routes.js";
@@ -196,6 +197,34 @@ io.use((socket, next) => {
 
 const onlineSockets = new Map<string, number>();
 
+const channelForge = new Map<string, string>();
+async function forgeIdForChannel(channelId: string) {
+  const cached = channelForge.get(channelId);
+  if (cached) return cached;
+  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { forgeId: true } });
+  if (channel) channelForge.set(channelId, channel.forgeId);
+  return channel?.forgeId ?? null;
+}
+
+/** Tell the whole forge how many people are in a voice channel now. */
+async function broadcastVoiceOccupancy(channelId: string) {
+  const forgeId = await forgeIdForChannel(channelId);
+  if (!forgeId) return;
+  const userIds = voiceMembers(channelId);
+  io.to(`forge:${forgeId}`).emit("voice:occupancy", { forgeId, channelId, userIds, count: userIds.length });
+}
+
+/** Current occupancy of every voice channel in a forge (seeds the sidebar). */
+app.get("/api/forges/:forgeId/voice-occupancy", requireAuth, async (req, res) => {
+  const membership = await prisma.forgeMember.findFirst({ where: { forgeId: req.params.forgeId, userId: req.user!.id }, select: { id: true } });
+  if (!membership) {
+    res.status(403).json({ error: "Not a member of this forge" });
+    return;
+  }
+  const channels = await prisma.channel.findMany({ where: { forgeId: req.params.forgeId, type: { in: ["VOICE", "STAGE"] } }, select: { id: true } });
+  res.json({ channels: voiceOccupancyFor(channels.map((channel) => channel.id)) });
+});
+
 async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
   try {
     // Coming online only lifts an OFFLINE user; a chosen Idle/DND status is kept.
@@ -223,6 +252,7 @@ io.on("connection", (socket) => {
   if (activeSockets === 1) void setPresence(presenceUserId, "ONLINE");
 
   socket.on("disconnect", () => {
+    for (const channelId of leaveAllVoice(presenceUserId, socket.id)) void broadcastVoiceOccupancy(channelId);
     const remaining = (onlineSockets.get(presenceUserId) ?? 1) - 1;
     if (remaining <= 0) {
       onlineSockets.delete(presenceUserId);
@@ -262,7 +292,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("voice:join", (channelId: string) => {
+    if (typeof channelId !== "string" || !channelId) return;
     socket.join(`voice:${channelId}`);
+    joinVoice(channelId, socket.data.user.id, socket.id);
+    void broadcastVoiceOccupancy(channelId);
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
@@ -271,7 +304,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("voice:leave", (channelId: string) => {
+    if (typeof channelId !== "string" || !channelId) return;
     socket.leave(`voice:${channelId}`);
+    leaveVoice(channelId, socket.data.user.id, socket.id);
+    void broadcastVoiceOccupancy(channelId);
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
