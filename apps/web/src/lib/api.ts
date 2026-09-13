@@ -2285,6 +2285,7 @@ export type ProfileSummary = {
     liveStreamUrl?: string | null;
     liveGameCategory?: string | null;
     liveViewerCount: number;
+    liveStartedAt?: string | null;
     reputation: number;
     socialLinks?: Record<string, string | null> | null;
     avatarConfig?: AvatarConfig | null;
@@ -2579,4 +2580,41 @@ export async function sendSensitiveChallenge(accessToken: string, csrfToken: str
 
 export async function removeFriend(accessToken: string, csrfToken: string, friendshipId: string) {
   await api.delete(`/api/friends/${friendshipId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type SearchMessage = Message & { channel: { id: string; name: string; forgeId: string } };
+
+export async function searchMessages(accessToken: string, q: string, forgeId?: string) {
+  const response = await api.get<{ messages: SearchMessage[] }>("/api/search/messages", { headers: authHeaders(accessToken), params: { q, forgeId } });
+  return response.data;
+}
+
+export async function searchForges(accessToken: string, q: string) {
+  const response = await api.get<{ forges: Forge[] }>("/api/search/forges", { headers: authHeaders(accessToken), params: { q } });
+  return response.data;
+}
+
+export async function setLiveStatus(accessToken: string, csrfToken: string, payload: { live: boolean; platform?: "Twitch" | "Kick" | "YouTube" | "TikTok" | "Vexora"; title?: string; url?: string; game?: string }) {
+  const response = await api.put<{ live: { creatorStatus: "LIVE" | "OFFLINE"; livePlatform?: string | null; liveStreamTitle?: string | null; liveStreamUrl?: string | null; liveGameCategory?: string | null; liveStartedAt?: string | null } }>("/api/social/live", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function setPresenceStatus(accessToken: string, csrfToken: string, status: "ONLINE" | "IDLE" | "DND") {
+  const response = await api.put<{ status: "ONLINE" | "IDLE" | "DND" }>("/api/social/status", { status }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type EconomyAccountSummary = {
+  id: string;
+  currencyType: string;
+  balance: string;
+  frozenBalance: string;
+  lifetimeEarnings: string;
+  lastSyncAt: string;
+  transactions?: Array<{ id: string; amount: string; type: string; reason: string; referenceId?: string | null; timestamp: string }>;
+};
+
+export async function getEconomyAccounts(accessToken: string, userId: string) {
+  const response = await api.get<EconomyAccountSummary[]>(`/api/economy/${userId}`, { headers: authHeaders(accessToken) });
+  return response.data;
 }

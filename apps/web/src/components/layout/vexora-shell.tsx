@@ -29,7 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, listForges, markChannelRead, type Channel } from "@/lib/api";
+import { getForge, getForgeUnreads, getProtectionStatus, getUnreadSummary, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -81,6 +81,34 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   } = useWorkspaceStore();
 
   const [forgeMenuOpen, setForgeMenuOpen] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const { fetchMe } = useAuthStore();
+  const presenceMeta: Record<string, { label: string; dot: string; text: string }> = {
+    ONLINE: { label: "Online", dot: "bg-emerald-400", text: "text-emerald-300" },
+    IDLE: { label: "Idle", dot: "bg-yellow-300", text: "text-yellow-200" },
+    DND: { label: "Do not disturb", dot: "bg-rose-400", text: "text-rose-300" },
+    OFFLINE: { label: "Offline", dot: "bg-slate-600", text: "text-slate-400" },
+  };
+  const presence = presenceMeta[user?.status ?? "OFFLINE"] ?? presenceMeta.OFFLINE;
+  const changeStatus = async (status: "ONLINE" | "IDLE" | "DND") => {
+    setStatusMenuOpen(false);
+    if (!accessToken || !csrfToken) return;
+    try {
+      await setPresenceStatus(accessToken, csrfToken, status);
+      await fetchMe();
+    } catch {
+      // keep the previous status
+    }
+  };
+  useEffect(() => {
+    if (!statusMenuOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(event.target as Node)) setStatusMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [statusMenuOpen]);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const forgeMenuRef = useRef<HTMLDivElement | null>(null);
@@ -158,7 +186,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     if (!accessToken || !forges.length) return;
     const socket = getSocket(accessToken);
     if (!socket.connected) socket.connect();
-    const join = () => forges.forEach((entry) => socket.emit("forge:join", entry.id));
+    const join = () => {
+      forges.forEach((entry) => socket.emit("forge:join", entry.id));
+      // Presence is set server-side on connect; pull the fresh status into the footer.
+      window.setTimeout(() => void fetchMe(), 600);
+    };
     join();
 
     const handleActivity = (payload: { forgeId: string; channelId: string; authorId: string; mentionedUserIds?: string[] }) => {
@@ -183,7 +215,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       socket.off("forge:channels", handleChannels);
       socket.off("presence:changed", handlePresence);
     };
-  }, [accessToken, forges, user?.id, bumpChannel, queryClient]);
+  }, [accessToken, forges, user?.id, bumpChannel, queryClient, fetchMe]);
 
   // Leaving the chat page clears the active channel so new messages count as unread again.
   useEffect(() => {
@@ -218,7 +250,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const onSearch = (event: React.FormEvent) => {
     event.preventDefault();
     if (!search.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(search.trim())}`);
+    router.push(`/app/search?q=${encodeURIComponent(search.trim())}`);
   };
 
   const displayName = user?.displayName || user?.username || "Member";
@@ -361,13 +393,22 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             ) : (
               <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/40 bg-slate-800 text-xs font-bold text-amber-100">{initials(displayName)}</span>
             )}
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0d1119] bg-emerald-400" />
+            <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0d1119]", presence.dot)} />
           </Link>
-          <div className="min-w-0 flex-1">
+          <div className="relative min-w-0 flex-1" ref={statusMenuRef}>
             <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-            <p className="flex items-center gap-1 text-[11px] text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Online
-            </p>
+            <button type="button" onClick={() => setStatusMenuOpen((open) => !open)} className={cn("flex max-w-full items-center gap-1 whitespace-nowrap text-[11px] hover:underline", presence.text)} title="Change status">
+              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", presence.dot)} /> <span className="truncate">{presence.label}</span>
+            </button>
+            {statusMenuOpen ? (
+              <div className="absolute bottom-[calc(100%+6px)] left-0 z-40 w-44 rounded-xl border border-amber-500/25 bg-[#0d1119] p-1 shadow-xl">
+                {(["ONLINE", "IDLE", "DND"] as const).map((entry) => (
+                  <button key={entry} type="button" onClick={() => void changeStatus(entry)} className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5", user?.status === entry ? "text-amber-100" : "text-slate-200")}>
+                    <span className={cn("h-2 w-2 rounded-full", presenceMeta[entry].dot)} /> {presenceMeta[entry].label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <Link href="/app/chat?voice=1" className="rounded-md p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-white" title="Voice">
             <Mic className="h-4 w-4" />

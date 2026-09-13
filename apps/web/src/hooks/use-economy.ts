@@ -11,8 +11,9 @@ export interface EconomyAccount {
   lastSyncAt: string;
 }
 
-export function useEconomy(userId?: string) {
-  const { accessToken, hydrated } = useAuthStore();
+export function useEconomy(requestedUserId?: string) {
+  const { accessToken, hydrated, user } = useAuthStore();
+  const userId = !requestedUserId || requestedUserId === "current" ? user?.id : requestedUserId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<EconomyAccount | null>(null);
@@ -37,13 +38,7 @@ export function useEconomy(userId?: string) {
         setData(primary);
       } catch (err: any) {
         setError(err);
-        // Fallback for demonstration
-        setData({
-          currencyType: 'NC',
-          balance: '245000',
-          lifetimeEarnings: '1250000',
-          lastSyncAt: new Date().toISOString()
-        });
+        setData(null);
       } finally {
         setLoading(false);
       }

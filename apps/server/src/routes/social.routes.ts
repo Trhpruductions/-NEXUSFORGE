@@ -3,6 +3,7 @@ import xss from "xss";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
+import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
@@ -63,6 +64,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       liveStreamUrl: true,
       liveGameCategory: true,
       liveViewerCount: true,
+      liveStartedAt: true,
       reputation: true,
       socialLinks: true,
       avatarConfig: true,
@@ -237,4 +239,63 @@ socialRouter.post("/posts/:id/like", async (req, res) => {
   }
   const count = await prisma.postLike.count({ where: { postId: post.id } });
   res.json({ liked: !existing, likes: count });
+});
+
+// ---------------------------------------------------------------------------
+// Presence status chosen by the user (Online / Idle / Do not disturb)
+// ---------------------------------------------------------------------------
+
+socialRouter.put("/status", async (req, res) => {
+  const parsed = z.object({ status: z.enum(["ONLINE", "IDLE", "DND"]) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid status" });
+    return;
+  }
+  const user = await prisma.user.update({ where: { id: req.user!.id }, data: { status: parsed.data.status, lastSeenAt: new Date() }, select: { id: true, status: true } });
+  const memberships = await prisma.forgeMember.findMany({ where: { userId: user.id }, select: { forgeId: true } });
+  try {
+    const io = getIo();
+    for (const { forgeId } of memberships) io.to(`forge:${forgeId}`).emit("presence:changed", { forgeId, userId: user.id, status: user.status });
+  } catch {
+    // realtime not ready
+  }
+  res.json({ status: user.status });
+});
+
+// ---------------------------------------------------------------------------
+// Live status
+// ---------------------------------------------------------------------------
+
+const liveSchema = z.object({
+  live: z.boolean(),
+  platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Vexora"]).optional(),
+  title: z.string().trim().max(140).optional(),
+  url: z.string().url().optional(),
+  game: z.string().trim().max(80).optional(),
+});
+
+socialRouter.put("/live", async (req, res) => {
+  const parsed = liveSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: parsed.data.live
+      ? {
+          isCreator: true,
+          creatorStatus: "LIVE",
+          livePlatform: parsed.data.platform ?? "Vexora",
+          liveStreamTitle: parsed.data.title || null,
+          liveStreamUrl: parsed.data.url || null,
+          liveGameCategory: parsed.data.game || null,
+          liveStartedAt: new Date(),
+          activityType: "STREAMING",
+          activityStatus: parsed.data.title ? `Streaming: ${parsed.data.title}` : "Streaming",
+        }
+      : { creatorStatus: "OFFLINE", liveViewerCount: 0, liveStartedAt: null, activityType: null, activityStatus: null },
+    select: { id: true, creatorStatus: true, livePlatform: true, liveStreamTitle: true, liveStreamUrl: true, liveGameCategory: true, liveStartedAt: true },
+  });
+  res.json({ live: user });
 });

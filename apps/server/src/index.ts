@@ -1,3 +1,8 @@
+// Prisma returns BigInt for money columns; JSON.stringify cannot serialize them. Strings keep precision.
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function toJSON(this: bigint) {
+  return this.toString();
+};
+
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
@@ -188,7 +193,12 @@ const onlineSockets = new Map<string, number>();
 
 async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
   try {
-    await prisma.user.update({ where: { id: userId }, data: { status, lastSeenAt: new Date() } });
+    // Coming online only lifts an OFFLINE user; a chosen Idle/DND status is kept.
+    const result = await prisma.user.updateMany({
+      where: status === "ONLINE" ? { id: userId, status: "OFFLINE" } : { id: userId },
+      data: { status, lastSeenAt: new Date() },
+    });
+    if (!result.count) return;
     const memberships = await prisma.forgeMember.findMany({ where: { userId }, select: { forgeId: true } });
     for (const { forgeId } of memberships) {
       io.to(`forge:${forgeId}`).emit("presence:changed", { forgeId, userId, status });
