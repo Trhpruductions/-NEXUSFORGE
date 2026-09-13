@@ -99,7 +99,7 @@ export function CommunityPage() {
                       {active ? <span className="absolute left-3 top-3 rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950">Current</span> : null}
                       {unread?.unread ? <span className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-2 text-[10px] font-bold text-slate-950">{unread.unread} new</span> : null}
                     </div>
-                    <div className="p-4">
+                    <div className="relative p-4">
                       <div className="-mt-10 mb-3 flex items-end gap-3">
                         {forge.icon ? (
                           // eslint-disable-next-line @next/next/no-img-element
