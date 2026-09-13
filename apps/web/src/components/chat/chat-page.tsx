@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Hash, Loader2, Megaphone, MessageSquare, Mic, MicOff, Paperclip, PhoneOff, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
 import {
   createDmThread,
   createUploadPresign,
@@ -330,14 +330,13 @@ function ChatInner() {
     try {
       const token = await requestVoiceToken(accessToken, csrfToken, target.id);
       setVoiceSession({ ...token, channelId: target.id });
-      getSocket(accessToken).emit("voice:join", target.id);
       await updateVoiceState(accessToken, csrfToken, { channelId: target.id, ...voiceState }).catch(() => undefined);
     } catch (error) {
       setStatus(getApiErrorMessage(error));
     }
   };
   const leaveVoice = () => {
-    if (voiceSession && accessToken) getSocket(accessToken).emit("voice:leave", voiceSession.channelId);
+    // The voice panel emits voice:leave and tears down the media when it unmounts.
     setVoiceSession(null);
   };
   const toggleVoiceFlag = (flag: keyof VoiceState) => {
@@ -477,16 +476,8 @@ function ChatInner() {
         {mode === "voice" ? (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6">
             {voiceSession ? (
-              <div className="w-full max-w-xl rounded-2xl border border-amber-500/20 bg-[#0d1119] p-4 text-slate-100 [&_button]:!rounded-lg">
-                <VoiceRoomPanel session={voiceSession} voiceState={voiceState} onToggleVoiceFlag={toggleVoiceFlag} onLeave={leaveVoice} />
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  <button type="button" onClick={() => toggleVoiceFlag("muted")} className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em]", voiceState.muted ? "border-rose-400/50 bg-rose-500/10 text-rose-200" : "border-white/10 text-slate-200")}>
-                    {voiceState.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />} {voiceState.muted ? "Unmute" : "Mute"}
-                  </button>
-                  <button type="button" onClick={leaveVoice} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white hover:bg-rose-400">
-                    <PhoneOff className="h-3.5 w-3.5" /> Leave
-                  </button>
-                </div>
+              <div className="w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-[#0d1119] p-4 text-slate-100">
+                <VoiceRoomPanel session={voiceSession} channelName={voiceChannel?.name} members={forge?.members ?? []} voiceState={voiceState} onToggleVoiceFlag={toggleVoiceFlag} onLeave={leaveVoice} />
               </div>
             ) : (
               <div className="text-center">

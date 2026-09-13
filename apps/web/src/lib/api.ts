@@ -1745,7 +1745,7 @@ export async function createUploadPresign(
 }
 
 export async function requestVoiceToken(accessToken: string, csrfToken: string, channelId: string) {
-  const response = await api.post<{ token: string; wsUrl: string; roomName: string }>(
+  const response = await api.post<{ mode: "livekit" | "mesh"; token: string; wsUrl: string; roomName: string; iceServers: Array<{ urls: string[]; username?: string; credential?: string }> }>(
     "/api/voice/token",
     { channelId },
     {

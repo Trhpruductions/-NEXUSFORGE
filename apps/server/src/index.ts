@@ -293,6 +293,9 @@ io.on("connection", (socket) => {
 
   socket.on("voice:join", (channelId: string) => {
     if (typeof channelId !== "string" || !channelId) return;
+    // Tell the joiner who is already here so it can open peer connections (built-in WebRTC voice).
+    const peers = voiceMembers(channelId).filter((userId) => userId !== socket.data.user.id);
+    socket.emit("voice:peers", { channelId, userIds: peers });
     socket.join(`voice:${channelId}`);
     joinVoice(channelId, socket.data.user.id, socket.id);
     void broadcastVoiceOccupancy(channelId);
@@ -313,6 +316,15 @@ io.on("connection", (socket) => {
       userId: socket.data.user.id,
       action: "left",
     });
+  });
+
+  /** WebRTC signaling relay for the built-in voice mode: offers, answers and ICE candidates between two users in a voice channel. */
+  socket.on("voice:signal", (payload: { channelId?: string; to?: string; data?: unknown }) => {
+    if (!payload || typeof payload.channelId !== "string" || typeof payload.to !== "string" || !payload.data) return;
+    const channelId = payload.channelId;
+    const members = voiceMembers(channelId);
+    if (!members.includes(socket.data.user.id) || !members.includes(payload.to)) return;
+    io.to(`user:${payload.to}`).emit("voice:signal", { channelId, from: socket.data.user.id, data: payload.data });
   });
 
   socket.on("dm:join", (threadId: string) => {

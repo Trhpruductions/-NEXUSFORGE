@@ -26,10 +26,7 @@ voiceRouter.use(requireAuth);
 voiceRouter.use(requireCsrf);
 
 voiceRouter.post("/token", async (req, res) => {
-  if (!env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET || !env.LIVEKIT_WS_URL) {
-    res.status(503).json({ error: "LiveKit is not configured" });
-    return;
-  }
+  const livekitConfigured = Boolean(env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVEKIT_WS_URL);
 
   const parsed = tokenSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -70,7 +67,13 @@ voiceRouter.post("/token", async (req, res) => {
 
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true } });
 
-  const accessToken = new AccessToken(env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, {
+  if (!livekitConfigured) {
+    // Built-in voice: peers connect directly over WebRTC, signaled through the realtime gateway.
+    res.json({ mode: "mesh" as const, token: "", wsUrl: "", roomName, iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] });
+    return;
+  }
+
+  const accessToken = new AccessToken(env.LIVEKIT_API_KEY!, env.LIVEKIT_API_SECRET!, {
     identity: req.user!.id,
     name: user?.username || "Unknown User",
     ttl: "30m",
@@ -85,9 +88,11 @@ voiceRouter.post("/token", async (req, res) => {
   });
 
   res.json({
+    mode: "livekit" as const,
     token: await accessToken.toJwt(),
     wsUrl: env.LIVEKIT_WS_URL,
     roomName,
+    iceServers: [] as Array<{ urls: string[] }>,
   });
 });
 
