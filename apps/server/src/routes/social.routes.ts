@@ -69,6 +69,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       reputation: true,
       socialLinks: true,
       avatarConfig: true,
+      loadout: true,
       createdAt: true,
       lastSeenAt: true,
       _count: { select: { followers: true, following: true, posts: true, medals: true, memberships: true } },
@@ -91,8 +92,14 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
 
   const points = Number(reputationAccount?.balance ?? 0n) + user.reputation;
 
+  // The equipped emote plays on the profile card.
+  const emoteId = (user.loadout as { EMOTE?: string } | null)?.EMOTE;
+  const profileEmote = emoteId
+    ? await prisma.cosmeticItem.findUnique({ where: { id: emoteId }, select: { id: true, key: true, name: true, description: true, rarity: true, color: true, metadata: true, slot: true } })
+    : null;
+
   res.json({
-    user: { ...user, points },
+    user: { ...user, loadout: undefined, points, profileEmote },
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,

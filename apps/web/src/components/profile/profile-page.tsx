@@ -31,6 +31,13 @@ const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18e
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 
+function emoteClass(key: string) {
+  if (key.includes("salute") || key.includes("gg")) return "nf-emote-salute";
+  if (key.includes("flex")) return "nf-emote-flex";
+  if (key.includes("drop")) return "nf-emote-drop";
+  return "nf-emote-bounce";
+}
+
 function errorText(error: unknown) {
   if (axios.isAxiosError(error)) return (error.response?.data as { error?: string } | undefined)?.error ?? error.message;
   return error instanceof Error ? error.message : "Something went wrong";
@@ -160,6 +167,7 @@ function ProfileInner() {
   }, [profile]);
 
   const avatarConfig: AvatarConfig = (profile?.isSelf ? avatarQuery.data?.config : profile?.user.avatarConfig) ?? defaultAvatarConfig;
+  const [emotePlaying, setEmotePlaying] = useState(false);
   const friends = (friendsQuery.data?.friends ?? []).filter((entry) => entry.status === "ACCEPTED");
 
   if (summaryQuery.isLoading || !profile) {
@@ -201,7 +209,16 @@ function ProfileInner() {
         </div>
         <div className="relative px-5 pb-5">
           <div className="-mt-12 flex flex-wrap items-end gap-4">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(230,179,37,0.3)]">
+            <div
+              className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(230,179,37,0.3)] ${person.profileEmote ? "cursor-pointer" : ""} ${emotePlaying && person.profileEmote ? emoteClass(person.profileEmote.key) : ""}`}
+              title={person.profileEmote ? `Play ${person.profileEmote.name}` : undefined}
+              onClick={() => {
+                if (!person.profileEmote) return;
+                setEmotePlaying(false);
+                window.setTimeout(() => setEmotePlaying(true), 20);
+                window.setTimeout(() => setEmotePlaying(false), 2200);
+              }}
+            >
               {person.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={person.avatar} alt="" className="h-full w-full object-cover" />
@@ -217,13 +234,18 @@ function ProfileInner() {
                 {person.clanTag ? <span className="rounded border border-amber-400/40 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200">{person.clanTag}</span> : null}
               </div>
               <p className="text-sm text-slate-400">@{person.username}</p>
-              {badges.length ? (
+              {badges.length || person.profileEmote ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {badges.map((badge) => (
                     <span key={badge.label} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${badge.tone}`}>
                       <badge.icon className="h-3 w-3" /> {badge.label}
                     </span>
                   ))}
+                  {person.profileEmote ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200" title="Click the avatar to play">
+                      <Sparkles className="h-3 w-3" /> {person.profileEmote.name}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </div>

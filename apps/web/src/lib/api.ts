@@ -2294,6 +2294,7 @@ export type ProfileSummary = {
     reputation: number;
     socialLinks?: Record<string, string | null> | null;
     avatarConfig?: AvatarConfig | null;
+    profileEmote?: Pick<CosmeticItem, "id" | "key" | "name" | "description" | "rarity" | "color" | "metadata" | "slot"> | null;
     createdAt: string;
     lastSeenAt?: string | null;
     points: number;
