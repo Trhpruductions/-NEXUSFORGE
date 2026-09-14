@@ -147,6 +147,12 @@ function ChatInner() {
     const socket = getSocket(accessToken);
     if (!socket.connected) socket.connect();
     socket.emit("channel:join", channelId);
+    // Rooms are lost when the socket reconnects (server restart, network blip): rejoin and catch up.
+    const rejoin = () => {
+      socket.emit("channel:join", channelId);
+      void queryClient.invalidateQueries({ queryKey: ["messages", channelId] });
+    };
+    socket.on("connect", rejoin);
     const key = ["messages", channelId, accessToken];
     const patch = (fn: (current: { messages: Message[]; nextCursor: string | null }) => { messages: Message[]; nextCursor: string | null }) =>
       queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(key, (current) => (current ? fn(current) : current));
@@ -187,6 +193,7 @@ function ChatInner() {
     socket.on("typing:stop", onTypingStop);
     return () => {
       socket.emit("channel:leave", channelId);
+      socket.off("connect", rejoin);
       socket.off("message:created", onCreated);
       socket.off("message:updated", onUpdated);
       socket.off("message:deleted", onDeleted);
@@ -391,6 +398,11 @@ function ChatInner() {
     const socket = getSocket(accessToken);
     if (!socket.connected) socket.connect();
     socket.emit("dm:join", dmThreadId);
+    const rejoin = () => {
+      socket.emit("dm:join", dmThreadId);
+      void queryClient.invalidateQueries({ queryKey: ["dm-messages", dmThreadId] });
+    };
+    socket.on("connect", rejoin);
     const onDm = (payload: { threadId: string; message: DmMessage }) => {
       if (payload.threadId !== dmThreadId) return;
       queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) => {
@@ -401,6 +413,7 @@ function ChatInner() {
     socket.on("dm:message", onDm);
     return () => {
       socket.emit("dm:leave", dmThreadId);
+      socket.off("connect", rejoin);
       socket.off("dm:message", onDm);
     };
   }, [accessToken, dmThreadId, mode, queryClient]);
