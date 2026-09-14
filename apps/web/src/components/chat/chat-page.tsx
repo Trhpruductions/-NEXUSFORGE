@@ -362,9 +362,13 @@ function ChatInner() {
     enabled: Boolean(accessToken && mode === "dm"),
   });
   const [dmThreadId, setDmThreadId] = useState<string | null>(null);
+  const dmCreateFor = useRef<string | null>(null);
   useEffect(() => {
     if (mode !== "dm" || !requestedDm || !accessToken || !csrfToken) return;
     if (requestedDm.startsWith("user:")) {
+      // Effects run twice in development; only one thread request per target.
+      if (dmCreateFor.current === requestedDm) return;
+      dmCreateFor.current = requestedDm;
       const userId = requestedDm.slice(5);
       void createDmThread(accessToken, csrfToken, userId)
         .then((result) => {

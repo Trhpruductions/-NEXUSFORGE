@@ -35,7 +35,12 @@ dmsRouter.get("/threads", async (req, res) => {
           participants: {
             include: {
               user: {
-                select: { id: true, username: true, avatar: true, status: true },
+                select: {
+                  id: true,
+                  username: true,
+                  avatar: true,
+                  status: true,
+                },
               },
             },
           },
@@ -58,10 +63,33 @@ dmsRouter.get("/threads", async (req, res) => {
   res.json({ threads: membership.map((row) => row.thread) });
 });
 
+// Serialize thread creation per user pair so two simultaneous requests cannot create two threads.
+const threadLocks = new Map<string, Promise<unknown>>();
+async function withPairLock<T>(
+  a: string,
+  b: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const key = [a, b].sort().join(":");
+  const previous = threadLocks.get(key) ?? Promise.resolve();
+  const run = previous.then(work, work);
+  threadLocks.set(
+    key,
+    run.catch(() => undefined),
+  );
+  try {
+    return await run;
+  } finally {
+    if (threadLocks.get(key) === run) threadLocks.delete(key);
+  }
+}
+
 dmsRouter.post("/threads", async (req, res) => {
   const parsed = createDmSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    res
+      .status(400)
+      .json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
 
@@ -85,61 +113,81 @@ dmsRouter.post("/threads", async (req, res) => {
     return;
   }
 
-  const existing = await prisma.directMessageThread.findFirst({
-    where: {
-      isGroup: false,
-      AND: [
-        { participants: { some: { userId: req.user!.id } } },
-        { participants: { some: { userId: parsed.data.userId } } },
-      ],
-    },
-    include: {
-      participants: {
+  const thread = await withPairLock(
+    req.user!.id,
+    parsed.data.userId,
+    async () => {
+      const existing = await prisma.directMessageThread.findFirst({
+        where: {
+          isGroup: false,
+          AND: [
+            { participants: { some: { userId: req.user!.id } } },
+            { participants: { some: { userId: parsed.data.userId } } },
+          ],
+        },
         include: {
-          user: {
-            select: { id: true, username: true, avatar: true, status: true },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  avatar: true,
+                  status: true,
+                },
+              },
+            },
           },
         },
-      },
-    },
-  });
+      });
 
-  if (existing && existing.participants.length === 2) {
-    res.status(200).json({ thread: existing });
-    return;
-  }
+      if (existing && existing.participants.length === 2)
+        return { thread: existing, created: false };
 
-  const thread = await prisma.directMessageThread.create({
-    data: {
-      isGroup: false,
-      participants: {
-        createMany: {
-          data: [{ userId: req.user!.id }, { userId: parsed.data.userId }],
-        },
-      },
-    },
-    include: {
-      participants: {
-        include: {
-          user: {
-            select: { id: true, username: true, avatar: true, status: true },
+      const created = await prisma.directMessageThread.create({
+        data: {
+          isGroup: false,
+          participants: {
+            createMany: {
+              data: [{ userId: req.user!.id }, { userId: parsed.data.userId }],
+            },
           },
         },
-      },
-    },
-  });
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  avatar: true,
+                  status: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
-  res.status(201).json({ thread });
+      return { thread: created, created: true };
+    },
+  );
+
+  res.status(thread.created ? 201 : 200).json({ thread: thread.thread });
 });
 
 dmsRouter.post("/groups", async (req, res) => {
   const parsed = createGroupSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    res
+      .status(400)
+      .json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
 
-  const uniqueIds = Array.from(new Set([req.user!.id, ...parsed.data.participantIds]));
+  const uniqueIds = Array.from(
+    new Set([req.user!.id, ...parsed.data.participantIds]),
+  );
 
   const users = await prisma.user.findMany({
     where: { id: { in: uniqueIds } },
@@ -209,7 +257,9 @@ dmsRouter.get("/threads/:threadId/messages", async (req, res) => {
 dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
   const parsed = messageSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    res
+      .status(400)
+      .json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
 
