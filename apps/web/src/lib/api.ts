@@ -25,6 +25,7 @@ export type User = {
   isAdmin?: boolean;
   ageVerificationLevel?: AgeVerificationLevel;
   hasBirthdate?: boolean;
+  onboarded?: boolean;
   currentActivity?: string | null;
   activityDetails?: string | null;
   
@@ -2781,5 +2782,10 @@ export async function pinMessage(accessToken: string, csrfToken: string, message
   const response = pinned
     ? await api.post<{ message: Message }>(`/api/messages/${messageId}/pin`, {}, { headers: authHeaders(accessToken, csrfToken) })
     : await api.delete<{ message: Message }>(`/api/messages/${messageId}/pin`, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function completeOnboarding(accessToken: string, csrfToken: string) {
+  const response = await api.post<{ ok: true }>("/api/settings/onboarded", {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

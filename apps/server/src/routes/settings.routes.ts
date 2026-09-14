@@ -213,6 +213,12 @@ settingsRouter.put("/privacy", async (req, res) => {
   res.json({ privacy: parsed.data });
 });
 
+/** Marks the welcome wizard as finished so the shell stops redirecting to it. */
+settingsRouter.post("/onboarded", async (req, res) => {
+  await prisma.user.update({ where: { id: req.user!.id }, data: { onboardedAt: new Date() } });
+  res.json({ ok: true });
+});
+
 settingsRouter.put("/preferences", async (req, res) => {
   const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { preferences: true } });
   const base = parsePreferences(current?.preferences);

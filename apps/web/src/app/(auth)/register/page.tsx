@@ -82,7 +82,7 @@ export default function RegisterPage() {
         rememberMe: true,
       });
       setVerificationToken(payload.verification.devCode ?? null);
-      router.push(redirectTarget ?? "/app/settings?verify=1");
+      router.push(redirectTarget ?? "/welcome");
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "Registration failed");
     }

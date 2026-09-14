@@ -545,6 +545,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       isAdmin: true,
       birthdate: true,
       ageVerificationLevel: true,
+      onboardedAt: true,
       economyAccounts: {
         select: {
           currencyType: true,
@@ -564,6 +565,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       ...user,
       birthdate: undefined,
       hasBirthdate: Boolean(user.birthdate),
+      onboarded: Boolean(user.onboardedAt),
       economyAccounts: user.economyAccounts.map((account) => ({ currencyType: account.currencyType, balance: account.balance.toString() })),
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },

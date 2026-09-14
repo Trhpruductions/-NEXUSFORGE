@@ -263,7 +263,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user && user.ageVerificationLevel === "NONE") {
       router.replace(`/age-gate?next=${encodeURIComponent(pathname)}`);
+      return;
     }
+    // First sign-in: avatar, forge and friends before landing in the workspace.
+    if (user && user.onboarded === false) router.replace("/welcome");
   }, [user, pathname, router]);
 
   // Join every forge room so unread badges tick live, even for forges not currently open.
@@ -274,7 +277,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const join = () => {
       forges.forEach((entry) => socket.emit("forge:join", entry.id));
       // Presence is set server-side on connect; pull the fresh status into the footer.
-      window.setTimeout(() => void fetchMe(), 600);
+      window.setTimeout(() => {
+        void fetchMe();
+        // Our own ONLINE presence was set before we joined the forge rooms; refresh member statuses.
+        void queryClient.invalidateQueries({ queryKey: ["forge"] });
+      }, 600);
     };
     join();
 
