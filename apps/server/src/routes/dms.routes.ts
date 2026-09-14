@@ -60,7 +60,41 @@ dmsRouter.get("/threads", async (req, res) => {
     orderBy: { joinedAt: "desc" },
   });
 
-  res.json({ threads: membership.map((row) => row.thread) });
+  // Unread = messages from others after the participant's lastReadAt.
+  const unreadCounts = await Promise.all(
+    membership.map((row) =>
+      prisma.directMessage.count({
+        where: { threadId: row.threadId, authorId: { not: req.user!.id }, ...(row.lastReadAt ? { createdAt: { gt: row.lastReadAt } } : {}) },
+      }),
+    ),
+  );
+  const threads = membership
+    .map((row, index) => ({ ...row.thread, unreadCount: unreadCounts[index], lastReadAt: row.lastReadAt }))
+    .sort((a, b) => {
+      const aTime = a.messages[0]?.createdAt?.getTime?.() ?? a.updatedAt.getTime();
+      const bTime = b.messages[0]?.createdAt?.getTime?.() ?? b.updatedAt.getTime();
+      return bTime - aTime;
+    });
+  res.json({ threads });
+});
+
+/** Total unread DMs for the shell badge. */
+dmsRouter.get("/unread", async (req, res) => {
+  const rows = await prisma.directMessageParticipant.findMany({ where: { userId: req.user!.id }, select: { threadId: true, lastReadAt: true } });
+  const counts = await Promise.all(
+    rows.map((row) => prisma.directMessage.count({ where: { threadId: row.threadId, authorId: { not: req.user!.id }, ...(row.lastReadAt ? { createdAt: { gt: row.lastReadAt } } : {}) } })),
+  );
+  res.json({ unread: counts.reduce((sum, value) => sum + value, 0), threads: rows.map((row, index) => ({ threadId: row.threadId, unread: counts[index] })).filter((entry) => entry.unread > 0) });
+});
+
+/** Mark a thread as read up to now. */
+dmsRouter.post("/threads/:threadId/read", async (req, res) => {
+  const updated = await prisma.directMessageParticipant.updateMany({ where: { threadId: req.params.threadId, userId: req.user!.id }, data: { lastReadAt: new Date() } });
+  if (!updated.count) {
+    res.status(404).json({ error: "Thread not found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 // Serialize thread creation per user pair so two simultaneous requests cannot create two threads.
@@ -315,6 +349,8 @@ dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
   );
 
   getIo().to(`dm:${threadId}`).emit("dm:message", { threadId, message });
+  // Also tell each participant's other sessions so the shell badge ticks without the thread open.
+  for (const participant of participants) getIo().to(`user:${participant.userId}`).emit("dm:activity", { threadId, messageId: message.id, authorId: req.user!.id });
 
   res.status(201).json({ message });
 });

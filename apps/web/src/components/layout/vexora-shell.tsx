@@ -31,7 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getProtectionStatus, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -220,6 +220,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     setForgeCounts(next);
   }, [summaryQuery.data, setForgeCounts]);
 
+  const dmUnreadQuery = useQuery({
+    queryKey: ["dm-unread", accessToken],
+    queryFn: () => getDmUnread(accessToken!),
+    enabled: Boolean(accessToken),
+    refetchInterval: 60_000,
+  });
+  const dmUnread = dmUnreadQuery.data?.unread ?? 0;
+
   const notificationsQuery = useQuery({
     queryKey: ["notifications", accessToken],
     queryFn: () => listNotifications(accessToken!, csrfToken ?? ""),
@@ -293,6 +301,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     const handleChannels = (payload: { forgeId: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
     };
+    const handleDmActivity = (payload: { authorId: string }) => {
+      if (payload.authorId === user?.id) return;
+      void queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
+      void queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
+    };
     const handleNotification = (payload: { id: string; title: string }) => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       if (soundsEnabledRef.current) playNotificationTone();
@@ -314,7 +327,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     socket.on("presence:changed", handlePresence);
     socket.on("voice:occupancy", handleVoice);
     socket.on("notification:new", handleNotification);
+    socket.on("dm:activity", handleDmActivity);
     return () => {
+      socket.off("dm:activity", handleDmActivity);
       socket.off("notification:new", handleNotification);
       socket.off("voice:occupancy", handleVoice);
       socket.off("connect", join);
@@ -623,11 +638,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 title={link.label}
                 aria-label={link.label}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-lg border transition",
+                  "relative flex h-9 w-9 items-center justify-center rounded-lg border transition",
                   active ? "border-amber-400/60 bg-amber-500/15 text-amber-200" : "border-transparent text-slate-500 hover:border-amber-400/40 hover:text-amber-200",
                 )}
               >
                 <link.icon className="h-4 w-4" />
+                {link.href === "/app/chat" && dmUnread ? (
+                  <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">{dmUnread > 99 ? "99+" : dmUnread}</span>
+                ) : null}
               </Link>
             );
           })}

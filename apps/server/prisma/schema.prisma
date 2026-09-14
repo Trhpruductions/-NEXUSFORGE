@@ -686,10 +686,11 @@ model DirectMessageThread {
 }
 
 model DirectMessageParticipant {
-  id        String              @id @default(uuid())
-  threadId  String
-  userId    String
-  joinedAt  DateTime            @default(now())
+  id         String              @id @default(uuid())
+  threadId   String
+  userId     String
+  joinedAt   DateTime            @default(now())
+  lastReadAt DateTime?
   thread    DirectMessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 

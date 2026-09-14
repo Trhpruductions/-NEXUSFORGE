@@ -358,6 +358,7 @@ export type DmParticipant = {
 };
 
 export type DmThread = {
+  unreadCount?: number;
   id: string;
   isGroup: boolean;
   name?: string | null;
@@ -2787,5 +2788,15 @@ export async function pinMessage(accessToken: string, csrfToken: string, message
 
 export async function completeOnboarding(accessToken: string, csrfToken: string) {
   const response = await api.post<{ ok: true }>("/api/settings/onboarded", {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function getDmUnread(accessToken: string) {
+  const response = await api.get<{ unread: number; threads: Array<{ threadId: string; unread: number }> }>("/api/dms/unread", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function markDmThreadRead(accessToken: string, csrfToken: string, threadId: string) {
+  const response = await api.post<{ ok: true }>(`/api/dms/threads/${threadId}/read`, {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

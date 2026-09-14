@@ -24,6 +24,7 @@ import {
   updateVoiceState,
   listPinnedMessages,
   pinMessage,
+  markDmThreadRead,
   type Channel,
   type DmMessage,
   type DmThread,
@@ -402,6 +403,16 @@ function ChatInner() {
       socket.emit("dm:join", dmThreadId);
       void queryClient.invalidateQueries({ queryKey: ["dm-messages", dmThreadId] });
     };
+    const markRead = () => {
+      if (!csrfToken) return;
+      void markDmThreadRead(accessToken, csrfToken, dmThreadId)
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
+          void queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
+        })
+        .catch(() => undefined);
+    };
+    markRead();
     socket.on("connect", rejoin);
     const onDm = (payload: { threadId: string; message: DmMessage }) => {
       if (payload.threadId !== dmThreadId) return;
@@ -409,6 +420,7 @@ function ChatInner() {
         const messages = current?.messages ?? [];
         return messages.some((msg) => msg.id === payload.message.id) ? current : { messages: [...messages, payload.message] };
       });
+      if (payload.message.authorId !== user?.id) markRead();
     };
     socket.on("dm:message", onDm);
     return () => {
@@ -416,7 +428,7 @@ function ChatInner() {
       socket.off("connect", rejoin);
       socket.off("dm:message", onDm);
     };
-  }, [accessToken, dmThreadId, mode, queryClient]);
+  }, [accessToken, csrfToken, dmThreadId, mode, queryClient, user?.id]);
   const dmSend = useMutation({
     mutationFn: () => postDmMessage(accessToken!, csrfToken!, dmThreadId!, { content: dmDraft.trim() }),
     onSuccess: (data) => {
@@ -546,7 +558,8 @@ function ChatInner() {
                   <li key={thread.id}>
                     <Link href={`/app/chat?dm=${thread.id}`} className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm", thread.id === dmThreadId ? "bg-amber-500/10 text-amber-100" : "text-slate-300 hover:bg-white/5")}>
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold">{initials(dmLabel(thread))}</span>
-                      <span className="truncate">{dmLabel(thread)}</span>
+                      <span className={cn("min-w-0 flex-1 truncate", thread.unreadCount ? "font-semibold text-white" : "")}>{dmLabel(thread)}</span>
+                      {thread.unreadCount && thread.id !== dmThreadId ? <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{thread.unreadCount}</span> : null}
                     </Link>
                   </li>
                 ))}
