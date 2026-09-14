@@ -324,6 +324,8 @@ export type Message = {
   optimistic?: boolean;
   optimisticId?: string;
   replyToId?: string | null;
+  pinnedAt?: string | null;
+  pinnedById?: string | null;
   replyTo?: {
     id: string;
     content: string;
@@ -2767,5 +2769,17 @@ export type StreamSessionSummary = { id: string; platform: string; title: string
 
 export async function getUserStreams(accessToken: string, userId: string | "me") {
   const response = await api.get<{ streams: StreamSessionSummary[] }>(`/api/social/users/${userId}/streams`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function listPinnedMessages(accessToken: string, channelId: string) {
+  const response = await api.get<{ messages: Message[] }>(`/api/messages/${channelId}/pins`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function pinMessage(accessToken: string, csrfToken: string, messageId: string, pinned: boolean) {
+  const response = pinned
+    ? await api.post<{ message: Message }>(`/api/messages/${messageId}/pin`, {}, { headers: authHeaders(accessToken, csrfToken) })
+    : await api.delete<{ message: Message }>(`/api/messages/${messageId}/pin`, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

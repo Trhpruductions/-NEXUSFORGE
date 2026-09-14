@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
 import {
   createDmThread,
   createUploadPresign,
@@ -22,6 +22,8 @@ import {
   requestVoiceToken,
   toggleReaction,
   updateVoiceState,
+  listPinnedMessages,
+  pinMessage,
   type Channel,
   type DmMessage,
   type DmThread,
@@ -76,6 +78,7 @@ function ChatInner() {
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [pinsOpen, setPinsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -161,6 +164,10 @@ function ChatInner() {
     };
     const onUpdated = (payload: { message: Message }) => patch((current) => ({ ...current, messages: current.messages.map((msg) => (msg.id === payload.message.id ? payload.message : msg)) }));
     const onDeleted = (payload: { messageId: string }) => patch((current) => ({ ...current, messages: current.messages.filter((msg) => msg.id !== payload.messageId) }));
+    const onPinned = (payload: { message: Message }) => {
+      patch((current) => ({ ...current, messages: current.messages.map((msg) => (msg.id === payload.message.id ? payload.message : msg)) }));
+      void queryClient.invalidateQueries({ queryKey: ["pins", channelId] });
+    };
     const onReactions = (payload: { messageId: string; reactions: Message["reactions"] }) => patch((current) => ({ ...current, messages: current.messages.map((msg) => (msg.id === payload.messageId ? { ...msg, reactions: payload.reactions ?? [] } : msg)) }));
     const nameOf = (userId: string) => forge?.members.find((member) => member.userId === userId)?.user.username ?? "Someone";
     const onTypingStart = (payload: { channelId: string; userId: string }) => {
@@ -175,6 +182,7 @@ function ChatInner() {
     socket.on("message:updated", onUpdated);
     socket.on("message:deleted", onDeleted);
     socket.on("message:reactions", onReactions);
+    socket.on("message:pinned", onPinned);
     socket.on("typing:start", onTypingStart);
     socket.on("typing:stop", onTypingStop);
     return () => {
@@ -183,6 +191,7 @@ function ChatInner() {
       socket.off("message:updated", onUpdated);
       socket.off("message:deleted", onDeleted);
       socket.off("message:reactions", onReactions);
+      socket.off("message:pinned", onPinned);
       socket.off("typing:start", onTypingStart);
       socket.off("typing:stop", onTypingStop);
     };
@@ -254,6 +263,16 @@ function ChatInner() {
     onSuccess: (_data, messageId) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, accessToken], (current) => (current ? { ...current, messages: current.messages.filter((msg) => msg.id !== messageId) } : current)),
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
+  const pinsQuery = useQuery({
+    queryKey: ["pins", channelId, accessToken],
+    queryFn: () => listPinnedMessages(accessToken!, channelId!),
+    enabled: Boolean(accessToken && channelId && mode === "channel" && pinsOpen),
+  });
+  const pinMutation = useMutation({
+    mutationFn: ({ messageId, pinned }: { messageId: string; pinned: boolean }) => pinMessage(accessToken!, csrfToken!, messageId, pinned),
+    onError: (error) => setStatus(getApiErrorMessage(error)),
+  });
+
   const reactMutation = useMutation({
     mutationFn: (input: { messageId: string; emoji: string }) => toggleReaction(accessToken!, csrfToken!, input.messageId, input.emoji),
     onSuccess: (data, input) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, accessToken], (current) => (current ? { ...current, messages: current.messages.map((msg) => (msg.id === input.messageId ? { ...msg, reactions: data.reactions } : msg)) } : current)),
@@ -439,6 +458,7 @@ function ChatInner() {
             )}
           </div>
         ) : null}
+        {mode === "channel" ? <button type="button" onClick={() => setPinsOpen((open) => !open)} className={cn(iconBtn, pinsOpen && "text-amber-200")} title="Pinned messages"><Pin className="h-4 w-4" /></button> : null}
         <button type="button" onClick={() => setMembersOpen((open) => !open)} className={cn(iconBtn, membersOpen && "text-amber-200")} title="Members"><Users className="h-4 w-4" /></button>
         {selectedForgeId ? <button type="button" onClick={() => setSettingsOpen(true)} className={iconBtn} title="Forge settings"><Settings2 className="h-4 w-4" /></button> : null}
         <Link href={selectedForgeId ? `/app/forge-ops?forge=${selectedForgeId}` : "/app/forge-ops"} className={iconBtn} title="Forge ops: bots, invites, campaigns"><Wrench className="h-4 w-4" /></Link>
@@ -579,7 +599,30 @@ function ChatInner() {
                     onEdit={async (messageId, content) => { await editMutation.mutateAsync({ messageId, content }); }}
                     onDelete={async (messageId) => { await deleteMutation.mutateAsync(messageId); }}
                     onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
+                    onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
                   />
+                  {pinsOpen ? (
+                    <div className="absolute right-3 top-14 z-30 w-[min(420px,calc(100%-24px))] overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                      <div className="flex items-center justify-between border-b border-white/5 px-3 py-2">
+                        <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-200"><Pin className="h-3.5 w-3.5" /> Pinned messages</p>
+                        <button type="button" onClick={() => setPinsOpen(false)} className="text-slate-500 hover:text-white" title="Close"><X className="h-3.5 w-3.5" /></button>
+                      </div>
+                      <div className="max-h-80 space-y-1 overflow-y-auto p-2">
+                        {pinsQuery.isLoading ? <p className="p-2 text-xs text-slate-400">Loading...</p> : null}
+                        {pinsQuery.data?.messages.length ? (
+                          pinsQuery.data.messages.map((pinned) => (
+                            <div key={pinned.id} className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
+                              <p className="text-[11px] text-slate-400"><span className="font-semibold text-slate-200">{pinned.botName ?? pinned.author?.username ?? "Unknown"}</span> · {new Date(pinned.createdAt).toLocaleDateString()}</p>
+                              <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-sm text-slate-100">{pinned.content}</p>
+                              {canModerate ? <button type="button" onClick={() => pinMutation.mutate({ messageId: pinned.id, pinned: false })} className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500 hover:text-rose-300">Unpin</button> : null}
+                            </div>
+                          ))
+                        ) : pinsQuery.data ? (
+                          <p className="p-2 text-xs text-slate-500">No pinned messages. Moderators can pin from a message&apos;s hover menu.</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center text-center">

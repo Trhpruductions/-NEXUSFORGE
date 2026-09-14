@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CornerUpLeft, Loader2, Pencil, SmilePlus, Trash2, X } from "lucide-react";
+import { Check, CornerUpLeft, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
 
@@ -21,6 +21,7 @@ type MessageListProps = {
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
+  onPin?: (messageId: string, pinned: boolean) => void;
 };
 
 function formatTime(date: string): string {
@@ -65,6 +66,7 @@ export function MessageList({
   onEdit,
   onDelete,
   onReact,
+  onPin,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -187,6 +189,7 @@ export function MessageList({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                    {message.pinnedAt ? <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300"><Pin className="h-3 w-3" /> Pinned</span> : null}
                     <span className="text-sm font-semibold" style={{ color: meta.color }}>
                       {meta.name}
                     </span>
@@ -277,6 +280,11 @@ export function MessageList({
                   <button type="button" className={iconBtn} title="Reply" onClick={() => onReply(message)}>
                     <CornerUpLeft className="h-3.5 w-3.5" />
                   </button>
+                  {canModerate && onPin ? (
+                    <button type="button" className={iconBtn} title={message.pinnedAt ? "Unpin" : "Pin"} onClick={() => onPin(message.id, !message.pinnedAt)}>
+                      {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                    </button>
+                  ) : null}
                   {canEdit ? (
                     <button type="button" className={iconBtn} title="Edit" onClick={() => startEdit(message)}>
                       <Pencil className="h-3.5 w-3.5" />

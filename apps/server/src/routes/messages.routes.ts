@@ -397,6 +397,76 @@ messagesRouter.patch("/:id", async (req, res) => {
   res.json({ message });
 });
 
+/** Who may pin: the forge owner or anyone with moderateChat / manageChannels. */
+async function canPinIn(userId: string, forgeId: string) {
+  const [forge, membership] = await Promise.all([
+    prisma.forge.findUnique({ where: { id: forgeId }, select: { ownerId: true } }),
+    prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId, forgeId } }, include: { roleLinks: { include: { role: true } } } }),
+  ]);
+  if (forge?.ownerId === userId) return true;
+  return Boolean(
+    membership?.roleLinks.some((link) => {
+      const permissions = link.role.permissions as Record<string, boolean>;
+      return Boolean(permissions.moderateChat || permissions.manageChannels);
+    }),
+  );
+}
+
+messagesRouter.get("/:channelId/pins", async (req, res) => {
+  const channel = await prisma.channel.findUnique({ where: { id: req.params.channelId }, select: { forgeId: true } });
+  if (!channel) {
+    res.status(404).json({ error: "Channel not found" });
+    return;
+  }
+  const membership = await prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: req.user!.id, forgeId: channel.forgeId } }, select: { id: true } });
+  if (!membership) {
+    res.status(403).json({ error: "Not a member of this forge" });
+    return;
+  }
+  const messages = await prisma.message.findMany({
+    where: { channelId: req.params.channelId, pinnedAt: { not: null } },
+    orderBy: { pinnedAt: "desc" },
+    take: 50,
+    include: messageInclude,
+  });
+  res.json({ messages });
+});
+
+messagesRouter.post("/:id/pin", async (req, res) => {
+  const existing = await prisma.message.findUnique({ where: { id: req.params.id }, include: { channel: { select: { forgeId: true } } } });
+  if (!existing) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+  if (!(await canPinIn(req.user!.id, existing.channel.forgeId))) {
+    res.status(403).json({ error: "Only moderators can pin messages" });
+    return;
+  }
+  const pinnedCount = await prisma.message.count({ where: { channelId: existing.channelId, pinnedAt: { not: null } } });
+  if (!existing.pinnedAt && pinnedCount >= 50) {
+    res.status(400).json({ error: "This channel already has 50 pins. Unpin something first." });
+    return;
+  }
+  const updated = await prisma.message.update({ where: { id: existing.id }, data: { pinnedAt: new Date(), pinnedById: req.user!.id }, include: messageInclude });
+  getIo().to(`channel:${existing.channelId}`).emit("message:pinned", { message: updated, pinned: true });
+  res.json({ message: updated });
+});
+
+messagesRouter.delete("/:id/pin", async (req, res) => {
+  const existing = await prisma.message.findUnique({ where: { id: req.params.id }, include: { channel: { select: { forgeId: true } } } });
+  if (!existing) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+  if (!(await canPinIn(req.user!.id, existing.channel.forgeId))) {
+    res.status(403).json({ error: "Only moderators can unpin messages" });
+    return;
+  }
+  const updated = await prisma.message.update({ where: { id: existing.id }, data: { pinnedAt: null, pinnedById: null }, include: messageInclude });
+  getIo().to(`channel:${existing.channelId}`).emit("message:pinned", { message: updated, pinned: false });
+  res.json({ message: updated });
+});
+
 messagesRouter.delete("/:id", async (req, res) => {
   const existing = await prisma.message.findUnique({
     where: { id: req.params.id },
