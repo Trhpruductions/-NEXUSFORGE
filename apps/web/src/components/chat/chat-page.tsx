@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Check, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Plus, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
 import {
   createDmThread,
   createUploadPresign,
@@ -25,6 +25,8 @@ import {
   listPinnedMessages,
   pinMessage,
   markDmThreadRead,
+  createDmGroup,
+  listFriends,
   type Channel,
   type DmMessage,
   type DmThread,
@@ -392,6 +394,29 @@ function ChatInner() {
     enabled: Boolean(accessToken && mode === "dm"),
   });
   const [dmThreadId, setDmThreadId] = useState<string | null>(null);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupMembers, setGroupMembers] = useState<Set<string>>(new Set());
+  const friendsQuery = useQuery({
+    queryKey: ["friends", accessToken],
+    queryFn: () => listFriends(accessToken!),
+    enabled: Boolean(accessToken && mode === "dm" && groupOpen),
+  });
+  const friendOptions = useMemo(
+    () => (friendsQuery.data?.friends ?? []).filter((entry) => entry.status === "ACCEPTED").map((entry) => (entry.senderId === user?.id ? entry.receiver : entry.sender)),
+    [friendsQuery.data, user?.id],
+  );
+  const groupMutation = useMutation({
+    mutationFn: () => createDmGroup(accessToken!, csrfToken!, { name: groupName.trim(), participantIds: Array.from(groupMembers) }),
+    onSuccess: async (result) => {
+      setGroupOpen(false);
+      setGroupName("");
+      setGroupMembers(new Set());
+      await queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
+      router.replace(`/app/chat?dm=${result.thread.id}`);
+    },
+    onError: (error) => setStatus(getApiErrorMessage(error)),
+  });
   const dmCreateFor = useRef<string | null>(null);
   useEffect(() => {
     if (mode !== "dm" || !requestedDm || !accessToken || !csrfToken) return;
@@ -574,7 +599,37 @@ function ChatInner() {
         ) : mode === "dm" ? (
           <div className="flex min-h-0 flex-1">
             <aside className="hidden w-56 shrink-0 border-r border-white/5 p-2 md:block">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Direct messages</p>
+              <div className="flex items-center justify-between px-2 py-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Direct messages</p>
+                <button type="button" onClick={() => setGroupOpen((open) => !open)} className={cn("text-slate-600 transition hover:text-amber-300", groupOpen && "text-amber-300")} title="New group"><Plus className="h-3.5 w-3.5" /></button>
+              </div>
+              {groupOpen ? (
+                <div className="mb-2 rounded-xl border border-amber-500/25 bg-[#0d1119] p-2">
+                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-200">New group</p>
+                  <input value={groupName} onChange={(event) => setGroupName(event.target.value)} maxLength={80} placeholder="Group name" className="mb-2 h-8 w-full rounded-lg border border-white/10 bg-[#11151e] px-2 text-xs text-slate-100 outline-none focus:border-amber-400/60" />
+                  <div className="max-h-40 space-y-0.5 overflow-y-auto">
+                    {friendsQuery.isLoading ? <p className="px-1 text-[11px] text-slate-500">Loading friends...</p> : null}
+                    {friendOptions.map((friend) => {
+                      const picked = groupMembers.has(friend.id);
+                      return (
+                        <button
+                          key={friend.id}
+                          type="button"
+                          onClick={() => setGroupMembers((current) => { const next = new Set(current); if (next.has(friend.id)) next.delete(friend.id); else next.add(friend.id); return next; })}
+                          className={cn("flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs", picked ? "bg-amber-500/10 text-amber-100" : "text-slate-300 hover:bg-white/5")}
+                        >
+                          <span className={cn("flex h-4 w-4 items-center justify-center rounded border", picked ? "border-amber-400 bg-amber-400 text-slate-950" : "border-white/20")}>{picked ? <Check className="h-3 w-3" /> : null}</span>
+                          <span className="truncate">{friend.username}</span>
+                        </button>
+                      );
+                    })}
+                    {friendsQuery.data && friendOptions.length < 2 ? <p className="px-1 text-[11px] text-slate-500">You need at least two friends to start a group.</p> : null}
+                  </div>
+                  <button type="button" disabled={groupName.trim().length < 2 || groupMembers.size < 2 || groupMutation.isPending} onClick={() => groupMutation.mutate()} className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg bg-amber-400 px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-950 hover:bg-amber-300 disabled:opacity-50">
+                    {groupMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Create group ({groupMembers.size})
+                  </button>
+                </div>
+              ) : null}
               <ul className="space-y-0.5">
                 {(dmThreadsQuery.data?.threads ?? []).map((thread) => (
                   <li key={thread.id}>
