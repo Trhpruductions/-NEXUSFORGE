@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Crown } from "lucide-react";
 import type { ForgeMemberEntry, ForgeRole } from "@/lib/api";
+import { UserCard } from "@/components/social/user-card";
 
 type MemberListProps = {
   members: ForgeMemberEntry[];
@@ -53,6 +54,7 @@ export function topRoleFor(member: ForgeMemberEntry, roles: ForgeRole[], ownerId
 
 export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: MemberListProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [cardFor, setCardFor] = useState<string | null>(null);
 
   const groups = useMemo<Group[]>(() => {
     const sortedRoles = [...roles].sort((a, b) => b.position - a.position);
@@ -118,10 +120,13 @@ export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: 
                   const top = topRoleFor(member, roles, ownerId);
                   const isOffline = member.user.status === "OFFLINE";
                   return (
-                    <li key={member.id}>
+                    <li key={member.id} className="relative">
                       <button
                         type="button"
-                        onClick={() => onSelectMember?.(member)}
+                        onClick={() => {
+                          if (onSelectMember) onSelectMember(member);
+                          else setCardFor((current) => (current === member.userId ? null : member.userId));
+                        }}
                         className={`flex w-full items-center gap-2 rounded-[12px] px-2 py-1.5 text-left transition hover:bg-slate-800/70 ${isOffline ? "opacity-50" : ""}`}
                       >
                         <span className="relative shrink-0">
@@ -146,6 +151,7 @@ export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: 
                           {member.nickname ? <span className="block truncate text-[10px] text-slate-500">@{member.user.username}</span> : null}
                         </span>
                       </button>
+                      {cardFor === member.userId ? <UserCard userId={member.userId} onClose={() => setCardFor(null)} align="right" /> : null}
                     </li>
                   );
                 })}

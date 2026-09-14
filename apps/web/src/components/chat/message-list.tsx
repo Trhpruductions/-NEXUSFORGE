@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CornerUpLeft, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
 
@@ -72,6 +73,7 @@ export function MessageList({
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [cardFor, setCardFor] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastMessageId = messages[messages.length - 1]?.id;
@@ -111,8 +113,6 @@ export function MessageList({
     }
   };
 
-  let lastDay = "";
-
   return (
     <div className="grid gap-1.5">
       {hasOlder ? (
@@ -127,10 +127,9 @@ export function MessageList({
         </button>
       ) : null}
 
-      {messages.map((message) => {
+      {messages.map((message, index) => {
         const day = formatDay(message.createdAt);
-        const showDay = day !== lastDay;
-        lastDay = day;
+        const showDay = index === 0 || day !== formatDay(messages[index - 1].createdAt);
         const meta = authorMeta(message);
         const isSelf = message.authorId === selfId;
         const canEdit = isSelf && !message.botId;
@@ -190,8 +189,11 @@ export function MessageList({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-slate-400">
                     {message.pinnedAt ? <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300"><Pin className="h-3 w-3" /> Pinned</span> : null}
-                    <span className="text-sm font-semibold" style={{ color: meta.color }}>
-                      {meta.name}
+                    <span className="relative">
+                      <button type="button" onClick={() => message.authorId && setCardFor((current) => (current === message.id ? null : message.id))} className="text-sm font-semibold hover:underline" style={{ color: meta.color }}>
+                        {meta.name}
+                      </button>
+                      {cardFor === message.id && message.authorId ? <UserCard userId={message.authorId} onClose={() => setCardFor(null)} /> : null}
                     </span>
                     {meta.nickname && message.author?.username ? <span className="text-[10px] text-slate-500">@{message.author.username}</span> : null}
                     {message.botId ? (

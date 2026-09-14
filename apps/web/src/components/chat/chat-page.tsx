@@ -829,7 +829,7 @@ function ChatInner() {
 
       {membersOpen && forge && mode !== "dm" ? (
         <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-amber-500/15 bg-[#0b0e15] p-3 lg:block">
-          <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} onSelectMember={(member) => router.push(`/app/profile?user=${member.userId}`)} />
+          <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} />
         </aside>
       ) : null}
     </div>

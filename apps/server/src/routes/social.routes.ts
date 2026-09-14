@@ -81,6 +81,13 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
     return;
   }
 
+  const friendship =
+    userId === req.user!.id
+      ? null
+      : await prisma.friend.findFirst({
+          where: { OR: [{ senderId: req.user!.id, receiverId: userId }, { senderId: userId, receiverId: req.user!.id }] },
+          select: { id: true, status: true, senderId: true },
+        });
   const [isFollowing, followsYou, reputationAccount] = await Promise.all([
     userId === req.user!.id
       ? Promise.resolve(false)
@@ -104,6 +111,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,
+    friendship: friendship ? { id: friendship.id, status: friendship.status, incoming: friendship.senderId === userId } : null,
   });
 });
 
