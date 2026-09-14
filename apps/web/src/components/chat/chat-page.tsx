@@ -209,6 +209,21 @@ function ChatInner() {
     () => (forge?.botInstallations ?? []).filter((install) => install.enabled).flatMap((install) => install.commands.filter((command) => command.enabled).map((command) => ({ ...command, botName: install.bot.name }))),
     [forge],
   );
+  // @mention autocomplete: the token being typed at the caret's end of the draft.
+  const mentionQuery = useMemo(() => {
+    const match = draft.match(/(?:^|\s)@([a-zA-Z0-9_]{0,32})$/);
+    return match ? match[1].toLowerCase() : null;
+  }, [draft]);
+  const mentionSuggestions = useMemo(() => {
+    if (mentionQuery === null || !forge) return [];
+    return forge.members
+      .filter((member) => member.user.id !== user?.id && (!mentionQuery || member.user.username.toLowerCase().startsWith(mentionQuery)))
+      .slice(0, 6);
+  }, [mentionQuery, forge, user?.id]);
+  const applyMention = (username: string) => {
+    setDraft((current) => current.replace(/@([a-zA-Z0-9_]{0,32})$/, `@${username} `));
+  };
+
   const slashSuggestions = useMemo(() => {
     const trimmed = draft.trimStart();
     if (!trimmed.startsWith("/") || trimmed.includes(" ")) return [];
@@ -687,6 +702,23 @@ function ChatInner() {
                   </div>
                 ) : null}
                 <div className="relative">
+                  {mentionSuggestions.length ? (
+                    <div className="absolute inset-x-0 bottom-[calc(100%+0.4rem)] z-20 rounded-xl border border-amber-500/25 bg-[#0d1119] p-1.5 shadow-xl">
+                      <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Members</p>
+                      {mentionSuggestions.map((member) => (
+                        <button key={member.user.id} type="button" onClick={() => applyMention(member.user.username)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs hover:bg-white/5">
+                          {member.user.avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={member.user.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
+                          ) : (
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-[9px] font-bold text-amber-100">{member.user.username.slice(0, 2).toUpperCase()}</span>
+                          )}
+                          <span className="font-semibold text-white">@{member.user.username}</span>
+                          <span className={cn("ml-auto h-2 w-2 rounded-full", member.user.status === "ONLINE" ? "bg-emerald-400" : member.user.status === "IDLE" ? "bg-yellow-300" : member.user.status === "DND" ? "bg-rose-400" : "bg-slate-600")} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   {slashSuggestions.length ? (
                     <div className="absolute inset-x-0 bottom-[calc(100%+0.4rem)] z-20 rounded-xl border border-amber-500/25 bg-[#0d1119] p-1.5 shadow-xl">
                       {slashSuggestions.map((command) => (
@@ -704,6 +736,11 @@ function ChatInner() {
                       value={draft}
                       onChange={(event) => onDraftChange(event.target.value)}
                       onKeyDown={(event) => {
+                        if ((event.key === "Tab" || event.key === "Enter") && mentionSuggestions.length) {
+                          event.preventDefault();
+                          applyMention(mentionSuggestions[0].user.username);
+                          return;
+                        }
                         if (event.key === "Tab" && slashSuggestions.length) {
                           event.preventDefault();
                           setDraft(`/${slashSuggestions[0].name} `);
