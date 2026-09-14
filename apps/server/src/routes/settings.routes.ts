@@ -5,6 +5,7 @@ import { hashPassword, comparePassword } from "../lib/password.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { issueCode, verifyCode } from "../lib/verification.js";
+import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
 
 /** Account, privacy, and linked-account settings for the signed-in user. */
 export const settingsRouter = Router();
@@ -215,8 +216,9 @@ settingsRouter.put("/privacy", async (req, res) => {
 
 /** Marks the welcome wizard as finished so the shell stops redirecting to it. */
 settingsRouter.post("/onboarded", async (req, res) => {
-  await prisma.user.update({ where: { id: req.user!.id }, data: { onboardedAt: new Date() } });
-  res.json({ ok: true });
+  const first = await prisma.user.updateMany({ where: { id: req.user!.id, onboardedAt: null }, data: { onboardedAt: new Date() } });
+  if (first.count) await grantWelcomeBonus(req.user!.id).catch(() => undefined);
+  res.json({ ok: true, welcomeBonus: first.count ? Number(WELCOME_BONUS) : 0 });
 });
 
 settingsRouter.put("/preferences", async (req, res) => {

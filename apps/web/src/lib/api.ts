@@ -2800,3 +2800,15 @@ export async function markDmThreadRead(accessToken: string, csrfToken: string, t
   const response = await api.post<{ ok: true }>(`/api/dms/threads/${threadId}/read`, {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
+
+export type DailyRewardStatus = { claimedToday: boolean; streak: number; nextAmount: string; nextResetAt: string; lastClaimAt: string | null };
+
+export async function getDailyReward(accessToken: string) {
+  const response = await api.get<DailyRewardStatus>("/api/economy/daily/status", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function claimDailyReward(accessToken: string, csrfToken: string) {
+  const response = await api.post<{ ok: true; amount: string; streak: number; status: DailyRewardStatus }>("/api/economy/daily/claim", {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}

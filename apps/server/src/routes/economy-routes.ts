@@ -4,6 +4,7 @@ import { EconomyAuthority } from "../lib/economy-authority.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { economyRateLimit } from "../middleware/economy-rate-limit.js";
+import { claimDaily, dailyStatus } from "../lib/rewards.js";
 
 const router = Router();
 
@@ -14,6 +15,22 @@ const adjustBalanceSchema = z.object({
   reason: z.string().min(3).max(255),
   referenceId: z.string().optional(),
   metadata: z.any().optional(),
+});
+
+/** Daily reward status for the signed-in user. */
+router.get("/daily/status", requireAuth, async (req, res) => {
+  const status = await dailyStatus(req.user!.id);
+  res.json({ ...status, nextAmount: status.nextAmount.toString() });
+});
+
+/** Claim today's reward (once per UTC day; streaks grow the payout). */
+router.post("/daily/claim", requireAuth, economyRateLimit, async (req, res) => {
+  const result = await claimDaily(req.user!.id);
+  if (!result.ok) {
+    res.status(400).json({ error: "Already claimed today. Come back after the reset.", status: { ...result.status, nextAmount: result.status.nextAmount.toString() } });
+    return;
+  }
+  res.json({ ok: true, amount: result.amount.toString(), streak: result.streak, status: { ...result.status, nextAmount: result.status.nextAmount.toString() } });
 });
 
 /**

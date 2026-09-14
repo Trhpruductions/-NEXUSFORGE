@@ -238,6 +238,8 @@ model User {
   ageVerificationLevel AgeVerificationLevel @default(NONE)
   ageVerifiedAt      DateTime?
   onboardedAt        DateTime?
+  lastDailyClaimAt   DateTime?
+  dailyStreak        Int            @default(0)
   ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
   ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
   createdAt          DateTime       @default(now())

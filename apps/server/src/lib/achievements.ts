@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { createNotification } from "./notifications.js";
+import { ACHIEVEMENT_REWARD, grantAchievementReward } from "./rewards.js";
 
 /**
  * Achievements are medals earned automatically from what a player actually does.
@@ -72,11 +73,12 @@ export async function grantMedal(userId: string, key: string): Promise<boolean> 
   const existing = await prisma.userMedal.findUnique({ where: { userId_medalId: { userId, medalId: medal.id } }, select: { id: true } });
   if (existing) return false;
   await prisma.userMedal.create({ data: { userId, medalId: medal.id } });
+  await grantAchievementReward(userId, key).catch(() => undefined);
   void createNotification({
     userId,
     type: "SYSTEM",
     title: `Achievement unlocked: ${medal.name}`,
-    body: medal.description ?? "",
+    body: `${medal.description ?? ""} +${ACHIEVEMENT_REWARD} Vexora Coins.`,
     data: { achievement: key, icon: medal.icon },
   }).catch(() => undefined);
   return true;

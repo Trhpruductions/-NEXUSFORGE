@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowDownLeft, ArrowUpRight, Award, Coins, Cpu, Loader2, ShoppingBag, Sparkles } from "lucide-react";
-import { getEconomyAccounts, getUserMedals } from "@/lib/api";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDownLeft, ArrowUpRight, Award, Check, Coins, Cpu, Flame, Gift, Loader2, ShoppingBag, Sparkles } from "lucide-react";
+import { claimDailyReward, getApiErrorMessage, getDailyReward, getEconomyAccounts, getUserMedals } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
@@ -21,7 +22,24 @@ function fmt(value: string | number) {
 }
 
 export function RewardsPage() {
-  const { accessToken, user } = useAuthStore();
+  const { accessToken, csrfToken, user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [claimNotice, setClaimNotice] = useState<string | null>(null);
+  const dailyQuery = useQuery({
+    queryKey: ["daily-reward", accessToken],
+    queryFn: () => getDailyReward(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+  const claimMutation = useMutation({
+    mutationFn: () => claimDailyReward(accessToken!, csrfToken!),
+    onSuccess: async (result) => {
+      setClaimNotice(`+${Number(result.amount).toLocaleString()} Vexora Coins. Day ${result.streak} streak.`);
+      await queryClient.invalidateQueries({ queryKey: ["daily-reward"] });
+      await queryClient.invalidateQueries({ queryKey: ["economy"] });
+    },
+    onError: (error) => setClaimNotice(getApiErrorMessage(error)),
+  });
+  const daily = dailyQuery.data;
   const accountsQuery = useQuery({
     queryKey: ["economy", user?.id, accessToken],
     queryFn: () => getEconomyAccounts(accessToken!, user!.id),
@@ -63,6 +81,32 @@ export function RewardsPage() {
                 </>
               )}
             </div>
+          </section>
+
+          <section className={`${panel} flex flex-wrap items-center gap-4`}>
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${daily?.claimedToday ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`}>
+              {daily?.claimedToday ? <Check className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className={sectionTitle}>Daily reward</h2>
+              {daily ? (
+                <p className="text-xs text-slate-400">
+                  {daily.claimedToday ? `Claimed today. Next reward unlocks ${new Date(daily.nextResetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : `Claim ${Number(daily.nextAmount).toLocaleString()} Vexora Coins today.`}
+                  {daily.streak ? <span className="ml-2 inline-flex items-center gap-1 text-amber-300"><Flame className="h-3 w-3" /> {daily.streak} day streak</span> : null}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">Loading...</p>
+              )}
+              {claimNotice ? <p className="mt-1 text-xs text-emerald-200">{claimNotice}</p> : null}
+            </div>
+            <button
+              type="button"
+              disabled={!daily || daily.claimedToday || claimMutation.isPending}
+              onClick={() => claimMutation.mutate()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300 disabled:opacity-50"
+            >
+              {claimMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Gift className="h-3.5 w-3.5" />} {daily?.claimedToday ? "Claimed" : "Claim"}
+            </button>
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
