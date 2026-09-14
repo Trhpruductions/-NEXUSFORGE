@@ -9,6 +9,7 @@ import {
   Bell,
   Calendar,
   ChevronDown,
+  Coins,
   Compass,
   Hash,
   Home,
@@ -57,6 +58,7 @@ const railLinks = [
   { label: "Chat", href: "/app/chat", icon: MessageSquare },
   { label: "Friends", href: "/app/friends", icon: Users },
   { label: "Live", href: "/app/live", icon: Radio },
+  { label: "Rewards & Coins", href: "/app/rewards", icon: Coins },
 ];
 
 /** Short two-note chime generated with WebAudio, so no asset is needed. */
