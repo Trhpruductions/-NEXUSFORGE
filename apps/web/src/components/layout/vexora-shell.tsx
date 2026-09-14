@@ -357,7 +357,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     if (!selectedForgeId) return;
     setActiveChannelId(channel.id);
     clearChannel(selectedForgeId, channel.id);
-    if (accessToken && csrfToken) void markChannelRead(accessToken, csrfToken, channel.id).catch(() => undefined);
+    if (accessToken && csrfToken) {
+      void markChannelRead(accessToken, csrfToken, channel.id)
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["forge-unreads"] });
+          void queryClient.invalidateQueries({ queryKey: ["unread-summary"] });
+        })
+        .catch(() => undefined);
+    }
     setMobileOpen(false);
     const param = channel.type === "VOICE" || channel.type === "STAGE" ? "voice" : "channel";
     router.push(`/app/chat?forge=${selectedForgeId}&${param}=${channel.id}`);

@@ -131,10 +131,17 @@ function ChatInner() {
     if (mode !== "channel" || !channelId || !selectedForgeId) return;
     setActiveChannelId(channelId);
     clearChannel(selectedForgeId, channelId);
-    if (accessToken && csrfToken) void markChannelRead(accessToken, csrfToken, channelId).catch(() => undefined);
+    if (accessToken && csrfToken) {
+      void markChannelRead(accessToken, csrfToken, channelId)
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: ["forge-unreads"] });
+          void queryClient.invalidateQueries({ queryKey: ["unread-summary"] });
+        })
+        .catch(() => undefined);
+    }
     setReplyTarget(null);
     setSearch("");
-  }, [mode, channelId, selectedForgeId, accessToken, csrfToken, setActiveChannelId, clearChannel]);
+  }, [mode, channelId, selectedForgeId, accessToken, csrfToken, setActiveChannelId, clearChannel, queryClient]);
 
   const messagesQuery = useQuery({
     queryKey: ["messages", channelId, accessToken],
