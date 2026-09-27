@@ -3,6 +3,7 @@ import xss from "xss";
 import { z } from "zod";
 import { renderBotCommandResponse } from "../lib/bot-commands.js";
 import { prisma } from "../lib/prisma.js";
+import { hasForgePermission, resolveForgeAccess } from "../lib/forge-permissions.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
@@ -243,11 +244,24 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
         forgeId: channel.forgeId,
       },
     },
+    include: { roleLinks: { include: { role: true } }, forge: { select: { ownerId: true } } },
   });
 
   if (!membership) {
     res.status(403).json({ error: "Not a Forge member" });
     return;
+  }
+
+  // Announcement channels are read-only for regular members.
+  if (channel.type === "ANNOUNCEMENT") {
+    const access = resolveForgeAccess(
+      membership.forge.ownerId === req.user!.id,
+      membership.roleLinks.map((link) => ({ position: link.role.position, permissions: link.role.permissions })),
+    );
+    if (!hasForgePermission(access, "moderateChat") && !hasForgePermission(access, "manageChannels")) {
+      res.status(403).json({ error: "Only moderators can post in announcement channels" });
+      return;
+    }
   }
 
   const sanitizedContent = xss(parsed.data.content.trim());

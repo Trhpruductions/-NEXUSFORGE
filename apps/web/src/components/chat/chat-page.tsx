@@ -791,6 +791,11 @@ function ChatInner() {
                       ))}
                     </div>
                   ) : null}
+                  {channel.type === "ANNOUNCEMENT" && !canModerate ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-[#11151e] px-3 py-2.5 text-xs text-slate-500">
+                      <Megaphone className="h-4 w-4 text-amber-300" /> Only moderators can post in #{channel.name}.
+                    </div>
+                  ) : (
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-amber-400/50">
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
@@ -820,6 +825,7 @@ function ChatInner() {
                       {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
                   </div>
+                  )}
                 </div>
               </div>
             ) : null}
