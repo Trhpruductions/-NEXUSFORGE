@@ -634,11 +634,15 @@ select:focus-visible {
   border-color: rgba(255, 184, 108, 0.45);
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+/* Form elements inherit the page font. In @layer base so Tailwind's text-*
+ * and font-* utilities still win on buttons and inputs. */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
 body::before {
