@@ -74,6 +74,7 @@ function ChatInner() {
   const requestedForge = searchParams?.get("forge");
   const requestedChannel = searchParams?.get("channel");
   const requestedVoice = searchParams?.get("voice");
+  const requestedManage = searchParams?.get("manage");
   const requestedDm = searchParams?.get("dm");
 
   const [channelId, setChannelId] = useState<string | null>(null);
@@ -84,6 +85,10 @@ function ChatInner() {
   const [pinsOpen, setPinsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // ?manage=channels from the sidebar opens the forge manage panel on that tab.
+  useEffect(() => {
+    if (requestedManage) setSettingsOpen(true);
+  }, [requestedManage]);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -545,7 +550,7 @@ function ChatInner() {
   return (
     <div className="-m-4 flex h-[calc(100dvh-3.5rem)] min-h-0 md:-m-6">
       {selectedForgeId ? (
-        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
+        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col bg-[#0a0d14]">

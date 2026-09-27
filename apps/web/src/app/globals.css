@@ -760,9 +760,17 @@ body::after {
   transition: background 340ms ease;
 }
 
-body > * {
-  position: relative;
-  z-index: 1;
+/*
+ * Lift page content above the decorative body::before/::after gradients.
+ * Must sit in @layer base: unlayered rules beat Tailwind utilities regardless of
+ * specificity, and this selector would otherwise override `fixed` on every
+ * portal (modals, the forge manage panel, dialogs) mounted on document.body.
+ */
+@layer base {
+  body > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 *::-webkit-scrollbar {

@@ -460,7 +460,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       <div className="mt-4 flex-1 overflow-y-auto px-3 pb-3 no-scrollbar">
         <div className="mb-1.5 flex items-center justify-between px-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Text channels</p>
-          <Link href="/app/chat" className="text-slate-600 transition hover:text-amber-300" title="Manage channels">
+          <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=channels` : "/app/chat"} className="text-slate-600 transition hover:text-amber-300" title="Add or manage channels">
             <Plus className="h-3.5 w-3.5" />
           </Link>
         </div>

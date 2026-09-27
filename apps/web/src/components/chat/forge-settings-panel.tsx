@@ -88,15 +88,20 @@ export function ForgeSettingsPanel({
   open,
   onClose,
   onForgeGone,
+  initialTab,
 }: {
   forgeId: string;
   open: boolean;
   onClose: () => void;
   onForgeGone: (forgeId: string) => void;
+  initialTab?: Tab;
 }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
+  useEffect(() => {
+    if (open && initialTab) setTab(initialTab);
+  }, [open, initialTab]);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   useEffect(() => {
