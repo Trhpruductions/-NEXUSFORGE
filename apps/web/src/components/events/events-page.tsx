@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Trophy, Users, X, Play, Crown, Trash2 } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Loader2, Maximize2, Plus, Trophy, Users, X, Play, Crown, Trash2 } from "lucide-react";
 import {
   createEvent,
   deleteEvent,
@@ -74,6 +75,7 @@ export function EventsPage() {
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [bracketOpen, setBracketOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const eventsQuery = useQuery({
@@ -338,7 +340,16 @@ export function EventsPage() {
                   </div>
                 ) : null}
                 <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={() => setActiveEventId(spotlight.id)} className={`${goldBtn} flex-1 justify-center`}>View bracket</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveEventId(spotlight.id);
+                      setBracketOpen(true);
+                    }}
+                    className={`${goldBtn} flex-1 justify-center`}
+                  >
+                    View bracket
+                  </button>
                   {spotlight.status === "SCHEDULED" && !isMine(spotlight) ? (
                     <button type="button" onClick={() => rsvpMutation.mutate({ eventId: spotlight.id, status: "GOING" })} className={`${ghostBtn} flex-1 justify-center`}>Register</button>
                   ) : null}
@@ -351,7 +362,19 @@ export function EventsPage() {
         </div>
 
         <div className={panel}>
-          <h3 className={`${sectionTitle} mb-3`}>Tournament Brackets</h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className={sectionTitle}>Tournament Brackets</h3>
+            {bracketEvent?.bracket ? (
+              <button
+                type="button"
+                onClick={() => setBracketOpen(true)}
+                title="Open the full bracket"
+                className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300 transition hover:border-amber-400/50 hover:text-amber-100"
+              >
+                <Maximize2 className="h-3 w-3" /> Expand
+              </button>
+            ) : null}
+          </div>
           {bracketEvent?.bracket ? (
             <BracketView
               event={bracketEvent}
@@ -380,6 +403,15 @@ export function EventsPage() {
         </div>
       </aside>
 
+      {bracketOpen && bracketEvent?.bracket ? (
+        <BracketModal
+          event={bracketEvent}
+          canReport={canManage(bracketEvent) && bracketEvent.status === "LIVE"}
+          onReport={(round, match, winnerUserId) => matchMutation.mutate({ eventId: bracketEvent.id, round, match, winnerUserId })}
+          onClose={() => setBracketOpen(false)}
+        />
+      ) : null}
+
       {createOpen ? (
         <CreateEventDialog
           defaultForgeId={selectedForgeId}
@@ -396,9 +428,26 @@ export function EventsPage() {
   );
 }
 
-function BracketView({ event, canReport, onReport }: { event: VexoraEvent; canReport: boolean; onReport: (round: number, match: number, winnerUserId: string) => void }) {
+/** A match nobody can be drawn into on one side: its lone player advances unopposed. */
+function isBye(match: BracketMatch): boolean {
+  return Boolean(match.winner) && (!match.a || !match.b);
+}
+
+function BracketView({
+  event,
+  canReport,
+  onReport,
+  variant = "compact",
+}: {
+  event: VexoraEvent;
+  canReport: boolean;
+  onReport: (round: number, match: number, winnerUserId: string) => void;
+  variant?: "compact" | "full";
+}) {
   const rounds = event.bracket?.rounds ?? [];
   const champion = rounds.length ? rounds[rounds.length - 1][0]?.winner : null;
+  const full = variant === "full";
+
   return (
     <div className="space-y-3">
       {champion ? (
@@ -406,40 +455,109 @@ function BracketView({ event, canReport, onReport }: { event: VexoraEvent; canRe
           <Crown className="h-4 w-4" /> Champion: <span className="font-semibold">{participantName(event, champion)}</span>
         </div>
       ) : null}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className={`flex overflow-x-auto pb-1 ${full ? "gap-6" : "gap-3"}`}>
         {rounds.map((round, roundIndex) => (
-          <div key={roundIndex} className="min-w-[150px] flex-1">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{roundLabel(roundIndex, rounds.length)}</p>
-            <div className="space-y-2">
-              {round.map((match: BracketMatch, matchIndex) => (
-                <div key={matchIndex} className="rounded-lg border border-white/10 bg-[#11151e] p-1.5 text-xs">
-                  {[match.a, match.b].map((player, slot) => {
-                    const isWinner = Boolean(player && match.winner === player);
-                    const clickable = canReport && player && !match.winner && match.a && match.b;
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        disabled={!clickable}
-                        onClick={() => player && onReport(roundIndex, matchIndex, player)}
-                        title={clickable ? "Mark as winner" : undefined}
-                        className={`flex w-full items-center justify-between rounded px-2 py-1 text-left ${
-                          isWinner ? "bg-amber-500/20 text-amber-100" : player ? "text-slate-200" : "text-slate-600"
-                        } ${clickable ? "hover:bg-white/5" : ""}`}
-                      >
-                        <span className="truncate">{participantName(event, player)}</span>
-                        {isWinner ? <Crown className="h-3 w-3 shrink-0" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+          <div key={roundIndex} className={full ? "flex min-w-[190px] flex-1 flex-col" : "min-w-[150px] flex-1"}>
+            <p className={`mb-2 font-semibold uppercase tracking-[0.16em] text-slate-500 ${full ? "text-[11px]" : "text-[10px]"}`}>
+              {roundLabel(roundIndex, rounds.length)}
+            </p>
+            {/* Later rounds hold fewer matches, so spreading them evenly keeps each one
+                beside the pair that feeds it. */}
+            <div className={full ? "flex flex-1 flex-col justify-around gap-3" : "space-y-2"}>
+              {round.map((match: BracketMatch, matchIndex) => {
+                const bye = isBye(match);
+                return (
+                  <div
+                    key={matchIndex}
+                    className={`rounded-lg border bg-[#11151e] text-xs ${full ? "p-2" : "p-1.5"} ${
+                      bye ? "border-white/5" : "border-white/10"
+                    }`}
+                  >
+                    {[match.a, match.b].map((player, slot) => {
+                      const isWinner = Boolean(player && match.winner === player);
+                      const clickable = canReport && player && !match.winner && match.a && match.b;
+                      const emptySeatLabel = bye ? "Bye" : "TBD";
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => player && onReport(roundIndex, matchIndex, player)}
+                          title={clickable ? "Mark as winner" : undefined}
+                          className={`flex w-full items-center justify-between rounded px-2 text-left ${full ? "py-1.5" : "py-1"} ${
+                            isWinner ? "bg-amber-500/20 text-amber-100" : player ? "text-slate-200" : "text-slate-600"
+                          } ${clickable ? "hover:bg-white/5" : ""}`}
+                        >
+                          <span className="truncate">{player ? participantName(event, player) : emptySeatLabel}</span>
+                          {isWinner ? <Crown className="h-3 w-3 shrink-0" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
       {canReport && !champion ? <p className="text-[11px] text-slate-500">Click a player to record the match winner.</p> : null}
     </div>
+  );
+}
+
+function BracketModal({
+  event,
+  canReport,
+  onReport,
+  onClose,
+}: {
+  event: VexoraEvent;
+  canReport: boolean;
+  onReport: (round: number, match: number, winnerUserId: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  const entrants = event.participants?.length ?? 0;
+  const rounds = event.bracket?.rounds?.length ?? 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
+      <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
+        <header className="flex items-start justify-between gap-3 border-b border-white/5 px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-300">Tournament bracket</p>
+            <h2 className="nf-heading truncate text-lg font-bold text-white">{event.title}</h2>
+            <p className="text-xs text-slate-400">
+              {[event.game, `${entrants} ${entrants === 1 ? "entrant" : "entrants"}`, `${rounds} ${rounds === 1 ? "round" : "rounds"}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            title="Close"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-slate-300 transition hover:border-amber-400/50 hover:text-amber-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <BracketView event={event} canReport={canReport} onReport={onReport} variant="full" />
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

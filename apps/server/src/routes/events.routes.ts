@@ -6,6 +6,7 @@ import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { resolveForgeAccess, hasForgePermission } from "../lib/forge-permissions.js";
+import { championOf, generateBracket, settleBracket, type Bracket } from "../lib/bracket.js";
 
 export const eventsRouter = Router();
 
@@ -39,9 +40,6 @@ const reportMatchSchema = z.object({
   winnerUserId: z.string().uuid(),
 });
 
-type BracketMatch = { a: string | null; b: string | null; winner: string | null };
-type Bracket = { rounds: BracketMatch[][]; generatedAt: string };
-
 const eventInclude = {
   forge: { select: { id: true, name: true, icon: true } },
   createdBy: { select: { id: true, username: true, avatar: true } },
@@ -63,39 +61,6 @@ async function canManageEvent(userId: string, event: { createdById: string; forg
   if (!membership) return false;
   const access = resolveForgeAccess(forge.ownerId === userId, membership.roleLinks.map((link) => link.role));
   return hasForgePermission(access, "manageChannels");
-}
-
-function shuffle<T>(list: T[]): T[] {
-  const copy = [...list];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
-/** Single-elimination bracket. Byes are represented by a null opponent and auto-advance. */
-function generateBracket(userIds: string[]): Bracket {
-  const seeded = shuffle(userIds);
-  let size = 1;
-  while (size < seeded.length) size *= 2;
-  const firstRound: BracketMatch[] = [];
-  for (let i = 0; i < size; i += 2) {
-    const a = seeded[i] ?? null;
-    const b = seeded[i + 1] ?? null;
-    firstRound.push({ a, b, winner: a && !b ? a : !a && b ? b : null });
-  }
-  const rounds: BracketMatch[][] = [firstRound];
-  let current = firstRound;
-  while (current.length > 1) {
-    const next: BracketMatch[] = [];
-    for (let i = 0; i < current.length; i += 2) {
-      next.push({ a: current[i]?.winner ?? null, b: current[i + 1]?.winner ?? null, winner: null });
-    }
-    rounds.push(next);
-    current = next;
-  }
-  return { rounds, generatedAt: new Date().toISOString() };
 }
 
 function emitEvent(event: { id: string; forgeId: string | null }, action: string) {
@@ -360,23 +325,21 @@ eventsRouter.post("/:id/matches", async (req, res) => {
     res.status(400).json({ error: "This match already has a winner" });
     return;
   }
+  // Both seats must be filled. A half-empty match is either waiting on an earlier round
+  // or a bye, and a bye is advanced automatically rather than reported.
+  if (!match.a || !match.b) {
+    res.status(400).json({ error: "This match is still waiting for both players" });
+    return;
+  }
   if (parsed.data.winnerUserId !== match.a && parsed.data.winnerUserId !== match.b) {
     res.status(400).json({ error: "Winner must be one of the two players in the match" });
     return;
   }
 
   match.winner = parsed.data.winnerUserId;
-  const nextRound = bracket.rounds[parsed.data.round + 1];
-  if (nextRound) {
-    const target = nextRound[Math.floor(parsed.data.match / 2)];
-    if (parsed.data.match % 2 === 0) target.a = match.winner;
-    else target.b = match.winner;
-    // Auto-advance byes that now resolve.
-    if (target.a && !target.b && bracket.rounds[parsed.data.round].length === 1) target.winner = target.a;
-  }
-
-  const finalRound = bracket.rounds[bracket.rounds.length - 1];
-  const champion = finalRound.length === 1 ? finalRound[0].winner : null;
+  // Carry the result through the bracket and resolve any bye it unlocks.
+  settleBracket(bracket);
+  const champion = championOf(bracket);
   const loserId = parsed.data.winnerUserId === match.a ? match.b : match.a;
 
   const updated = await prisma.$transaction(async (tx) => {
