@@ -6,6 +6,7 @@ import { EconomyAuthority } from "../lib/economy-authority.js";
 import { ensureCosmeticCatalog } from "../lib/cosmetic-catalog.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { cosmeticPurchaseReference } from "../lib/economy-references.js";
 
 /** Wardrobe: cosmetic catalog, purchases with Vexora Coins (NC), owned inventory, and the equipped loadout. */
 export const cosmeticsRouter = Router();
@@ -171,11 +172,19 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
         amount: BigInt(-item.priceCoins),
         currencyType: "NC",
         reason: `Cosmetic purchase: ${item.name}`,
-        referenceId: item.id,
+        referenceId: cosmeticPurchaseReference(req.user!.id, item.id),
         metadata: { itemKey: item.key, slot: item.slot, rarity: item.rarity },
       });
     } catch (error) {
-      res.status(402).json({ error: "Not enough Vexora Coins", detail: error instanceof Error ? error.message : undefined });
+      // Only a balance shortfall is the buyer's problem; anything else is ours and must
+      // not be dressed up as "you cannot afford this".
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("Insufficient")) {
+        res.status(402).json({ error: "Not enough Vexora Coins" });
+        return;
+      }
+      console.error("Cosmetic purchase failed", { itemId: item.id, userId: req.user!.id, error });
+      res.status(500).json({ error: "That purchase could not be completed. Please try again." });
       return;
     }
   }

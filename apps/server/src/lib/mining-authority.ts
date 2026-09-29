@@ -1,5 +1,7 @@
 import { prisma } from "./prisma.js";
 import { EconomyAuthority } from "./economy-authority.js";
+import { randomUUID } from "node:crypto";
+import { rigDecommissionReference, rigPurchaseReference } from "./economy-references.js";
 
 export interface MiningStats {
   rigId: string;
@@ -97,7 +99,7 @@ export class MiningAuthority {
           reason: `Mining Rig Purchase: ${params.tier}`,
           balanceBefore: account.balance,
           balanceAfter: account.balance - tierConfig.cost,
-          referenceId: `RIG_PURCHASE_${Date.now()}`,
+          referenceId: rigPurchaseReference(params.userId, randomUUID()),
         },
       });
 
@@ -215,7 +217,7 @@ export class MiningAuthority {
           reason: `Mining Rig Decommission Refund: ${rig.name}`,
           balanceBefore: account?.balance || 0n,
           balanceAfter: (account?.balance || 0n) + refundAmount,
-          referenceId: `RIG_DECOMMISSION_${rig.id}`,
+          referenceId: rigDecommissionReference(params.userId, rig.id),
         },
       });
 

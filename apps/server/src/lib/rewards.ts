@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { EconomyAuthority } from "./economy-authority.js";
+import { achievementReference, dailyClaimReference, welcomeBonusReference } from "./economy-references.js";
 
 /** Coin rewards that keep a new account moving: welcome bonus, daily claim, achievement payouts. */
 export const WELCOME_BONUS = 1000n;
@@ -33,15 +34,23 @@ export async function claimDaily(userId: string) {
   if (status.claimedToday) return { ok: false as const, status };
   const streak = status.streak + 1;
   const amount = dailyAmountFor(streak);
+  // Pay out before marking the day claimed. If the credit fails the claim is still
+  // available; the per-account reference is what stops it being paid twice.
+  await EconomyAuthority.adjustBalance({
+    userId,
+    amount,
+    currencyType: "NC",
+    reason: `Daily reward (day ${streak})`,
+    referenceId: dailyClaimReference(userId, utcDay(new Date())),
+  });
   await prisma.user.update({ where: { id: userId }, data: { lastDailyClaimAt: new Date(), dailyStreak: streak } });
-  await EconomyAuthority.adjustBalance({ userId, amount, currencyType: "NC", reason: `Daily reward (day ${streak})`, referenceId: `daily:${utcDay(new Date())}` });
   return { ok: true as const, amount, streak, status: await dailyStatus(userId) };
 }
 
 export async function grantWelcomeBonus(userId: string) {
-  await EconomyAuthority.adjustBalance({ userId, amount: WELCOME_BONUS, currencyType: "NC", reason: "Welcome to Vexora", referenceId: `welcome:${userId}` });
+  await EconomyAuthority.adjustBalance({ userId, amount: WELCOME_BONUS, currencyType: "NC", reason: "Welcome to Vexora", referenceId: welcomeBonusReference(userId) });
 }
 
 export async function grantAchievementReward(userId: string, medalKey: string) {
-  await EconomyAuthority.adjustBalance({ userId, amount: ACHIEVEMENT_REWARD, currencyType: "NC", reason: `Achievement: ${medalKey}`, referenceId: `achievement:${medalKey}` });
+  await EconomyAuthority.adjustBalance({ userId, amount: ACHIEVEMENT_REWARD, currencyType: "NC", reason: `Achievement: ${medalKey}`, referenceId: achievementReference(userId, medalKey) });
 }

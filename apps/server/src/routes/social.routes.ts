@@ -100,14 +100,21 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
 
   const points = Number(reputationAccount?.balance ?? 0n) + user.reputation;
 
-  // The equipped emote plays on the profile card.
-  const emoteId = (user.loadout as { EMOTE?: string } | null)?.EMOTE;
-  const profileEmote = emoteId
-    ? await prisma.cosmeticItem.findUnique({ where: { id: emoteId }, select: { id: true, key: true, name: true, description: true, rarity: true, color: true, metadata: true, slot: true } })
-    : null;
+  // The equipped emote plays on the profile card, and the worn gear is drawn on the avatar.
+  const loadout = (user.loadout as Record<string, string | undefined> | null) ?? {};
+  const emoteId = loadout.EMOTE;
+  const wornIds = Object.entries(loadout)
+    .filter(([slot, id]) => slot !== "EMOTE" && typeof id === "string")
+    .map(([, id]) => id as string);
+
+  const cosmeticFields = { id: true, key: true, name: true, description: true, rarity: true, color: true, metadata: true, slot: true } as const;
+  const [profileEmote, equippedCosmetics] = await Promise.all([
+    emoteId ? prisma.cosmeticItem.findUnique({ where: { id: emoteId }, select: cosmeticFields }) : Promise.resolve(null),
+    wornIds.length ? prisma.cosmeticItem.findMany({ where: { id: { in: wornIds } }, select: cosmeticFields }) : Promise.resolve([]),
+  ]);
 
   res.json({
-    user: { ...user, loadout: undefined, points, profileEmote },
+    user: { ...user, loadout: undefined, points, profileEmote, equippedCosmetics },
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,
