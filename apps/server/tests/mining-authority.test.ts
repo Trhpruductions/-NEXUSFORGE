@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import "./helpers/env.js";
+import { describe, it, before as beforeAll, after as afterAll, beforeEach } from "node:test";
+import { expect } from "./helpers/expect.js";
 import { prisma } from "../src/lib/prisma.js";
 import { MiningAuthority, RIG_PRICING } from "../src/lib/mining-authority.js";
 import { EconomyAuthority } from "../src/lib/economy-authority.js";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID as uuidv4 } from "node:crypto";
 
 /**
  * MINING AUTHORITY TEST SUITE
