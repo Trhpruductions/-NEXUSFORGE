@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,12 +44,14 @@ import {
   type NotificationPreferences,
   type PrivacySettings,
   type VoicePreferences,
+  getCosmeticInventory,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
 import { AgeVerificationCard } from "@/components/settings/age-verification";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 
 // Category list from the design reference (Settings panel, left column).
 const categories = [
@@ -190,6 +192,12 @@ function SettingsInner() {
     queryFn: () => getAvatar(accessToken!),
     enabled: Boolean(accessToken) && category === "avatar",
   });
+  const cosmeticsQuery = useQuery({
+    queryKey: ["cosmetic-inventory", accessToken],
+    queryFn: () => getCosmeticInventory(accessToken!),
+    enabled: Boolean(accessToken) && category === "avatar",
+  });
+  const equippedGear = useMemo(() => equippedFrom(cosmeticsQuery.data?.items, cosmeticsQuery.data?.loadout), [cosmeticsQuery.data]);
   const billingQuery = useQuery({
     queryKey: ["billing-entitlements", accessToken],
     queryFn: () => getBillingEntitlements(accessToken!),
@@ -587,7 +595,7 @@ function SettingsInner() {
               <section className={panel}>
                 <h2 className={`${sectionTitle} mb-3`}>Your avatar</h2>
                 <div className="flex justify-center rounded-xl border border-white/5 bg-[#11151e] p-3">
-                  <AvatarRenderer config={avatarQuery.data?.config ?? defaultAvatarConfig} size={220} />
+                  <AvatarRenderer config={avatarQuery.data?.config ?? defaultAvatarConfig} size={220} equipped={equippedGear} />
                 </div>
                 <p className="mt-3 text-xs text-slate-400">
                   {avatarQuery.data ? `${avatarQuery.data.presets.length}/${avatarQuery.data.maxPresets} saved presets.` : "Loading avatar..."}

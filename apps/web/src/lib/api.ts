@@ -2299,6 +2299,7 @@ export type ProfileSummary = {
     socialLinks?: Record<string, string | null> | null;
     avatarConfig?: AvatarConfig | null;
     profileEmote?: Pick<CosmeticItem, "id" | "key" | "name" | "description" | "rarity" | "color" | "metadata" | "slot"> | null;
+    equippedCosmetics?: Array<Pick<CosmeticItem, "id" | "key" | "name" | "rarity" | "color" | "metadata" | "slot">>;
     createdAt: string;
     lastSeenAt?: string | null;
     points: number;

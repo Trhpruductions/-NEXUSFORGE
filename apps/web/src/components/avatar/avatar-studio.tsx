@@ -7,6 +7,7 @@ import axios from "axios";
 import { Check, CircleUser, Dices, Eye, Footprints, Glasses, Loader2, Mountain, Play, Redo2, RotateCcw, Save, Scissors, Shirt, Smile, Sparkles, Trash2, Undo2, User, X, ZoomIn } from "lucide-react";
 import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getAvatar, getCosmeticInventory, saveAvatar, setLoadoutSlot, type AvatarConfig, type CosmeticItem } from "@/lib/api";
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
+import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -187,6 +188,10 @@ export function AvatarStudio() {
   });
   const emotes = useMemo(() => (inventoryQuery.data?.items ?? []).filter((item) => item.slot === "EMOTE"), [inventoryQuery.data]);
   const equippedEmoteId = inventoryQuery.data?.loadout.EMOTE ?? null;
+  const equippedGear = useMemo(
+    () => equippedFrom(inventoryQuery.data?.items, inventoryQuery.data?.loadout),
+    [inventoryQuery.data],
+  );
   const equipEmote = useMutation({
     mutationFn: (itemId: string | null) => setLoadoutSlot(accessToken!, csrfToken!, "EMOTE", itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cosmetics"] }),
@@ -330,7 +335,7 @@ export function AvatarStudio() {
               ) : (
                 <div className="transition-transform duration-300" style={{ transform: `${flipped ? "scaleX(-1)" : ""} ${zoomed ? "scale(1.35) translateY(12%)" : ""}` }}>
                   <div className={playing ? emoteAnimation(playing.key) : undefined}>
-                    <AvatarRenderer config={config} size={300} className="max-h-[520px] w-auto" />
+                    <AvatarRenderer config={config} size={300} equipped={equippedGear} className="max-h-[520px] w-auto" />
                   </div>
                 </div>
               )}
@@ -555,7 +560,7 @@ export function AvatarStudio() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
             <div className="relative flex min-h-[420px] items-center justify-center p-4">
               <div className={playing ? emoteAnimation(playing.key) : undefined}>
-                <AvatarRenderer config={config} size={260} />
+                <AvatarRenderer config={config} size={260} equipped={equippedGear} />
               </div>
             </div>
             <p className="relative border-t border-white/5 p-3 text-center text-xs text-slate-400">{playing ? `Playing ${playing.name}` : "Pick an emote to play it on your avatar."}</p>

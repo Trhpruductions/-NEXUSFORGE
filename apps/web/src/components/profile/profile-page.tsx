@@ -176,6 +176,11 @@ function ProfileInner() {
   }, [profile]);
 
   const avatarConfig: AvatarConfig = (profile?.isSelf ? avatarQuery.data?.config : profile?.user.avatarConfig) ?? defaultAvatarConfig;
+  // Worn gear comes from the profile summary, so other people's outfits show too.
+  const equippedGear = useMemo(
+    () => (profile?.user.equippedCosmetics ?? []).map((item) => ({ slot: item.slot, key: item.key, name: item.name, color: item.color, metadata: item.metadata })),
+    [profile?.user.equippedCosmetics],
+  );
   const [emotePlaying, setEmotePlaying] = useState(false);
   const friends = (friendsQuery.data?.friends ?? []).filter((entry) => entry.status === "ACCEPTED");
 
@@ -233,7 +238,7 @@ function ProfileInner() {
                 <img src={person.avatar} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-end justify-center overflow-hidden">
-                  <AvatarRenderer config={avatarConfig} size={120} showBackground={false} className="-mb-16 -mt-2" />
+                  <AvatarRenderer config={avatarConfig} size={120} showBackground={false} equipped={equippedGear} className="-mb-16 -mt-2" />
                 </div>
               )}
             </div>

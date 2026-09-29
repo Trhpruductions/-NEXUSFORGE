@@ -8,6 +8,9 @@ import { Backpack, Check, Coins, Crown, Footprints, Glasses, HardHat, Loader2, S
 import { applyLoadoutPreset, deleteLoadoutPreset, getCosmeticCatalog, getCosmeticInventory, purchaseCosmetic, saveLoadoutPreset, setLoadoutSlot, type CosmeticItem, type CosmeticRarity, type CosmeticSlot, type LoadoutPreset } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
+import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { equippedFrom } from "@/components/avatar/cosmetic-layers";
+import { getAvatar } from "@/lib/api";
 
 type Filter = "all" | "outfits" | "accessories" | "cosmetics" | "emotes";
 
@@ -114,6 +117,12 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
   }, [query.data, filter, search]);
 
   const loadout = query.data?.loadout ?? {};
+  const avatarQuery = useQuery({
+    queryKey: ["avatar", accessToken],
+    queryFn: () => getAvatar(accessToken!),
+    enabled: Boolean(accessToken),
+  });
+  const equippedGear = useMemo(() => equippedFrom(query.data?.items, query.data?.loadout), [query.data]);
   const allItems = mode === "store" ? query.data?.items ?? [] : [...(query.data?.items ?? []), ...(catalogQuery.data?.items ?? [])];
   const itemById = new Map(allItems.map((item) => [item.id, item] as const));
   const coins = query.data?.coins ?? 0;
@@ -217,6 +226,14 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
         <aside className="space-y-4">
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-3`}>Current Loadout</h2>
+            <div className="mb-3 flex items-end justify-center overflow-hidden rounded-xl border border-white/5 bg-[radial-gradient(circle_at_50%_30%,rgba(230,179,37,0.12),transparent_65%)]">
+              <AvatarRenderer
+                config={avatarQuery.data?.config ?? defaultAvatarConfig}
+                size={150}
+                showBackground={false}
+                equipped={equippedGear}
+              />
+            </div>
             <ul className="space-y-1.5">
               {(Object.keys(slotMeta) as CosmeticSlot[]).map((slot) => {
                 const meta = slotMeta[slot];

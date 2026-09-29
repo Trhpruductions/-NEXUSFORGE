@@ -1,6 +1,17 @@
 "use client";
 
 import type { AvatarConfig } from "@/lib/api";
+import {
+  CosmeticAccessoryLayer,
+  CosmeticBackLayer,
+  CosmeticBackStraps,
+  CosmeticBottomLayer,
+  CosmeticFaceLayer,
+  CosmeticHeadLayer,
+  CosmeticShoesLayer,
+  CosmeticTopLayer,
+  type EquippedCosmetic,
+} from "@/components/avatar/cosmetic-layers";
 
 export const defaultAvatarConfig: AvatarConfig = {
   body: "athletic",
@@ -49,11 +60,14 @@ export function AvatarRenderer({
   size = 320,
   showBackground = true,
   className,
+  equipped,
 }: {
   config: AvatarConfig;
   size?: number;
   showBackground?: boolean;
   className?: string;
+  /** Equipped cosmetics, drawn over the base character in slot order. */
+  equipped?: EquippedCosmetic[];
 }) {
   const bg = backgrounds[config.background] ?? backgrounds.city;
   const widthScale = config.body === "slim" ? 0.88 : config.body === "broad" ? 1.14 : 1;
@@ -61,6 +75,14 @@ export function AvatarRenderer({
   const skinShade = darken(config.skin, 0.2);
   const hairShade = darken(config.hairColor, 0.3);
   const uid = `av-${config.background}-${config.accent.replace("#", "")}`;
+  const gear = new Map((equipped ?? []).map((item) => [item.slot, item]));
+  const head = gear.get("HEAD");
+  const face = gear.get("FACE");
+  const top = gear.get("TOP");
+  const bottom = gear.get("BOTTOM");
+  const shoes = gear.get("SHOES");
+  const back = gear.get("BACK");
+  const accessory = gear.get("ACCESSORY");
 
   return (
     <svg viewBox="0 0 200 320" width={size} height={size * 1.6} className={className} role="img" aria-label="Avatar preview">
@@ -105,24 +127,44 @@ export function AvatarRenderer({
 
       <g transform={`translate(100 0) scale(${widthScale} 1) translate(-100 0)`}>
         {/* back accessories */}
-        {config.accessory === "headset" ? <path d="M62 92 Q100 55 138 92" stroke="#0f172a" strokeWidth="7" fill="none" /> : null}
+        {back ? <CosmeticBackLayer item={back} accent={config.accent} /> : null}
+        {config.accessory === "headset" && !accessory ? <path d="M62 92 Q100 55 138 92" stroke="#0f172a" strokeWidth="7" fill="none" /> : null}
 
         {/* legs */}
-        <rect x="76" y="196" width="20" height="70" rx="6" fill={config.bottomColor} />
-        <rect x="104" y="196" width="20" height="70" rx="6" fill={config.bottomColor} />
-        <rect x="76" y="196" width="20" height="70" rx="6" fill="#000" opacity="0.12" />
+        {bottom ? (
+          <CosmeticBottomLayer item={bottom} accent={config.accent} />
+        ) : (
+          <>
+            <rect x="76" y="196" width="20" height="70" rx="6" fill={config.bottomColor} />
+            <rect x="104" y="196" width="20" height="70" rx="6" fill={config.bottomColor} />
+            <rect x="76" y="196" width="20" height="70" rx="6" fill="#000" opacity="0.12" />
+          </>
+        )}
         {/* shoes */}
-        <path d="M70 262 h30 a6 6 0 0 1 6 6 v8 h-40 a4 4 0 0 1 -4 -4 v-4 a6 6 0 0 1 6 -6 z" fill={config.shoeColor} />
-        <path d="M100 262 h30 a6 6 0 0 1 6 6 v4 a4 4 0 0 1 -4 4 h-40 v-8 a6 6 0 0 1 6 -6 z" fill={darken(config.shoeColor, 0.2)} />
-        <rect x="66" y="272" width="74" height="3" fill={config.accent} opacity="0.9" />
+        {shoes ? (
+          <CosmeticShoesLayer item={shoes} accent={config.accent} />
+        ) : (
+          <>
+            <path d="M70 262 h30 a6 6 0 0 1 6 6 v8 h-40 a4 4 0 0 1 -4 -4 v-4 a6 6 0 0 1 6 -6 z" fill={config.shoeColor} />
+            <path d="M100 262 h30 a6 6 0 0 1 6 6 v4 a4 4 0 0 1 -4 4 h-40 v-8 a6 6 0 0 1 6 -6 z" fill={darken(config.shoeColor, 0.2)} />
+            <rect x="66" y="272" width="74" height="3" fill={config.accent} opacity="0.9" />
+          </>
+        )}
 
         {/* torso */}
-        <path d="M60 118 q40 -18 80 0 l8 84 q-48 10 -96 0 z" fill={`url(#${uid}-top)`} />
-        <path d="M100 112 l-6 12 h12 z" fill={config.accent} />
-        <path d="M92 150 l8 -12 l8 12 l-8 14 z" fill={config.accent} opacity="0.95" />
-        {/* arms */}
-        <path d="M60 122 q-16 30 -12 70 q8 4 14 -2 q0 -34 8 -60 z" fill={darken(config.topColor, 0.2)} />
-        <path d="M140 122 q16 30 12 70 q-8 4 -14 -2 q0 -34 -8 -60 z" fill={darken(config.topColor, 0.2)} />
+        {top ? (
+          <CosmeticTopLayer item={top} accent={config.accent} />
+        ) : (
+          <>
+            <path d="M60 118 q40 -18 80 0 l8 84 q-48 10 -96 0 z" fill={`url(#${uid}-top)`} />
+            <path d="M100 112 l-6 12 h12 z" fill={config.accent} />
+            <path d="M92 150 l8 -12 l8 12 l-8 14 z" fill={config.accent} opacity="0.95" />
+            {/* arms */}
+            <path d="M60 122 q-16 30 -12 70 q8 4 14 -2 q0 -34 8 -60 z" fill={darken(config.topColor, 0.2)} />
+            <path d="M140 122 q16 30 12 70 q-8 4 -14 -2 q0 -34 -8 -60 z" fill={darken(config.topColor, 0.2)} />
+          </>
+        )}
+        {back ? <CosmeticBackStraps item={back} accent={config.accent} /> : null}
         <circle cx="53" cy="194" r="7" fill={config.skin} />
         <circle cx="147" cy="194" r="7" fill={config.skin} />
 
@@ -214,8 +256,13 @@ export function AvatarRenderer({
           </g>
         )}
 
+        {/* equipped head, face and accessory gear sits above the hair */}
+        {head ? <CosmeticHeadLayer item={head} accent={config.accent} /> : null}
+        {face ? <CosmeticFaceLayer item={face} accent={config.accent} /> : null}
+        {accessory ? <CosmeticAccessoryLayer item={accessory} accent={config.accent} /> : null}
+
         {/* front accessories */}
-        {config.accessory === "shades" ? (
+        {accessory ? null : config.accessory === "shades" ? (
           <g>
             <rect x="76" y="66" width="20" height="11" rx="3" fill="#0b0f19" />
             <rect x="104" y="66" width="20" height="11" rx="3" fill="#0b0f19" />
