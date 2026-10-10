@@ -2910,3 +2910,57 @@ export async function sendCoins(accessToken: string, csrfToken: string, input: {
   );
   return response.data;
 }
+
+// ===========================================================================
+// Support tickets
+// ===========================================================================
+
+export type SupportCategory = "ACCOUNT" | "BILLING" | "BUG" | "REPORT_USER" | "FORGE" | "OTHER";
+export type SupportStatus = "OPEN" | "WAITING_ON_USER" | "RESOLVED" | "CLOSED";
+type SupportPerson = { id: string; username: string; displayName: string | null; avatar: string | null; email?: string };
+
+export type SupportTicketSummary = {
+  id: string;
+  number: number;
+  subject: string;
+  category: SupportCategory;
+  status: SupportStatus;
+  createdAt: string;
+  lastActivityAt: string;
+  user: SupportPerson;
+  lastMessage: { body: string; fromStaff: boolean; createdAt: string } | null;
+  messageCount: number;
+};
+
+export type SupportMessage = { id: string; body: string; fromStaff: boolean; createdAt: string; author: SupportPerson };
+export type SupportTicketDetail = Omit<SupportTicketSummary, "lastMessage" | "messageCount"> & { messages: SupportMessage[] };
+
+export async function getSupportMe(accessToken: string) {
+  const response = await api.get<{ staff: boolean; maxOpen: number }>("/api/support/me", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function listSupportTickets(accessToken: string, scope: "mine" | "all", status: SupportStatus | "unresolved" | "any" = "any") {
+  const response = await api.get<{ tickets: SupportTicketSummary[] }>(`/api/support/tickets?scope=${scope}&status=${status}`, { headers: authHeaders(accessToken) });
+  return response.data.tickets;
+}
+
+export async function getSupportTicket(accessToken: string, ticketId: string) {
+  const response = await api.get<{ ticket: SupportTicketDetail; staff: boolean }>(`/api/support/tickets/${ticketId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createSupportTicket(accessToken: string, csrfToken: string, input: { subject: string; category: SupportCategory; body: string }) {
+  const response = await api.post<{ ticket: { id: string; number: number } }>("/api/support/tickets", input, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.ticket;
+}
+
+export async function replySupportTicket(accessToken: string, csrfToken: string, ticketId: string, body: string) {
+  const response = await api.post<{ message: SupportMessage; status: SupportStatus }>(`/api/support/tickets/${ticketId}/messages`, { body }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function setSupportTicketStatus(accessToken: string, csrfToken: string, ticketId: string, status: SupportStatus) {
+  const response = await api.patch<{ ticket: { id: string; status: SupportStatus } }>(`/api/support/tickets/${ticketId}`, { status }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.ticket;
+}

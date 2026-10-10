@@ -285,6 +285,8 @@ model User {
   streamSessions     StreamSession[]
   jackpotEntries     JackpotEntry[]
   jackpotWins        JackpotRound[] @relation("JackpotWinner")
+  supportTickets     SupportTicket[]
+  supportMessages    SupportMessage[]
 }
 
 model EconomyAccount {
@@ -405,6 +407,56 @@ model JackpotEntry {
 
   @@index([roundId, firstTicket])
   @@index([userId, createdAt])
+}
+
+enum SupportCategory {
+  ACCOUNT
+  BILLING
+  BUG
+  REPORT_USER
+  FORGE
+  OTHER
+}
+
+enum SupportStatus {
+  /// Waiting for staff.
+  OPEN
+  /// Staff replied; waiting for the player.
+  WAITING_ON_USER
+  RESOLVED
+  CLOSED
+}
+
+/// A help request from a player. Staff (admin roles) can see and answer every ticket.
+model SupportTicket {
+  id             String           @id @default(uuid())
+  number         Int              @unique @default(autoincrement())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  category       SupportCategory  @default(OTHER)
+  status         SupportStatus    @default(OPEN)
+  messages       SupportMessage[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  lastActivityAt DateTime         @default(now())
+
+  @@index([userId, lastActivityAt])
+  @@index([status, lastActivityAt])
+}
+
+model SupportMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// Written by staff, shown with a staff badge.
+  fromStaff Boolean       @default(false)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
 }
 
 model ApiKey {
