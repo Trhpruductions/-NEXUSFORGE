@@ -51,3 +51,6 @@ Thumbs.db
 
 # Release evidence logs
 var/
+
+# Local (no-S3) uploads
+var/uploads/
