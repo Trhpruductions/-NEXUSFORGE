@@ -197,7 +197,7 @@ export function WelcomeWizard() {
                         )}
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-white">{forge.name}</p>
-                          <p className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Users className="h-3 w-3" /> {forge.memberCount} members</p>
+                          <p className="inline-flex items-center gap-1 text-[11px] text-slate-400"><Users className="h-3 w-3" /> {forge.memberCount + (joined === forge.id && !forge.joined ? 1 : 0)} members</p>
                         </div>
                       </div>
                       {forge.description ? <p className="mt-2 line-clamp-2 text-xs text-slate-400">{forge.description}</p> : null}

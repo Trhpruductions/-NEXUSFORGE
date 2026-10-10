@@ -30,7 +30,7 @@ $checks = @(
   },
   @{
     Name = "Web Frontend"
-    Endpoint = "http://127.0.0.1:3000/app"
+    Endpoint = "http://127.0.0.1:3300/app"
     Timeout = 5
     Expected = "200"
   },

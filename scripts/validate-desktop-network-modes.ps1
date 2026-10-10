@@ -209,7 +209,7 @@ function Invoke-DesktopModeValidation {
     }
 
     $webCommand = if ($webUsesProdBuild) {
-      "npx next start -p 3000 -H 127.0.0.1"
+      "npx next start -p 3300 -H 127.0.0.1"
     } else {
       "npm run dev"
     }
@@ -222,7 +222,7 @@ function Invoke-DesktopModeValidation {
       $supportProcesses.Add($apiProcess) | Out-Null
     }
 
-    if (-not (Test-PortOpen -Port 3000)) {
+    if (-not (Test-PortOpen -Port 3300)) {
       Write-Host "[desktop-network] Local web is down; starting temporary web service." -ForegroundColor Yellow
       $webStdOut = Join-Path $supportLogRoot "web-stdout.log"
       $webStdErr = Join-Path $supportLogRoot "web-stderr.log"
@@ -230,14 +230,14 @@ function Invoke-DesktopModeValidation {
       $supportProcesses.Add($webProcess) | Out-Null
     }
 
-    if (-not (Wait-ForPorts -Ports @(3000, $apiPort) -Deadline $serviceDeadline)) {
-      throw "Timed out waiting for local services on ports 3000 and $apiPort."
+    if (-not (Wait-ForPorts -Ports @(3300, $apiPort) -Deadline $serviceDeadline)) {
+      throw "Timed out waiting for local services on ports 3300 and $apiPort."
     }
   }
 
   $baseCommand = @(
     'set "NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=true"',
-    'set "NEXUSFORGE_DESKTOP_URL=http://localhost:3000/app"'
+    'set "NEXUSFORGE_DESKTOP_URL=http://localhost:3300/app"'
   )
 
   if ($RequestedMode -eq "hosted") {

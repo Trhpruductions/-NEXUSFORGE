@@ -220,7 +220,7 @@ function Resolve-ServerPort {
 
 $apiPort = Resolve-ServerPort
 $apiBase = "http://localhost:$apiPort"
-$webBase = "http://127.0.0.1:3000"
+$webBase = "http://127.0.0.1:3300"
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {
     Write-Host "[smoke] Server not detected; launching temporary server for API probes" -ForegroundColor Yellow

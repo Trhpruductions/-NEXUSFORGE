@@ -101,7 +101,7 @@ try {
 
   Assert-EndpointHealthy -Url "http://127.0.0.1:4001/api/health"
   Assert-EndpointHealthy -Url "http://127.0.0.1:4001/api/health/discord"
-  Assert-EndpointHealthy -Url "http://127.0.0.1:3000/age-gate"
+  Assert-EndpointHealthy -Url "http://127.0.0.1:3300/age-gate"
 
   if ($RequireWatchdogFreshness) {
     $watchdogLogPath = Join-Path $repoRoot "var\ops-managed-watchdog.jsonl"

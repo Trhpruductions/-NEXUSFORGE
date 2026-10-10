@@ -9,6 +9,7 @@ import { createForge, getApiErrorMessage, getUnreadSummary, joinForge, listForge
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { CoverArt } from "@/components/ui/cover-art";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -94,7 +95,7 @@ export function CommunityPage() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={forge.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
                       ) : (
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_40%,rgba(230,179,37,0.3),transparent_55%),linear-gradient(160deg,#141a26,#0b0e15)]" />
+                        <CoverArt seed={forge.id} className="absolute inset-0 h-full w-full" />
                       )}
                       {active ? <span className="absolute left-3 top-3 rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950">Current</span> : null}
                       {unread?.unread ? <span className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-2 text-[10px] font-bold text-slate-950">{unread.unread} new</span> : null}

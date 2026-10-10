@@ -8,6 +8,7 @@ import { BadgeCheck, Check, Loader2, MessageSquare, Radio, Sparkles, UserPlus, U
 import { createDmThread, followUser, getApiErrorMessage, getProfileSummary, sendFriendRequest, unfollowUser, updateFriendStatus } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
+import { CoverArt } from "@/components/ui/cover-art";
 
 const presence: Record<string, { label: string; dot: string }> = {
   ONLINE: { label: "Online", dot: "bg-emerald-400" },
@@ -91,6 +92,8 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
         {person?.banner ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={person.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        ) : person ? (
+          <CoverArt seed={person.id} variant="rings" className="absolute inset-0 h-full w-full" />
         ) : null}
         <button type="button" onClick={onClose} className="absolute right-2 top-2 rounded-md bg-black/40 p-1 text-slate-300 hover:text-white" title="Close"><X className="h-3.5 w-3.5" /></button>
       </div>

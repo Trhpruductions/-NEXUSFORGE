@@ -53,7 +53,7 @@ try {
     [void](Invoke-Npm -Label "Build and start managed PM2 stack" -Arguments @("run", "pm2:workspace:start:all"))
 
     Wait-Endpoint -Url "http://127.0.0.1:4001/api/health" -TimeoutSeconds 60
-    Wait-Endpoint -Url "http://127.0.0.1:3000/age-gate" -TimeoutSeconds 60
+    Wait-Endpoint -Url "http://127.0.0.1:3300/age-gate" -TimeoutSeconds 60
 
     $postRecoveryDoctorExit = Invoke-Npm -Label "Post-recovery runtime doctor check" -Arguments @("run", "pm2:workspace:doctor") -AllowFailure
     if ($postRecoveryDoctorExit -ne 0) {

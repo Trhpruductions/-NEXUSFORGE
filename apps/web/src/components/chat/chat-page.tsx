@@ -548,7 +548,9 @@ function ChatInner() {
   );
 
   return (
-    <div className="-m-4 flex h-[calc(100dvh-3.5rem)] min-h-0 md:-m-6">
+    // Fill the shell's content area edge to edge: undo its padding with negative margins and add it back to the height.
+    // (A fixed 100dvh calc ignored the "Secure your account" banner and pushed the composer off-screen.)
+    <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 md:-m-6 md:h-[calc(100%+3rem)]">
       {selectedForgeId ? (
         <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}

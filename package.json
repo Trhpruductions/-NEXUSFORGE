@@ -47,7 +47,7 @@
     "desktop:share:major": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/desktop-release-share.ps1 -Bump major",
     "desktop:update:validate": "node ./scripts/validate-desktop-update-endpoints.mjs",
     "desktop:update:validate:insecure": "node ./scripts/validate-desktop-update-endpoints.mjs --insecure",
-    "desktop:update:validate:local": "node ./scripts/validate-desktop-update-endpoints.mjs --base http://127.0.0.1:3000 --insecure",
+    "desktop:update:validate:local": "node ./scripts/validate-desktop-update-endpoints.mjs --base http://127.0.0.1:3300 --insecure",
     "desktop:update:validate:persistent": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$base = [string]$env:NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL; if (-not $base.Trim()) { Write-Error 'NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL is not set'; exit 1 }; node ./scripts/validate-desktop-update-endpoints.mjs --base \"$($base.Trim())\" --insecure\"",
     "desktop:splash:verify": "node ./scripts/verify-desktop-splash-assets.mjs",
     "desktop:splash:verify:packaged": "node ./scripts/verify-desktop-splash-assets.mjs --check-packaged",
@@ -62,7 +62,7 @@
     "desktop:network:validate:hosted": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/validate-desktop-network-modes.ps1 -Mode hosted",
     "discord:probe": "npm run discord:probe -w @nexusforge/server",
     "age:gate:validate": "node ./scripts/validate-age-gate-security.mjs",
-    "age:gate:validate:local": "node ./scripts/validate-age-gate-security.mjs --base http://127.0.0.1:3000",
+    "age:gate:validate:local": "node ./scripts/validate-age-gate-security.mjs --base http://127.0.0.1:3300",
     "brand:verify": "node ./scripts/verify-brand-assets.mjs",
     "pricing:validate": "node ./scripts/validate-pricing-catalog.mjs",
     "pricing:smoke:live": "node ./scripts/pricing-runtime-smoke.mjs",
@@ -147,5 +147,13 @@
   },
   "dependencies": {
     "date-fns": "^4.3.0"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.8.0": true,
+    "prisma@7.8.0": true,
+    "esbuild@0.28.0": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.11.1": true,
+    "electron-winstaller@5.4.0": true
   }
 }

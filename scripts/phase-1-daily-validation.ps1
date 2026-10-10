@@ -41,7 +41,7 @@ try {
 
 # Web Frontend
 try {
-    $r = Invoke-WebRequest -Uri "http://127.0.0.1:3000/" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:3300/" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
     if ($r.StatusCode -eq 200) {
         Log-Result "Web Frontend" "HTTP 200" "PASS" ""
     } else {
