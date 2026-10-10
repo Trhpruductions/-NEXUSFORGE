@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -13,6 +14,7 @@ import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
 import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
+import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -60,7 +62,7 @@ const activateCorePlusSchema = z.object({
   tier: z.enum(["CORE", "PLUS", "ELITE", "INFINITE"]).optional(),
 });
 
-const REFRESH_COOKIE_NAME = "nf_refresh";
+export const REFRESH_COOKIE_NAME = "nf_refresh";
 
 export const authRouter = Router();
 
@@ -90,7 +92,17 @@ function csrfCookieOptions() {
   };
 }
 
-async function issueTokens(user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" }) {
+type SessionCarry = { sessionId: string; signedInAt: Date; deviceLabel: string | null; userAgent: string | null };
+
+/**
+ * Issues an access token and a refresh token. Without `carry` this starts a new session
+ * (sign-in); with it, the new refresh token continues an existing session (rotation).
+ */
+async function issueTokens(
+  user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" },
+  ctx: DeviceContext,
+  carry?: SessionCarry,
+) {
   const accessToken = signAccessToken({
     sub: user.id,
     username: user.username,
@@ -102,15 +114,24 @@ async function issueTokens(user: { id: string; username: string; email: string; 
   const refreshToken = randomToken();
   const tokenHash = sha256(refreshToken);
 
+  const now = new Date();
+  const sessionId = carry?.sessionId ?? randomUUID();
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
       tokenHash,
       expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000),
+      sessionId,
+      signedInAt: carry?.signedInAt ?? now,
+      lastUsedAt: now,
+      // A session keeps the device it signed in on; the network can change.
+      deviceLabel: carry?.deviceLabel ?? ctx.deviceLabel,
+      userAgent: carry?.userAgent ?? ctx.userAgent,
+      ipPrefix: ctx.ipPrefix,
     },
   });
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, sessionId };
 }
 
 async function logSessionRevocation(input: {
@@ -212,7 +233,7 @@ authRouter.post("/register", async (req, res) => {
   });
 
   const emailCode = await issueCode({ userId: user.id, channel: "EMAIL", purpose: "VERIFY_EMAIL", target: user.email });
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, deviceContext(req));
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
@@ -269,7 +290,9 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const tokens = await issueTokens(user);
+  const ctx = deviceContext(req);
+  const tokens = await issueTokens(user, ctx);
+  void alertIfNewDevice(user, ctx, tokens.sessionId).catch((error) => console.error("[AUTH] new-device alert failed", error));
   const csrfToken = randomToken(16);
 
   // Auditing: Log anonymized IP (Unreversible protection)
@@ -364,7 +387,9 @@ authRouter.post("/2fa/verify", async (req, res) => {
     return;
   }
 
-  const tokens = await issueTokens(user);
+  const ctx = deviceContext(req);
+  const tokens = await issueTokens(user, ctx);
+  void alertIfNewDevice(user, ctx, tokens.sessionId).catch((error) => console.error("[AUTH] new-device alert failed", error));
   const csrfToken = randomToken(16);
   console.log(`[AUTH] User ${user.id} completed two-factor sign-in. Secure-IP: ${anonymizeIP(req.ip || "unknown")}`);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
@@ -447,7 +472,13 @@ authRouter.post("/refresh", async (req, res) => {
     },
   });
 
-  const tokens = await issueTokens(session.user);
+  // Same session, new token. Rows from before sessions were tracked start their chain here.
+  const tokens = await issueTokens(session.user, deviceContext(req), {
+    sessionId: session.sessionId ?? session.id,
+    signedInAt: session.signedInAt ?? session.createdAt,
+    deviceLabel: session.deviceLabel,
+    userAgent: session.userAgent,
+  });
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());

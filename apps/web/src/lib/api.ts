@@ -2534,7 +2534,7 @@ export type SettingsPayload = {
   privacy: PrivacySettings;
   preferences: Preferences;
   linkedAccounts: Record<string, string | null>;
-  sessions: Array<{ id: string; createdAt: string; expiresAt: string }>;
+  sessions: ActiveSession[];
   twoFactor: { enabled: boolean; available: boolean };
 };
 
@@ -2570,6 +2570,24 @@ export async function changePassword(accessToken: string, csrfToken: string, pay
 
 export async function revokeSession(accessToken: string, csrfToken: string, sessionId: string) {
   await api.delete(`/api/settings/sessions/${sessionId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type ActiveSession = {
+  id: string;
+  /** True for the session this browser is using. */
+  current: boolean;
+  deviceLabel: string;
+  ipPrefix: string | null;
+  signedInAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+/** Signs out every session except this one. */
+export async function revokeOtherSessions(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true; signedOut: number }>("/api/settings/sessions", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
 }
 
 // ===========================================================================

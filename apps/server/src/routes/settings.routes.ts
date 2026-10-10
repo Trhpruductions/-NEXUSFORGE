@@ -6,6 +6,36 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { issueCode, verifyCode } from "../lib/verification.js";
 import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
+import { sha256 } from "../lib/jwt.js";
+import { REFRESH_COOKIE_NAME } from "./auth.routes.js";
+
+const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
+
+type SessionRow = {
+  id: string; tokenHash: string; createdAt: Date; expiresAt: Date;
+  signedInAt: Date | null; lastUsedAt: Date | null; deviceLabel: string | null; ipPrefix: string | null;
+};
+
+/**
+ * Active sessions for the settings page. "Current" is decided by the refresh cookie the
+ * request carries, not by recency: the newest session is often another device.
+ */
+function describeSessions(rows: SessionRow[], refreshCookie: string | undefined) {
+  const currentHash = refreshCookie ? sha256(refreshCookie) : null;
+  return rows
+    .map((row) => ({
+      id: row.id,
+      current: row.tokenHash === currentHash,
+      deviceLabel: row.deviceLabel ?? "Unknown device",
+      ipPrefix: row.ipPrefix,
+      // Rows issued before sessions were tracked only know when they were last rotated.
+      signedInAt: row.signedInAt ?? row.createdAt,
+      lastUsedAt: row.lastUsedAt ?? row.createdAt,
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    }))
+    .sort((a, b) => Number(b.current) - Number(a.current) || b.lastUsedAt.getTime() - a.lastUsedAt.getTime());
+}
 
 /** Account, privacy, and linked-account settings for the signed-in user. */
 export const settingsRouter = Router();
@@ -121,7 +151,12 @@ settingsRouter.get("/", async (req, res) => {
       privacySettings: true,
       preferences: true,
       createdAt: true,
-      refreshTokens: { where: { revokedAt: null }, select: { id: true, createdAt: true, expiresAt: true }, orderBy: { createdAt: "desc" }, take: 10 },
+      refreshTokens: {
+        where: { revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true, tokenHash: true, createdAt: true, expiresAt: true, signedInAt: true, lastUsedAt: true, deviceLabel: true, ipPrefix: true },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+      },
     },
   });
   if (!user) {
@@ -147,7 +182,7 @@ settingsRouter.get("/", async (req, res) => {
     privacy: privacy.success ? privacy.data : privacySchema.parse({}),
     preferences: parsePreferences(user.preferences),
     linkedAccounts: (user.socialLinks as Record<string, string | null> | null) ?? {},
-    sessions: user.refreshTokens,
+    sessions: describeSessions(user.refreshTokens, req.cookies?.[REFRESH_COOKIE] as string | undefined),
     twoFactor: { enabled: user.twoFactorEnabled, available: true },
   });
 });
@@ -282,6 +317,16 @@ settingsRouter.post("/password", async (req, res) => {
     prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
   res.json({ ok: true, message: "Password updated. Other sessions were signed out." });
+});
+
+/** Signs out every session except the one making the request. */
+settingsRouter.delete("/sessions", async (req, res) => {
+  const cookie = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  const result = await prisma.refreshToken.updateMany({
+    where: { userId: req.user!.id, revokedAt: null, ...(cookie ? { NOT: { tokenHash: sha256(cookie) } } : {}) },
+    data: { revokedAt: new Date() },
+  });
+  res.json({ ok: true, signedOut: result.count });
 });
 
 settingsRouter.delete("/sessions/:id", async (req, res) => {

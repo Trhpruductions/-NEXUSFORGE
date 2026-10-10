@@ -469,16 +469,29 @@ model OAuthAuthorizationCode {
   @@index([clientId, userId, expiresAt])
 }
 
+/// One row per refresh token. Rotation (every refresh) revokes the row and creates a new
+/// one; sessionId, signedInAt and the device fields carry over, so a "session" is the chain
+/// of rows sharing sessionId and its live row is the one with revokedAt = null.
 model RefreshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  revokedAt DateTime?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  signedInAt  DateTime?
+  lastUsedAt  DateTime?
+  /// "Chrome on Windows", "Vexora Desktop on Windows", ...
+  deviceLabel String?
+  userAgent   String?
+  /// Anonymised (network prefix only), for display.
+  ipPrefix    String?
 
   @@index([userId])
+  @@index([userId, deviceLabel])
+  @@index([sessionId])
 }
 
 model Forge {
