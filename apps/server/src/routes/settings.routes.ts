@@ -7,6 +7,7 @@ import { requireCsrf } from "../middleware/csrf.js";
 import { issueCode, verifyCode } from "../lib/verification.js";
 import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
 import { sha256 } from "../lib/jwt.js";
+import { HHMM, isValidTimeZone } from "../lib/quiet-hours.js";
 import { REFRESH_COOKIE_NAME } from "./auth.routes.js";
 
 const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
@@ -66,6 +67,14 @@ export const preferencesSchema = z.object({
       system: z.boolean().default(true),
       sounds: z.boolean().default(true),
       push: z.boolean().default(true),
+      quietHours: z
+        .object({
+          enabled: z.boolean().default(false),
+          start: z.string().regex(HHMM).default("22:00"),
+          end: z.string().regex(HHMM).default("08:00"),
+          timeZone: z.string().refine(isValidTimeZone, "Unknown time zone").default("UTC"),
+        })
+        .prefault({}),
     })
     .prefault({}),
   appearance: z

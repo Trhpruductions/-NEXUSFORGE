@@ -310,9 +310,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
       void queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
     };
-    const handleNotification = (payload: { id: string; title: string }) => {
+    const handleNotification = (payload: { id: string; title: string; quiet?: boolean }) => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      if (soundsEnabledRef.current) playNotificationTone();
+      // Quiet hours: the server marks it quiet; it still shows in the inbox, silently.
+      if (soundsEnabledRef.current && !payload.quiet) playNotificationTone();
       void payload;
     };
     const handleVoice = (payload: { channelId: string; count: number }) => {

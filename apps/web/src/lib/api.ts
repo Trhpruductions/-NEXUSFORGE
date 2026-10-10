@@ -2489,6 +2489,8 @@ export type NotificationPreferences = {
   system: boolean;
   sounds: boolean;
   push: boolean;
+  /** Inbox only (no push, no sound) during this daily window, in timeZone. */
+  quietHours: { enabled: boolean; start: string; end: string; timeZone: string };
 };
 
 export type AppearancePreferences = {

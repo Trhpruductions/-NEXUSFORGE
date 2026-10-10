@@ -49,6 +49,8 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
 import { ActiveSessions } from "@/components/settings/active-sessions";
+import { QuietHoursEditor } from "@/components/settings/quiet-hours-editor";
+import { Toggle } from "@/components/settings/toggle";
 import { AgeVerificationCard } from "@/components/settings/age-verification";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
@@ -69,7 +71,9 @@ const categories = [
 ] as const;
 type CategoryKey = (typeof categories)[number]["key"];
 
-const notificationRows: Array<{ key: keyof NotificationPreferences; label: string; hint: string }> = [
+type NotificationToggleKey = Exclude<keyof NotificationPreferences, "quietHours">;
+
+const notificationRows: Array<{ key: NotificationToggleKey; label: string; hint: string }> = [
   { key: "mentions", label: "Mentions", hint: "When someone @mentions you in a channel." },
   { key: "directMessages", label: "Direct messages", hint: "New DMs and group messages." },
   { key: "friendRequests", label: "Friend requests", hint: "Requests and accepted requests." },
@@ -107,21 +111,6 @@ const linkedProviders = [
 function errorText(error: unknown) {
   if (axios.isAxiosError(error)) return (error.response?.data as { error?: string } | undefined)?.error ?? error.message;
   return error instanceof Error ? error.message : "Something went wrong";
-}
-
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition ${checked ? "border-amber-400 bg-amber-400" : "border-white/15 bg-slate-800"} disabled:opacity-50`}
-    >
-      <span className={`absolute top-0.5 h-4.5 w-4.5 rounded-full transition-all ${checked ? "left-[22px] bg-slate-950" : "left-0.5 bg-slate-400"}`} style={{ height: 18, width: 18 }} />
-    </button>
-  );
 }
 
 export function SettingsPage() {
@@ -681,6 +670,10 @@ function SettingsInner() {
                   </li>
                 ))}
               </ul>
+              <QuietHoursEditor
+                value={notifications.quietHours}
+                onChange={(quietHours) => setNotifications((current) => (current ? { ...current, quietHours } : current))}
+              />
               <button type="button" className={goldBtn} disabled={!notificationsDirty || preferencesMutation.isPending} onClick={() => preferencesMutation.mutate({ notifications })}>
                 {preferencesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save notifications
               </button>
