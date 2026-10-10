@@ -275,7 +275,7 @@ try {
 # 3. Web Endpoint Health
 Write-Host "`n[3/6] Web Frontend (/app)..." -ForegroundColor Yellow
 try {
-  $webResponse = Invoke-WebRequest -Uri "http://127.0.0.1:3000/app" -TimeoutSec 5 -UseBasicParsing -ErrorAction SilentlyContinue
+  $webResponse = Invoke-WebRequest -Uri "http://127.0.0.1:3300/app" -TimeoutSec 5 -UseBasicParsing -ErrorAction SilentlyContinue
   $webHealthy = $webResponse.StatusCode -eq 200
   
   $metrics.checks += @{

@@ -25,6 +25,7 @@ import {
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { ClipEmbed } from "@/components/media/clip-embed";
 import { useAuthStore } from "@/store/auth-store";
+import { CoverArt } from "@/components/ui/cover-art";
 
 type Tab = "posts" | "clips" | "streams" | "achievements" | "friends";
 
@@ -214,7 +215,7 @@ function ProfileInner() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={person.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
           ) : (
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(230,179,37,0.35),transparent_45%),linear-gradient(160deg,#141a26,#070a10)]" />
+            <CoverArt seed={person.id} variant="rings" className="absolute inset-0 h-full w-full" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d1119] via-transparent to-transparent" />
           {person.creatorStatus === "LIVE" ? (

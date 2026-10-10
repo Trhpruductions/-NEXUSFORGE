@@ -87,4 +87,4 @@ pm2 list
 
 Write-Host "`n✅ Production startup complete" -ForegroundColor Green
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')" -ForegroundColor Gray
-Write-Host "`nMonitoring URLs:`n  · API: http://127.0.0.1:4001`n  · Web: http://127.0.0.1:3000`n  · Dashboard: pm2 monit" -ForegroundColor Cyan
+Write-Host "`nMonitoring URLs:`n  · API: http://127.0.0.1:4001`n  · Web: http://127.0.0.1:3300`n  · Dashboard: pm2 monit" -ForegroundColor Cyan

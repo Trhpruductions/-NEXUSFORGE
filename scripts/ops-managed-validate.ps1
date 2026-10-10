@@ -62,7 +62,7 @@ try {
   }
 
   Wait-ForEndpoint -Url "http://127.0.0.1:4001/api/health" -TimeoutSeconds 60
-  Wait-ForEndpoint -Url "http://127.0.0.1:3000/age-gate" -TimeoutSeconds 60
+  Wait-ForEndpoint -Url "http://127.0.0.1:3300/age-gate" -TimeoutSeconds 60
 
   Invoke-CheckedCommand -Label "Validate age-gate security" -Arguments @("run", "age:gate:validate:local")
 

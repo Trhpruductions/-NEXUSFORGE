@@ -7,6 +7,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { resolveForgeAccess, hasForgePermission } from "../lib/forge-permissions.js";
 import { championOf, generateBracket, settleBracket, type Bracket } from "../lib/bracket.js";
+import { runningLiveEventWhere, staleLiveEventWhere } from "../lib/event-status.js";
 
 export const eventsRouter = Router();
 
@@ -81,15 +82,18 @@ eventsRouter.get("/", async (req, res) => {
   const memberships = await prisma.forgeMember.findMany({ where: { userId: req.user!.id }, select: { forgeId: true } });
   const forgeIds = memberships.map((entry) => entry.forgeId);
 
-  const where = {
+  const baseWhere = {
     ...(forgeId ? { forgeId } : { OR: [{ forgeId: null }, { forgeId: { in: forgeIds } }] }),
     ...(type ? { type } : {}),
-    ...(scope === "live"
-      ? { status: "LIVE" as const }
-      : scope === "past"
-        ? { OR: [{ status: "COMPLETED" as const }, { status: "CANCELLED" as const }, { startsAt: { lt: now }, status: "SCHEDULED" as const }] }
-        : { status: "SCHEDULED" as const, startsAt: { gte: now } }),
   };
+  const scopeWhere =
+    scope === "live"
+      ? runningLiveEventWhere(now)
+      : scope === "past"
+        ? { OR: [{ status: "COMPLETED" as const }, { status: "CANCELLED" as const }, { startsAt: { lt: now }, status: "SCHEDULED" as const }, staleLiveEventWhere(now)] }
+        : { status: "SCHEDULED" as const, startsAt: { gte: now } };
+  // AND, not a spread: both halves can carry their own OR.
+  const where = { AND: [baseWhere, scopeWhere] };
 
   const events = await prisma.event.findMany({
     where,

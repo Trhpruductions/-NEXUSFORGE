@@ -22,7 +22,7 @@ function Get-ListeningPidsForPort {
   return @($result | Select-Object -Unique)
 }
 
-$ports = @(3000, 3001, 3100, 4000, 4001)
+$ports = @(3300, 3001, 3100, 4000, 4001)
 $stopped = @{}
 
 foreach ($port in $ports) {

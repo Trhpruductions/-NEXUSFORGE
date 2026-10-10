@@ -1,4 +1,4 @@
-const defaultBaseUrl = "http://127.0.0.1:3000";
+const defaultBaseUrl = "http://127.0.0.1:3300";
 
 function getArgValue(flag) {
   const index = process.argv.indexOf(flag);

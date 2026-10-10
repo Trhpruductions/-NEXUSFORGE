@@ -17,7 +17,7 @@ module.exports = {
     {
       name: "nexusforge-web-workspace",
       script: "node_modules/next/dist/bin/next",
-      args: "start ./apps/web --hostname 127.0.0.1 --port 3000",
+      args: "start ./apps/web --hostname 127.0.0.1 --port 3300",
       cwd: "./",
       instances: 1,
       exec_mode: "fork",

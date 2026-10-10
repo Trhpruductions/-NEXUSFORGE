@@ -71,7 +71,7 @@ for (const path of envPaths) {
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  CLIENT_ORIGIN: z.string().default("http://localhost:3000"),
+  CLIENT_ORIGIN: z.string().default("http://127.0.0.1:3300"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_ACCESS_SECRET: z.string().min(32),
@@ -92,7 +92,7 @@ const envSchema = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
   UPLOAD_MAX_BYTES: z.coerce.number().default(25 * 1024 * 1024),
   PREMIUM_UPLOAD_MAX_BYTES: z.coerce.number().default(150 * 1024 * 1024),
-  APP_WEB_URL: z.string().default("http://localhost:3000"),
+  APP_WEB_URL: z.string().default("http://127.0.0.1:3300"),
   // Email delivery (SMTP). When unset in development, codes are logged to the server console.
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().default(587),

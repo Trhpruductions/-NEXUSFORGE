@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
+import { runningLiveEventWhere } from "../lib/event-status.js";
 import { requireAuth } from "../middleware/auth.js";
 
 /** Aggregated data for the Home dashboard of the selected forge. */
@@ -50,8 +51,12 @@ homeRouter.get("/summary", async (req, res) => {
       where: {
         AND: [
           { OR: [{ forgeId: null }, { forgeId: { in: forgeIds } }] },
-          { status: { in: ["SCHEDULED", "LIVE"] } },
-          { OR: [{ status: "LIVE" }, { startsAt: { gte: new Date(now.getTime() - 6 * 60 * 60 * 1000) } }] },
+          {
+            OR: [
+              runningLiveEventWhere(now),
+              { status: "SCHEDULED", startsAt: { gte: new Date(now.getTime() - 6 * 60 * 60 * 1000) } },
+            ],
+          },
         ],
       },
       orderBy: [{ status: "desc" }, { startsAt: "asc" }],

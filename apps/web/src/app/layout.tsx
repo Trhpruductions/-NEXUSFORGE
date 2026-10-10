@@ -15,7 +15,7 @@ const orbitron = Orbitron({
 });
 
 // Use the public frontend origin for metadata and canonical URLs in production.
-const metadataBase = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : new URL("http://localhost:3000");
+const metadataBase = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : new URL("http://127.0.0.1:3300");
 
 export const metadata: Metadata = {
   metadataBase,

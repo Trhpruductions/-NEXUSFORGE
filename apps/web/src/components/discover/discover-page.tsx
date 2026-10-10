@@ -8,6 +8,7 @@ import { Check, Hash, Loader2, Search, Star, TrendingUp, Users } from "lucide-re
 import { getDiscover, joinForge, type DiscoverForge } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { CoverArt } from "@/components/ui/cover-art";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
@@ -57,12 +58,12 @@ export function DiscoverPage() {
 
   const ForgeCard = ({ forge, featured = false }: { forge: DiscoverForge; featured?: boolean }) => (
     <div className={`overflow-hidden rounded-xl border bg-[#11151e] transition hover:border-amber-400/50 ${featured ? "border-amber-500/30" : "border-white/5"}`}>
-      <div className="relative h-24">
+      <div className="relative h-28">
         {forge.banner ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={forge.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(230,179,37,0.3),transparent_55%),linear-gradient(160deg,#141a26,#0b0e15)]" />
+          <CoverArt seed={forge.id} className="absolute inset-0 h-full w-full" />
         )}
         {forge.featured ? <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950"><Star className="h-3 w-3" /> Featured</span> : null}
         <span className="absolute right-2 top-2 rounded bg-black/60 px-1.5 text-[10px] uppercase tracking-[0.12em] text-slate-200">{forge.category}</span>

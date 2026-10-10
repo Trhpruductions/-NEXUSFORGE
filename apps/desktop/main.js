@@ -20,7 +20,7 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 
-const localStartUrl = "http://127.0.0.1:3000/app";
+const localStartUrl = "http://127.0.0.1:3300/app";
 const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
 function isLocalHostTarget(value) {
   try {
@@ -43,7 +43,7 @@ function normalizeUrl(value) {
   try {
     return new URL(candidate).toString();
   } catch {
-    // Support host-only values like "localhost:3000/app" or "nexusforge.app/app".
+    // Support host-only values like "localhost:3300/app" or "nexusforge.app/app".
   }
 
   try {
@@ -61,7 +61,7 @@ function resolvePricingCatalogUrl() {
     const parsed = new URL(normalizedStartUrl);
     return `${parsed.origin}/api/pricing/catalog`;
   } catch {
-    return "http://127.0.0.1:3000/api/pricing/catalog";
+    return "http://127.0.0.1:3300/api/pricing/catalog";
   }
 }
 
@@ -1936,7 +1936,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://www.nexusforge.app/app, or start local services on http://127.0.0.1:3000/app. If the public production host is not yet published, use your available beta or tunnel URL.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://www.nexusforge.app/app, or start local services on http://127.0.0.1:3300/app. If the public production host is not yet published, use your available beta or tunnel URL.",
       );
     }
     return;
@@ -1990,7 +1990,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Local services are not available. Start the web and API servers on http://127.0.0.1:3000 and reopen Vexora Gaming Desktop.",
+        "Local services are not available. Start the web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.",
       );
       return;
     }
@@ -2007,7 +2007,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Local app URL is unreachable. Verify localhost:3000 is running and retry.",
+        "Local app URL is unreachable. Verify localhost:3300 is running and retry.",
       );
       return;
     }
@@ -2039,7 +2039,7 @@ async function ensureAppReachable(trigger) {
         loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
       }
     } else {
-      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3000 and reopen Vexora Gaming Desktop.");
+      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.");
     }
   } finally {
     bootRecoveryInFlight = false;

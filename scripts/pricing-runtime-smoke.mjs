@@ -1,4 +1,4 @@
-const webBaseUrl = (process.env.NEXUSFORGE_WEB_BASE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
+const webBaseUrl = (process.env.NEXUSFORGE_WEB_BASE_URL || "http://127.0.0.1:3300").replace(/\/+$/, "");
 const apiBaseUrl = (process.env.NEXUSFORGE_API_BASE_URL || "http://127.0.0.1:4001").replace(/\/+$/, "");
 const adminEmail = process.env.NEXUSFORGE_PRICING_SMOKE_ADMIN_EMAIL || "razeprime@nexusforge.local";
 const adminPassword = process.env.NEXUSFORGE_PRICING_SMOKE_ADMIN_PASSWORD || "Sample!2026";
