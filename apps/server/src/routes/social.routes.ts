@@ -213,17 +213,23 @@ socialRouter.get("/posts", async (req, res) => {
     authorFilter = { in: [...following.map((entry) => entry.followingId), req.user!.id] };
   }
 
-  const posts = await prisma.post.findMany({
+  // Cursor paging for the feed: pass the last post's id as ?cursor= to get older posts.
+  const cursor = typeof req.query.cursor === "string" && /^[0-9a-f-]{36}$/i.test(req.query.cursor) ? req.query.cursor : undefined;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+
+  const rows = await prisma.post.findMany({
     where: {
       ...(authorFilter ? { authorId: authorFilter } : {}),
       ...(kind ? { kind } : {}),
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: postInclude,
   });
+  const posts = rows.slice(0, limit);
 
-  res.json({ posts: await attachLiked(posts, req.user!.id) });
+  res.json({ posts: await attachLiked(posts, req.user!.id), nextCursor: rows.length > limit ? posts[posts.length - 1].id : null });
 });
 
 socialRouter.post("/posts", async (req, res) => {

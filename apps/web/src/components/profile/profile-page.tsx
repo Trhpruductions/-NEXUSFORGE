@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Award, Clock, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
+import { Award, Clock, Crown, Loader2, Radio, Send, Shield, Sparkles, Star, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
 import {
   applyAvatarPreset,
   createPost,
@@ -23,7 +23,7 @@ import {
   type Post,
 } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
-import { ClipEmbed } from "@/components/media/clip-embed";
+import { PostCard } from "@/components/social/post-card";
 import { useAuthStore } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
 
@@ -52,16 +52,6 @@ function compact(value: number) {
   return String(value);
 }
 
-function timeAgo(iso: string) {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
-}
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
@@ -97,7 +87,7 @@ function ProfileInner() {
 
   const postsQuery = useQuery({
     queryKey: ["posts", userId, tab === "clips" ? "CLIP" : "POST", accessToken],
-    queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST" }),
+    queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST", limit: 50 }),
     enabled: Boolean(accessToken && userId && (tab === "posts" || tab === "clips")),
   });
   const streamsQuery = useQuery({
@@ -334,43 +324,7 @@ function ProfileInner() {
                 <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</p>
               ) : postsQuery.data?.posts.length ? (
                 postsQuery.data.posts.map((post) => (
-                  <article key={post.id} className={panel}>
-                    <div className="flex items-start gap-3">
-                      {post.author.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.author.avatar} alt="" className="h-10 w-10 rounded-full border border-amber-500/30 object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/30 bg-slate-800 text-xs font-bold text-amber-100">{initials(post.author.username)}</span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-slate-400">
-                          <span className="text-sm font-semibold text-white">{post.author.displayName || post.author.username}</span>
-                          <span>@{post.author.username}</span>
-                          <span>· {timeAgo(post.createdAt)}</span>
-                          {post.kind === "CLIP" ? <span className="rounded border border-white/10 px-1.5 text-[9px] uppercase tracking-[0.12em] text-amber-200">Clip</span> : null}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">{post.content}</p>
-                        {post.mediaUrl ? (
-                          post.kind === "CLIP" ? (
-                            <ClipEmbed url={post.mediaUrl} className="mt-2 max-w-2xl" />
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={post.mediaUrl} alt="" className="mt-2 max-h-80 rounded-xl border border-white/10 object-cover" />
-                          )
-                        ) : null}
-                        {post.tags.length ? <p className="mt-2 text-xs text-amber-300">{post.tags.map((tag) => `#${tag}`).join(" ")}</p> : null}
-                        <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
-                          <button type="button" onClick={() => likeMutation.mutate(post.id)} className={`inline-flex items-center gap-1 transition hover:text-rose-300 ${post.liked ? "text-rose-400" : ""}`}>
-                            <Heart className={`h-3.5 w-3.5 ${post.liked ? "fill-current" : ""}`} /> {post._count.likes}
-                          </button>
-                          <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 0</span>
-                          {post.authorId === self?.id ? (
-                            <button type="button" onClick={() => deleteMutation.mutate(post.id)} className="ml-auto inline-flex items-center gap-1 text-slate-500 hover:text-rose-300"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
+                  <PostCard key={post.id} post={post} selfId={self?.id} onLike={(id) => likeMutation.mutate(id)} onDelete={(id) => deleteMutation.mutate(id)} className={panel} />
                 ))
               ) : (
                 <p className={`${panel} text-sm text-slate-500`}>{tab === "clips" ? "No clips shared yet." : "No posts yet."}</p>

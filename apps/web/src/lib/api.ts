@@ -2339,8 +2339,12 @@ export type Post = {
   _count: { likes: number };
 };
 
-export async function listPosts(accessToken: string, params: { authorId?: string | "me"; kind?: "POST" | "CLIP"; scope?: "following" | "all" } = {}) {
-  const response = await api.get<{ posts: Post[] }>("/api/social/posts", { headers: authHeaders(accessToken), params });
+export async function listPosts(
+  accessToken: string,
+  params: { authorId?: string | "me"; kind?: "POST" | "CLIP"; scope?: "following" | "all"; cursor?: string | null; limit?: number } = {},
+) {
+  const { cursor, ...rest } = params;
+  const response = await api.get<{ posts: Post[]; nextCursor: string | null }>("/api/social/posts", { headers: authHeaders(accessToken), params: cursor ? { ...rest, cursor } : rest });
   return response.data;
 }
 

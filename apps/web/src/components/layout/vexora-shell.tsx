@@ -31,6 +31,7 @@ import {
   Volume2,
   X,
   LifeBuoy,
+  Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
@@ -44,6 +45,7 @@ import { VoiceEngine } from "@/components/chat/voice-engine";
 // The six destinations from the design reference (design/vexora-app-mockup.png, Home panel).
 const navLinks = [
   { label: "Home", href: "/app", icon: Home },
+  { label: "Feed", href: "/app/feed", icon: Newspaper },
   { label: "Avatar Studio", href: "/app/avatar", icon: UserRound },
   { label: "Community", href: "/app/server", icon: Layers },
   { label: "Events", href: "/app/events", icon: Calendar },
