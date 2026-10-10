@@ -9,6 +9,7 @@ import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGeneratio
 import { CORE_PLUS_TIER_DISPLAY_LABELS, PAID_FEATURE_DISPLAY_LABELS } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { AdminAnalyticsPanel } from "@/components/admin/admin-analytics";
 
 type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
 type ManualBadgeKey = "vip" | "investor" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner";
@@ -528,6 +529,10 @@ export function AdminDashboard() {
           Back to App
         </Link>
         <span className="ml-auto rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-amber-100">Governance live</span>
+      </div>
+
+      <div className="lg:col-span-2">
+        <AdminAnalyticsPanel />
       </div>
 
       <section className="nexus-display-panel relative overflow-hidden rounded-[28px] p-5">

@@ -26,6 +26,7 @@ import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
+import { adminAnalytics, ANALYTICS_RANGES, type AnalyticsRange } from "../lib/admin-analytics.js";
 
 export const adminRouter = Router();
 
@@ -347,6 +348,13 @@ adminRouter.get("/summary", async (_req, res) => {
     pendingFriends,
     liveUsers,
   });
+});
+
+/** Daily growth, activity and coin-economy series for the last 7, 30 or 90 days. */
+adminRouter.get("/analytics", async (req, res) => {
+  const requested = Number(req.query.days);
+  const range = (ANALYTICS_RANGES as readonly number[]).includes(requested) ? (requested as AnalyticsRange) : 30;
+  res.json(await adminAnalytics(range));
 });
 
 adminRouter.get("/live-users", async (req, res) => {

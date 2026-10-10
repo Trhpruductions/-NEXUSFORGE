@@ -2970,3 +2970,17 @@ export async function setSupportTicketStatus(accessToken: string, csrfToken: str
   const response = await api.patch<{ ticket: { id: string; status: SupportStatus } }>(`/api/support/tickets/${ticketId}`, { status }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data.ticket;
 }
+
+export type AdminAnalytics = {
+  rangeDays: 7 | 30 | 90;
+  /** UTC days, oldest first; every series has one value per day. */
+  days: string[];
+  series: { signups: number[]; activeUsers: number[]; messages: number[]; posts: number[]; forges: number[]; coinsMinted: number[]; coinsBurned: number[] };
+  totals: { signups: number; messages: number; posts: number; forges: number; coinsMinted: number; coinsBurned: number; activeUsersPeak: number; activeUsersToday: number };
+  topForges: Array<{ id: string; name: string; messages: number; members: number }>;
+};
+
+export async function getAdminAnalytics(accessToken: string, days: 7 | 30 | 90) {
+  const response = await api.get<AdminAnalytics>(`/api/admin/analytics?days=${days}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
