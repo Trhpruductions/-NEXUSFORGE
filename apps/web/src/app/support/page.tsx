@@ -20,8 +20,8 @@ export default function SupportPage() {
     <ExperienceShell
       eyebrow="Need help?"
       title="Vexora Gaming support"
-      subtitle="Pick a topic, or email the team and a real person will get back to you."
-      actions={[{ label: "Email support", href: "mailto:support@vexoragaming.com", tone: "primary" }]}
+      subtitle="Pick a topic, or open a ticket and a real person will get back to you."
+      actions={[{ label: "Open a ticket", href: "/app/support?new=1", tone: "primary" }]}
     >
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid gap-3 md:grid-cols-2">
@@ -37,7 +37,8 @@ export default function SupportPage() {
         <aside className="space-y-4">
           <div className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">
             <h2 className="nf-heading mb-2 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white"><LifeBuoy className="h-4 w-4 text-amber-300" /> Contact</h2>
-            <a href="mailto:support@vexoragaming.com" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><Mail className="h-4 w-4" /> support@vexoragaming.com</a>
+            <Link href="/app/support?new=1" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><Mail className="h-4 w-4" /> Open a support ticket</Link>
+            <p className="mt-1 text-xs text-slate-500">Replies arrive in the app and by email. <Link href="/app/support" className="text-slate-300 hover:text-white">View your tickets</Link></p>
             <p className="mt-2 text-xs text-slate-500">Include your username and, for account issues, the email on the account. Never send passwords or codes.</p>
           </div>
           <div className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">

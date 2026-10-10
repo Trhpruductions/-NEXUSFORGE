@@ -34,7 +34,6 @@ import {
   getSettings,
   listForgeBans,
   listMyBots,
-  revokeSession,
   sendSensitiveChallenge,
   updateAccountSettings,
   updateLinkedAccounts,
@@ -49,6 +48,9 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
+import { ActiveSessions } from "@/components/settings/active-sessions";
+import { QuietHoursEditor } from "@/components/settings/quiet-hours-editor";
+import { Toggle } from "@/components/settings/toggle";
 import { AgeVerificationCard } from "@/components/settings/age-verification";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
@@ -69,7 +71,9 @@ const categories = [
 ] as const;
 type CategoryKey = (typeof categories)[number]["key"];
 
-const notificationRows: Array<{ key: keyof NotificationPreferences; label: string; hint: string }> = [
+type NotificationToggleKey = Exclude<keyof NotificationPreferences, "quietHours">;
+
+const notificationRows: Array<{ key: NotificationToggleKey; label: string; hint: string }> = [
   { key: "mentions", label: "Mentions", hint: "When someone @mentions you in a channel." },
   { key: "directMessages", label: "Direct messages", hint: "New DMs and group messages." },
   { key: "friendRequests", label: "Friend requests", hint: "Requests and accepted requests." },
@@ -107,21 +111,6 @@ const linkedProviders = [
 function errorText(error: unknown) {
   if (axios.isAxiosError(error)) return (error.response?.data as { error?: string } | undefined)?.error ?? error.message;
   return error instanceof Error ? error.message : "Something went wrong";
-}
-
-function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (value: boolean) => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full border transition ${checked ? "border-amber-400 bg-amber-400" : "border-white/15 bg-slate-800"} disabled:opacity-50`}
-    >
-      <span className={`absolute top-0.5 h-4.5 w-4.5 rounded-full transition-all ${checked ? "left-[22px] bg-slate-950" : "left-0.5 bg-slate-400"}`} style={{ height: 18, width: 18 }} />
-    </button>
-  );
 }
 
 export function SettingsPage() {
@@ -331,11 +320,6 @@ function SettingsInner() {
   const notificationsDirty = Boolean(notifications && settingsQuery.data) && JSON.stringify(notifications) !== JSON.stringify(settingsQuery.data?.preferences.notifications);
   const appearanceDirty = Boolean(appearance && settingsQuery.data) && JSON.stringify(appearance) !== JSON.stringify(settingsQuery.data?.preferences.appearance);
   const voiceDirty = Boolean(voice && settingsQuery.data) && JSON.stringify(voice) !== JSON.stringify(settingsQuery.data?.preferences.voice);
-  const revokeMutation = useMutation({
-    mutationFn: (sessionId: string) => revokeSession(accessToken!, csrfToken!, sessionId),
-    onSuccess: refresh,
-    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
-  });
 
   const forge = forgeQuery.data?.forge;
   const isOwner = forge?.ownerId === user?.id;
@@ -498,17 +482,7 @@ function SettingsInner() {
           </button>
 
           <div className="border-t border-white/5 pt-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Active sessions</p>
-            <ul className="space-y-1.5">
-              {(settingsQuery.data?.sessions ?? []).map((session, index) => (
-                <li key={session.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-[#11151e] px-3 py-2 text-xs">
-                  <span className="text-slate-300">
-                    {index === 0 ? "This device" : "Session"} · signed in {new Date(session.createdAt).toLocaleDateString()}
-                  </span>
-                  <button type="button" onClick={() => revokeMutation.mutate(session.id)} className="text-slate-500 hover:text-rose-300" title="Sign out this session"><LogOut className="h-3.5 w-3.5" /></button>
-                </li>
-              ))}
-            </ul>
+            <ActiveSessions sessions={settingsQuery.data?.sessions ?? []} onChanged={refresh} />
             <button
               type="button"
               onClick={() => {
@@ -658,17 +632,7 @@ function SettingsInner() {
           </button>
 
           <div className="border-t border-white/5 pt-4">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Active sessions</p>
-            <ul className="space-y-1.5">
-              {(settingsQuery.data?.sessions ?? []).map((session, index) => (
-                <li key={session.id} className="flex items-center justify-between rounded-lg border border-white/5 bg-[#11151e] px-3 py-2 text-xs">
-                  <span className="text-slate-300">
-                    {index === 0 ? "This device" : "Session"} · signed in {new Date(session.createdAt).toLocaleDateString()}
-                  </span>
-                  <button type="button" onClick={() => revokeMutation.mutate(session.id)} className="text-slate-500 hover:text-rose-300" title="Sign out this session"><LogOut className="h-3.5 w-3.5" /></button>
-                </li>
-              ))}
-            </ul>
+            <ActiveSessions sessions={settingsQuery.data?.sessions ?? []} onChanged={refresh} />
             <button
               type="button"
               onClick={() => {
@@ -706,6 +670,10 @@ function SettingsInner() {
                   </li>
                 ))}
               </ul>
+              <QuietHoursEditor
+                value={notifications.quietHours}
+                onChange={(quietHours) => setNotifications((current) => (current ? { ...current, quietHours } : current))}
+              />
               <button type="button" className={goldBtn} disabled={!notificationsDirty || preferencesMutation.isPending} onClick={() => preferencesMutation.mutate({ notifications })}>
                 {preferencesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save notifications
               </button>

@@ -30,6 +30,7 @@ import {
   Users,
   Volume2,
   X,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
@@ -48,6 +49,7 @@ const navLinks = [
   { label: "Events", href: "/app/events", icon: Calendar },
   { label: "Store", href: "/app/store", icon: ShoppingBag },
   { label: "Settings", href: "/app/settings", icon: Settings },
+  { label: "Support", href: "/app/support", icon: LifeBuoy },
 ];
 
 // Everything else lives on the thin icon rail, like the reference.
@@ -308,9 +310,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ["dm-unread"] });
       void queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
     };
-    const handleNotification = (payload: { id: string; title: string }) => {
+    const handleNotification = (payload: { id: string; title: string; quiet?: boolean }) => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      if (soundsEnabledRef.current) playNotificationTone();
+      // Quiet hours: the server marks it quiet; it still shows in the inbox, silently.
+      if (soundsEnabledRef.current && !payload.quiet) playNotificationTone();
       void payload;
     };
     const handleVoice = (payload: { channelId: string; count: number }) => {
