@@ -42,6 +42,18 @@ export function rigPurchaseReference(userId: string, purchaseId: string): string
   return reference("rig-purchase", userId, purchaseId);
 }
 
+/**
+ * A coin transfer writes two ledger rows, one per account. Both carry the sender's
+ * idempotency key, so a retried or double-clicked send is rejected instead of paid twice.
+ */
+export function transferOutReference(senderId: string, idempotencyKey: string): string {
+  return reference("transfer-out", senderId, idempotencyKey);
+}
+
+export function transferInReference(recipientId: string, senderId: string, idempotencyKey: string): string {
+  return reference("transfer-in", recipientId, senderId, idempotencyKey);
+}
+
 /** Decommissioning a given rig can only ever refund once. */
 export function rigDecommissionReference(userId: string, rigId: string): string {
   return reference("rig-decommission", userId, rigId);

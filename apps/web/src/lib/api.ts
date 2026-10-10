@@ -2814,3 +2814,42 @@ export async function claimDailyReward(accessToken: string, csrfToken: string) {
   const response = await api.post<{ ok: true; amount: string; streak: number; status: DailyRewardStatus }>("/api/economy/daily/claim", {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
+
+export type CoinTransaction = {
+  id: string;
+  /** Signed, as a string (BigInt on the server). Negative = coins left the account. */
+  amount: string;
+  type: string;
+  reason: string | null;
+  balanceAfter: string | null;
+  timestamp: string;
+  counterpartyUsername: string | null;
+  note: string | null;
+};
+
+export type CoinHistoryKind = "all" | "in" | "out";
+
+export async function getCoinHistory(accessToken: string, options: { cursor?: string | null; kind?: CoinHistoryKind } = {}) {
+  const params = new URLSearchParams();
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.kind && options.kind !== "all") params.set("kind", options.kind);
+  const query = params.toString();
+  const response = await api.get<{ transactions: CoinTransaction[]; nextCursor: string | null }>(`/api/economy/me/transactions${query ? `?${query}` : ""}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export type CoinTransferLimits = { min: string; max: string; dailyCap: string; sentToday: string; remainingToday: string; canSendAt: string | null };
+
+export async function getCoinTransferLimits(accessToken: string) {
+  const response = await api.get<CoinTransferLimits>("/api/economy/me/transfer-limits", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function sendCoins(accessToken: string, csrfToken: string, input: { recipient: string; amount: string; note?: string; idempotencyKey: string }) {
+  const response = await api.post<{ ok: true; balance: string; amount: string; recipient: { id: string; username: string; displayName: string | null } }>(
+    "/api/economy/transfer",
+    input,
+    { headers: authHeaders(accessToken, csrfToken) },
+  );
+  return response.data;
+}
