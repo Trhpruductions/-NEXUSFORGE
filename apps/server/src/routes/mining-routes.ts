@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
 import { EconomyAuthority } from "../lib/economy-authority.js";
 import { MiningAuthority, RIG_PRICING } from "../lib/mining-authority.js";
 
@@ -24,7 +25,7 @@ router.get("/rigs", requireAuth, async (req, res) => {
  * @desc Create a new mining rig (atomic: balance check → deduct → create)
  * @body { name: string, tier: "BASIC" | "STANDARD" | "ADVANCED" | "ELITE" }
  */
-router.post("/rigs", requireAuth, async (req, res) => {
+router.post("/rigs", requireAuth, requireCsrf, async (req, res) => {
   try {
     const body = req.body as any;
     const name = typeof body.name === "string" ? body.name : undefined;
@@ -62,7 +63,7 @@ router.post("/rigs", requireAuth, async (req, res) => {
  * @desc Update a mining rig (name, status)
  * @body { name?: string, status?: "ACTIVE" | "PAUSED" | "MAINTENANCE" }
  */
-router.patch("/rigs/:id", requireAuth, async (req, res) => {
+router.patch("/rigs/:id", requireAuth, requireCsrf, async (req, res) => {
   try {
     const body = req.body as any;
     const name = typeof body.name === "string" ? body.name : undefined;
@@ -106,7 +107,7 @@ router.patch("/rigs/:id", requireAuth, async (req, res) => {
  * @route DELETE /api/mining/rigs/:id
  * @desc Decommission a mining rig (harvest pending yield, refund 50%)
  */
-router.delete("/rigs/:id", requireAuth, async (req, res) => {
+router.delete("/rigs/:id", requireAuth, requireCsrf, async (req, res) => {
   try {
     const rigId = typeof req.params.id === "string" ? req.params.id : "";
     const result = await MiningAuthority.decommissionRig({
@@ -146,7 +147,7 @@ router.get("/stats", requireAuth, async (req, res) => {
  * @route POST /api/mining/harvest/:rigId
  * @desc Harvest tokens from a specific rig
  */
-router.post("/harvest/:rigId", requireAuth, async (req, res) => {
+router.post("/harvest/:rigId", requireAuth, requireCsrf, async (req, res) => {
   try {
     const rig = await prisma.miningRig.findUnique({
       where: { id: req.params.rigId, userId: req.user?.id },
@@ -194,7 +195,7 @@ router.post("/harvest/:rigId", requireAuth, async (req, res) => {
  * @route POST /api/mining/harvest-all
  * @desc Harvest tokens from all active rigs (atomic)
  */
-router.post("/harvest-all", requireAuth, async (req, res) => {
+router.post("/harvest-all", requireAuth, requireCsrf, async (req, res) => {
   try {
     const totalHarvested = await MiningAuthority.harvestAll(req.user!.id);
     res.json({ harvested: totalHarvested.toString() });

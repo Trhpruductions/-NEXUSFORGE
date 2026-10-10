@@ -87,6 +87,10 @@ const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().optional(),
   S3_PUBLIC_BASE_URL: z.string().optional(),
+  // Without S3, uploads are stored on this machine's disk and served by the API itself.
+  UPLOAD_DIR: z.string().default(resolve(process.cwd(), "var/uploads")),
+  // How browsers reach this API; local uploads build their URLs from it.
+  API_PUBLIC_URL: z.string().optional(),
   WEB_PUSH_SUBJECT: z.string().default("mailto:admin@nexusforge.local"),
   WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),

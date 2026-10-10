@@ -283,6 +283,8 @@ model User {
   cosmetics          UserCosmetic[]
   avatarPresets      AvatarPreset[]
   streamSessions     StreamSession[]
+  jackpotEntries     JackpotEntry[]
+  jackpotWins        JackpotRound[] @relation("JackpotWinner")
 }
 
 model EconomyAccount {
@@ -351,6 +353,58 @@ model ProgressiveJackpot {
   lastWinValue     BigInt?
   lastWonAt        DateTime?
   updatedAt        DateTime @updatedAt
+}
+
+enum JackpotRoundStatus {
+  OPEN
+  SETTLED
+  REFUNDED
+}
+
+/// One hourly jackpot draw. The pot is the seed plus ticket sales; the winner gets the
+/// pot minus the rake, which is destroyed (a coin sink). serverSeedHash is published when
+/// the round opens and serverSeed revealed after the draw, so anyone can check the
+/// winning ticket was fixed in advance: winningTicket = HMAC-SHA256(serverSeed, id) mod totalTickets.
+model JackpotRound {
+  id             String             @id @default(uuid())
+  slug           String             @default("vexora")
+  number         Int
+  status         JackpotRoundStatus @default(OPEN)
+  ticketPrice    BigInt
+  seedAmount     BigInt
+  pot            BigInt
+  rakeBps        Int                @default(500)
+  totalTickets   Int                @default(0)
+  opensAt        DateTime           @default(now())
+  closesAt       DateTime
+  serverSeedHash String
+  serverSeed     String
+  drawnAt        DateTime?
+  winningTicket  Int?
+  payout         BigInt?
+  winnerId       String?
+  winner         User?              @relation("JackpotWinner", fields: [winnerId], references: [id], onDelete: SetNull)
+  entries        JackpotEntry[]
+  createdAt      DateTime           @default(now())
+
+  @@unique([slug, number])
+  @@index([slug, status, closesAt])
+}
+
+/// A ticket purchase. Holds the contiguous ticket numbers [firstTicket, firstTicket + tickets).
+model JackpotEntry {
+  id          String       @id @default(uuid())
+  roundId     String
+  userId      String
+  tickets     Int
+  firstTicket Int
+  amountPaid  BigInt
+  createdAt   DateTime     @default(now())
+  round       JackpotRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, firstTicket])
+  @@index([userId, createdAt])
 }
 
 model ApiKey {

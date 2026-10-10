@@ -299,6 +299,25 @@ developerRouter.delete("/oauth-clients/:clientId", requireCsrf, async (req, res)
   res.status(204).send();
 });
 
+developerRouter.get("/webhooks", async (req, res) => {
+  const webhooks = await prisma.webhookSubscription.findMany({
+    where: { userId: req.user!.id },
+    orderBy: { createdAt: "desc" },
+    // Never the secret: it is shown once, at creation.
+    select: {
+      id: true,
+      url: true,
+      description: true,
+      events: true,
+      enabled: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  res.json({ webhooks });
+});
+
 developerRouter.post("/webhooks", requireCsrf, async (req, res) => {
   const parsed = createWebhookSchema.safeParse(req.body);
   if (!parsed.success) {

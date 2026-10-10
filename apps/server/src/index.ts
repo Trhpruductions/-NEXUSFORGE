@@ -41,7 +41,7 @@ import { messagesRouter } from "./routes/messages.routes.js";
 import { notificationsRouter } from "./routes/notifications.routes.js";
 import { botsRouter } from "./routes/bots.routes.js";
 import { searchRouter } from "./routes/search.routes.js";
-import { uploadsRouter } from "./routes/uploads.routes.js";
+import { localUploadPutHandler, localUploadsStatic, uploadsRouter } from "./routes/uploads.routes.js";
 import { voiceRouter } from "./routes/voice.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { profilesRouter } from "./routes/profiles.routes.js";
@@ -136,6 +136,9 @@ app.use(helmet());
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms [GHOST-IP: :remote-addr-masked]'));
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
 app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
+// Local (no-S3) uploads: the presigned token is the credential, so these sit ahead of the JSON parser and auth.
+app.put("/api/uploads/local", ...localUploadPutHandler);
+app.use("/uploads", ...localUploadsStatic);
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(globalRateLimit);

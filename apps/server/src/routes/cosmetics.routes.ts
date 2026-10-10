@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
-import { EconomyAuthority } from "../lib/economy-authority.js";
+import { EconomyAuthority, InsufficientBalanceError } from "../lib/economy-authority.js";
 import { ensureCosmeticCatalog } from "../lib/cosmetic-catalog.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -178,8 +178,7 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
     } catch (error) {
       // Only a balance shortfall is the buyer's problem; anything else is ours and must
       // not be dressed up as "you cannot afford this".
-      const message = error instanceof Error ? error.message : "";
-      if (message.includes("Insufficient")) {
+      if (error instanceof InsufficientBalanceError) {
         res.status(402).json({ error: "Not enough Vexora Coins" });
         return;
       }
