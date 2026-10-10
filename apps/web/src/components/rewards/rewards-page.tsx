@@ -7,6 +7,7 @@ import { Award, Check, Coins, Cpu, Flame, Gift, Loader2, Send, ShoppingBag, Spar
 import { claimDailyReward, getApiErrorMessage, getDailyReward, getEconomyAccounts, getUserMedals } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { CoinHistory } from "./coin-history";
+import { JackpotPanel } from "./jackpot-panel";
 import { SendCoinsDialog } from "./send-coins-dialog";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
@@ -85,6 +86,8 @@ export function RewardsPage() {
               )}
             </div>
           </section>
+
+          <JackpotPanel balance={coins?.balance ?? "0"} />
 
           <section className={`${panel} flex flex-wrap items-center gap-4`}>
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${daily?.claimedToday ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`}>

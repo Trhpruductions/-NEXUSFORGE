@@ -2845,6 +2845,45 @@ export async function getCoinTransferLimits(accessToken: string) {
   return response.data;
 }
 
+export type JackpotRound = {
+  id: string;
+  number: number;
+  status: "OPEN" | "SETTLED" | "REFUNDED";
+  ticketPrice: string;
+  seedAmount: string;
+  pot: string;
+  projectedPayout: string;
+  rakeBps: number;
+  totalTickets: number;
+  opensAt: string;
+  closesAt: string;
+  serverSeedHash: string;
+  /** Revealed only after the draw. */
+  serverSeed: string | null;
+  drawnAt: string | null;
+  winningTicket: number | null;
+  payout: string | null;
+  winner: { id: string; username: string; displayName: string | null; avatar: string | null } | null;
+};
+
+export type JackpotCurrent = {
+  round: JackpotRound;
+  myTickets: number;
+  playerCount: number;
+  rules: { maxTicketsPerPlayer: number; minPlayers: number };
+  recent: JackpotRound[];
+};
+
+export async function getJackpotCurrent(accessToken: string) {
+  const response = await api.get<JackpotCurrent>("/api/jackpot/current", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function buyJackpotTickets(accessToken: string, csrfToken: string, input: { count: number; idempotencyKey: string }) {
+  const response = await api.post<{ ok: true; round: JackpotRound; myTickets: number; balance: string }>("/api/jackpot/tickets", input, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
 export async function sendCoins(accessToken: string, csrfToken: string, input: { recipient: string; amount: string; note?: string; idempotencyKey: string }) {
   const response = await api.post<{ ok: true; balance: string; amount: string; recipient: { id: string; username: string; displayName: string | null } }>(
     "/api/economy/transfer",

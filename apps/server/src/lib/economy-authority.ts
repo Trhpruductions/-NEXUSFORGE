@@ -14,6 +14,12 @@ type BalanceChange = {
   type?: string;
 };
 
+/**
+ * Credits that don't count toward lifetimeEarnings: coins another player earned
+ * (TRANSFER_IN) and money handed back (JACKPOT_REFUND).
+ */
+const NON_EARNING_CREDIT_TYPES = new Set(["TRANSFER_IN", "JACKPOT_REFUND"]);
+
 /** Thrown when a debit would take an account below zero. Routes turn this into a 400. */
 export class InsufficientBalanceError extends Error {
   constructor(currencyType: CurrencyType, readonly available: bigint) {
@@ -73,8 +79,7 @@ export class EconomyAuthority {
       where: { id: account.id },
       data: {
         balance: newBalance,
-        // Coins received from another player were earned by them, not by this account.
-        lifetimeEarnings: params.amount > 0n && params.type !== "TRANSFER_IN" ? account.lifetimeEarnings + params.amount : account.lifetimeEarnings,
+        lifetimeEarnings: params.amount > 0n && !NON_EARNING_CREDIT_TYPES.has(params.type ?? "") ? account.lifetimeEarnings + params.amount : account.lifetimeEarnings,
         lastSyncAt: new Date(),
       },
     });
@@ -174,17 +179,5 @@ export class EconomyAuthority {
     });
 
     return account;
-  }
-
-  /**
-   * Updates state of a progressive jackpot.
-   */
-  static async incrementJackpot(slug: string, amount: bigint) {
-    return prisma.progressiveJackpot.update({
-      where: { slug },
-      data: {
-        currentValue: { increment: amount },
-      },
-    });
   }
 }

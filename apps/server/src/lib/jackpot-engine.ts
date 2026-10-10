@@ -1,36 +1,32 @@
-import { EconomyAuthority } from "./economy-authority.js";
-import { prisma } from "./prisma.js";
+import { runJackpotTick } from "./jackpot.js";
 
+/**
+ * Drives the hourly jackpot: settles rounds whose time is up and opens the next one.
+ *
+ * This used to grow a free-floating "progressive jackpot" number by ~0.01% every 10s
+ * with nothing paying for it. The pot is now funded by ticket sales (see lib/jackpot.ts).
+ */
 export class JackpotEngine {
   private static timer: NodeJS.Timeout | null = null;
+  private static running = false;
 
-  /**
-   * Starts the industrial growth engine for all active jackpots.
-   */
   static start() {
     if (this.timer) return;
-    
-    console.log("💎 [JACKPOT] Growth Engine Engaged.");
-    
-    this.timer = setInterval(async () => {
+    console.log("💎 [JACKPOT] Round engine started.");
+    const tick = async () => {
+      // A slow tick (big round, busy DB) must not overlap the next one.
+      if (this.running) return;
+      this.running = true;
       try {
-        const jackpots = await prisma.progressiveJackpot.findMany();
-        
-        for (const jackpot of jackpots) {
-          // Industrial growth: Value * GrowthRate + Flat 1-100 NC
-          const growth = BigInt(Math.floor(Number(jackpot.currentValue) * jackpot.growthRate / 100)) + BigInt(Math.floor(Math.random() * 100) + 1);
-          
-          await prisma.progressiveJackpot.update({
-            where: { id: jackpot.id },
-            data: {
-              currentValue: { increment: growth }
-            }
-          });
-        }
+        await runJackpotTick();
       } catch (error) {
         console.error("❌ [JACKPOT_ENGINE_FAILURE]", error);
+      } finally {
+        this.running = false;
       }
-    }, 10000); // 10s industrial heartbeat
+    };
+    void tick();
+    this.timer = setInterval(() => void tick(), 15_000);
   }
 
   static stop() {
