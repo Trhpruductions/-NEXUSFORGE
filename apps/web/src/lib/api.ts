@@ -21,6 +21,8 @@ export type User = {
   corePlusStreakDays?: number;
   createdAt: string;
   emailVerified?: boolean;
+  /** Set while the account is scheduled for deletion (ISO date it happens). */
+  deletionScheduledFor?: string | null;
   appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
   isAdmin?: boolean;
   ageVerificationLevel?: AgeVerificationLevel;
@@ -1291,6 +1293,36 @@ export async function unbanForgeUser(accessToken: string, csrfToken: string, for
 }
 
 /** minutes: null lifts the timeout. */
+export type DeletionStatus = {
+  scheduledFor: string | null;
+  requestedAt: string | null;
+  graceDays: number;
+  blockers: Array<{ kind: "forges" | "bots" | "billing"; message: string; items: Array<{ id: string; name: string }> }>;
+};
+
+export async function getDeletionStatus(accessToken: string) {
+  const response = await api.get<DeletionStatus>("/api/account/deletion", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function requestAccountDeletion(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.post<{ ok: true; scheduledFor: string }>("/api/account/deletion", { password }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function cancelAccountDeletion(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true }>("/api/account/deletion", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** Downloads the JSON export and returns it as a Blob plus the server-chosen filename. */
+export async function downloadAccountData(accessToken: string) {
+  const response = await api.get<Blob>("/api/account/export", { headers: authHeaders(accessToken), responseType: "blob" });
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "vexora-data.json";
+  return { blob: response.data, filename };
+}
+
 export async function timeoutForgeMember(accessToken: string, csrfToken: string, forgeId: string, userId: string, payload: { minutes: number | null; reason?: string }) {
   const response = await api.put<{ userId: string; timeoutUntil: string | null }>(`/api/forges/${forgeId}/members/${userId}/timeout`, payload, {
     headers: authHeaders(accessToken, csrfToken),

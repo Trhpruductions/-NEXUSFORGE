@@ -321,6 +321,7 @@ authRouter.post("/login", async (req, res) => {
       appRole: user.appRole,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
+      deletionScheduledFor: user.deletionScheduledFor,
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   })
@@ -413,6 +414,7 @@ authRouter.post("/2fa/verify", async (req, res) => {
       appRole: user.appRole,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
+      deletionScheduledFor: user.deletionScheduledFor,
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   });
@@ -577,6 +579,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       birthdate: true,
       ageVerificationLevel: true,
       onboardedAt: true,
+      deletionScheduledFor: true,
       economyAccounts: {
         select: {
           currencyType: true,

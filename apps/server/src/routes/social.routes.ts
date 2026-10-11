@@ -145,7 +145,7 @@ socialRouter.post("/follow/:userId", async (req, res) => {
     res.status(400).json({ error: "You cannot follow yourself" });
     return;
   }
-  const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+  const target = await prisma.user.findUnique({ where: { id: targetId, deletedAt: null }, select: { id: true } });
   if (!target) {
     res.status(404).json({ error: "User not found" });
     return;

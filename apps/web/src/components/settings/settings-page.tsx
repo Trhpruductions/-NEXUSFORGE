@@ -48,6 +48,7 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
+import { AccountDataCard } from "@/components/settings/account-data-card";
 import { ActiveSessions } from "@/components/settings/active-sessions";
 import { QuietHoursEditor } from "@/components/settings/quiet-hours-editor";
 import { Toggle } from "@/components/settings/toggle";
@@ -561,6 +562,7 @@ function SettingsInner() {
               </div>
               <AccountProtection highlight={highlightProtection} />
               <AgeVerificationCard highlight={highlightAge} />
+              <AccountDataCard />
             </>
           ) : null}
 

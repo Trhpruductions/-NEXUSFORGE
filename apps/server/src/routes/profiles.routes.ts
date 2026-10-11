@@ -36,7 +36,7 @@ profilesRouter.get("/users/groups", requireAuth, async (_req, res) => {
     const groups = await Promise.all(
       Object.entries(userGroupDefinitions).map(async ([tag, meta]) => {
         const users = await prisma.user.findMany({
-          where: { clanTag: tag },
+          where: { clanTag: tag, deletedAt: null },
           select: {
             id: true,
             username: true,
@@ -189,6 +189,7 @@ profilesRouter.get("/users/search", requireAuth, async (req, res) => {
 
     const users = await prisma.user.findMany({
       where: {
+        deletedAt: null,
         OR: [
           { username: { contains: q, mode: "insensitive" } },
           { clanTag: { contains: q, mode: "insensitive" } },
@@ -244,7 +245,7 @@ profilesRouter.get("/users/:userId", requireAuth, async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: validatedUserId.data },
+      where: { id: validatedUserId.data, deletedAt: null },
       select: {
         id: true,
         username: true,
@@ -353,6 +354,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
 
     if (type === "reputation") {
       users = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -369,6 +371,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
       });
     } else if (type === "streaks") {
       users = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -389,6 +392,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
       });
     } else if (type === "medals") {
       const usersWithMedalCount = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,

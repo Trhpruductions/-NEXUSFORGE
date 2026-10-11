@@ -52,7 +52,7 @@ friendsRouter.post("/request", async (req, res) => {
     return;
   }
 
-  const receiver = await prisma.user.findUnique({ where: { id: parsed.data.receiverId } });
+  const receiver = await prisma.user.findUnique({ where: { id: parsed.data.receiverId, deletedAt: null } });
   if (!receiver) {
     res.status(404).json({ error: "Receiver not found" });
     return;

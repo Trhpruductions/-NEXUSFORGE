@@ -38,6 +38,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
+  const [deletionScheduled, setDeletionScheduled] = useState(false);
   const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,6 +81,7 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const requested = sanitizeRedirectTarget(params.get("redirect") || params.get("next"));
     setRedirectTarget(requested);
+    setDeletionScheduled(params.get("deletion") === "scheduled");
   }, []);
 
   const {
@@ -191,6 +193,11 @@ export default function LoginPage() {
           </span>
         }
       >
+        {deletionScheduled ? (
+          <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-100" role="status">
+            Your account is scheduled for deletion and you&apos;ve been signed out everywhere. Changed your mind? Sign in and choose &quot;Keep my account&quot;.
+          </p>
+        ) : null}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <AuthField
             id="login-email"

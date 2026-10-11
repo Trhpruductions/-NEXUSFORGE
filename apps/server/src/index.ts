@@ -29,6 +29,8 @@ import { avatarRouter } from "./routes/avatar.routes.js";
 import { discoverRouter } from "./routes/discover.routes.js";
 import { homeRouter } from "./routes/home.routes.js";
 import { settingsRouter } from "./routes/settings.routes.js";
+import { accountRouter } from "./routes/account.routes.js";
+import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
@@ -157,6 +159,7 @@ app.use("/api/avatar", avatarRouter);
 app.use("/api/discover", discoverRouter);
 app.use("/api/home", homeRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/account", accountRouter);
 app.use("/api/verification", verificationRouter);
 app.use("/api/age-verification", ageVerificationRouter);
 app.use("/api/admin/age-verification", adminAgeRouter);
@@ -483,6 +486,7 @@ io.on("connection", (socket) => {
 setIo(io);
 void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
 startEventReminders();
+startDeletionSweeper();
 void ensureAchievementCatalog().catch((error) => console.warn("[achievements] catalog seed failed", error));
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {

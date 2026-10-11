@@ -226,7 +226,7 @@ dmsRouter.post("/groups", async (req, res) => {
   );
 
   const users = await prisma.user.findMany({
-    where: { id: { in: uniqueIds } },
+    where: { id: { in: uniqueIds }, deletedAt: null },
     select: { id: true },
   });
 

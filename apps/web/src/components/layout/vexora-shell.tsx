@@ -36,7 +36,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -128,6 +128,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const { fetchMe } = useAuthStore();
+  const [keeping, setKeeping] = useState(false);
+  const [keepError, setKeepError] = useState<string | null>(null);
   const presenceMeta: Record<string, { label: string; dot: string; text: string }> = {
     ONLINE: { label: "Online", dot: "bg-emerald-400", text: "text-emerald-300" },
     IDLE: { label: "Idle", dot: "bg-yellow-300", text: "text-yellow-200" },
@@ -787,6 +789,37 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        {user?.deletionScheduledFor ? (
+          <div className="shrink-0 border-b border-rose-500/40 bg-rose-950/50 px-4 py-2 text-xs text-rose-100 md:px-6" role="alert">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded bg-rose-500 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white">Deletion scheduled</span>
+              <span className="min-w-0 flex-1">
+                Your account will be deleted on {new Date(user.deletionScheduledFor).toLocaleDateString(undefined, { dateStyle: "long" })}.
+                {keepError ? <span className="ml-2 text-rose-300">{keepError}</span> : null}
+              </span>
+              <button
+                type="button"
+                disabled={keeping}
+                onClick={async () => {
+                  if (!accessToken || !csrfToken) return;
+                  setKeeping(true);
+                  setKeepError(null);
+                  try {
+                    await cancelAccountDeletion(accessToken, csrfToken);
+                    await fetchMe();
+                  } catch (error) {
+                    setKeepError(getApiErrorMessage(error));
+                  } finally {
+                    setKeeping(false);
+                  }
+                }}
+                className="rounded-lg border border-rose-300/50 bg-rose-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-rose-500/40 disabled:opacity-50"
+              >
+                {keeping ? "Keeping..." : "Keep my account"}
+              </button>
+            </div>
+          </div>
+        ) : null}
         {showProtectionBanner ? (
           <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-100 md:px-6">
             <Link href="/app/settings?verify=1" className="flex flex-wrap items-center gap-2 hover:text-white">

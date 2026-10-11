@@ -41,7 +41,17 @@ export function deliveryStatus() {
   } as const;
 }
 
+/** RFC 2606 / 6761 reserved names: mail to them can never arrive, it only bounces back to us. */
+function isUndeliverableAddress(to: string) {
+  const domain = to.split("@")[1]?.toLowerCase() ?? "";
+  return /\.(test|invalid|example|localhost)$/.test(domain) || /^example\.(com|net|org)$/.test(domain);
+}
+
 export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<DeliveryResult> {
+  if (isUndeliverableAddress(to)) {
+    console.log(`[MAIL] skipped (reserved test domain) subject=${subject}`);
+    return { delivered: false, transport: "console", error: "Reserved test address" };
+  }
   if (smtpConfigured()) {
     try {
       await getTransporter().sendMail({ from: env.MAIL_FROM, to, subject, text, html: html ?? `<pre style="font-family:system-ui;font-size:15px">${text}</pre>` });

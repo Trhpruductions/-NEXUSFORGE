@@ -243,6 +243,11 @@ model User {
   ageVerifiedAt      DateTime?
   onboardedAt        DateTime?
   lastDailyClaimAt   DateTime?
+  /// Account deletion: requested by the user, carried out (anonymised) once the grace
+  /// period ends unless they cancel. deletedAt is set when the account has been wiped.
+  deletionRequestedAt  DateTime?
+  deletionScheduledFor DateTime?
+  deletedAt            DateTime?
   dailyStreak        Int            @default(0)
   ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
   ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
