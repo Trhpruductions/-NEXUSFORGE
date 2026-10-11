@@ -32,6 +32,8 @@ import {
   X,
   LifeBuoy,
   Newspaper,
+  Lock,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
@@ -187,6 +189,32 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const forge = forgeQuery.data?.forge;
   const textChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT"), [forge]);
   const voiceChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "VOICE" || channel.type === "STAGE"), [forge]);
+  // Categories group channels under a collapsible heading; channels with no (known)
+  // category stay in the plain Text / Voice lists at the top.
+  const categories = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "CATEGORY").sort((a, b) => a.position - b.position), [forge]);
+  const categoryIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);
+  const looseText = useMemo(() => textChannels.filter((channel) => !channel.parentId || !categoryIds.has(channel.parentId)), [textChannels, categoryIds]);
+  const looseVoice = useMemo(() => voiceChannels.filter((channel) => !channel.parentId || !categoryIds.has(channel.parentId)), [voiceChannels, categoryIds]);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("vx-collapsed-categories") ?? "[]") as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleCategory = (id: string) => {
+    setCollapsedCategories((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        window.localStorage.setItem("vx-collapsed-categories", JSON.stringify([...next]));
+      } catch {
+        // storage unavailable - collapse just won't persist
+      }
+      return next;
+    });
+  };
   const onlineCount = useMemo(() => (forge?.members ?? []).filter((member) => member.user.status !== "OFFLINE").length, [forge]);
 
   // Who is actually sitting in each voice channel right now.
@@ -394,6 +422,55 @@ export function VexoraShell({ children }: { children: ReactNode }) {
 
   const displayName = user?.displayName || user?.username || "Member";
 
+  const renderTextChannel = (channel: Channel) => {
+    const counts = channelCounts[channel.id];
+    const active = activeChannelId === channel.id;
+    return (
+      <li key={channel.id}>
+        <button
+          type="button"
+          onClick={() => openChannel(channel)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition",
+            active ? "bg-amber-500/10 text-amber-100" : counts?.unread ? "text-white hover:bg-white/[0.04]" : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200",
+          )}
+        >
+          {channel.type === "ANNOUNCEMENT" ? <Megaphone className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Hash className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+          <span className="min-w-0 flex-1 truncate">{channel.name}</span>
+          {channel.isPrivate ? <Lock className="h-3 w-3 shrink-0 text-slate-500" aria-label="Private channel" /> : null}
+          {counts?.mentions ? (
+            <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">@{counts.mentions}</span>
+          ) : counts?.unread ? (
+            <span className="text-xs font-semibold text-amber-300">{counts.unread}</span>
+          ) : null}
+        </button>
+      </li>
+    );
+  };
+
+  const renderVoiceChannel = (channel: Channel) => (
+    <li key={channel.id}>
+      <button
+        type="button"
+        onClick={() => openChannel(channel)}
+        className={cn(
+          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/[0.04] hover:text-slate-200",
+          voiceSession?.channelId === channel.id ? "bg-emerald-500/10 text-emerald-200" : "text-slate-400",
+        )}
+      >
+        {channel.type === "STAGE" ? <Radio className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Volume2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+        <span className="min-w-0 flex-1 truncate">{channel.name}</span>
+        {channel.isPrivate ? <Lock className="h-3 w-3 shrink-0 text-slate-500" aria-label="Private channel" /> : null}
+        {voiceCounts[channel.id] ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300" title={`${voiceCounts[channel.id]} in voice`}>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            {voiceCounts[channel.id]}
+          </span>
+        ) : null}
+      </button>
+    </li>
+  );
+
   const sidebar = (
     <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-amber-500/15 bg-[#0b0e15]">
       <div className="relative p-3" ref={forgeMenuRef}>
@@ -473,57 +550,41 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <ul className="space-y-0.5">
-          {textChannels.map((channel) => {
-            const counts = channelCounts[channel.id];
-            const active = activeChannelId === channel.id;
-            return (
-              <li key={channel.id}>
-                <button
-                  type="button"
-                  onClick={() => openChannel(channel)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition",
-                    active ? "bg-amber-500/10 text-amber-100" : counts?.unread ? "text-white hover:bg-white/[0.04]" : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200",
-                  )}
-                >
-                  {channel.type === "ANNOUNCEMENT" ? <Megaphone className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Hash className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
-                  <span className="min-w-0 flex-1 truncate">{channel.name}</span>
-                  {counts?.mentions ? (
-                    <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">@{counts.mentions}</span>
-                  ) : counts?.unread ? (
-                    <span className="text-xs font-semibold text-amber-300">{counts.unread}</span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
+          {looseText.map((channel) => renderTextChannel(channel))}
           {!textChannels.length && !forgeQuery.isLoading ? <li className="px-2 text-xs text-slate-600">No channels yet.</li> : null}
         </ul>
 
-        <p className="mb-1.5 mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Voice channels</p>
-        <ul className="space-y-0.5">
-          {voiceChannels.map((channel) => (
-            <li key={channel.id}>
+        {looseVoice.length || !categories.length ? (
+          <>
+            <p className="mb-1.5 mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Voice channels</p>
+            <ul className="space-y-0.5">{looseVoice.map((channel) => renderVoiceChannel(channel))}</ul>
+          </>
+        ) : null}
+
+        {categories.map((category) => {
+          const children = [...textChannels, ...voiceChannels].filter((channel) => channel.parentId === category.id).sort((a, b) => a.position - b.position);
+          const collapsed = collapsedCategories.has(category.id);
+          // Collapsed categories still show the channel you're in, like Discord.
+          const visible = collapsed ? children.filter((channel) => channel.id === activeChannelId || voiceSession?.channelId === channel.id) : children;
+          const unread = collapsed && children.some((channel) => channelCounts[channel.id]?.unread);
+          return (
+            <div key={category.id} className="mt-4">
               <button
                 type="button"
-                onClick={() => openChannel(channel)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/[0.04] hover:text-slate-200",
-                  voiceSession?.channelId === channel.id ? "bg-emerald-500/10 text-emerald-200" : "text-slate-400",
-                )}
+                onClick={() => toggleCategory(category.id)}
+                aria-expanded={!collapsed}
+                className={cn("mb-1 flex w-full items-center gap-1 px-1 text-left text-[10px] font-semibold uppercase tracking-[0.2em] transition hover:text-slate-300", unread ? "text-slate-200" : "text-slate-500")}
               >
-                {channel.type === "STAGE" ? <Radio className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Volume2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
-                <span className="min-w-0 flex-1 truncate">{channel.name}</span>
-                {voiceCounts[channel.id] ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300" title={`${voiceCounts[channel.id]} in voice`}>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    {voiceCounts[channel.id]}
-                  </span>
-                ) : null}
+                {collapsed ? <ChevronRight className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />}
+                <span className="min-w-0 flex-1 truncate">{category.name}</span>
               </button>
-            </li>
-          ))}
-        </ul>
+              <ul className="space-y-0.5">
+                {visible.map((channel) => (channel.type === "VOICE" || channel.type === "STAGE" ? renderVoiceChannel(channel) : renderTextChannel(channel)))}
+                {!collapsed && !children.length ? <li className="px-2 text-[11px] text-slate-600">Empty</li> : null}
+              </ul>
+            </div>
+          );
+        })}
 
         {forge ? (
           <div className="mt-5 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500">

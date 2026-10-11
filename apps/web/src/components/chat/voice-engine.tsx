@@ -33,6 +33,24 @@ export function VoiceEngine() {
     voicePrefsRef.current = voicePrefs;
   }, [voicePrefs]);
 
+  // The server pulls people out of voice when they're timed out or lose access to a
+  // private channel; hang up so the call (and everyone's occupancy count) ends cleanly.
+  const sessionChannelId = session?.channelId ?? null;
+  useEffect(() => {
+    if (!sessionChannelId || !accessToken) return;
+    const socket = getSocket(accessToken);
+    const handleForceLeave = (payload: { channelIds?: string[]; reason?: string }) => {
+      if (!payload.channelIds?.includes(sessionChannelId)) return;
+      const store = useVoiceStore.getState();
+      store.setError(payload.reason === "timeout" ? "You were timed out, so you've been disconnected from voice." : "You no longer have access to this voice channel.");
+      store.leave();
+    };
+    socket.on("voice:force-leave", handleForceLeave);
+    return () => {
+      socket.off("voice:force-leave", handleForceLeave);
+    };
+  }, [sessionChannelId, accessToken]);
+
   // ------------------------------------------------------------- built-in mesh
   useEffect(() => {
     if (!session || session.mode !== "mesh" || !accessToken || !user) return;

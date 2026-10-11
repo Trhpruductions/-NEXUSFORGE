@@ -74,8 +74,23 @@ export type Channel = {
   forgeId: string;
   name: string;
   topic?: string | null;
-  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE";
+  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE" | "CATEGORY";
   position: number;
+  /** The CATEGORY this channel is grouped under. */
+  parentId?: string | null;
+  slowmodeSeconds?: number;
+  isPrivate?: boolean;
+  allowedRoleIds?: string[];
+  allowedUserIds?: string[];
+};
+
+/** Channel fields a manager can set on create/update. */
+export type ChannelSettings = {
+  parentId?: string | null;
+  slowmodeSeconds?: number;
+  isPrivate?: boolean;
+  allowedRoleIds?: string[];
+  allowedUserIds?: string[];
 };
 
 export type Forge = {
@@ -1059,6 +1074,8 @@ export type ForgeMemberEntry = {
   userId: string;
   nickname?: string | null;
   joinedAt: string;
+  /** Timed out until this moment (ISO), or null. */
+  timeoutUntil?: string | null;
   roleLinks: Array<{ roleId: string }>;
   user: {
     id: string;
@@ -1150,7 +1167,7 @@ export async function createForgeChannel(
   accessToken: string,
   csrfToken: string,
   forgeId: string,
-  payload: { name: string; type: Channel["type"]; topic?: string },
+  payload: { name: string; type: Channel["type"]; topic?: string } & ChannelSettings,
 ) {
   const response = await api.post<{ channel: Channel }>(`/api/forges/${forgeId}/channels`, payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1163,7 +1180,7 @@ export async function updateForgeChannel(
   csrfToken: string,
   forgeId: string,
   channelId: string,
-  payload: { name?: string; topic?: string | null; position?: number },
+  payload: { name?: string; topic?: string | null; position?: number } & ChannelSettings,
 ) {
   const response = await api.patch<{ channel: Channel }>(`/api/forges/${forgeId}/channels/${channelId}`, payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1268,6 +1285,76 @@ export async function banForgeUser(
 
 export async function unbanForgeUser(accessToken: string, csrfToken: string, forgeId: string, userId: string) {
   const response = await api.delete<{ ok: true; userId: string }>(`/api/forges/${forgeId}/bans/${userId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+/** minutes: null lifts the timeout. */
+export async function timeoutForgeMember(accessToken: string, csrfToken: string, forgeId: string, userId: string, payload: { minutes: number | null; reason?: string }) {
+  const response = await api.put<{ userId: string; timeoutUntil: string | null }>(`/api/forges/${forgeId}/members/${userId}/timeout`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export type ForgeInvite = {
+  id: string;
+  code: string;
+  forgeId: string;
+  creatorId: string;
+  maxUses: number | null;
+  uses: number;
+  expiresAt: string | null;
+  createdAt: string;
+  creator: { id: string; username: string } | null;
+};
+
+export async function listForgeInvites(accessToken: string, forgeId: string) {
+  const response = await api.get<{ invites: ForgeInvite[]; canManageAll: boolean }>(`/api/forges/${forgeId}/invites`, {
+    headers: authHeaders(accessToken),
+  });
+  return response.data;
+}
+
+/** maxAgeSeconds 0 = never expires; maxUses 0 = unlimited. */
+export async function createForgeInvite(accessToken: string, csrfToken: string, forgeId: string, payload: { maxAgeSeconds: number; maxUses: number }) {
+  const response = await api.post<{ invite: ForgeInvite }>(`/api/forges/${forgeId}/invites`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export async function revokeForgeInvite(accessToken: string, csrfToken: string, forgeId: string, inviteId: string) {
+  const response = await api.delete<{ ok: true; inviteId: string }>(`/api/forges/${forgeId}/invites/${inviteId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export type ForgeAuditEntry = {
+  id: string;
+  forgeId: string;
+  actorId: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; username: string; avatar?: string | null };
+};
+
+export async function getForgeAuditLog(accessToken: string, forgeId: string, params: { before?: string; action?: string } = {}) {
+  const response = await api.get<{ entries: ForgeAuditEntry[]; nextBefore: string | null }>(`/api/forges/${forgeId}/audit-log`, {
+    headers: authHeaders(accessToken),
+    params,
+  });
+  return response.data;
+}
+
+export async function transferForgeOwnership(accessToken: string, csrfToken: string, forgeId: string, payload: { userId: string; confirmName: string }) {
+  const response = await api.post<{ ok: true; ownerId: string }>(`/api/forges/${forgeId}/transfer`, payload, {
     headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;

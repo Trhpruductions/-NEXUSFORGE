@@ -4,10 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { X, Hash, Volume2, Megaphone, Radio, Plus, Trash2, Pencil, Check, ShieldAlert, Ban, LogOut, Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { X, Hash, Volume2, Megaphone, Radio, Plus, Trash2, Pencil, Check, ShieldAlert, Ban, LogOut, Loader2, ArrowUp, ArrowDown, Lock, Copy, Folder, Clock, Crown } from "lucide-react";
 import {
   banForgeUser,
   createForgeChannel,
+  createForgeInvite,
+  getForgeAuditLog,
+  listForgeInvites,
+  revokeForgeInvite,
+  timeoutForgeMember,
+  transferForgeOwnership,
+  type ForgeAuditEntry,
   createForgeRole,
   deleteForge,
   deleteForgeChannel,
@@ -33,7 +40,7 @@ import {
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "bans" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -41,7 +48,7 @@ const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string
   manageRoles: { label: "Manage roles", hint: "Create roles below their own and assign them to members." },
   kickUsers: { label: "Kick members", hint: "Remove lower-ranked members from the forge." },
   banUsers: { label: "Ban members", hint: "Ban and unban lower-ranked members." },
-  moderateChat: { label: "Moderate chat", hint: "Edit and delete other members' messages." },
+  moderateChat: { label: "Moderate chat", hint: "Delete lower-ranked members' messages, pin messages, time members out, skip slowmode." },
   streamAccess: { label: "Stream access", hint: "Go live and share screen in voice channels." },
 };
 
@@ -71,6 +78,7 @@ function channelIcon(type: Channel["type"]) {
   if (type === "VOICE") return <Volume2 className="h-3.5 w-3.5" />;
   if (type === "STAGE") return <Radio className="h-3.5 w-3.5" />;
   if (type === "ANNOUNCEMENT") return <Megaphone className="h-3.5 w-3.5" />;
+  if (type === "CATEGORY") return <Folder className="h-3.5 w-3.5" />;
   return <Hash className="h-3.5 w-3.5" />;
 }
 
@@ -151,7 +159,9 @@ export function ForgeSettingsPanel({
     ];
     if (can("manageRoles")) list.push({ id: "roles", label: "Roles" });
     list.push({ id: "members", label: "Members" });
+    list.push({ id: "invites", label: "Invites" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
+    if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,8 +233,12 @@ export function ForgeSettingsPanel({
             <RolesTab forge={forge} access={access} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "members" ? (
             <MembersTab forge={forge} access={access} selfId={user?.id ?? ""} setNotice={setNotice} invalidate={invalidateForge} />
+          ) : tab === "invites" ? (
+            <InvitesTab forge={forge} setNotice={setNotice} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
+          ) : tab === "audit" ? (
+            <AuditLogTab forgeId={forgeId} />
           ) : (
             <DangerTab
               forge={forge}
@@ -355,6 +369,177 @@ function OverviewTab({
 // Channels
 // ---------------------------------------------------------------------------
 
+const slowmodeChoices: Array<{ value: number; label: string }> = [
+  { value: 0, label: "Off" },
+  { value: 5, label: "5s" },
+  { value: 10, label: "10s" },
+  { value: 30, label: "30s" },
+  { value: 60, label: "1m" },
+  { value: 300, label: "5m" },
+  { value: 900, label: "15m" },
+  { value: 3600, label: "1h" },
+  { value: 21600, label: "6h" },
+];
+
+function slowmodeLabel(seconds: number) {
+  return slowmodeChoices.find((choice) => choice.value === seconds)?.label ?? `${seconds}s`;
+}
+
+type ChannelDraft = {
+  name: string;
+  topic: string;
+  parentId: string;
+  slowmodeSeconds: number;
+  isPrivate: boolean;
+  allowedRoleIds: string[];
+  allowedUserIds: string[];
+};
+
+function draftFrom(channel: Channel): ChannelDraft {
+  return {
+    name: channel.name,
+    topic: channel.topic ?? "",
+    parentId: channel.parentId ?? "",
+    slowmodeSeconds: channel.slowmodeSeconds ?? 0,
+    isPrivate: Boolean(channel.isPrivate),
+    allowedRoleIds: channel.allowedRoleIds ?? [],
+    allowedUserIds: channel.allowedUserIds ?? [],
+  };
+}
+
+/** Category, slowmode and private-access fields, shared by "new channel" and "edit channel". */
+function ChannelAccessFields({
+  forge,
+  type,
+  draft,
+  setDraft,
+}: {
+  forge: ForgeDetail;
+  type: Channel["type"];
+  draft: ChannelDraft;
+  setDraft: (update: (current: ChannelDraft) => ChannelDraft) => void;
+}) {
+  const [memberQuery, setMemberQuery] = useState("");
+  const categories = forge.channels.filter((channel) => channel.type === "CATEGORY");
+  const isText = type === "TEXT" || type === "ANNOUNCEMENT";
+  const roles = [...forge.roles].filter((role) => role.position < 100).sort((a, b) => b.position - a.position);
+  const memberMatches = memberQuery.trim()
+    ? forge.members
+        .filter((member) => member.userId !== forge.ownerId && !draft.allowedUserIds.includes(member.userId))
+        .filter((member) => `${member.user.username} ${member.nickname ?? ""}`.toLowerCase().includes(memberQuery.trim().toLowerCase()))
+        .slice(0, 6)
+    : [];
+  const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id]);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {type !== "CATEGORY" ? (
+          <label className="block text-xs text-slate-300">
+            <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Category</span>
+            <select className={inputClass} value={draft.parentId} onChange={(event) => setDraft((current) => ({ ...current, parentId: event.target.value }))}>
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {isText ? (
+          <label className="block text-xs text-slate-300">
+            <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Slowmode</span>
+            <select className={inputClass} value={draft.slowmodeSeconds} onChange={(event) => setDraft((current) => ({ ...current, slowmodeSeconds: Number(event.target.value) }))}>
+              {slowmodeChoices.map((choice) => (
+                <option key={choice.value} value={choice.value}>{choice.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+
+      {type !== "CATEGORY" ? (
+        <div className="rounded-[12px] border border-slate-800/80 bg-slate-950/40 p-3">
+          <label className="flex items-start gap-2 text-xs text-slate-200">
+            <input type="checkbox" className="mt-0.5" checked={draft.isPrivate} onChange={(event) => setDraft((current) => ({ ...current, isPrivate: event.target.checked }))} />
+            <span>
+              <span className="flex items-center gap-1 font-semibold text-slate-100"><Lock className="h-3 w-3" /> Private channel</span>
+              <span className="block text-[11px] text-slate-400">Only the roles and members you pick can see it. The owner and anyone who can manage channels always can.</span>
+            </span>
+          </label>
+          {draft.isPrivate ? (
+            <div className="mt-3 space-y-3">
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">Roles with access</p>
+                {roles.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {roles.map((role) => {
+                      const on = draft.allowedRoleIds.includes(role.id);
+                      return (
+                        <button
+                          key={role.id}
+                          type="button"
+                          onClick={() => setDraft((current) => ({ ...current, allowedRoleIds: toggle(current.allowedRoleIds, role.id) }))}
+                          className={`rounded-full border px-2.5 py-1 text-[11px] transition ${on ? "bg-slate-800/80" : "bg-transparent"}`}
+                          style={{ borderColor: on ? role.color : "#334155", color: on ? role.color : "#94a3b8" }}
+                          aria-pressed={on}
+                        >
+                          {on ? "✓ " : ""}{role.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500">No roles yet. Create one in the Roles tab, or add members below.</p>
+                )}
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-400">Members with access</p>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {draft.allowedUserIds.map((userId) => {
+                    const member = forge.members.find((entry) => entry.userId === userId);
+                    return (
+                      <span key={userId} className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/70 px-2 py-0.5 text-[11px] text-slate-100">
+                        {member ? member.nickname || member.user.username : "Former member"}
+                        <button
+                          type="button"
+                          title="Remove"
+                          className="text-slate-400 hover:text-rose-200"
+                          onClick={() => setDraft((current) => ({ ...current, allowedUserIds: current.allowedUserIds.filter((id) => id !== userId) }))}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <input className={inputClass} placeholder="Add a member by name" value={memberQuery} onChange={(event) => setMemberQuery(event.target.value)} />
+                {memberMatches.length ? (
+                  <ul className="mt-1 space-y-1">
+                    {memberMatches.map((member) => (
+                      <li key={member.userId}>
+                        <button
+                          type="button"
+                          className="w-full rounded-[10px] border border-slate-800 bg-slate-900/70 px-2 py-1 text-left text-xs text-slate-200 hover:border-amber-500/40"
+                          onClick={() => {
+                            setDraft((current) => ({ ...current, allowedUserIds: [...current.allowedUserIds, member.userId] }));
+                            setMemberQuery("");
+                          }}
+                        >
+                          {member.nickname || member.user.username} <span className="text-slate-500">@{member.user.username}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ChannelsTab({
   forge,
   editable,
@@ -367,30 +552,54 @@ function ChannelsTab({
   invalidate: () => Promise<void>;
 }) {
   const { accessToken, csrfToken } = useTokens();
-  const [newName, setNewName] = useState("");
+  const emptyDraft: ChannelDraft = { name: "", topic: "", parentId: "", slowmodeSeconds: 0, isPrivate: false, allowedRoleIds: [], allowedUserIds: [] };
   const [newType, setNewType] = useState<Channel["type"]>("TEXT");
-  const [newTopic, setNewTopic] = useState("");
+  const [newDraft, setNewDraft] = useState<ChannelDraft>(emptyDraft);
+  const [showNewOptions, setShowNewOptions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editTopic, setEditTopic] = useState("");
+  const [editDraft, setEditDraft] = useState<ChannelDraft>(emptyDraft);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const sorted = useMemo(() => [...forge.channels].sort((a, b) => a.position - b.position), [forge.channels]);
+  // Sidebar order: uncategorised channels first, then each category followed by its channels.
+  const groups = useMemo(() => {
+    const categories = sorted.filter((channel) => channel.type === "CATEGORY");
+    const known = new Set(categories.map((category) => category.id));
+    const loose = sorted.filter((channel) => channel.type !== "CATEGORY" && (!channel.parentId || !known.has(channel.parentId)));
+    return [
+      { category: null as Channel | null, channels: loose },
+      ...categories.map((category) => ({ category, channels: sorted.filter((channel) => channel.type !== "CATEGORY" && channel.parentId === category.id) })),
+    ];
+  }, [sorted]);
+
+  const settingsPayload = (draft: ChannelDraft, type: Channel["type"]) => ({
+    parentId: type === "CATEGORY" ? undefined : draft.parentId || null,
+    slowmodeSeconds: type === "TEXT" || type === "ANNOUNCEMENT" ? draft.slowmodeSeconds : undefined,
+    isPrivate: type === "CATEGORY" ? undefined : draft.isPrivate,
+    allowedRoleIds: type === "CATEGORY" ? undefined : draft.allowedRoleIds,
+    allowedUserIds: type === "CATEGORY" ? undefined : draft.allowedUserIds,
+  });
 
   const createMutation = useMutation({
-    mutationFn: () => createForgeChannel(accessToken, csrfToken, forge.id, { name: newName.trim(), type: newType, topic: newTopic.trim() || undefined }),
+    mutationFn: () =>
+      createForgeChannel(accessToken, csrfToken, forge.id, {
+        name: newDraft.name.trim(),
+        type: newType,
+        topic: newType === "CATEGORY" ? undefined : newDraft.topic.trim() || undefined,
+        ...settingsPayload(newDraft, newType),
+      }),
     onSuccess: async (result) => {
-      setNewName("");
-      setNewTopic("");
-      setNotice({ tone: "ok", text: `Channel ${result.channel.name} created.` });
+      setNewDraft(emptyDraft);
+      setShowNewOptions(false);
+      setNotice({ tone: "ok", text: `${result.channel.type === "CATEGORY" ? "Category" : "Channel"} ${result.channel.name} created.` });
       await invalidate();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (input: { channelId: string; name?: string; topic?: string | null; position?: number }) =>
-      updateForgeChannel(accessToken, csrfToken, forge.id, input.channelId, { name: input.name, topic: input.topic, position: input.position }),
+    mutationFn: (input: { channelId: string; payload: Parameters<typeof updateForgeChannel>[4] }) =>
+      updateForgeChannel(accessToken, csrfToken, forge.id, input.channelId, input.payload),
     onSuccess: async () => {
       setEditingId(null);
       await invalidate();
@@ -402,7 +611,7 @@ function ChannelsTab({
     mutationFn: (channelId: string) => deleteForgeChannel(accessToken, csrfToken, forge.id, channelId),
     onSuccess: async () => {
       setConfirmDeleteId(null);
-      setNotice({ tone: "ok", text: "Channel deleted." });
+      setNotice({ tone: "ok", text: "Deleted." });
       await invalidate();
     },
     onError: (error) => {
@@ -411,99 +620,142 @@ function ChannelsTab({
     },
   });
 
-  const move = (index: number, direction: -1 | 1) => {
-    const target = sorted[index + direction];
-    const current = sorted[index];
+  /** Swap with the neighbour in the same group (categories move among categories). */
+  const move = (list: Channel[], index: number, direction: -1 | 1) => {
+    const target = list[index + direction];
+    const current = list[index];
     if (!target || !current) return;
-    // swap positions
-    updateMutation.mutate({ channelId: current.id, position: target.position });
-    updateMutation.mutate({ channelId: target.id, position: current.position });
+    updateMutation.mutate({ channelId: current.id, payload: { position: target.position } });
+    updateMutation.mutate({ channelId: target.id, payload: { position: current.position } });
   };
+
+  const saveEdit = (channel: Channel) => {
+    const payload: Parameters<typeof updateForgeChannel>[4] = { ...settingsPayload(editDraft, channel.type) };
+    if (editDraft.name.trim() !== channel.name) payload.name = editDraft.name.trim();
+    if (channel.type !== "CATEGORY" && editDraft.topic.trim() !== (channel.topic ?? "")) payload.topic = editDraft.topic.trim() || null;
+    updateMutation.mutate({ channelId: channel.id, payload });
+  };
+
+  const categories = sorted.filter((channel) => channel.type === "CATEGORY");
+
+  const renderRow = (channel: Channel, list: Channel[], index: number, indent: boolean) => (
+    <li key={channel.id} className={`rounded-[14px] border border-slate-800/80 bg-slate-900/60 px-3 py-2 ${indent ? "ml-4" : ""}`}>
+      {editingId === channel.id ? (
+        <div className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-[220px_1fr]">
+            <input className={inputClass} value={editDraft.name} onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))} maxLength={64} />
+            {channel.type !== "CATEGORY" ? (
+              <input className={inputClass} value={editDraft.topic} onChange={(event) => setEditDraft((current) => ({ ...current, topic: event.target.value }))} placeholder="Topic" maxLength={240} />
+            ) : null}
+          </div>
+          <ChannelAccessFields forge={forge} type={channel.type} draft={editDraft} setDraft={setEditDraft} />
+          <div className="flex gap-2">
+            <button type="button" className={primaryBtn} disabled={!editDraft.name.trim() || updateMutation.isPending} onClick={() => saveEdit(channel)}>
+              <Check className="h-3.5 w-3.5" /> Save
+            </button>
+            <button type="button" className={ghostBtn} onClick={() => setEditingId(null)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-amber-300/80">{channelIcon(channel.type)}</span>
+          <div className="min-w-0 flex-1">
+            <p className={`flex items-center gap-1.5 truncate text-sm ${channel.type === "CATEGORY" ? "font-semibold uppercase tracking-[0.14em] text-slate-300" : "text-slate-100"}`}>
+              {channel.name}
+              {channel.isPrivate ? <Lock className="h-3 w-3 shrink-0 text-amber-300/80" aria-label="Private" /> : null}
+            </p>
+            <p className="truncate text-[11px] text-slate-500">
+              {channel.type === "CATEGORY"
+                ? "category"
+                : [channel.topic || `${channel.type.toLowerCase()} channel`, channel.slowmodeSeconds ? `slowmode ${slowmodeLabel(channel.slowmodeSeconds)}` : null, channel.isPrivate ? "private" : null].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          {editable ? (
+            <div className="flex items-center gap-1">
+              <button type="button" className={iconBtn} title="Move up" disabled={index === 0 || updateMutation.isPending} onClick={() => move(list, index, -1)}><ArrowUp className="h-3.5 w-3.5" /></button>
+              <button type="button" className={iconBtn} title="Move down" disabled={index === list.length - 1 || updateMutation.isPending} onClick={() => move(list, index, 1)}><ArrowDown className="h-3.5 w-3.5" /></button>
+              <button
+                type="button"
+                className={iconBtn}
+                title="Edit"
+                onClick={() => {
+                  setEditingId(channel.id);
+                  setEditDraft(draftFrom(channel));
+                  setConfirmDeleteId(null);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              {confirmDeleteId === channel.id ? (
+                <button type="button" className={dangerBtn} disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(channel.id)}>
+                  {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Confirm delete
+                </button>
+              ) : (
+                <button type="button" className={iconBtn} title="Delete" onClick={() => setConfirmDeleteId(channel.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </li>
+  );
 
   return (
     <div className="space-y-4">
       {editable ? (
-        <div className="rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
-          <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-slate-400">New channel</p>
+        <div className="space-y-3 rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">New channel or category</p>
           <div className="grid gap-2 md:grid-cols-[1fr_150px_1fr_auto]">
-            <input className={inputClass} placeholder="channel-name" value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={64} />
+            <input
+              className={inputClass}
+              placeholder={newType === "CATEGORY" ? "Category name" : "channel-name"}
+              value={newDraft.name}
+              onChange={(event) => setNewDraft((current) => ({ ...current, name: event.target.value }))}
+              maxLength={64}
+            />
             <select className={inputClass} value={newType} onChange={(event) => setNewType(event.target.value as Channel["type"])}>
               <option value="TEXT">Text</option>
               <option value="ANNOUNCEMENT">Announcement</option>
               <option value="VOICE">Voice</option>
               <option value="STAGE">Stage</option>
+              <option value="CATEGORY">Category</option>
             </select>
-            <input className={inputClass} placeholder="Topic (optional)" value={newTopic} onChange={(event) => setNewTopic(event.target.value)} maxLength={240} />
-            <button type="button" className={primaryBtn} disabled={!newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
+            {newType !== "CATEGORY" ? (
+              <input className={inputClass} placeholder="Topic (optional)" value={newDraft.topic} onChange={(event) => setNewDraft((current) => ({ ...current, topic: event.target.value }))} maxLength={240} />
+            ) : (
+              <span className="hidden md:block" />
+            )}
+            <button type="button" className={primaryBtn} disabled={!newDraft.name.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
               {createMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Create
             </button>
           </div>
+          {newType !== "CATEGORY" ? (
+            showNewOptions ? (
+              <ChannelAccessFields forge={forge} type={newType} draft={newDraft} setDraft={setNewDraft} />
+            ) : (
+              <button type="button" className="text-[11px] text-amber-200/80 underline-offset-2 hover:underline" onClick={() => setShowNewOptions(true)}>
+                Category, slowmode and private access{categories.length ? "" : " (create a category first to group channels)"}
+              </button>
+            )
+          ) : null}
         </div>
       ) : (
         <p className="text-[11px] text-slate-500">You need the Manage channels permission to change channels.</p>
       )}
 
-      <ul className="space-y-1.5">
-        {sorted.map((channel, index) => (
-          <li key={channel.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-slate-800/80 bg-slate-900/60 px-3 py-2">
-            <span className="text-amber-300/80">{channelIcon(channel.type)}</span>
-            {editingId === channel.id ? (
-              <>
-                <input className={`${inputClass} md:max-w-[220px]`} value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={64} />
-                <input className={`${inputClass} md:flex-1`} value={editTopic} onChange={(event) => setEditTopic(event.target.value)} placeholder="Topic" maxLength={240} />
-                <button
-                  type="button"
-                  className={primaryBtn}
-                  disabled={!editName.trim() || updateMutation.isPending}
-                  onClick={() =>
-                    updateMutation.mutate({
-                      channelId: channel.id,
-                      name: editName.trim() !== channel.name ? editName.trim() : undefined,
-                      topic: editTopic.trim() !== (channel.topic ?? "") ? editTopic.trim() || null : undefined,
-                    })
-                  }
-                >
-                  <Check className="h-3.5 w-3.5" /> Save
-                </button>
-                <button type="button" className={ghostBtn} onClick={() => setEditingId(null)}>Cancel</button>
-              </>
-            ) : (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-slate-100">{channel.name}</p>
-                  <p className="truncate text-[11px] text-slate-500">{channel.topic || `${channel.type.toLowerCase()} channel`}</p>
-                </div>
-                {editable ? (
-                  <div className="flex items-center gap-1">
-                    <button type="button" className={iconBtn} title="Move up" disabled={index === 0 || updateMutation.isPending} onClick={() => move(index, -1)}><ArrowUp className="h-3.5 w-3.5" /></button>
-                    <button type="button" className={iconBtn} title="Move down" disabled={index === sorted.length - 1 || updateMutation.isPending} onClick={() => move(index, 1)}><ArrowDown className="h-3.5 w-3.5" /></button>
-                    <button
-                      type="button"
-                      className={iconBtn}
-                      title="Edit"
-                      onClick={() => {
-                        setEditingId(channel.id);
-                        setEditName(channel.name);
-                        setEditTopic(channel.topic ?? "");
-                        setConfirmDeleteId(null);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    {confirmDeleteId === channel.id ? (
-                      <button type="button" className={dangerBtn} disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(channel.id)}>
-                        {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Confirm delete
-                      </button>
-                    ) : (
-                      <button type="button" className={iconBtn} title="Delete" onClick={() => setConfirmDeleteId(channel.id)}><Trash2 className="h-3.5 w-3.5" /></button>
-                    )}
-                  </div>
-                ) : null}
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-3">
+        {groups.map((group) => {
+          if (!group.category && !group.channels.length) return null;
+          const categoryIndex = group.category ? categories.findIndex((entry) => entry.id === group.category!.id) : -1;
+          return (
+            <ul key={group.category?.id ?? "loose"} className="space-y-1.5">
+              {group.category ? renderRow(group.category, categories, categoryIndex, false) : null}
+              {group.channels.map((channel, index) => renderRow(channel, group.channels, index, Boolean(group.category)))}
+              {group.category && !group.channels.length ? <li className="ml-4 text-[11px] text-slate-500">Empty. Edit a channel to move it here.</li> : null}
+            </ul>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -748,6 +1000,13 @@ function MembersTab({
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [banReason, setBanReason] = useState("");
   const [confirm, setConfirm] = useState<{ userId: string; action: "kick" | "ban" } | null>(null);
+  const [timeoutMinutes, setTimeoutMinutes] = useState(10);
+  const [timeoutReason, setTimeoutReason] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const roleById = useMemo(() => new Map(forge.roles.map((role) => [role.id, role] as const)), [forge.roles]);
 
@@ -826,6 +1085,17 @@ function MembersTab({
     },
   });
 
+  const timeoutMutation = useMutation({
+    mutationFn: (input: { userId: string; minutes: number | null; reason?: string }) =>
+      timeoutForgeMember(accessToken, csrfToken, forge.id, input.userId, { minutes: input.minutes, reason: input.reason }),
+    onSuccess: async (result) => {
+      setNotice({ tone: "ok", text: result.timeoutUntil ? `Timed out until ${new Date(result.timeoutUntil).toLocaleString()}.` : "Timeout removed." });
+      setTimeoutReason("");
+      await invalidate();
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+
   const toggleRole = (member: ForgeMemberEntry, roleId: string) => {
     const current = new Set(member.roleLinks.map((link) => link.roleId));
     if (current.has(roleId)) current.delete(roleId);
@@ -850,6 +1120,8 @@ function MembersTab({
           const canKick = !isSelf && can("kickUsers") && outranks(member);
           const canBan = !isSelf && can("banUsers") && outranks(member);
           const canNick = isSelf || (can("manageRoles") && outranks(member));
+          const canTimeout = !isSelf && can("moderateChat") && outranks(member);
+          const timedOutUntil = member.timeoutUntil && new Date(member.timeoutUntil).getTime() > now ? new Date(member.timeoutUntil) : null;
           const canRoles = can("manageRoles") && forge.roles.some(assignable);
 
           return (
@@ -877,6 +1149,11 @@ function MembersTab({
                     {member.nickname ? <span className="truncate text-[11px] text-slate-500">@{member.user.username}</span> : null}
                     {isOwner ? <span className="rounded-full border border-amber-500/40 bg-amber-950/40 px-1.5 text-[9px] uppercase tracking-[0.16em] text-amber-100">Owner</span> : null}
                     {isSelf ? <span className="rounded-full border border-slate-600 px-1.5 text-[9px] uppercase tracking-[0.16em] text-slate-300">You</span> : null}
+                    {timedOutUntil ? (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/40 bg-rose-950/40 px-1.5 text-[9px] uppercase tracking-[0.16em] text-rose-100" title={`Until ${timedOutUntil.toLocaleString()}`}>
+                        <Clock className="h-2.5 w-2.5" /> Timed out
+                      </span>
+                    ) : null}
                   </span>
                   <span className="flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
                     <span className={member.user.status === "ONLINE" ? "text-emerald-300" : member.user.status === "IDLE" ? "text-amber-300" : member.user.status === "DND" ? "text-rose-300" : ""}>{member.user.status.toLowerCase()}</span>
@@ -932,6 +1209,39 @@ function MembersTab({
                     </div>
                   ) : null}
 
+                  {canTimeout ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">
+                        Timeout{timedOutUntil ? ` · until ${timedOutUntil.toLocaleString()}` : ""}
+                      </p>
+                      <p className="text-[11px] text-slate-500">They can still read, but can&apos;t send messages, react or join voice.</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select className={`${inputClass} sm:max-w-[160px]`} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(Number(event.target.value))} aria-label="Timeout length">
+                          <option value={1}>60 seconds</option>
+                          <option value={5}>5 minutes</option>
+                          <option value={10}>10 minutes</option>
+                          <option value={60}>1 hour</option>
+                          <option value={1440}>1 day</option>
+                          <option value={10080}>1 week</option>
+                        </select>
+                        <input className={`${inputClass} sm:flex-1`} placeholder="Reason (optional)" value={timeoutReason} onChange={(event) => setTimeoutReason(event.target.value)} maxLength={300} />
+                        <button
+                          type="button"
+                          className={ghostBtn}
+                          disabled={timeoutMutation.isPending}
+                          onClick={() => timeoutMutation.mutate({ userId: member.userId, minutes: timeoutMinutes, reason: timeoutReason.trim() || undefined })}
+                        >
+                          <Clock className="h-3.5 w-3.5" /> {timedOutUntil ? "Change" : "Time out"}
+                        </button>
+                        {timedOutUntil ? (
+                          <button type="button" className={ghostBtn} disabled={timeoutMutation.isPending} onClick={() => timeoutMutation.mutate({ userId: member.userId, minutes: null })}>
+                            Remove timeout
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {canKick || canBan ? (
                     <div className="space-y-2">
                       {canBan ? (
@@ -964,7 +1274,7 @@ function MembersTab({
                     </div>
                   ) : null}
 
-                  {!canRoles && !canNick && !canKick && !canBan ? (
+                  {!canRoles && !canNick && !canKick && !canBan && !canTimeout ? (
                     <p className="text-[11px] text-slate-500">{isOwner ? "The owner cannot be moderated." : "You do not outrank this member or lack the permissions to act on them."}</p>
                   ) : null}
                 </div>
@@ -973,6 +1283,270 @@ function MembersTab({
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Invites
+// ---------------------------------------------------------------------------
+
+const inviteAgeChoices = [
+  { value: 1800, label: "30 minutes" },
+  { value: 3600, label: "1 hour" },
+  { value: 21600, label: "6 hours" },
+  { value: 43200, label: "12 hours" },
+  { value: 86400, label: "1 day" },
+  { value: 604800, label: "7 days" },
+  { value: 0, label: "Never" },
+];
+const inviteUseChoices = [0, 1, 5, 10, 25, 50, 100];
+
+function timeLeft(iso: string | null) {
+  if (!iso) return "never expires";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "expired";
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `expires in ${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `expires in ${hours}h`;
+  return `expires in ${Math.round(hours / 24)}d`;
+}
+
+function InvitesTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: NoticeSetter }) {
+  const queryClient = useQueryClient();
+  const { accessToken, csrfToken } = useTokens();
+  const [maxAgeSeconds, setMaxAgeSeconds] = useState(604800);
+  const [maxUses, setMaxUses] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const queryKey = ["forge-invites", forge.id, accessToken];
+  const invitesQuery = useQuery({ queryKey, queryFn: () => listForgeInvites(accessToken, forge.id), enabled: Boolean(accessToken) });
+
+  const linkFor = (code: string) => (typeof window === "undefined" ? `/invite/${code}` : `${window.location.origin}/invite/${code}`);
+  const copy = async (id: string, code: string) => {
+    try {
+      await navigator.clipboard.writeText(linkFor(code));
+      setCopiedId(id);
+      window.setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+    } catch {
+      setNotice({ tone: "error", text: "Couldn't copy. Select the link and copy it by hand." });
+    }
+  };
+
+  const createMutation = useMutation({
+    mutationFn: () => createForgeInvite(accessToken, csrfToken, forge.id, { maxAgeSeconds, maxUses }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey });
+      void copy(result.invite.id, result.invite.code);
+      setNotice({ tone: "ok", text: "Invite created and copied." });
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (inviteId: string) => revokeForgeInvite(accessToken, csrfToken, forge.id, inviteId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey });
+      setNotice({ tone: "ok", text: "Invite revoked." });
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+
+  const invites = invitesQuery.data?.invites ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
+        <p className="mb-1 text-[10px] uppercase tracking-[0.18em] text-slate-400">Permanent link</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-[10px] border border-slate-800 bg-slate-950/60 px-2 py-1.5 text-xs text-slate-200">{linkFor(forge.inviteCode)}</code>
+          <button type="button" className={ghostBtn} onClick={() => copy("permanent", forge.inviteCode)}>
+            {copiedId === "permanent" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copiedId === "permanent" ? "Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
+        <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-slate-400">New invite link</p>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <label className="block text-xs text-slate-300">
+            <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Expire after</span>
+            <select className={inputClass} value={maxAgeSeconds} onChange={(event) => setMaxAgeSeconds(Number(event.target.value))}>
+              {inviteAgeChoices.map((choice) => (
+                <option key={choice.value} value={choice.value}>{choice.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs text-slate-300">
+            <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Max uses</span>
+            <select className={inputClass} value={maxUses} onChange={(event) => setMaxUses(Number(event.target.value))}>
+              {inviteUseChoices.map((choice) => (
+                <option key={choice} value={choice}>{choice === 0 ? "No limit" : `${choice} ${choice === 1 ? "use" : "uses"}`}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className={`${primaryBtn} self-end`} disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
+            {createMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Create link
+          </button>
+        </div>
+      </div>
+
+      {invitesQuery.isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading invites...</p>
+      ) : invites.length === 0 ? (
+        <p className="text-sm text-slate-400">No active invite links{invitesQuery.data?.canManageAll ? "" : " made by you"}.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {invites.map((invite) => (
+            <li key={invite.id} className="flex flex-wrap items-center gap-2 rounded-[14px] border border-slate-800/80 bg-slate-900/60 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-sm text-slate-100">{invite.code}</p>
+                <p className="truncate text-[11px] text-slate-500">
+                  {invite.uses}{invite.maxUses ? ` / ${invite.maxUses}` : ""} uses · {timeLeft(invite.expiresAt)}{invite.creator ? ` · by ${invite.creator.username}` : ""}
+                </p>
+              </div>
+              <button type="button" className={iconBtn} title="Copy link" onClick={() => copy(invite.id, invite.code)}>
+                {copiedId === invite.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+              <button type="button" className={iconBtn} title="Revoke" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate(invite.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+const auditFilters = [
+  { value: "", label: "All actions" },
+  { value: "member", label: "Members" },
+  { value: "ban", label: "Bans" },
+  { value: "message", label: "Messages" },
+  { value: "channel", label: "Channels" },
+  { value: "role", label: "Roles" },
+  { value: "invite", label: "Invites" },
+  { value: "forge", label: "Forge settings" },
+];
+
+const auditFieldNames: Record<string, string> = {
+  name: "name",
+  topic: "topic",
+  position: "order",
+  parentId: "category",
+  slowmodeSeconds: "slowmode",
+  isPrivate: "privacy",
+  allowedRoleIds: "roles with access",
+  allowedUserIds: "members with access",
+};
+
+function describeAudit(entry: ForgeAuditEntry): string {
+  const target = entry.targetLabel ?? "something";
+  const details = entry.details ?? {};
+  switch (entry.action) {
+    case "forge.update": return `updated forge settings (${((details.changed as string[]) ?? []).join(", ")})`;
+    case "forge.transfer": return `transferred ownership to ${target}`;
+    case "channel.create": return `created ${details.type === "CATEGORY" ? "category" : "channel"} ${target}`;
+    case "channel.update": return `updated channel ${target} (${Object.keys(details).map((key) => auditFieldNames[key] ?? key).join(", ")})`;
+    case "channel.delete": return `deleted ${details.type === "CATEGORY" ? "category" : "channel"} ${target}`;
+    case "role.create": return `created role ${target}`;
+    case "role.update": return `updated role ${target}`;
+    case "role.delete": return `deleted role ${target}`;
+    case "member.roles": {
+      const added = (details.added as string[]) ?? [];
+      const removed = (details.removed as string[]) ?? [];
+      return `changed roles for ${target}${added.length ? ` +${added.join(", +")}` : ""}${removed.length ? ` -${removed.join(", -")}` : ""}`;
+    }
+    case "member.nickname": return `changed ${target}'s nickname${details.nickname ? ` to ${details.nickname}` : ""}`;
+    case "member.kick": return `kicked ${target}`;
+    case "member.timeout": return `timed out ${target} for ${details.minutes} min${details.reason ? ` (${details.reason})` : ""}`;
+    case "member.untimeout": return `removed ${target}'s timeout`;
+    case "ban.create": return `banned ${target}${details.reason ? ` (${details.reason})` : ""}`;
+    case "ban.delete": return `unbanned ${target}`;
+    case "invite.create": return `created invite ${target}`;
+    case "invite.revoke": return `revoked invite ${target}`;
+    case "message.delete": return `deleted a message by ${target}`;
+    case "message.pin": return "pinned a message";
+    case "message.unpin": return "unpinned a message";
+    default: return `${entry.action} ${target}`;
+  }
+}
+
+function AuditLogTab({ forgeId }: { forgeId: string }) {
+  const { accessToken } = useTokens();
+  const [filter, setFilter] = useState("");
+  const [pages, setPages] = useState<ForgeAuditEntry[][]>([]);
+  const [nextBefore, setNextBefore] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const firstPage = useQuery({
+    queryKey: ["forge-audit", forgeId, filter, accessToken],
+    queryFn: () => getForgeAuditLog(accessToken, forgeId, { action: filter || undefined }),
+    enabled: Boolean(accessToken),
+  });
+  useEffect(() => {
+    setPages([]);
+    setNextBefore(firstPage.data?.nextBefore ?? null);
+  }, [firstPage.data]);
+
+  const loadMore = async () => {
+    if (!nextBefore) return;
+    setLoadingMore(true);
+    try {
+      const result = await getForgeAuditLog(accessToken, forgeId, { action: filter || undefined, before: nextBefore });
+      setPages((current) => [...current, result.entries]);
+      setNextBefore(result.nextBefore);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const entries = [...(firstPage.data?.entries ?? []), ...pages.flat()];
+
+  return (
+    <div className="space-y-3">
+      <select className={`${inputClass} sm:max-w-[220px]`} value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter audit log">
+        {auditFilters.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      {firstPage.isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading audit log...</p>
+      ) : entries.length === 0 ? (
+        <p className="text-sm text-slate-400">Nothing recorded yet. Moderation and settings changes show up here.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {entries.map((entry) => (
+            <li key={entry.id} className="flex items-start gap-3 rounded-[14px] border border-slate-800/80 bg-slate-900/60 px-3 py-2">
+              {entry.actor.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={entry.actor.avatar} alt="" className="h-7 w-7 rounded-full border border-slate-700 object-cover" />
+              ) : (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[10px] font-semibold text-amber-100">{initials(entry.actor.username)}</span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm text-slate-200">
+                  <span className="font-semibold text-slate-50">{entry.actor.username}</span> {describeAudit(entry)}
+                </p>
+                <p className="text-[11px] text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
+                {entry.action === "message.delete" && typeof entry.details?.excerpt === "string" ? (
+                  <p className="mt-1 truncate rounded-[8px] border border-slate-800 bg-slate-950/50 px-2 py-1 text-[11px] text-slate-400">{entry.details.excerpt as string}</p>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {nextBefore ? (
+        <button type="button" className={ghostBtn} disabled={loadingMore} onClick={loadMore}>
+          {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Load older
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1052,6 +1626,21 @@ function DangerTab({
 }) {
   const { accessToken, csrfToken } = useTokens();
   const [confirmText, setConfirmText] = useState("");
+  const [transferTo, setTransferTo] = useState("");
+  const [transferConfirm, setTransferConfirm] = useState("");
+  const queryClient = useQueryClient();
+
+  const transferMutation = useMutation({
+    mutationFn: () => transferForgeOwnership(accessToken, csrfToken, forge.id, { userId: transferTo, confirmName: transferConfirm.trim() }),
+    onSuccess: async () => {
+      setNotice({ tone: "ok", text: "Ownership transferred. You're now a regular member." });
+      setTransferTo("");
+      setTransferConfirm("");
+      await queryClient.invalidateQueries();
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+  const transferCandidates = forge.members.filter((member) => member.userId !== forge.ownerId);
 
   const leaveMutation = useMutation({
     mutationFn: () => leaveForge(accessToken, csrfToken, forge.id),
@@ -1067,6 +1656,39 @@ function DangerTab({
 
   if (isOwner) {
     return (
+      <div className="space-y-4">
+      <div className="space-y-3 rounded-[14px] border border-amber-500/30 bg-amber-950/10 p-4">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-amber-100"><Crown className="h-4 w-4" /> Transfer ownership</h3>
+        <p className="text-xs text-slate-300">
+          Hand <strong>{forge.name}</strong> to another member. They get the Owner role and full control, and you become a regular member with your other roles. Only the new owner can undo it.
+        </p>
+        {transferCandidates.length ? (
+          <>
+            <select className={inputClass} value={transferTo} onChange={(event) => setTransferTo(event.target.value)} aria-label="New owner">
+              <option value="">Choose the new owner</option>
+              {transferCandidates.map((member) => (
+                <option key={member.userId} value={member.userId}>{member.nickname ? `${member.nickname} (@${member.user.username})` : member.user.username}</option>
+              ))}
+            </select>
+            {transferTo ? (
+              <label className="block text-xs text-slate-300">
+                <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Type the forge name to confirm</span>
+                <input className={inputClass} value={transferConfirm} onChange={(event) => setTransferConfirm(event.target.value)} placeholder={forge.name} />
+              </label>
+            ) : null}
+            <button
+              type="button"
+              className={dangerBtn}
+              disabled={!transferTo || transferConfirm.trim().toLowerCase() !== forge.name.trim().toLowerCase() || transferMutation.isPending}
+              onClick={() => transferMutation.mutate()}
+            >
+              {transferMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crown className="h-3.5 w-3.5" />} Transfer ownership
+            </button>
+          </>
+        ) : (
+          <p className="text-[11px] text-slate-500">Nobody else is in this forge yet.</p>
+        )}
+      </div>
       <div className="space-y-3 rounded-[14px] border border-rose-500/30 bg-rose-950/20 p-4">
         <h3 className="text-sm font-semibold text-rose-100">Delete this forge</h3>
         <p className="text-xs text-rose-200/80">
@@ -1079,6 +1701,7 @@ function DangerTab({
         <button type="button" className={dangerBtn} disabled={confirmText.trim() !== forge.name || deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
           {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete forge permanently
         </button>
+      </div>
       </div>
     );
   }

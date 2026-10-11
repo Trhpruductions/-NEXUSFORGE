@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Check, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Plus, Radio, Search, Send, Settings2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Check, Clock, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Plus, Radio, Search, Send, Settings2, Timer, Users, Volume2, Wrench, X } from "lucide-react";
+import axios from "axios";
 import {
   createDmThread,
   createUploadPresign,
@@ -123,6 +124,21 @@ function ChatInner() {
     enabled: Boolean(accessToken && selectedForgeId),
   });
   const canModerate = Boolean(accessQuery.data?.isOwner || accessQuery.data?.permissions.moderateChat);
+  // Same rule as the server: the owner, chat moderators and channel managers skip slowmode.
+  const skipsSlowmode = canModerate || Boolean(accessQuery.data?.permissions.manageChannels);
+
+  // Slowmode and timeouts. slowUntil is per channel (ms timestamps); the clock only ticks
+  // while one of them is counting down.
+  const [slowUntil, setSlowUntil] = useState<Record<string, number>>({});
+  const [clock, setClock] = useState(() => Date.now());
+  const myMembership = forge?.members.find((member) => member.userId === user?.id);
+  const timedOutUntil = myMembership?.timeoutUntil && new Date(myMembership.timeoutUntil).getTime() > clock ? new Date(myMembership.timeoutUntil) : null;
+  const counting = Boolean(timedOutUntil) || Object.values(slowUntil).some((until) => until > clock);
+  useEffect(() => {
+    if (!counting) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [counting]);
 
   // Resolve the active text channel from the URL or fall back to the first one.
   useEffect(() => {
@@ -375,7 +391,17 @@ function ChatInner() {
 
   const send = async () => {
     if (!channelId || (!draft.trim() && !pendingFiles.length) || uploading) return;
+    if (timedOutUntil) {
+      setStatus(`You're timed out until ${timedOutUntil.toLocaleTimeString()}.`);
+      return;
+    }
+    const waitMs = (slowUntil[channelId] ?? 0) - Date.now();
+    if (waitMs > 0) {
+      setStatus(`Slowmode: wait ${Math.ceil(waitMs / 1000)}s before sending again.`);
+      return;
+    }
     const content = draft.trim() || "Shared a file";
+    const slowmode = textChannels.find((entry) => entry.id === channelId)?.slowmodeSeconds ?? 0;
     const files = [...pendingFiles];
     const replyToId = replyTarget?.id;
     if (accessToken && isTyping.current) {
@@ -389,8 +415,16 @@ function ChatInner() {
       setUploading(Boolean(files.length));
       const attachments = files.length ? await uploadFiles(files) : undefined;
       await sendMutation.mutateAsync({ channelId, content, optimisticId: `tmp-${crypto.randomUUID()}`, attachments, replyToId });
+      if (slowmode > 0 && !skipsSlowmode) setSlowUntil((current) => ({ ...current, [channelId]: Date.now() + slowmode * 1000 }));
     } catch (error) {
       setStatus(getApiErrorMessage(error));
+      const data = axios.isAxiosError(error) ? (error.response?.data as { code?: string; retryAfter?: number } | undefined) : undefined;
+      if (data?.code === "SLOWMODE" || data?.code === "TIMED_OUT") {
+        // Not sent: give the text back so nothing is lost.
+        if (!files.length) setDraft(content);
+        if (data.code === "SLOWMODE" && data.retryAfter) setSlowUntil((current) => ({ ...current, [channelId]: Date.now() + data.retryAfter! * 1000 }));
+        if (data.code === "TIMED_OUT") void queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+      }
     } finally {
       setUploading(false);
     }
@@ -818,11 +852,19 @@ function ChatInner() {
                       ))}
                     </div>
                   ) : null}
-                  {channel.type === "ANNOUNCEMENT" && !canModerate ? (
+                  {timedOutUntil ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-950/30 px-3 py-2.5 text-xs text-rose-100">
+                      <Clock className="h-4 w-4 shrink-0 text-rose-300" />
+                      <span>
+                        You&apos;re timed out until {timedOutUntil.toLocaleString()}. You can read, but can&apos;t send messages, react or join voice.
+                      </span>
+                    </div>
+                  ) : channel.type === "ANNOUNCEMENT" && !canModerate ? (
                     <div className="flex items-center gap-2 rounded-xl border border-white/5 bg-[#11151e] px-3 py-2.5 text-xs text-slate-500">
                       <Megaphone className="h-4 w-4 text-amber-300" /> Only moderators can post in #{channel.name}.
                     </div>
                   ) : (
+                  <>
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-amber-400/50">
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
@@ -852,6 +894,17 @@ function ChatInner() {
                       {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
                   </div>
+                  {channel.slowmodeSeconds ? (
+                    <p className="mt-1 flex items-center gap-1 px-1 text-[11px] text-slate-500" aria-live="polite">
+                      <Timer className="h-3 w-3" />
+                      {skipsSlowmode
+                        ? `Slowmode is on (${channel.slowmodeSeconds}s). You're exempt.`
+                        : (slowUntil[channel.id] ?? 0) > clock
+                          ? `Slowmode: you can send again in ${Math.ceil(((slowUntil[channel.id] ?? 0) - clock) / 1000)}s`
+                          : `Slowmode is on: one message every ${channel.slowmodeSeconds}s`}
+                    </p>
+                  ) : null}
+                  </>
                   )}
                 </div>
               </div>
