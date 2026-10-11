@@ -360,12 +360,18 @@ socialRouter.delete("/comments/:id", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 socialRouter.put("/status", async (req, res) => {
-  const parsed = z.object({ status: z.enum(["ONLINE", "IDLE", "DND"]) }).safeParse(req.body);
+  const parsed = z.object({ status: z.enum(["ONLINE", "IDLE", "DND", "INVISIBLE"]) }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid status" });
     return;
   }
-  const user = await prisma.user.update({ where: { id: req.user!.id }, data: { status: parsed.data.status, lastSeenAt: new Date() }, select: { id: true, status: true } });
+  // Invisible: you're connected, but everyone else sees you offline.
+  const shown = parsed.data.status === "INVISIBLE" ? "OFFLINE" : parsed.data.status;
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { status: shown, chosenStatus: shown, lastSeenAt: new Date() },
+    select: { id: true, status: true },
+  });
   const memberships = await prisma.forgeMember.findMany({ where: { userId: user.id }, select: { forgeId: true } });
   try {
     const io = getIo();
@@ -373,7 +379,7 @@ socialRouter.put("/status", async (req, res) => {
   } catch {
     // realtime not ready
   }
-  res.json({ status: user.status });
+  res.json({ status: user.status, chosen: parsed.data.status });
 });
 
 // ---------------------------------------------------------------------------

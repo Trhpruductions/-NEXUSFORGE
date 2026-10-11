@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getSettings } from "@/lib/api";
 import { ConnectionState, Room, RoomEvent, Track } from "livekit-client";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -19,10 +21,17 @@ export function VoiceEngine() {
   const roomRef = useRef<Room | null>(null);
   const audioHostRef = useRef<HTMLDivElement | null>(null);
   const flagsRef = useRef(flags);
+  // Saved voice settings (Settings > Voice & Video). Shares the cached settings query.
+  const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
+  const voicePrefs = settingsQuery.data?.preferences.voice;
+  const voicePrefsRef = useRef(voicePrefs);
 
   useEffect(() => {
     flagsRef.current = flags;
   }, [flags]);
+  useEffect(() => {
+    voicePrefsRef.current = voicePrefs;
+  }, [voicePrefs]);
 
   // ------------------------------------------------------------- built-in mesh
   useEffect(() => {
@@ -35,8 +44,21 @@ export function VoiceEngine() {
       channelId: session.channelId,
       selfId: user.id,
       iceServers: session.iceServers ?? [],
-      constraints: { noiseSuppression: flagsRef.current.noiseSuppression, echoCancellation: true, autoGainControl: true },
-      onPeersChanged: (peers: MeshPeer[]) => useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video }))),
+      constraints: {
+        noiseSuppression: voicePrefsRef.current?.noiseSuppression ?? flagsRef.current.noiseSuppression,
+        echoCancellation: voicePrefsRef.current?.echoCancellation ?? true,
+        autoGainControl: true,
+        ...(voicePrefsRef.current?.inputDeviceId ? { deviceId: { exact: voicePrefsRef.current.inputDeviceId } } : {}),
+      },
+      inputGain: (voicePrefsRef.current?.inputVolume ?? 100) / 100,
+      outputVolume: (voicePrefsRef.current?.outputVolume ?? 100) / 100,
+      outputDeviceId: voicePrefsRef.current?.outputDeviceId ?? null,
+      onFull: (limit) => {
+        useVoiceStore.getState().setError(`This voice channel is full (${limit} people max for peer-to-peer voice).`);
+        useVoiceStore.getState().leave();
+      },
+      onPeersChanged: (peers: MeshPeer[]) =>
+        useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video, muted: peer.remoteMuted, deafened: peer.remoteDeafened }))),
       onScreenShareEnded: () => {
         if (useVoiceStore.getState().flags.screenSharing) useVoiceStore.getState().toggle("screenSharing");
       },
@@ -59,6 +81,48 @@ export function VoiceEngine() {
   useEffect(() => {
     meshRef.current?.setMuted(flags.muted);
   }, [flags.muted]);
+  // Output volume and speaker apply live; mic device and processing apply on the next join.
+  useEffect(() => {
+    if (!voicePrefs) return;
+    meshRef.current?.setOutputVolume(voicePrefs.outputVolume / 100);
+    meshRef.current?.setOutputDevice(voicePrefs.outputDeviceId);
+  }, [voicePrefs, session]);
+
+  // Push-to-talk: hold ` (backquote) to talk. Ignored while typing in a text field.
+  const pushToTalk = voicePrefs?.inputMode === "ptt" && session?.mode === "mesh";
+  useEffect(() => {
+    const store = useVoiceStore.getState();
+    meshRef.current?.setPushToTalk(pushToTalk);
+    store.setPushToTalk({ enabled: pushToTalk, talking: false });
+    if (!pushToTalk) return;
+    const isTyping = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return Boolean(el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable));
+    };
+    const set = (talking: boolean) => {
+      meshRef.current?.setTalking(talking);
+      useVoiceStore.getState().setPushToTalk({ enabled: true, talking });
+    };
+    const down = (event: KeyboardEvent) => {
+      if (event.code === "Backquote" && !event.repeat && !isTyping()) {
+        event.preventDefault();
+        set(true);
+      }
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.code === "Backquote") set(false);
+    };
+    const blur = () => set(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+      meshRef.current?.setPushToTalk(false);
+    };
+  }, [pushToTalk, session]);
   useEffect(() => {
     meshRef.current?.setDeafened(flags.deafened);
   }, [flags.deafened]);

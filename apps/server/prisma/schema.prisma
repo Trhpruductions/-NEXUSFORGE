@@ -181,6 +181,8 @@ model User {
   banner             String?
   bio                String?        @db.VarChar(512)
   status             UserStatus     @default(OFFLINE)
+  /// What the user picked (ONLINE/IDLE/DND, or OFFLINE = invisible). `status` is what others see right now.
+  chosenStatus       UserStatus     @default(ONLINE)
   premium            Boolean        @default(false)
   premiumTier        PremiumTier    @default(NONE)
   corePlusActivatedAt DateTime?

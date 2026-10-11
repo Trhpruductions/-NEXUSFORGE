@@ -11,7 +11,7 @@ import type { VoiceTokenResponse } from "@/lib/api";
 export type VoiceFlags = { muted: boolean; deafened: boolean; screenSharing: boolean; noiseSuppression: boolean; voiceActivity: boolean };
 export type VoiceSession = VoiceTokenResponse & { channelId: string; channelName: string; forgeId: string | null };
 export type VoiceConnection = "connecting" | "connected" | "reconnecting" | "disconnected";
-export type RemotePeer = { userId: string; name?: string; connected: boolean; video?: MediaStream | null };
+export type RemotePeer = { userId: string; name?: string; connected: boolean; video?: MediaStream | null; muted?: boolean; deafened?: boolean };
 
 type VoiceStore = {
   session: VoiceSession | null;
@@ -21,6 +21,8 @@ type VoiceStore = {
   levels: Record<string, number>;
   localScreen: MediaStream | null;
   error: string | null;
+  /** Push-to-talk is on (Settings > Voice > input mode) and whether the key is held. */
+  pushToTalk: { enabled: boolean; talking: boolean };
   join: (session: VoiceSession) => void;
   leave: () => void;
   toggle: (flag: keyof VoiceFlags) => void;
@@ -30,6 +32,7 @@ type VoiceStore = {
   setLevels: (levels: Record<string, number>) => void;
   setLocalScreen: (stream: MediaStream | null) => void;
   setError: (error: string | null) => void;
+  setPushToTalk: (state: { enabled: boolean; talking: boolean }) => void;
 };
 
 export const useVoiceStore = create<VoiceStore>()((set) => ({
@@ -40,6 +43,7 @@ export const useVoiceStore = create<VoiceStore>()((set) => ({
   levels: {},
   localScreen: null,
   error: null,
+  pushToTalk: { enabled: false, talking: false },
   join: (session) => set({ session, connection: "connecting", remote: [], levels: {}, localScreen: null, error: null, flags: { muted: false, deafened: false, screenSharing: false, noiseSuppression: true, voiceActivity: true } }),
   leave: () => set({ session: null, connection: "disconnected", remote: [], levels: {}, localScreen: null, error: null }),
   toggle: (flag) => set((state) => ({ flags: { ...state.flags, [flag]: !state.flags[flag] } })),
@@ -49,4 +53,5 @@ export const useVoiceStore = create<VoiceStore>()((set) => ({
   setLevels: (levels) => set({ levels }),
   setLocalScreen: (localScreen) => set({ localScreen }),
   setError: (error) => set({ error }),
+  setPushToTalk: (pushToTalk) => set((state) => (state.pushToTalk.enabled === pushToTalk.enabled && state.pushToTalk.talking === pushToTalk.talking ? state : { pushToTalk })),
 }));

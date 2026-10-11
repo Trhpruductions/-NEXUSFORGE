@@ -3,7 +3,7 @@ import xss from "xss";
 import { z } from "zod";
 import { renderBotCommandResponse } from "../lib/bot-commands.js";
 import { prisma } from "../lib/prisma.js";
-import { hasForgePermission, resolveForgeAccess } from "../lib/forge-permissions.js";
+import { canModerateMember, hasForgePermission, resolveForgeAccess } from "../lib/forge-permissions.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
@@ -527,14 +527,35 @@ messagesRouter.delete("/:id", async (req, res) => {
     },
   });
 
-  const canModerate = membership?.roleLinks.some((link) => {
-    const permissions = link.role.permissions as Record<string, boolean>;
-    return Boolean(permissions.moderateChat);
-  });
-
-  if (!isAuthor && !canModerate) {
-    res.status(403).json({ error: "You cannot delete this message" });
-    return;
+  if (!isAuthor) {
+    // Moderators may remove other people's messages, but only from members they outrank
+    // (the same rule as kick/ban); the forge owner can remove anyone's.
+    const forge = await prisma.forge.findUnique({ where: { id: existing.channel.forgeId }, select: { ownerId: true } });
+    const actor = resolveForgeAccess(
+      forge?.ownerId === req.user!.id,
+      (membership?.roleLinks ?? []).map((link) => ({ position: link.role.position, permissions: link.role.permissions })),
+    );
+    if (!membership || !hasForgePermission(actor, "moderateChat")) {
+      res.status(403).json({ error: "You cannot delete this message" });
+      return;
+    }
+    if (existing.authorId) {
+      const authorMembership = await prisma.forgeMember.findUnique({
+        where: { userId_forgeId: { userId: existing.authorId, forgeId: existing.channel.forgeId } },
+        include: { roleLinks: { include: { role: true } } },
+      });
+      // Someone who has left the forge can't outrank anyone.
+      if (authorMembership) {
+        const target = resolveForgeAccess(
+          forge?.ownerId === existing.authorId,
+          authorMembership.roleLinks.map((link) => ({ position: link.role.position, permissions: link.role.permissions })),
+        );
+        if (!canModerateMember(actor, target)) {
+          res.status(403).json({ error: "You can't delete messages from someone who outranks you" });
+          return;
+        }
+      }
+    }
   }
 
   await prisma.message.delete({ where: { id: existing.id } });

@@ -131,9 +131,12 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     IDLE: { label: "Idle", dot: "bg-yellow-300", text: "text-yellow-200" },
     DND: { label: "Do not disturb", dot: "bg-rose-400", text: "text-rose-300" },
     OFFLINE: { label: "Offline", dot: "bg-slate-600", text: "text-slate-400" },
+    // You're looking at the app, so your own "offline" can only mean you chose Invisible.
+    INVISIBLE: { label: "Invisible", dot: "bg-slate-500 ring-1 ring-slate-300", text: "text-slate-300" },
   };
-  const presence = presenceMeta[user?.status ?? "OFFLINE"] ?? presenceMeta.OFFLINE;
-  const changeStatus = async (status: "ONLINE" | "IDLE" | "DND") => {
+  const ownStatus = user?.status === "OFFLINE" || !user?.status ? "INVISIBLE" : user.status;
+  const presence = presenceMeta[ownStatus] ?? presenceMeta.OFFLINE;
+  const changeStatus = async (status: "ONLINE" | "IDLE" | "DND" | "INVISIBLE") => {
     setStatusMenuOpen(false);
     if (!accessToken || !csrfToken) return;
     try {
@@ -562,9 +565,13 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             </button>
             {statusMenuOpen ? (
               <div className="absolute bottom-[calc(100%+6px)] left-0 z-40 w-44 rounded-xl border border-amber-500/25 bg-[#0d1119] p-1 shadow-xl">
-                {(["ONLINE", "IDLE", "DND"] as const).map((entry) => (
-                  <button key={entry} type="button" onClick={() => void changeStatus(entry)} className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5", user?.status === entry ? "text-amber-100" : "text-slate-200")}>
-                    <span className={cn("h-2 w-2 rounded-full", presenceMeta[entry].dot)} /> {presenceMeta[entry].label}
+                {(["ONLINE", "IDLE", "DND", "INVISIBLE"] as const).map((entry) => (
+                  <button key={entry} type="button" onClick={() => void changeStatus(entry)} className={cn("flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-white/5", ownStatus === entry ? "text-amber-100" : "text-slate-200")}>
+                    <span className={cn("h-2 w-2 rounded-full", presenceMeta[entry].dot)} />
+                    <span>
+                      {presenceMeta[entry].label}
+                      {entry === "INVISIBLE" ? <span className="block text-[10px] text-slate-500">Appear offline</span> : null}
+                    </span>
                   </button>
                 ))}
               </div>

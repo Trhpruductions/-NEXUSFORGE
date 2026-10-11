@@ -512,6 +512,17 @@ forgeManagementRouter.put("/:id/members/:userId/roles", async (req, res) => {
     res.status(404).json({ error: "Member not found" });
     return;
   }
+  // Like kick and ban: you can only change the roles of someone you outrank.
+  if (req.params.userId !== req.user!.id) {
+    const targetAccess = resolveForgeAccess(
+      context.forge.ownerId === req.params.userId,
+      target.roleLinks.map((link) => ({ position: link.role.position, permissions: {} })),
+    );
+    if (!canModerateMember(context.access, targetAccess)) {
+      res.status(403).json({ error: "You can't change roles for someone who outranks you" });
+      return;
+    }
+  }
 
   const forgeRoles = await prisma.role.findMany({
     where: { forgeId: context.forge.id },

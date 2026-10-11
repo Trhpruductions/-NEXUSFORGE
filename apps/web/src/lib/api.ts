@@ -2710,8 +2710,8 @@ export async function setLiveStatus(accessToken: string, csrfToken: string, payl
   return response.data;
 }
 
-export async function setPresenceStatus(accessToken: string, csrfToken: string, status: "ONLINE" | "IDLE" | "DND") {
-  const response = await api.put<{ status: "ONLINE" | "IDLE" | "DND" }>("/api/social/status", { status }, { headers: authHeaders(accessToken, csrfToken) });
+export async function setPresenceStatus(accessToken: string, csrfToken: string, status: "ONLINE" | "IDLE" | "DND" | "INVISIBLE") {
+  const response = await api.put<{ status: "ONLINE" | "IDLE" | "DND" | "OFFLINE"; chosen: string }>("/api/social/status", { status }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 

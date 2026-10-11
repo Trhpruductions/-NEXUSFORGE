@@ -7,7 +7,7 @@ import { useVoiceStore } from "@/store/voice-store";
 
 type MemberLike = { userId: string; user: { id: string; username: string; displayName?: string | null; avatar?: string | null } };
 
-type Participant = { userId: string; name: string; avatar?: string | null; connected: boolean; self: boolean };
+type Participant = { userId: string; name: string; avatar?: string | null; connected: boolean; self: boolean; muted: boolean; deafened: boolean };
 
 function ScreenTile({ stream, label, muted = false }: { stream: MediaStream; label: string; muted?: boolean }) {
   const ref = useRef<HTMLVideoElement | null>(null);
@@ -29,7 +29,7 @@ function initials(name: string) {
 /** Visible voice room. All state comes from the voice store; the engine runs in the app shell. */
 export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
   const user = useAuthStore((state) => state.user);
-  const { session, flags, connection, remote, levels, localScreen, error, toggle, leave } = useVoiceStore();
+  const { session, flags, connection, remote, levels, localScreen, error, toggle, leave, pushToTalk } = useVoiceStore();
 
   const nameOf = (userId: string) => {
     const member = members.find((entry) => entry.userId === userId || entry.user.id === userId);
@@ -38,10 +38,19 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
   const avatarOf = (userId: string) => members.find((entry) => entry.userId === userId || entry.user.id === userId)?.user.avatar ?? null;
 
   const participants = useMemo<Participant[]>(() => {
-    const self: Participant = { userId: user?.id ?? "self", name: user?.displayName || user?.username || "You", avatar: user?.avatar ?? null, connected: connection === "connected", self: true };
-    return [self, ...remote.map((entry) => ({ userId: entry.userId, name: entry.name || nameOf(entry.userId), avatar: avatarOf(entry.userId), connected: entry.connected, self: false }))];
+    const self: Participant = {
+      userId: user?.id ?? "self",
+      name: user?.displayName || user?.username || "You",
+      avatar: user?.avatar ?? null,
+      connected: connection === "connected",
+      self: true,
+      // Deafen cuts the mic too; with push-to-talk the mic is off until the key is held.
+      muted: flags.muted || flags.deafened || (pushToTalk.enabled && !pushToTalk.talking),
+      deafened: flags.deafened,
+    };
+    return [self, ...remote.map((entry) => ({ userId: entry.userId, name: entry.name || nameOf(entry.userId), avatar: avatarOf(entry.userId), connected: entry.connected, self: false, muted: Boolean(entry.muted), deafened: Boolean(entry.deafened) }))];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remote, connection, user, members]);
+  }, [remote, connection, user, members, flags.muted, flags.deafened, pushToTalk]);
 
   if (!session) return null;
 
@@ -89,7 +98,11 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
                 ) : (
                   <span className={`flex h-14 w-14 items-center justify-center rounded-full border-2 bg-slate-800 text-sm font-bold text-amber-100 ${speaking ? "border-emerald-400" : "border-amber-500/40"}`}>{initials(participant.name)}</span>
                 )}
-                {participant.self && flags.muted ? <span className="absolute -bottom-1 -right-1 rounded-full bg-rose-500 p-1 text-white"><MicOff className="h-3 w-3" /></span> : null}
+                {participant.deafened ? (
+                  <span className="absolute -bottom-1 -right-1 rounded-full bg-rose-500 p-1 text-white" title="Deafened"><HeadphoneOff className="h-3 w-3" /></span>
+                ) : participant.muted && participant.connected ? (
+                  <span className="absolute -bottom-1 -right-1 rounded-full bg-rose-500 p-1 text-white" title="Muted"><MicOff className="h-3 w-3" /></span>
+                ) : null}
                 {!participant.connected ? <span className="absolute -bottom-1 -right-1 rounded-full bg-amber-500 p-1 text-slate-950"><Loader2 className="h-3 w-3 animate-spin" /></span> : null}
               </span>
               <p className="max-w-full truncate text-sm font-semibold text-white">{participant.name}{participant.self ? " (you)" : ""}</p>
@@ -98,6 +111,12 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
           );
         })}
       </div>
+      {pushToTalk.enabled ? (
+        <p className="text-center text-xs text-slate-400">
+          Push-to-talk is on: hold <kbd className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-slate-200">`</kbd> to talk.
+          {pushToTalk.talking ? <span className="ml-1.5 font-semibold text-emerald-300">Talking</span> : null}
+        </p>
+      ) : null}
       {participants.length === 1 ? <p className="text-center text-xs text-slate-500">You are the only one here. Others in the forge see the count next to the channel and can hop in.</p> : null}
 
       <div className="flex flex-wrap items-center justify-center gap-2">

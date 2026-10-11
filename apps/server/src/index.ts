@@ -235,6 +235,9 @@ async function forgeIdForChannel(channelId: string) {
   return channel?.forgeId ?? null;
 }
 
+const LIVEKIT_CONFIGURED = Boolean(env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVEKIT_WS_URL);
+const MESH_VOICE_LIMIT = 10;
+
 /** Can this user see the channel (member of its forge)? Voice also requires a voice-type channel. */
 async function canAccessChannel(userId: string, channelId: unknown, options: { voice?: boolean } = {}) {
   if (typeof channelId !== "string" || !channelId) return false;
@@ -266,11 +269,18 @@ app.get("/api/forges/:forgeId/voice-occupancy", requireAuth, async (req, res) =>
   res.json({ channels: voiceOccupancyFor(channels.map((channel) => channel.id)) });
 });
 
-async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
+async function setPresence(userId: string, connection: "ONLINE" | "OFFLINE") {
   try {
-    // Coming online only lifts an OFFLINE user; a chosen Idle/DND status is kept.
+    // Connecting shows the status the user picked (Online/Idle/DND, or stays offline when
+    // they chose Invisible); disconnecting shows offline. The choice itself is kept in
+    // chosenStatus, so it survives reconnects and refreshes.
+    let status: "ONLINE" | "IDLE" | "DND" | "OFFLINE" = "OFFLINE";
+    if (connection === "ONLINE") {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { chosenStatus: true } });
+      status = user?.chosenStatus ?? "ONLINE";
+    }
     const result = await prisma.user.updateMany({
-      where: status === "ONLINE" ? { id: userId, status: "OFFLINE" } : { id: userId },
+      where: { id: userId, NOT: { status } },
       data: { status, lastSeenAt: new Date() },
     });
     if (!result.count) return;
@@ -342,6 +352,13 @@ io.on("connection", (socket) => {
   socket.on("voice:join", async (channelId: string) => {
     if (typeof channelId !== "string" || !channelId) return;
     if (!(await canAccessChannel(socket.data.user.id, channelId, { voice: true }))) return;
+    // Peer-to-peer voice sends every voice to every listener, so it degrades fast past
+    // a handful of people. LiveKit (an SFU) has no such limit.
+    const alreadyIn = voiceMembers(channelId).includes(socket.data.user.id);
+    if (!LIVEKIT_CONFIGURED && !alreadyIn && voiceMembers(channelId).length >= MESH_VOICE_LIMIT) {
+      socket.emit("voice:full", { channelId, limit: MESH_VOICE_LIMIT });
+      return;
+    }
     // Tell the joiner who is already here so it can open peer connections (built-in WebRTC voice).
     const peers = voiceMembers(channelId).filter((userId) => userId !== socket.data.user.id);
     socket.emit("voice:peers", { channelId, userIds: peers });
@@ -396,6 +413,18 @@ io.on("connection", (socket) => {
     // Someone kicked or banned mid-call has been pulled out of the voice room; stop relaying for them.
     if (!socket.rooms.has(`voice:${channelId}`)) return;
     io.to(`user:${payload.to}`).emit("voice:signal", { channelId, from: socket.data.user.id, data: payload.data });
+  });
+
+  /** Mute/deafen state, so everyone in the room sees each other's icons. */
+  socket.on("voice:state", (payload: { channelId?: string; muted?: boolean; deafened?: boolean }) => {
+    if (!payload || typeof payload.channelId !== "string") return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    socket.to(`voice:${payload.channelId}`).emit("voice:state", {
+      channelId: payload.channelId,
+      userId: socket.data.user.id,
+      muted: Boolean(payload.muted),
+      deafened: Boolean(payload.deafened),
+    });
   });
 
   socket.on("dm:join", async (threadId: string) => {
