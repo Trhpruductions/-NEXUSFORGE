@@ -3241,3 +3241,13 @@ body::after {
 .nf-emote-flex { animation: nf-emote-flex 1.6s ease-in-out; transform-origin: 50% 90%; }
 .nf-emote-drop { animation: nf-emote-drop 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 .nf-emote-bounce { animation: nf-emote-bounce 1.2s ease-in-out; }
+
+/* Grid items default to min-width: auto, so one long unbroken line (a message, a URL,
+   a truncated title) widens its column past the screen on phones, where these layouts
+   collapse to a single implicit column. Let them shrink; truncate/wrap does the rest. */
+@layer base {
+  /* In the base layer so a utility like min-w-[200px] on a grid item still wins. */
+  .grid > * {
+    min-width: 0;
+  }
+}
