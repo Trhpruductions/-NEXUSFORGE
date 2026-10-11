@@ -56,6 +56,8 @@ export const privacySchema = z.object({
 
 export type PrivacySettings = z.infer<typeof privacySchema>;
 
+export const HOME_WIDGET_IDS = ["hero", "stats", "event", "activity", "creators", "live", "actions", "posts", "jackpot"] as const;
+
 export const preferencesSchema = z.object({
   notifications: z
     .object({
@@ -96,6 +98,17 @@ export const preferencesSchema = z.object({
       noiseSuppression: z.boolean().default(true),
       echoCancellation: z.boolean().default(true),
       cameraDeviceId: z.string().max(200).nullable().default(null),
+    })
+    .prefault({}),
+  // Home dashboard layout: widget order (within each column) and visibility. An empty
+  // list means "default layout"; the client appends any widget missing from it.
+  home: z
+    .object({
+      widgets: z
+        .array(z.object({ id: z.enum(HOME_WIDGET_IDS), visible: z.boolean() }))
+        .max(HOME_WIDGET_IDS.length)
+        .refine((list) => new Set(list.map((w) => w.id)).size === list.length, "Duplicate widget")
+        .default([]),
     })
     .prefault({}),
 });
@@ -273,6 +286,7 @@ settingsRouter.put("/preferences", async (req, res) => {
     notifications: { ...base.notifications, ...(incoming.notifications ?? {}) },
     appearance: { ...base.appearance, ...(incoming.appearance ?? {}) },
     voice: { ...base.voice, ...(incoming.voice ?? {}) },
+    home: { ...base.home, ...(incoming.home ?? {}) },
   };
   const parsed = preferencesSchema.safeParse(merged);
   if (!parsed.success) {

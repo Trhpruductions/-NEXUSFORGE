@@ -2543,6 +2543,7 @@ export type Preferences = {
   notifications: NotificationPreferences;
   appearance: AppearancePreferences;
   voice: VoicePreferences;
+  home: HomePreferences;
 };
 
 export type SettingsPayload = {
@@ -2582,7 +2583,15 @@ export async function updatePrivacySettings(accessToken: string, csrfToken: stri
   return response.data;
 }
 
-export async function updatePreferences(accessToken: string, csrfToken: string, payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; voice?: Partial<VoicePreferences> }) {
+export type HomeWidgetId = "hero" | "stats" | "event" | "activity" | "creators" | "live" | "actions" | "posts" | "jackpot";
+/** Saved Home layout. Empty = default; widgets missing from the list are appended. */
+export type HomePreferences = { widgets: Array<{ id: HomeWidgetId; visible: boolean }> };
+
+export async function updatePreferences(
+  accessToken: string,
+  csrfToken: string,
+  payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; voice?: Partial<VoicePreferences>; home?: HomePreferences },
+) {
   const response = await api.put<{ preferences: Preferences }>("/api/settings/preferences", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

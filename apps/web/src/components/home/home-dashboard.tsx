@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Calendar, Hash, Heart, Link2, MessageCircle, Mic2, Radio, ShoppingBag, Users, Wifi, Zap, Check } from "lucide-react";
-import { getHomeSummary } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Calendar, Hash, Heart, Link2, MessageCircle, Mic2, Radio, ShoppingBag, Users, Wifi, Zap, Check, SlidersHorizontal } from "lucide-react";
+import { getApiErrorMessage, getHomeSummary, getSettings, updatePreferences, type HomeWidgetId } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { plainText } from "@/lib/plain-text";
+import { HomeCustomizer } from "./home-customizer";
+import { JackpotWidget, LatestPostsWidget } from "./home-extra-widgets";
+import { columnOf, resolveLayout, type HomeLayoutItem } from "./home-layout";
 
 function initials(name: string) {
   return (
@@ -62,6 +65,28 @@ export function HomeDashboard() {
   const { accessToken } = useAuthStore();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [copied, setCopied] = useState(false);
+  const { csrfToken } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  // Saved layout comes with the settings the app shell already loads.
+  const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
+  const layout = resolveLayout(settingsQuery.data?.preferences.home);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<HomeLayoutItem[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const startEditing = () => {
+    setDraft(layout);
+    setSaveError(null);
+    setEditing(true);
+  };
+  const saveLayout = useMutation({
+    mutationFn: (widgets: HomeLayoutItem[]) => updatePreferences(accessToken!, csrfToken!, { home: { widgets } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setEditing(false);
+    },
+    onError: (error) => setSaveError(getApiErrorMessage(error)),
+  });
 
   const summaryQuery = useQuery({
     queryKey: ["home-summary", selectedForgeId, accessToken],
@@ -98,10 +123,8 @@ export function HomeDashboard() {
     { label: "Shop Store", icon: ShoppingBag, href: "/app/store" },
   ];
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 space-y-4">
-        {/* Hero */}
+  const widgetNodes: Record<HomeWidgetId, ReactNode> = {
+    hero: (
         <section className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119]">
           {forge?.banner ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -125,8 +148,8 @@ export function HomeDashboard() {
             ) : null}
           </div>
         </section>
-
-        {/* Stats */}
+    ),
+    stats: (
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {stats.map((stat) => (
             <div key={stat.label} className={`${panel} flex items-center gap-3`}>
@@ -140,8 +163,8 @@ export function HomeDashboard() {
             </div>
           ))}
         </section>
-
-        {/* Featured event */}
+    ),
+    event: (
         <section className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_50%,rgba(230,179,37,0.25),transparent_45%)]" />
           <div className="relative grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-center">
@@ -177,9 +200,8 @@ export function HomeDashboard() {
             </div>
           </div>
         </section>
-
-        {/* Activity + creators */}
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+    ),
+    activity: (
           <div className={panel}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className={sectionTitle}>Recent Activity</h3>
@@ -207,7 +229,8 @@ export function HomeDashboard() {
               {!data?.recentActivity?.length && !summaryQuery.isLoading ? <li className="text-sm text-slate-500">No messages yet. Say hello in a channel.</li> : null}
             </ul>
           </div>
-
+    ),
+    creators: (
           <div className={panel}>
             <h3 className={`${sectionTitle} mb-3`}>Top Creators</h3>
             <ul className="space-y-2.5">
@@ -227,11 +250,8 @@ export function HomeDashboard() {
               {!data?.topCreators?.length && !summaryQuery.isLoading ? <li className="text-sm text-slate-500">No creators yet.</li> : null}
             </ul>
           </div>
-        </section>
-      </div>
-
-      {/* Right column */}
-      <aside className="space-y-4">
+    ),
+    live: (
         <div className={panel}>
           <div className="mb-3 flex items-center justify-between">
             <h3 className={sectionTitle}>Live Now</h3>
@@ -257,7 +277,8 @@ export function HomeDashboard() {
             <p className="text-sm text-slate-500">Nobody is streaming right now. Go live from your profile to show up here.</p>
           )}
         </div>
-
+    ),
+    actions: (
         <div className={panel}>
           <h3 className={`${sectionTitle} mb-3`}>Quick Actions</h3>
           <div className="space-y-2">
@@ -274,6 +295,56 @@ export function HomeDashboard() {
             )}
           </div>
         </div>
+    ),
+    posts: <LatestPostsWidget />,
+    jackpot: <JackpotWidget />,
+  };
+
+  const shown = (editing ? draft : layout).filter((item) => item.visible);
+  const mainItems = shown.filter((item) => columnOf(item.id) === "main");
+  const sideItems = shown.filter((item) => columnOf(item.id) === "side");
+
+  // Recent activity and Top creators sit side by side when they're next to each other.
+  const mainBlocks: ReactNode[] = [];
+  for (let i = 0; i < mainItems.length; i += 1) {
+    const id = mainItems[i].id;
+    const next = mainItems[i + 1]?.id;
+    const paired = (id === "activity" && next === "creators") || (id === "creators" && next === "activity");
+    if (paired) {
+      mainBlocks.push(
+        <section key={`${id}-${next}`} className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+          {widgetNodes[id]}
+          {widgetNodes[next!]}
+        </section>,
+      );
+      i += 1;
+    } else {
+      mainBlocks.push(<Fragment key={id}>{widgetNodes[id]}</Fragment>);
+    }
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="col-span-full flex justify-end">
+        {!editing ? (
+          <button type="button" onClick={startEditing} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300 hover:border-amber-400/50 hover:text-white">
+            <SlidersHorizontal className="h-3.5 w-3.5" /> Customize
+          </button>
+        ) : null}
+      </div>
+      {editing ? (
+        <div className="col-span-full">
+          <HomeCustomizer layout={draft} onChange={setDraft} onSave={() => saveLayout.mutate(draft)} onCancel={() => setEditing(false)} saving={saveLayout.isPending} error={saveError} />
+        </div>
+      ) : null}
+
+      <div className="min-w-0 space-y-4">
+        {mainBlocks}
+        {mainItems.length === 0 ? <p className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">Every main widget is hidden. Use Customize to bring some back.</p> : null}
+      </div>
+
+      <aside className="space-y-4">
+        {sideItems.map((item) => <Fragment key={item.id}>{widgetNodes[item.id]}</Fragment>)}
       </aside>
 
       {/* Brand strip from the design reference */}
