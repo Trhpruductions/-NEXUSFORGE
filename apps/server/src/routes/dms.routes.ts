@@ -19,7 +19,8 @@ const createGroupSchema = z.object({
 
 const messageSchema = z.object({
   content: z.string().min(1).max(4000),
-  attachments: z.array(z.string().url()).max(8).optional(),
+  // http(s) only: these render as links, and z.url() alone accepts javascript: URLs.
+  attachments: z.array(z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Attachments must be http(s) links")).max(8).optional(),
 });
 
 export const dmsRouter = Router();

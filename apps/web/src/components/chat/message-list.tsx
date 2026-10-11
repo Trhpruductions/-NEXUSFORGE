@@ -6,6 +6,8 @@ import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
 import { plainText } from "@/lib/plain-text";
+import { MessageAttachments } from "@/components/chat/message-attachments";
+import { mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
 
@@ -24,6 +26,8 @@ type MessageListProps = {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onPin?: (messageId: string, pinned: boolean) => void;
+  /** When the reader last read this channel; draws a "New messages" line before anything newer. */
+  lastReadAt?: string | null;
 };
 
 function formatTime(date: string): string {
@@ -69,6 +73,7 @@ export function MessageList({
   onDelete,
   onReact,
   onPin,
+  lastReadAt,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -84,6 +89,25 @@ export function MessageList({
   }, [lastMessageId]);
 
   const memberByUserId = useMemo(() => new Map(members.map((member) => [member.userId, member] as const)), [members]);
+
+  // For mention pills and highlighting: who's reading, the forge's roles, and id -> name.
+  const mentionContext = useMemo<MentionContext & { selfRoleNames: string[] }>(() => {
+    const self = memberByUserId.get(selfId);
+    const roleNameById = new Map(roles.map((role) => [role.id, role.name] as const));
+    return {
+      selfUsername: self?.user.username ?? null,
+      roleNames: roles.map((role) => role.name),
+      usernamesById: Object.fromEntries(members.map((member) => [member.userId, member.user.username])),
+      selfRoleNames: (self?.roleLinks ?? []).map((link) => roleNameById.get(link.roleId)).filter((name): name is string => Boolean(name)),
+    };
+  }, [memberByUserId, members, roles, selfId]);
+
+  // First message from someone else that arrived after the last read: the "New" line goes above it.
+  const firstUnreadId = useMemo(() => {
+    if (!lastReadAt) return null;
+    const cutoff = new Date(lastReadAt).getTime();
+    return messages.find((message) => message.authorId !== selfId && !message.optimistic && new Date(message.createdAt).getTime() > cutoff)?.id ?? null;
+  }, [lastReadAt, messages, selfId]);
 
   const authorMeta = (message: Message) => {
     if (message.botId) return { name: message.botName ?? "Bot", color: "#e879f9", nickname: null as string | null };
@@ -147,6 +171,12 @@ export function MessageList({
 
         return (
           <div key={message.id}>
+            {message.id === firstUnreadId ? (
+              <div className="my-2 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400" role="separator" aria-label="New messages">
+                <span className="h-px flex-1 bg-rose-500/60" />
+                New
+              </div>
+            ) : null}
             {showDay ? (
               <div className="my-2 flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-slate-500">
                 <span className="h-px flex-1 bg-slate-800" />
@@ -159,7 +189,9 @@ export function MessageList({
               className={`nf-message group relative rounded-[14px] border px-3 py-2 transition ${
                 message.optimistic
                   ? "border-dashed border-amber-600/60 bg-amber-950/20"
-                  : "border-transparent hover:border-slate-700/70 hover:bg-slate-900/60"
+                  : !isSelf && mentionsReader(message.content, mentionContext)
+                    ? "border-transparent border-l-amber-400 bg-amber-500/[0.07] hover:bg-amber-500/10"
+                    : "border-transparent hover:border-slate-700/70 hover:bg-slate-900/60"
               }`}
             >
               {message.replyTo ? (
@@ -233,24 +265,10 @@ export function MessageList({
                       </div>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{plainText(message.content)}</p>
+                    <RichText content={message.content} context={mentionContext} />
                   )}
 
-                  {message.attachments?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      {message.attachments.map((url) => (
-                        <a
-                          key={url}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-[14px] border border-amber-600/40 bg-amber-950/40 px-2 py-1 text-amber-200 hover:bg-amber-900/50"
-                        >
-                          Attachment
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
+                  {message.attachments?.length ? <MessageAttachments urls={message.attachments} /> : null}
 
                   {reactionGroups.size ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">

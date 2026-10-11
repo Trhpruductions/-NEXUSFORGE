@@ -16,7 +16,8 @@ import { recordMentions } from "./reads.routes.js";
 const createMessageSchema = z.object({
   channelId: z.string().uuid(),
   content: z.string().min(1).max(4000),
-  attachments: z.array(z.string().url()).max(8).optional(),
+  // http(s) only: these render as links, and z.url() alone accepts javascript: URLs.
+  attachments: z.array(z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Attachments must be http(s) links")).max(8).optional(),
   replyToId: z.string().uuid().optional(),
   optimisticId: z.string().optional(),
 });
@@ -287,33 +288,67 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     include: messageInclude,
   });
 
-  const mentionMatches = Array.from(parsed.data.content.matchAll(/@([a-zA-Z0-9_]+)/g));
-  const mentionedUsernames = [...new Set(mentionMatches.map((match) => match[1]))];
+  // Mentions. Only members of this forge are ever notified.
+  //  - @username
+  //  - @Role Name: everyone holding that role
+  //  - @everyone (all members) / @here (members currently online): like Discord, these
+  //    only ping when sent by someone with moderation rights; otherwise they're just text.
+  const raw = parsed.data.content;
   const mentionedUserIds: string[] = [];
+  let mentionLabel = "you";
+  const recipients = new Set<string>();
 
-  if (mentionedUsernames.length) {
-    const mentionedUsers = await prisma.user.findMany({
-      where: {
-        username: { in: mentionedUsernames },
-        id: { not: req.user!.id },
-        // Only people who can see this channel get pinged; otherwise anyone could
-        // notify any user on the platform.
-        memberships: { some: { forgeId: channel.forgeId } },
-      },
-      select: { id: true, username: true },
+  const usernames = [...new Set(Array.from(raw.matchAll(/@([a-zA-Z0-9_]+)/g)).map((match) => match[1]))].filter((name) => name !== "everyone" && name !== "here");
+  if (usernames.length) {
+    const users = await prisma.user.findMany({
+      where: { username: { in: usernames }, memberships: { some: { forgeId: channel.forgeId } } },
+      select: { id: true },
     });
-    mentionedUserIds.push(...mentionedUsers.map((entry) => entry.id));
-    void recordMentions(parsed.data.channelId, mentionedUserIds).catch(() => undefined);
+    users.forEach((entry) => recipients.add(entry.id));
+  }
 
+  const forgeRoles = await prisma.role.findMany({ where: { forgeId: channel.forgeId }, select: { id: true, name: true } });
+  const mentionedRoles = forgeRoles.filter((role) => role.name && raw.includes(`@${role.name}`) && role.name.toLowerCase() !== "@everyone");
+  if (mentionedRoles.length) {
+    const holders = await prisma.memberRole.findMany({ where: { roleId: { in: mentionedRoles.map((role) => role.id) } }, select: { forgeMember: { select: { userId: true } } } });
+    holders.forEach((entry) => recipients.add(entry.forgeMember.userId));
+    mentionLabel = `@${mentionedRoles[0].name}`;
+  }
+
+  const wantsEveryone = /@everyone\b/.test(raw);
+  const wantsHere = /@here\b/.test(raw);
+  if (wantsEveryone || wantsHere) {
+    const access = resolveForgeAccess(
+      membership.forge.ownerId === req.user!.id,
+      membership.roleLinks.map((link) => ({ position: link.role.position, permissions: link.role.permissions })),
+    );
+    if (hasForgePermission(access, "moderateChat") || hasForgePermission(access, "manageForge")) {
+      const members = await prisma.forgeMember.findMany({
+        where: { forgeId: channel.forgeId, ...(wantsEveryone ? {} : { user: { status: { in: ["ONLINE", "IDLE", "DND"] } } }) },
+        select: { userId: true },
+        take: 2000,
+      });
+      members.forEach((entry) => recipients.add(entry.userId));
+      mentionLabel = wantsEveryone ? "@everyone" : "@here";
+    }
+  }
+
+  recipients.delete(req.user!.id);
+  // Bound the cost of one message in a very large forge.
+  mentionedUserIds.push(...[...recipients].slice(0, 500));
+
+  if (mentionedUserIds.length) {
+    void recordMentions(parsed.data.channelId, mentionedUserIds).catch(() => undefined);
+    const channelName = (await prisma.channel.findUnique({ where: { id: parsed.data.channelId }, select: { name: true } }))?.name;
     await Promise.all(
-      mentionedUsers.map((mentionedUser) =>
+      mentionedUserIds.map((userId) =>
         createNotification({
-          userId: mentionedUser.id,
+          userId,
           type: "MENTION",
-          title: "You were mentioned",
-          body: `${req.user!.username} mentioned you in a Forge message.`,
-          data: { channelId: parsed.data.channelId, messageId: created.id },
-        }),
+          title: mentionLabel === "you" ? "You were mentioned" : `${req.user!.username} mentioned ${mentionLabel}`,
+          body: `${req.user!.username} in #${channelName ?? "channel"}: ${sanitizedContent.slice(0, 120)}`,
+          data: { channelId: parsed.data.channelId, messageId: created.id, forgeId: channel.forgeId },
+        }).catch(() => undefined),
       ),
     );
   }

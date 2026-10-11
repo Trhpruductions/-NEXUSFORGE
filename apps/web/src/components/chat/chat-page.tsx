@@ -16,6 +16,7 @@ import {
   getForgePermissions,
   getMessages,
   listDmThreads,
+  getForgeUnreads,
   markChannelRead,
   postDmMessage,
   postMessage,
@@ -42,6 +43,7 @@ import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { plainText } from "@/lib/plain-text";
+import { RichText } from "@/components/chat/rich-text";
 
 
 const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-amber-200";
@@ -130,6 +132,8 @@ function ChatInner() {
     if (next !== channelId) setChannelId(next);
   }, [textChannels, requestedChannel, channelId]);
 
+  // Where the reader left off in the open channel, for the "New messages" line.
+  const [unreadSince, setUnreadSince] = useState<{ channelId: string; at: string } | null>(null);
   const mode: "voice" | "dm" | "channel" = requestedVoice ? "voice" : requestedDm ? "dm" : "channel";
   const channel = textChannels.find((entry) => entry.id === channelId) ?? null;
   const voiceChannel = requestedVoice && requestedVoice !== "1" ? voiceChannels.find((entry) => entry.id === requestedVoice) ?? null : voiceChannels[0] ?? null;
@@ -139,13 +143,25 @@ function ChatInner() {
     if (mode !== "channel" || !channelId || !selectedForgeId) return;
     setActiveChannelId(channelId);
     clearChannel(selectedForgeId, channelId);
+    setUnreadSince(null);
     if (accessToken && csrfToken) {
-      void markChannelRead(accessToken, csrfToken, channelId)
-        .then(() => {
-          void queryClient.invalidateQueries({ queryKey: ["forge-unreads"] });
-          void queryClient.invalidateQueries({ queryKey: ["unread-summary"] });
+      const forgeId = selectedForgeId;
+      const openedChannel = channelId;
+      // Remember where the reader left off (for the "New" line) before marking it read.
+      void getForgeUnreads(accessToken, forgeId)
+        .then((reads) => {
+          const entry = reads.channels.find((c) => c.channelId === openedChannel);
+          if (entry && entry.unread > 0 && entry.lastReadAt) setUnreadSince({ channelId: openedChannel, at: entry.lastReadAt });
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          void markChannelRead(accessToken, csrfToken, openedChannel)
+            .then(() => {
+              void queryClient.invalidateQueries({ queryKey: ["forge-unreads"] });
+              void queryClient.invalidateQueries({ queryKey: ["unread-summary"] });
+            })
+            .catch(() => undefined);
+        });
     }
     setReplyTarget(null);
     setSearch("");
@@ -667,7 +683,7 @@ function ChatInner() {
                         )}
                         <div className="min-w-0">
                           <p className="flex items-baseline gap-2 text-xs text-slate-400"><span className="text-sm font-semibold text-white">{msg.author.username}</span>{formatTime(msg.createdAt)}</p>
-                          <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{plainText(msg.content)}</p>
+                          <RichText content={msg.content} />
                         </div>
                       </div>
                     ))}
@@ -717,6 +733,7 @@ function ChatInner() {
                     onDelete={async (messageId) => { await deleteMutation.mutateAsync(messageId); }}
                     onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
                     onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
+                    lastReadAt={unreadSince?.channelId === channelId ? unreadSince.at : null}
                   />
                   {pinsOpen ? (
                     <div className="absolute right-3 top-14 z-30 w-[min(420px,calc(100%-24px))] overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
