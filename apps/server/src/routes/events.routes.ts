@@ -83,7 +83,8 @@ eventsRouter.get("/", async (req, res) => {
   const forgeIds = memberships.map((entry) => entry.forgeId);
 
   const baseWhere = {
-    ...(forgeId ? { forgeId } : { OR: [{ forgeId: null }, { forgeId: { in: forgeIds } }] }),
+    // Filtering by a forge only works for forges you belong to.
+    ...(forgeId ? { forgeId: forgeIds.includes(forgeId) ? forgeId : "__not_a_member__" } : { OR: [{ forgeId: null }, { forgeId: { in: forgeIds } }] }),
     ...(type ? { type } : {}),
   };
   const scopeWhere =
@@ -150,9 +151,16 @@ eventsRouter.post("/", async (req, res) => {
   res.status(201).json({ event });
 });
 
+/** Global events are public to signed-in users; forge events only to that forge's members. */
+async function canSeeEvent(userId: string, event: { forgeId: string | null }) {
+  if (!event.forgeId) return true;
+  const membership = await prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId, forgeId: event.forgeId } }, select: { id: true } });
+  return Boolean(membership);
+}
+
 eventsRouter.get("/:id", async (req, res) => {
   const event = await prisma.event.findUnique({ where: { id: req.params.id }, include: eventInclude });
-  if (!event) {
+  if (!event || !(await canSeeEvent(req.user!.id, event))) {
     res.status(404).json({ error: "Event not found" });
     return;
   }
@@ -214,7 +222,7 @@ eventsRouter.post("/:id/rsvp", async (req, res) => {
     where: { id: req.params.id },
     include: { _count: { select: { participants: true } } },
   });
-  if (!event) {
+  if (!event || !(await canSeeEvent(req.user!.id, event))) {
     res.status(404).json({ error: "Event not found" });
     return;
   }

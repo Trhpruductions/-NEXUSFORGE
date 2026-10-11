@@ -235,6 +235,18 @@ async function forgeIdForChannel(channelId: string) {
   return channel?.forgeId ?? null;
 }
 
+/** Can this user see the channel (member of its forge)? Voice also requires a voice-type channel. */
+async function canAccessChannel(userId: string, channelId: unknown, options: { voice?: boolean } = {}) {
+  if (typeof channelId !== "string" || !channelId) return false;
+  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { forgeId: true, type: true } }).catch(() => null);
+  if (!channel) return false;
+  if (options.voice && channel.type !== "VOICE" && channel.type !== "STAGE") return false;
+  const membership = await prisma.forgeMember
+    .findUnique({ where: { userId_forgeId: { userId, forgeId: channel.forgeId } }, select: { id: true } })
+    .catch(() => null);
+  return Boolean(membership);
+}
+
 /** Tell the whole forge how many people are in a voice channel now. */
 async function broadcastVoiceOccupancy(channelId: string) {
   const forgeId = await forgeIdForChannel(channelId);
@@ -317,16 +329,19 @@ io.on("connection", (socket) => {
     socket.leave(`forge:${forgeId}`);
   });
 
-  socket.on("channel:join", (channelId: string) => {
-    socket.join(`channel:${channelId}`);
+  // Rooms carry live messages, typing and voice signalling, so joining one needs the
+  // same access as the REST routes: membership of the channel's forge (or the DM thread).
+  socket.on("channel:join", async (channelId: string) => {
+    if (await canAccessChannel(socket.data.user.id, channelId)) socket.join(`channel:${channelId}`);
   });
 
   socket.on("channel:leave", (channelId: string) => {
     socket.leave(`channel:${channelId}`);
   });
 
-  socket.on("voice:join", (channelId: string) => {
+  socket.on("voice:join", async (channelId: string) => {
     if (typeof channelId !== "string" || !channelId) return;
+    if (!(await canAccessChannel(socket.data.user.id, channelId, { voice: true }))) return;
     // Tell the joiner who is already here so it can open peer connections (built-in WebRTC voice).
     const peers = voiceMembers(channelId).filter((userId) => userId !== socket.data.user.id);
     socket.emit("voice:peers", { channelId, userIds: peers });
@@ -378,11 +393,17 @@ io.on("connection", (socket) => {
     const channelId = payload.channelId;
     const members = voiceMembers(channelId);
     if (!members.includes(socket.data.user.id) || !members.includes(payload.to)) return;
+    // Someone kicked or banned mid-call has been pulled out of the voice room; stop relaying for them.
+    if (!socket.rooms.has(`voice:${channelId}`)) return;
     io.to(`user:${payload.to}`).emit("voice:signal", { channelId, from: socket.data.user.id, data: payload.data });
   });
 
-  socket.on("dm:join", (threadId: string) => {
-    socket.join(`dm:${threadId}`);
+  socket.on("dm:join", async (threadId: string) => {
+    if (typeof threadId !== "string" || !threadId) return;
+    const participant = await prisma.directMessageParticipant
+      .findUnique({ where: { threadId_userId: { threadId, userId: socket.data.user.id } }, select: { id: true } })
+      .catch(() => null);
+    if (participant) socket.join(`dm:${threadId}`);
   });
 
   socket.on("dm:leave", (threadId: string) => {
@@ -390,6 +411,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing:start", (channelId: string) => {
+    if (!socket.rooms.has(`channel:${channelId}`)) return;
     socket.to(`channel:${channelId}`).emit("typing:start", {
       channelId,
       userId: socket.data.user.id,
@@ -397,13 +419,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing:stop", (channelId: string) => {
+    if (!socket.rooms.has(`channel:${channelId}`)) return;
     socket.to(`channel:${channelId}`).emit("typing:stop", {
       channelId,
       userId: socket.data.user.id,
     });
   });
 
-  socket.on("dm:typing:start", (threadId: string) => {
+  socket.on("dm:typing:start", async (threadId: string) => {
+    if (!socket.rooms.has(`dm:${threadId}`)) return;
+    // The handshake only carries the user id; look the name up once per socket.
+    if (!socket.data.user.username) {
+      const me = await prisma.user.findUnique({ where: { id: socket.data.user.id }, select: { username: true } }).catch(() => null);
+      socket.data.user.username = me?.username;
+    }
     socket.to(`dm:${threadId}`).emit("dm:typing:start", {
       threadId,
       userId: socket.data.user.id,
@@ -412,6 +441,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("dm:typing:stop", (threadId: string) => {
+    if (!socket.rooms.has(`dm:${threadId}`)) return;
     socket.to(`dm:${threadId}`).emit("dm:typing:stop", {
       threadId,
       userId: socket.data.user.id,

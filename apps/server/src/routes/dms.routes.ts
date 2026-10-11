@@ -6,6 +6,7 @@ import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { messageRateLimit } from "../middleware/rate-limit.js";
 
 const createDmSchema = z.object({
   userId: z.string().uuid(),
@@ -281,14 +282,16 @@ dmsRouter.get("/threads/:threadId/messages", async (req, res) => {
         select: { id: true, username: true, avatar: true, premium: true },
       },
     },
-    orderBy: { createdAt: "asc" },
+    // The newest 200, returned oldest-first for display. (Ascending + take kept the
+    // oldest 200, so long conversations stopped showing new messages after a reload.)
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 200,
   });
 
-  res.json({ messages });
+  res.json({ messages: messages.reverse() });
 });
 
-dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
+dmsRouter.post("/threads/:threadId/messages", messageRateLimit, async (req, res) => {
   const parsed = messageSchema.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -311,6 +314,25 @@ dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
     res.status(403).json({ error: "Not a participant" });
     return;
   }
+  // A block between the two people in a 1:1 conversation stops new messages either way.
+  const others = await prisma.directMessageParticipant.findMany({ where: { threadId, NOT: { userId: req.user!.id } }, select: { userId: true } });
+  if (others.length === 1) {
+    const blocked = await prisma.friend.findFirst({
+      where: {
+        status: "BLOCKED",
+        OR: [
+          { senderId: req.user!.id, receiverId: others[0].userId },
+          { senderId: others[0].userId, receiverId: req.user!.id },
+        ],
+      },
+      select: { id: true },
+    });
+    if (blocked) {
+      res.status(403).json({ error: "You can't message this player" });
+      return;
+    }
+  }
+
 
   const message = await prisma.directMessage.create({
     data: {

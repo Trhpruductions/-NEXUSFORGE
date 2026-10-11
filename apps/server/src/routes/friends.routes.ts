@@ -35,7 +35,9 @@ friendsRouter.get("/", async (req, res) => {
     orderBy: { createdAt: "desc" },
   });
 
-  res.json({ friends: rows });
+  // Like Discord, a blocked person isn't told; the row only shows for the blocker.
+  const visible = rows.filter((row) => row.status !== "BLOCKED" || !row.blockedById || row.blockedById === req.user!.id);
+  res.json({ friends: visible });
 });
 
 friendsRouter.post("/request", async (req, res) => {
@@ -53,6 +55,12 @@ friendsRouter.post("/request", async (req, res) => {
   const receiver = await prisma.user.findUnique({ where: { id: parsed.data.receiverId } });
   if (!receiver) {
     res.status(404).json({ error: "Receiver not found" });
+    return;
+  }
+  // Settings > Privacy > "Allow friend requests".
+  const receiverPrivacy = (receiver.privacySettings ?? {}) as { allowFriendRequests?: boolean };
+  if (receiverPrivacy.allowFriendRequests === false) {
+    res.status(403).json({ error: "This player isn't accepting friend requests" });
     return;
   }
 
@@ -108,14 +116,20 @@ friendsRouter.patch("/:id", async (req, res) => {
     return;
   }
 
-  if (parsed.data.status === "ACCEPTED" && existing.receiverId !== req.user!.id) {
-    res.status(403).json({ error: "Only recipient can accept" });
+  // Only the person who blocked can lift or change a block.
+  if (existing.status === "BLOCKED" && existing.blockedById && existing.blockedById !== req.user!.id) {
+    res.status(404).json({ error: "Relationship not found" });
+    return;
+  }
+
+  if (parsed.data.status === "ACCEPTED" && (existing.receiverId !== req.user!.id || existing.status !== "PENDING")) {
+    res.status(403).json({ error: "Only the recipient can accept a pending request" });
     return;
   }
 
   const updated = await prisma.friend.update({
     where: { id: existing.id },
-    data: { status: parsed.data.status },
+    data: { status: parsed.data.status, blockedById: parsed.data.status === "BLOCKED" ? req.user!.id : null },
   });
 
   if (parsed.data.status === "ACCEPTED") {
@@ -145,6 +159,11 @@ friendsRouter.delete("/:id", async (req, res) => {
   const isParticipant = existing.receiverId === req.user!.id || existing.senderId === req.user!.id;
   if (!isParticipant) {
     res.status(403).json({ error: "Not allowed" });
+    return;
+  }
+
+  if (existing.status === "BLOCKED" && existing.blockedById && existing.blockedById !== req.user!.id) {
+    res.status(404).json({ error: "Relationship not found" });
     return;
   }
 

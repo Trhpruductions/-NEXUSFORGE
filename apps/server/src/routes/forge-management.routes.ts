@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
-import { getIo } from "../lib/realtime.js";
+import { evictUserFromForge, getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import {
@@ -22,6 +22,13 @@ import {
  * Forge management: settings, channels, roles, members, bans, leave/delete.
  * Mounted at /api/forges alongside forgesRouter; every route here is scoped to /:id/...
  */
+
+/** Removing someone from a forge also removes them from its live rooms. */
+async function evictFromRealtime(forgeId: string, userId: string) {
+  const channels = await prisma.channel.findMany({ where: { forgeId }, select: { id: true } });
+  await evictUserFromForge(forgeId, userId, channels.map((channel) => channel.id));
+}
+
 export const forgeManagementRouter = Router();
 
 forgeManagementRouter.use(requireAuth);
@@ -242,6 +249,7 @@ forgeManagementRouter.post("/:id/leave", async (req, res) => {
     where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
   });
 
+  void evictFromRealtime(context.forge.id, req.user!.id);
   emitForgeEvent(context.forge.id, "forge:members", { action: "left", userId: req.user!.id });
   res.json({ ok: true, forgeId: context.forge.id });
 });
@@ -616,6 +624,7 @@ forgeManagementRouter.delete("/:id/members/:userId", async (req, res) => {
     where: { userId_forgeId: { userId: req.params.userId, forgeId: context.forge.id } },
   });
 
+  void evictFromRealtime(context.forge.id, req.params.userId);
   emitForgeEvent(context.forge.id, "forge:members", { action: "kicked", userId: req.params.userId });
   emitUserEvent(req.params.userId, "forge:removed", { forgeId: context.forge.id, reason: "kicked", name: context.forge.name });
   void createNotification({
@@ -695,6 +704,7 @@ forgeManagementRouter.post("/:id/bans", async (req, res) => {
     });
   });
 
+  void evictFromRealtime(context.forge.id, targetId);
   emitForgeEvent(context.forge.id, "forge:members", { action: "banned", userId: targetId });
   emitForgeEvent(context.forge.id, "forge:bans", { action: "created", ban });
   if (targetAccess) {

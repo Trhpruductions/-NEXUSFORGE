@@ -195,14 +195,15 @@ messagesRouter.get("/:channelId", async (req, res) => {
           cursor: { id: cursor },
         }
       : {}),
-    orderBy: { createdAt: "desc" },
+    // id breaks ties so two messages in the same millisecond can't swap between pages.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: messageInclude,
   });
 
-  res.json({
-    messages: messages.reverse(),
-    nextCursor: messages.length === limit ? messages[messages.length - 1]?.id : null,
-  });
+  // Newest-first from the query, so the last row is the oldest: that's where the next
+  // page starts. Take it before reversing (reverse() works in place).
+  const nextCursor = messages.length === limit ? messages[messages.length - 1]?.id ?? null : null;
+  res.json({ messages: [...messages].reverse(), nextCursor });
 });
 
 messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
@@ -264,6 +265,16 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
+  // A reply must point at a message in this same channel; otherwise its preview (which
+  // echoes the original's content) would leak messages from channels you can't read.
+  if (parsed.data.replyToId) {
+    const original = await prisma.message.findUnique({ where: { id: parsed.data.replyToId }, select: { channelId: true } });
+    if (!original || original.channelId !== parsed.data.channelId) {
+      res.status(400).json({ error: "You can only reply to a message in this channel" });
+      return;
+    }
+  }
+
   const sanitizedContent = xss(parsed.data.content.trim());
   const created = await prisma.message.create({
     data: {
@@ -285,6 +296,9 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       where: {
         username: { in: mentionedUsernames },
         id: { not: req.user!.id },
+        // Only people who can see this channel get pinged; otherwise anyone could
+        // notify any user on the platform.
+        memberships: { some: { forgeId: channel.forgeId } },
       },
       select: { id: true, username: true },
     });
