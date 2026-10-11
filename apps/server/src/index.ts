@@ -13,6 +13,7 @@ import { createServer } from "node:http";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { setIo } from "./lib/realtime.js";
+import { isTimedOut, userCanViewChannel } from "./lib/channel-access.js";
 import { verifyAccessToken } from "./lib/jwt.js";
 import { globalRateLimit, authRateLimit } from "./middleware/rate-limit.js";
 import { authRouter } from "./routes/auth.routes.js";
@@ -238,16 +239,17 @@ async function forgeIdForChannel(channelId: string) {
 const LIVEKIT_CONFIGURED = Boolean(env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVEKIT_WS_URL);
 const MESH_VOICE_LIMIT = 10;
 
-/** Can this user see the channel (member of its forge)? Voice also requires a voice-type channel. */
+/**
+ * Can this user see the channel (member of its forge, and allowed in if it's private)?
+ * Voice also requires a voice-type channel and no active timeout.
+ */
 async function canAccessChannel(userId: string, channelId: unknown, options: { voice?: boolean } = {}) {
   if (typeof channelId !== "string" || !channelId) return false;
-  const channel = await prisma.channel.findUnique({ where: { id: channelId }, select: { forgeId: true, type: true } }).catch(() => null);
-  if (!channel) return false;
-  if (options.voice && channel.type !== "VOICE" && channel.type !== "STAGE") return false;
-  const membership = await prisma.forgeMember
-    .findUnique({ where: { userId_forgeId: { userId, forgeId: channel.forgeId } }, select: { id: true } })
-    .catch(() => null);
-  return Boolean(membership);
+  const view = await userCanViewChannel(userId, channelId).catch(() => null);
+  if (!view?.ok || !view.channel) return false;
+  if (options.voice && view.channel.type !== "VOICE" && view.channel.type !== "STAGE") return false;
+  if (options.voice && isTimedOut(view.member)) return false;
+  return true;
 }
 
 /** Tell the whole forge how many people are in a voice channel now. */

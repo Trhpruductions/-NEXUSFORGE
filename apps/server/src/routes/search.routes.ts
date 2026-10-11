@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { hiddenChannelIdsForUser } from "../lib/channel-access.js";
 
 const querySchema = z.object({
   q: z.string().min(1).max(120),
@@ -42,8 +43,16 @@ searchRouter.get("/messages", async (req, res) => {
     }
   }
 
+  // Private channels the searcher can't open never show up in results.
+  const hidden = await hiddenChannelIdsForUser(req.user!.id, parsed.data.forgeId);
+  if (parsed.data.channelId && hidden.includes(parsed.data.channelId)) {
+    res.json({ messages: [] });
+    return;
+  }
+
   const messages = await prisma.message.findMany({
     where: {
+      ...(hidden.length && !parsed.data.channelId ? { channelId: { notIn: hidden } } : {}),
       content: {
         contains: parsed.data.q,
         mode: "insensitive",

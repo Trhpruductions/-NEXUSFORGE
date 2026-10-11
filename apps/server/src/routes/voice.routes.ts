@@ -6,6 +6,7 @@ import { getIo } from "../lib/realtime.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { isTimedOut, userCanViewChannel } from "../lib/channel-access.js";
 
 const tokenSchema = z.object({
   channelId: z.string().uuid(),
@@ -49,17 +50,17 @@ voiceRouter.post("/token", async (req, res) => {
     return;
   }
 
-  const member = await prisma.forgeMember.findUnique({
-    where: {
-      userId_forgeId: {
-        userId: req.user!.id,
-        forgeId: channel.forgeId,
-      },
-    },
-  });
-
-  if (!member) {
+  const view = await userCanViewChannel(req.user!.id, channel.id);
+  if (!view.member) {
     res.status(403).json({ error: "Not a member of this Forge" });
+    return;
+  }
+  if (!view.ok) {
+    res.status(404).json({ error: "Channel not found" });
+    return;
+  }
+  if (isTimedOut(view.member)) {
+    res.status(403).json({ error: "You're timed out and can't join voice right now", code: "TIMED_OUT", timeoutUntil: view.member.timeoutUntil });
     return;
   }
 

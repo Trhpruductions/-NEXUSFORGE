@@ -12,6 +12,12 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { messageRateLimit } from "../middleware/rate-limit.js";
 import { recordMentions } from "./reads.routes.js";
+import { bypassesSlowmode, canViewChannel, channelAccessSelect, isTimedOut, loadMemberContext, privateChannelViewerIds, userCanViewChannel } from "../lib/channel-access.js";
+import { logForgeAction } from "../lib/forge-audit.js";
+
+function timeoutError(until: Date | null) {
+  return { error: `You're timed out until ${until?.toISOString() ?? "later"}`, code: "TIMED_OUT", timeoutUntil: until };
+}
 
 const createMessageSchema = z.object({
   channelId: z.string().uuid(),
@@ -163,27 +169,18 @@ messagesRouter.get("/:channelId", async (req, res) => {
   const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
   const limit = Math.min(Number(req.query.limit ?? 40), 100);
 
-  const channel = await prisma.channel.findUnique({
-    where: { id: channelId },
-    select: { forgeId: true },
-  });
-
-  if (!channel) {
+  const view = await userCanViewChannel(req.user!.id, channelId);
+  if (!view.channel) {
     res.status(404).json({ error: "Channel not found" });
     return;
   }
-
-  const member = await prisma.forgeMember.findUnique({
-    where: {
-      userId_forgeId: {
-        userId: req.user!.id,
-        forgeId: channel.forgeId,
-      },
-    },
-  });
-
-  if (!member) {
+  if (!view.member) {
     res.status(403).json({ error: "Not a Forge member" });
+    return;
+  }
+  // A private channel you can't see doesn't exist as far as you're concerned.
+  if (!view.ok) {
+    res.status(404).json({ error: "Channel not found" });
     return;
   }
 
@@ -217,10 +214,10 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   const channel = await prisma.channel.findUnique({
     where: { id: parsed.data.channelId },
     select: {
-      id: true,
-      forgeId: true,
+      ...channelAccessSelect,
       name: true,
       type: true,
+      slowmodeSeconds: true,
       forge: {
         select: {
           name: true,
@@ -249,9 +246,32 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     include: { roleLinks: { include: { role: true } }, forge: { select: { ownerId: true } } },
   });
 
-  if (!membership) {
+  const memberContext = await loadMemberContext(req.user!.id, channel.forgeId);
+  if (!membership || !memberContext) {
     res.status(403).json({ error: "Not a Forge member" });
     return;
+  }
+  if (!canViewChannel(memberContext, channel)) {
+    res.status(404).json({ error: "Channel not found" });
+    return;
+  }
+  if (isTimedOut(memberContext)) {
+    res.status(403).json(timeoutError(memberContext.timeoutUntil));
+    return;
+  }
+  if (channel.slowmodeSeconds > 0 && !bypassesSlowmode(memberContext)) {
+    const since = new Date(Date.now() - channel.slowmodeSeconds * 1000);
+    const recent = await prisma.message.findFirst({
+      where: { channelId: channel.id, authorId: req.user!.id, createdAt: { gt: since } },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    if (recent) {
+      const retryAfter = Math.max(1, Math.ceil((recent.createdAt.getTime() + channel.slowmodeSeconds * 1000 - Date.now()) / 1000));
+      res.setHeader("Retry-After", String(retryAfter));
+      res.status(429).json({ error: `Slowmode is on. You can send another message in ${retryAfter}s.`, code: "SLOWMODE", retryAfter });
+      return;
+    }
   }
 
   // Announcement channels are read-only for regular members.
@@ -334,8 +354,10 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   }
 
   recipients.delete(req.user!.id);
+  // In a private channel, only people who can open it get pinged.
+  const viewerIds = channel.isPrivate ? new Set(await privateChannelViewerIds(channel)) : null;
   // Bound the cost of one message in a very large forge.
-  mentionedUserIds.push(...[...recipients].slice(0, 500));
+  mentionedUserIds.push(...[...recipients].filter((id) => !viewerIds || viewerIds.has(id)).slice(0, 500));
 
   if (mentionedUserIds.length) {
     void recordMentions(parsed.data.channelId, mentionedUserIds).catch(() => undefined);
@@ -358,14 +380,20 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     message: created,
     optimisticId: parsed.data.optimisticId,
   });
-  io.to(`forge:${channel.forgeId}`).emit("channel:activity", {
+  const activity = {
     forgeId: channel.forgeId,
     channelId: parsed.data.channelId,
     messageId: created.id,
     authorId: req.user!.id,
     mentionedUserIds,
     preview: sanitizedContent.slice(0, 120),
-  });
+  };
+  // Unread badges for a private channel go only to the people who can see it.
+  if (viewerIds) {
+    for (const userId of viewerIds) io.to(`user:${userId}`).emit("channel:activity", activity);
+  } else {
+    io.to(`forge:${channel.forgeId}`).emit("channel:activity", activity);
+  }
 
   const botResponse = await resolveBotCommandResponse(
     req.user!.id,
@@ -420,30 +448,19 @@ messagesRouter.patch("/:id", async (req, res) => {
     return;
   }
 
-  const isAuthor = existing.authorId === req.user!.id;
-  const membership = await prisma.forgeMember.findUnique({
-    where: {
-      userId_forgeId: {
-        userId: req.user!.id,
-        forgeId: existing.channel.forgeId,
-      },
-    },
-    include: {
-      roleLinks: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  });
-
-  const canModerate = membership?.roleLinks.some((link) => {
-    const permissions = link.role.permissions as Record<string, boolean>;
-    return Boolean(permissions.moderateChat);
-  });
-
-  if (!isAuthor && !canModerate) {
+  // Like Discord, only the author can edit; moderators can delete but never put words in
+  // someone else's mouth.
+  if (existing.authorId !== req.user!.id) {
     res.status(403).json({ error: "You cannot edit this message" });
+    return;
+  }
+  const view = await userCanViewChannel(req.user!.id, existing.channelId);
+  if (!view.ok) {
+    res.status(403).json({ error: "You cannot edit this message" });
+    return;
+  }
+  if (isTimedOut(view.member)) {
+    res.status(403).json(timeoutError(view.member!.timeoutUntil));
     return;
   }
 
@@ -481,9 +498,13 @@ messagesRouter.get("/:channelId/pins", async (req, res) => {
     res.status(404).json({ error: "Channel not found" });
     return;
   }
-  const membership = await prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: req.user!.id, forgeId: channel.forgeId } }, select: { id: true } });
-  if (!membership) {
+  const view = await userCanViewChannel(req.user!.id, req.params.channelId);
+  if (!view.member) {
     res.status(403).json({ error: "Not a member of this forge" });
+    return;
+  }
+  if (!view.ok) {
+    res.status(404).json({ error: "Channel not found" });
     return;
   }
   const messages = await prisma.message.findMany({
@@ -501,7 +522,7 @@ messagesRouter.post("/:id/pin", async (req, res) => {
     res.status(404).json({ error: "Message not found" });
     return;
   }
-  if (!(await canPinIn(req.user!.id, existing.channel.forgeId))) {
+  if (!(await canPinIn(req.user!.id, existing.channel.forgeId)) || !(await userCanViewChannel(req.user!.id, existing.channelId)).ok) {
     res.status(403).json({ error: "Only moderators can pin messages" });
     return;
   }
@@ -511,6 +532,7 @@ messagesRouter.post("/:id/pin", async (req, res) => {
     return;
   }
   const updated = await prisma.message.update({ where: { id: existing.id }, data: { pinnedAt: new Date(), pinnedById: req.user!.id }, include: messageInclude });
+  void logForgeAction(existing.channel.forgeId, req.user!.id, "message.pin", { type: "message", id: existing.id, label: existing.content.slice(0, 80) }, { channelId: existing.channelId });
   getIo().to(`channel:${existing.channelId}`).emit("message:pinned", { message: updated, pinned: true });
   res.json({ message: updated });
 });
@@ -521,11 +543,12 @@ messagesRouter.delete("/:id/pin", async (req, res) => {
     res.status(404).json({ error: "Message not found" });
     return;
   }
-  if (!(await canPinIn(req.user!.id, existing.channel.forgeId))) {
+  if (!(await canPinIn(req.user!.id, existing.channel.forgeId)) || !(await userCanViewChannel(req.user!.id, existing.channelId)).ok) {
     res.status(403).json({ error: "Only moderators can unpin messages" });
     return;
   }
   const updated = await prisma.message.update({ where: { id: existing.id }, data: { pinnedAt: null, pinnedById: null }, include: messageInclude });
+  void logForgeAction(existing.channel.forgeId, req.user!.id, "message.unpin", { type: "message", id: existing.id, label: existing.content.slice(0, 80) }, { channelId: existing.channelId });
   getIo().to(`channel:${existing.channelId}`).emit("message:pinned", { message: updated, pinned: false });
   res.json({ message: updated });
 });
@@ -570,7 +593,7 @@ messagesRouter.delete("/:id", async (req, res) => {
       forge?.ownerId === req.user!.id,
       (membership?.roleLinks ?? []).map((link) => ({ position: link.role.position, permissions: link.role.permissions })),
     );
-    if (!membership || !hasForgePermission(actor, "moderateChat")) {
+    if (!membership || !hasForgePermission(actor, "moderateChat") || !(await userCanViewChannel(req.user!.id, existing.channelId)).ok) {
       res.status(403).json({ error: "You cannot delete this message" });
       return;
     }
@@ -595,6 +618,10 @@ messagesRouter.delete("/:id", async (req, res) => {
 
   await prisma.message.delete({ where: { id: existing.id } });
   getIo().to(`channel:${existing.channelId}`).emit("message:deleted", { messageId: existing.id });
+  if (!isAuthor) {
+    const author = existing.authorId ? await prisma.user.findUnique({ where: { id: existing.authorId }, select: { username: true } }) : null;
+    void logForgeAction(existing.channel.forgeId, req.user!.id, "message.delete", { type: "message", id: existing.id, label: author?.username ?? existing.botName ?? "unknown" }, { channelId: existing.channelId, excerpt: existing.content.slice(0, 200) });
+  }
 
   res.status(204).send();
 });
@@ -620,17 +647,13 @@ messagesRouter.post("/:id/reactions", async (req, res) => {
     return;
   }
 
-  const member = await prisma.forgeMember.findUnique({
-    where: {
-      userId_forgeId: {
-        userId: req.user!.id,
-        forgeId: message.channel.forgeId,
-      },
-    },
-  });
-
-  if (!member) {
+  const view = await userCanViewChannel(req.user!.id, message.channelId);
+  if (!view.member || !view.ok) {
     res.status(403).json({ error: "Not a Forge member" });
+    return;
+  }
+  if (isTimedOut(view.member)) {
+    res.status(403).json(timeoutError(view.member.timeoutUntil));
     return;
   }
 

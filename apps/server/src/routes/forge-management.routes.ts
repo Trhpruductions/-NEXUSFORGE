@@ -2,7 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
-import { evictUserFromForge, getIo } from "../lib/realtime.js";
+import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtime.js";
+import { logForgeAction } from "../lib/forge-audit.js";
+import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
+import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import {
@@ -12,6 +15,7 @@ import {
   hasForgePermission,
   isProtectedOwnerRole,
   maxAssignableRolePosition,
+  ownerRolePosition,
   normalizePermissions,
   resolveForgeAccess,
   type ForgePermissionKey,
@@ -55,10 +59,19 @@ const updateForgeSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
 
+/** Discord's slowmode choices, in seconds (0 = off, up to 6 hours). */
+const slowmodeSchema = z.number().int().min(0).max(21600);
+const idListSchema = z.array(z.string().uuid()).max(100);
+
 const createChannelSchema = z.object({
   name: channelNameSchema,
-  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE"]).default("TEXT"),
+  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE", "CATEGORY"]).default("TEXT"),
   topic: z.string().trim().max(240).optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  slowmodeSeconds: slowmodeSchema.optional(),
+  isPrivate: z.boolean().optional(),
+  allowedRoleIds: idListSchema.optional(),
+  allowedUserIds: idListSchema.optional(),
 });
 
 const updateChannelSchema = z
@@ -66,8 +79,31 @@ const updateChannelSchema = z
     name: channelNameSchema.optional(),
     topic: z.string().trim().max(240).nullable().optional(),
     position: z.number().int().min(0).max(500).optional(),
+    parentId: z.string().uuid().nullable().optional(),
+    slowmodeSeconds: slowmodeSchema.optional(),
+    isPrivate: z.boolean().optional(),
+    allowedRoleIds: idListSchema.optional(),
+    allowedUserIds: idListSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
+
+const timeoutSchema = z.object({
+  /** null clears the timeout. Discord caps timeouts at 28 days. */
+  minutes: z.number().int().min(1).max(40320).nullable(),
+  reason: z.string().trim().max(300).optional(),
+});
+
+const createInviteSchema = z.object({
+  /** 0 = never expires. */
+  maxAgeSeconds: z.union([z.literal(0), z.literal(1800), z.literal(3600), z.literal(21600), z.literal(43200), z.literal(86400), z.literal(604800)]).default(604800),
+  /** 0 = unlimited. */
+  maxUses: z.union([z.literal(0), z.literal(1), z.literal(5), z.literal(10), z.literal(25), z.literal(50), z.literal(100)]).default(0),
+});
+
+const transferSchema = z.object({
+  userId: z.string().uuid(),
+  confirmName: z.string().trim().min(1).max(80),
+});
 
 const permissionsSchema = z
   .object(Object.fromEntries(forgePermissionKeys.map((key) => [key, z.boolean().optional()])) as Record<ForgePermissionKey, z.ZodOptional<z.ZodBoolean>>)
@@ -177,6 +213,53 @@ async function guard(
   return context;
 }
 
+/**
+ * Checks the category / private-access fields of a channel create or update. Returns an
+ * error message, or null when everything points at things inside this forge.
+ */
+async function validateChannelLinks(
+  forgeId: string,
+  type: string,
+  data: { parentId?: string | null; allowedRoleIds?: string[]; allowedUserIds?: string[] },
+  selfId?: string,
+): Promise<string | null> {
+  if (data.parentId) {
+    if (type === "CATEGORY") return "A category can't sit inside another category";
+    if (data.parentId === selfId) return "A channel can't be its own category";
+    const parent = await prisma.channel.findFirst({ where: { id: data.parentId, forgeId }, select: { type: true } });
+    if (!parent || parent.type !== "CATEGORY") return "That category doesn't exist";
+  }
+  if (data.allowedRoleIds?.length) {
+    const count = await prisma.role.count({ where: { forgeId, id: { in: data.allowedRoleIds } } });
+    if (count !== new Set(data.allowedRoleIds).size) return "One of those roles isn't in this forge";
+  }
+  if (data.allowedUserIds?.length) {
+    const count = await prisma.forgeMember.count({ where: { forgeId, userId: { in: data.allowedUserIds } } });
+    if (count !== new Set(data.allowedUserIds).size) return "One of those people isn't a member of this forge";
+  }
+  return null;
+}
+
+/** After a private channel's access list changes, kick anyone who can no longer see it out of its rooms. */
+async function evictLostViewers(channel: { id: string; forgeId: string; isPrivate: boolean; allowedRoleIds: string[]; allowedUserIds: string[] }) {
+  if (!channel.isPrivate) return;
+  try {
+    const sockets = await getIo().in([`channel:${channel.id}`, `voice:${channel.id}`]).fetchSockets();
+    const userIds = [...new Set(sockets.map((socket) => socket.data?.user?.id as string | undefined).filter(Boolean))] as string[];
+    for (const userId of userIds) {
+      const member = await loadMemberContext(userId, channel.forgeId);
+      if (!canViewChannel(member, channel)) evictUserFromChannels(userId, [channel.id], { reason: "private" });
+    }
+  } catch {
+    // realtime not initialised (tests) - ignore
+  }
+}
+
+/** Audit-log label for a member: their username. */
+async function usernameOf(userId: string) {
+  return (await prisma.user.findUnique({ where: { id: userId }, select: { username: true } }))?.username ?? userId;
+}
+
 // ---------------------------------------------------------------------------
 // Caller access snapshot
 // ---------------------------------------------------------------------------
@@ -212,7 +295,183 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
   });
 
   emitForgeEvent(forge.id, "forge:updated", { forge });
+  void logForgeAction(forge.id, req.user!.id, "forge.update", { type: "forge", id: forge.id, label: forge.name }, { changed: Object.keys(parsed.data) });
   res.json({ forge });
+});
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.get("/:id/audit-log", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 50) || 50, 1), 100);
+  const before = typeof req.query.before === "string" && !Number.isNaN(Date.parse(req.query.before)) ? new Date(req.query.before) : undefined;
+  const action = typeof req.query.action === "string" && /^[a-z]+(\.[a-z]+)?$/.test(req.query.action) ? req.query.action : undefined;
+  const actorId = typeof req.query.actorId === "string" && /^[0-9a-f-]{36}$/i.test(req.query.actorId) ? req.query.actorId : undefined;
+
+  const entries = await prisma.forgeAuditEntry.findMany({
+    where: {
+      forgeId: context.forge.id,
+      ...(before ? { createdAt: { lt: before } } : {}),
+      ...(action ? (action.includes(".") ? { action } : { action: { startsWith: `${action}.` } }) : {}),
+      ...(actorId ? { actorId } : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+  });
+  const actorIds = [...new Set(entries.map((entry) => entry.actorId))];
+  const actors = await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, username: true, avatar: true } });
+  const actorById = new Map(actors.map((actor) => [actor.id, actor] as const));
+
+  res.json({
+    entries: entries.map((entry) => ({ ...entry, actor: actorById.get(entry.actorId) ?? { id: entry.actorId, username: "Deleted user", avatar: null } })),
+    nextBefore: entries.length === limit ? entries[entries.length - 1].createdAt.toISOString() : null,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ownership transfer
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.post("/:id/transfer", async (req, res) => {
+  const parsed = transferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res);
+  if (!context) return;
+  if (!context.access.isOwner) {
+    res.status(403).json({ error: "Only the owner can transfer ownership" });
+    return;
+  }
+  if (parsed.data.userId === req.user!.id) {
+    res.status(400).json({ error: "You already own this forge" });
+    return;
+  }
+  // Typing the forge name is the "are you sure" for something this hard to undo.
+  if (parsed.data.confirmName.toLowerCase() !== context.forge.name.trim().toLowerCase()) {
+    res.status(400).json({ error: "Type the forge's name exactly to confirm" });
+    return;
+  }
+
+  const [oldMember, newMember] = await Promise.all([
+    prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } }, include: { roleLinks: { include: { role: true } } } }),
+    prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: parsed.data.userId, forgeId: context.forge.id } }, select: { id: true, userId: true } }),
+  ]);
+  if (!oldMember || !newMember) {
+    res.status(404).json({ error: "That person isn't a member of this forge" });
+    return;
+  }
+
+  // The Owner role moves with ownership; the previous owner keeps their other roles.
+  const ownerRoleIds = oldMember.roleLinks.filter((link) => link.role.position >= ownerRolePosition).map((link) => link.roleId);
+  await prisma.$transaction([
+    prisma.forge.update({ where: { id: context.forge.id }, data: { ownerId: newMember.userId } }),
+    ...(ownerRoleIds.length
+      ? [
+          prisma.memberRole.deleteMany({ where: { forgeMemberId: oldMember.id, roleId: { in: ownerRoleIds } } }),
+          prisma.memberRole.deleteMany({ where: { forgeMemberId: newMember.id, roleId: { in: ownerRoleIds } } }),
+          prisma.memberRole.createMany({ data: ownerRoleIds.map((roleId) => ({ forgeMemberId: newMember.id, roleId })) }),
+        ]
+      : []),
+  ]);
+
+  const newOwnerName = await usernameOf(newMember.userId);
+  void logForgeAction(context.forge.id, req.user!.id, "forge.transfer", { type: "member", id: newMember.userId, label: newOwnerName });
+  emitForgeEvent(context.forge.id, "forge:updated", { forge: { id: context.forge.id, ownerId: newMember.userId } });
+  emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed" });
+  void createNotification({
+    userId: newMember.userId,
+    type: "SYSTEM",
+    title: "You own a forge now",
+    body: `${req.user!.username} made you the owner of ${context.forge.name}.`,
+    data: { forgeId: context.forge.id },
+  }).catch(() => undefined);
+  res.json({ ok: true, forgeId: context.forge.id, ownerId: newMember.userId });
+});
+
+// ---------------------------------------------------------------------------
+// Invites (extra links with an expiry and/or a use limit)
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.get("/:id/invites", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  // Managers see every invite; everyone else sees the ones they made.
+  const seeAll = hasForgePermission(context.access, "manageForge");
+  const invites = await prisma.forgeInvite.findMany({
+    where: { forgeId: context.forge.id, revokedAt: null, ...(seeAll ? {} : { creatorId: req.user!.id }) },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const live = invites.filter((invite) => inviteIsUsable(invite));
+  const creators = await prisma.user.findMany({ where: { id: { in: [...new Set(live.map((invite) => invite.creatorId))] } }, select: { id: true, username: true } });
+  const creatorById = new Map(creators.map((creator) => [creator.id, creator] as const));
+  res.json({ invites: live.map((invite) => ({ ...invite, creator: creatorById.get(invite.creatorId) ?? null })), canManageAll: seeAll });
+});
+
+forgeManagementRouter.post("/:id/invites", async (req, res) => {
+  const parsed = createInviteSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res);
+  if (!context) return;
+
+  const now = new Date();
+  const active = await prisma.forgeInvite.count({
+    where: { forgeId: context.forge.id, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+  });
+  if (active >= 100) {
+    res.status(400).json({ error: "This forge has 100 active invites. Revoke some first." });
+    return;
+  }
+
+  // Codes share a namespace with forge vanity codes, so retry on the rare collision.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = generateInviteCode();
+    const clash = await prisma.forge.findUnique({ where: { inviteCode: code }, select: { id: true } });
+    if (clash) continue;
+    try {
+      const invite = await prisma.forgeInvite.create({
+        data: {
+          code,
+          forgeId: context.forge.id,
+          creatorId: req.user!.id,
+          maxUses: parsed.data.maxUses || null,
+          expiresAt: parsed.data.maxAgeSeconds ? new Date(now.getTime() + parsed.data.maxAgeSeconds * 1000) : null,
+        },
+      });
+      void logForgeAction(context.forge.id, req.user!.id, "invite.create", { type: "invite", id: invite.id, label: invite.code }, { maxUses: invite.maxUses, expiresAt: invite.expiresAt });
+      res.status(201).json({ invite: { ...invite, creator: { id: req.user!.id, username: req.user!.username } } });
+      return;
+    } catch {
+      // unique clash on code - try another
+    }
+  }
+  res.status(500).json({ error: "Couldn't create an invite. Try again." });
+});
+
+forgeManagementRouter.delete("/:id/invites/:inviteId", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const invite = await prisma.forgeInvite.findFirst({ where: { id: req.params.inviteId, forgeId: context.forge.id, revokedAt: null } });
+  if (!invite) {
+    res.status(404).json({ error: "Invite not found" });
+    return;
+  }
+  if (invite.creatorId !== req.user!.id && !hasForgePermission(context.access, "manageForge")) {
+    res.status(403).json({ error: "You can only revoke invites you made" });
+    return;
+  }
+  await prisma.forgeInvite.update({ where: { id: invite.id }, data: { revokedAt: new Date() } });
+  void logForgeAction(context.forge.id, req.user!.id, "invite.revoke", { type: "invite", id: invite.id, label: invite.code });
+  res.json({ ok: true, inviteId: invite.id });
 });
 
 forgeManagementRouter.delete("/:id", async (req, res) => {
@@ -283,17 +542,34 @@ forgeManagementRouter.post("/:id/channels", async (req, res) => {
     ? parsed.data.name.toLowerCase().replace(/\s+/g, "-")
     : parsed.data.name;
 
+  const linkError = await validateChannelLinks(context.forge.id, parsed.data.type, parsed.data);
+  if (linkError) {
+    res.status(400).json({ error: linkError });
+    return;
+  }
+
   const channel = await prisma.channel.create({
     data: {
       forgeId: context.forge.id,
       name,
       type: parsed.data.type,
-      topic: parsed.data.topic,
+      topic: parsed.data.type === "CATEGORY" ? null : parsed.data.topic,
       position: (last?.position ?? -1) + 1,
+      parentId: parsed.data.type === "CATEGORY" ? null : parsed.data.parentId ?? null,
+      slowmodeSeconds: parsed.data.slowmodeSeconds ?? 0,
+      isPrivate: parsed.data.isPrivate ?? false,
+      allowedRoleIds: [...new Set(parsed.data.allowedRoleIds ?? [])],
+      allowedUserIds: [...new Set(parsed.data.allowedUserIds ?? [])],
     },
   });
 
-  emitForgeEvent(context.forge.id, "forge:channels", { action: "created", channel });
+  void logForgeAction(context.forge.id, req.user!.id, "channel.create", { type: "channel", id: channel.id, label: channel.name }, { type: channel.type, isPrivate: channel.isPrivate });
+  if (channel.isPrivate) {
+    // Only people who can see it hear about it.
+    for (const userId of await privateChannelViewerIds(channel)) emitUserEvent(userId, "forge:channels", { forgeId: context.forge.id, action: "created", channel });
+  } else {
+    emitForgeEvent(context.forge.id, "forge:channels", { action: "created", channel });
+  }
   res.status(201).json({ channel });
 });
 
@@ -320,16 +596,40 @@ forgeManagementRouter.patch("/:id/channels/:channelId", async (req, res) => {
       : parsed.data.name
     : undefined;
 
+  const linkError = await validateChannelLinks(context.forge.id, existing.type, parsed.data, existing.id);
+  if (linkError) {
+    res.status(400).json({ error: linkError });
+    return;
+  }
+
   const channel = await prisma.channel.update({
     where: { id: existing.id },
     data: {
       name: nextName,
       topic: parsed.data.topic,
       position: parsed.data.position,
+      parentId: existing.type === "CATEGORY" ? undefined : parsed.data.parentId,
+      slowmodeSeconds: parsed.data.slowmodeSeconds,
+      isPrivate: parsed.data.isPrivate,
+      allowedRoleIds: parsed.data.allowedRoleIds ? [...new Set(parsed.data.allowedRoleIds)] : undefined,
+      allowedUserIds: parsed.data.allowedUserIds ? [...new Set(parsed.data.allowedUserIds)] : undefined,
     },
   });
 
-  emitForgeEvent(context.forge.id, "forge:channels", { action: "updated", channel });
+  const changes: Record<string, unknown> = {};
+  for (const key of Object.keys(parsed.data) as Array<keyof typeof parsed.data>) {
+    const before = (existing as Record<string, unknown>)[key];
+    const after = (channel as Record<string, unknown>)[key];
+    if (JSON.stringify(before) !== JSON.stringify(after)) changes[key] = { from: before ?? null, to: after ?? null };
+  }
+  if (Object.keys(changes).length) {
+    void logForgeAction(context.forge.id, req.user!.id, "channel.update", { type: "channel", id: channel.id, label: channel.name }, changes);
+  }
+
+  // Everyone refetches the channel list (it's filtered per viewer); the payload itself
+  // only goes out in full when the channel is public.
+  emitForgeEvent(context.forge.id, "forge:channels", channel.isPrivate || existing.isPrivate ? { action: "refresh" } : { action: "updated", channel });
+  void evictLostViewers(channel);
   res.json({ channel });
 });
 
@@ -358,6 +658,7 @@ forgeManagementRouter.delete("/:id/channels/:channelId", async (req, res) => {
 
   await prisma.channel.delete({ where: { id: existing.id } });
 
+  void logForgeAction(context.forge.id, req.user!.id, "channel.delete", { type: "channel", id: existing.id, label: existing.name }, { type: existing.type });
   emitForgeEvent(context.forge.id, "forge:channels", { action: "deleted", channelId: existing.id });
   res.json({ ok: true, channelId: existing.id });
 });
@@ -409,6 +710,7 @@ forgeManagementRouter.post("/:id/roles", async (req, res) => {
     },
   });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.create", { type: "role", id: role.id, label: role.name }, { permissions: requested, position });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "created", role });
   res.status(201).json({ role });
 });
@@ -462,7 +764,10 @@ forgeManagementRouter.patch("/:id/roles/:roleId", async (req, res) => {
     },
   });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.update", { type: "role", id: role.id, label: role.name }, { changed: Object.keys(parsed.data), permissions: nextPermissions });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "updated", role });
+  // Role changes can open or close private channels; let clients refetch their list.
+  emitForgeEvent(context.forge.id, "forge:channels", { action: "refresh" });
   res.json({ role });
 });
 
@@ -486,7 +791,9 @@ forgeManagementRouter.delete("/:id/roles/:roleId", async (req, res) => {
 
   await prisma.role.delete({ where: { id: existing.id } });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.delete", { type: "role", id: existing.id, label: existing.name });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "deleted", roleId: existing.id });
+  emitForgeEvent(context.forge.id, "forge:channels", { action: "refresh" });
   emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed" });
   res.json({ ok: true, roleId: existing.id });
 });
@@ -572,6 +879,18 @@ forgeManagementRouter.put("/:id/members/:userId/roles", async (req, res) => {
       : []),
   ]);
 
+  if (toAdd.length || toRemove.length) {
+    const names = (ids: string[]) => ids.map((id) => roleById.get(id)?.name ?? id);
+    void logForgeAction(context.forge.id, req.user!.id, "member.roles", { type: "member", id: target.userId, label: await usernameOf(target.userId) }, { added: names(toAdd), removed: names(toRemove) });
+    emitUserEvent(target.userId, "forge:channels", { forgeId: context.forge.id, action: "refresh" });
+    if (toRemove.length) {
+      // Losing a role can close private channels they're sitting in.
+      const privateChannels = await prisma.channel.findMany({ where: { forgeId: context.forge.id, isPrivate: true }, select: { id: true, forgeId: true, isPrivate: true, allowedRoleIds: true, allowedUserIds: true } });
+      const member = await loadMemberContext(target.userId, context.forge.id);
+      const lost = privateChannels.filter((channel) => !canViewChannel(member, channel)).map((channel) => channel.id);
+      evictUserFromChannels(target.userId, lost, { reason: "private" });
+    }
+  }
   emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed", userId: target.userId });
   res.json({ userId: target.userId, roleIds: [...finalIds] });
 });
@@ -608,8 +927,66 @@ forgeManagementRouter.patch("/:id/members/:userId", async (req, res) => {
     select: { id: true, userId: true, nickname: true },
   });
 
+  if (!isSelf) {
+    void logForgeAction(context.forge.id, req.user!.id, "member.nickname", { type: "member", id: member.userId, label: await usernameOf(member.userId) }, { nickname: member.nickname });
+  }
   emitForgeEvent(context.forge.id, "forge:members", { action: "updated", userId: member.userId });
   res.json({ member });
+});
+
+// ---------------------------------------------------------------------------
+// Timeouts: a timed-out member can read but can't send, react or join voice.
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.put("/:id/members/:userId/timeout", async (req, res) => {
+  const parsed = timeoutSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "moderateChat");
+  if (!context) return;
+  if (req.params.userId === req.user!.id) {
+    res.status(400).json({ error: "You can't time yourself out" });
+    return;
+  }
+  const targetAccess = await loadTargetAccess(context.forge.id, context.forge.ownerId, req.params.userId);
+  if (!targetAccess) {
+    res.status(404).json({ error: "Member not found" });
+    return;
+  }
+  if (!canModerateMember(context.access, targetAccess)) {
+    res.status(403).json({ error: "You can't time out someone who outranks you" });
+    return;
+  }
+
+  const timeoutUntil = parsed.data.minutes ? new Date(Date.now() + parsed.data.minutes * 60_000) : null;
+  await prisma.forgeMember.update({
+    where: { userId_forgeId: { userId: req.params.userId, forgeId: context.forge.id } },
+    data: { timeoutUntil },
+  });
+
+  const label = await usernameOf(req.params.userId);
+  void logForgeAction(
+    context.forge.id,
+    req.user!.id,
+    timeoutUntil ? "member.timeout" : "member.untimeout",
+    { type: "member", id: req.params.userId, label },
+    timeoutUntil ? { minutes: parsed.data.minutes, until: timeoutUntil.toISOString(), reason: parsed.data.reason ?? null } : undefined,
+  );
+  emitForgeEvent(context.forge.id, "forge:members", { action: "timeout", userId: req.params.userId, timeoutUntil });
+  if (timeoutUntil) {
+    const voiceChannels = await prisma.channel.findMany({ where: { forgeId: context.forge.id, type: { in: ["VOICE", "STAGE"] } }, select: { id: true } });
+    evictUserFromChannels(req.params.userId, voiceChannels.map((channel) => channel.id), { voiceOnly: true, reason: "timeout" });
+    void createNotification({
+      userId: req.params.userId,
+      type: "SYSTEM",
+      title: "You were timed out",
+      body: `You can't chat or talk in ${context.forge.name} until ${timeoutUntil.toUTCString()}.${parsed.data.reason ? ` Reason: ${parsed.data.reason}` : ""}`,
+      data: { forgeId: context.forge.id, reason: "timeout", timeoutUntil: timeoutUntil.toISOString() },
+    }).catch(() => undefined);
+  }
+  res.json({ userId: req.params.userId, timeoutUntil });
 });
 
 forgeManagementRouter.delete("/:id/members/:userId", async (req, res) => {
@@ -636,6 +1013,7 @@ forgeManagementRouter.delete("/:id/members/:userId", async (req, res) => {
   });
 
   void evictFromRealtime(context.forge.id, req.params.userId);
+  void usernameOf(req.params.userId).then((label) => logForgeAction(context.forge.id, req.user!.id, "member.kick", { type: "member", id: req.params.userId, label }));
   emitForgeEvent(context.forge.id, "forge:members", { action: "kicked", userId: req.params.userId });
   emitUserEvent(req.params.userId, "forge:removed", { forgeId: context.forge.id, reason: "kicked", name: context.forge.name });
   void createNotification({
@@ -716,6 +1094,7 @@ forgeManagementRouter.post("/:id/bans", async (req, res) => {
   });
 
   void evictFromRealtime(context.forge.id, targetId);
+  void logForgeAction(context.forge.id, req.user!.id, "ban.create", { type: "member", id: targetId, label: targetUser.username }, { reason: parsed.data.reason ?? null });
   emitForgeEvent(context.forge.id, "forge:members", { action: "banned", userId: targetId });
   emitForgeEvent(context.forge.id, "forge:bans", { action: "created", ban });
   if (targetAccess) {
@@ -749,6 +1128,7 @@ forgeManagementRouter.delete("/:id/bans/:userId", async (req, res) => {
 
   await prisma.forgeBan.delete({ where: { id: existing.id } });
 
+  void usernameOf(req.params.userId).then((label) => logForgeAction(context.forge.id, req.user!.id, "ban.delete", { type: "member", id: req.params.userId, label }));
   emitForgeEvent(context.forge.id, "forge:bans", { action: "deleted", userId: req.params.userId });
   res.json({ ok: true, userId: req.params.userId });
 });

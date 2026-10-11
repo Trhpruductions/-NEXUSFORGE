@@ -23,6 +23,8 @@ enum ChannelType {
   VOICE
   ANNOUNCEMENT
   STAGE
+  /// A heading that groups channels in the sidebar; holds no messages.
+  CATEGORY
 }
 
 enum MessageType {
@@ -462,6 +464,39 @@ model SupportMessage {
   @@index([ticketId, createdAt])
 }
 
+/// Extra invite links with optional expiry and use limits. The forge's own inviteCode
+/// stays as the permanent default link.
+model ForgeInvite {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  forgeId   String
+  creatorId String
+  maxUses   Int?
+  uses      Int       @default(0)
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  forge     Forge     @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+
+  @@index([forgeId, createdAt])
+}
+
+/// Who did what in a forge (moderation and settings changes), for its owner and admins.
+model ForgeAuditEntry {
+  id          String   @id @default(uuid())
+  forgeId     String
+  actorId     String
+  action      String
+  targetType  String?
+  targetId    String?
+  targetLabel String?
+  details     Json?
+  createdAt   DateTime @default(now())
+  forge       Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+
+  @@index([forgeId, createdAt])
+}
+
 model ApiKey {
   id         String   @id @default(uuid())
   userId     String
@@ -569,6 +604,8 @@ model Forge {
   botCommands BotCommand[]
   inviteSources InviteSourceStat[]
   bans        ForgeBan[]
+  invites     ForgeInvite[]
+  auditLog    ForgeAuditEntry[]
   events      Event[]
   isPublic    Boolean         @default(true)
   category    String          @default("gaming")
@@ -671,6 +708,8 @@ model ForgeMember {
   forgeId   String
   nickname  String?
   joinedAt  DateTime @default(now())
+  /// Timed out until this moment: can read, but not send, react or join voice.
+  timeoutUntil DateTime?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   forge     Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   roleLinks MemberRole[]
@@ -686,6 +725,17 @@ model Channel {
   type                ChannelType           @default(TEXT)
   position            Int                   @default(0)
   permissionOverrides Json?
+  /// Category this channel sits under (a CATEGORY channel in the same forge).
+  parentId            String?
+  parent              Channel?              @relation("ChannelCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children            Channel[]             @relation("ChannelCategory")
+  /// Seconds a member must wait between messages here. 0 = off. Moderators are exempt.
+  slowmodeSeconds     Int                   @default(0)
+  /// Private channels are visible only to the owner, members who can manage channels,
+  /// and the roles/members listed here.
+  isPrivate           Boolean               @default(false)
+  allowedRoleIds      String[]              @default([])
+  allowedUserIds      String[]              @default([])
   forge               Forge                 @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   messages            Message[]
   threads             Thread[]

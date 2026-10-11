@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { hiddenChannelIdsForUser, userCanViewChannel } from "../lib/channel-access.js";
 
 /**
  * Unread tracking. A ChannelReadState row per (user, channel) stores the last read time and a
@@ -15,8 +16,9 @@ readsRouter.use(requireCsrf);
 type ChannelUnread = { channelId: string; unread: number; mentions: number; lastReadAt: string | null };
 
 async function computeForgeUnreads(userId: string, forgeId: string): Promise<ChannelUnread[]> {
+  const hidden = await hiddenChannelIdsForUser(userId, forgeId);
   const channels = await prisma.channel.findMany({
-    where: { forgeId, type: { in: ["TEXT", "ANNOUNCEMENT"] } },
+    where: { forgeId, type: { in: ["TEXT", "ANNOUNCEMENT"] }, id: { notIn: hidden } },
     select: { id: true },
   });
   if (!channels.length) return [];
@@ -95,12 +97,13 @@ readsRouter.post("/channel/:channelId", async (req, res) => {
     return;
   }
 
-  const membership = await prisma.forgeMember.findUnique({
-    where: { userId_forgeId: { userId: req.user!.id, forgeId: channel.forgeId } },
-    select: { id: true },
-  });
-  if (!membership) {
+  const view = await userCanViewChannel(req.user!.id, channel.id);
+  if (!view.member) {
     res.status(403).json({ error: "Not a Forge member" });
+    return;
+  }
+  if (!view.ok) {
+    res.status(404).json({ error: "Channel not found" });
     return;
   }
 
