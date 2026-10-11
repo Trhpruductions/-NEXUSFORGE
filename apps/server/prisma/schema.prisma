@@ -287,6 +287,7 @@ model User {
   jackpotWins        JackpotRound[] @relation("JackpotWinner")
   supportTickets     SupportTicket[]
   supportMessages    SupportMessage[]
+  postComments       PostComment[]
 }
 
 model EconomyAccount {
@@ -938,9 +939,22 @@ model Post {
   updatedAt DateTime   @updatedAt
   author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes     PostLike[]
+  comments  PostComment[]
 
   @@index([authorId, createdAt])
   @@index([kind, createdAt])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
 }
 
 model PostLike {

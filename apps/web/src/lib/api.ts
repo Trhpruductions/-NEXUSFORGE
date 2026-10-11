@@ -2336,7 +2336,7 @@ export type Post = {
   createdAt: string;
   liked: boolean;
   author: { id: string; username: string; displayName?: string | null; avatar?: string | null; isStaff: boolean; isPartner: boolean; isCreator: boolean };
-  _count: { likes: number };
+  _count: { likes: number; comments?: number };
 };
 
 export async function listPosts(
@@ -2355,6 +2355,29 @@ export async function createPost(accessToken: string, csrfToken: string, payload
 
 export async function deletePost(accessToken: string, csrfToken: string, postId: string) {
   await api.delete(`/api/social/posts/${postId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type PostComment = {
+  id: string;
+  postId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  author: { id: string; username: string; displayName?: string | null; avatar?: string | null; isStaff: boolean };
+};
+
+export async function listPostComments(accessToken: string, postId: string) {
+  const response = await api.get<{ comments: PostComment[] }>(`/api/social/posts/${postId}/comments`, { headers: authHeaders(accessToken) });
+  return response.data.comments;
+}
+
+export async function addPostComment(accessToken: string, csrfToken: string, postId: string, content: string) {
+  const response = await api.post<{ comment: PostComment }>(`/api/social/posts/${postId}/comments`, { content }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.comment;
+}
+
+export async function deletePostComment(accessToken: string, csrfToken: string, commentId: string) {
+  await api.delete(`/api/social/comments/${commentId}`, { headers: authHeaders(accessToken, csrfToken) });
 }
 
 export async function togglePostLike(accessToken: string, csrfToken: string, postId: string) {

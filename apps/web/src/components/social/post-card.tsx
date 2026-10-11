@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Heart, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Trash2 } from "lucide-react";
 import type { Post } from "@/lib/api";
 import { ClipEmbed } from "@/components/media/clip-embed";
+import { PostComments } from "./post-comments";
+import { plainText } from "@/lib/plain-text";
 
 function timeAgo(iso: string) {
   const seconds = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -34,6 +37,11 @@ type PostCardProps = {
 
 /** One post or clip, as shown on profiles and in the community feed. */
 export function PostCard({ post, selfId, onLike, onDelete, linkAuthor = false, className = "" }: PostCardProps) {
+  const [showComments, setShowComments] = useState(false);
+  const [commentDelta, setCommentDelta] = useState(0);
+  // Local +/- from this card's thread; dropped once a refetch brings the server's count.
+  useEffect(() => setCommentDelta(0), [post._count.comments]);
+  const commentCount = (post._count.comments ?? 0) + commentDelta;
   const name = post.author.displayName || post.author.username;
   const avatar = post.author.avatar ? (
     // eslint-disable-next-line @next/next/no-img-element
@@ -60,7 +68,7 @@ export function PostCard({ post, selfId, onLike, onDelete, linkAuthor = false, c
             {post.author.isCreator ? <span className="rounded border border-amber-400/40 px-1.5 text-[9px] uppercase tracking-[0.12em] text-amber-200">Creator</span> : null}
             {post.kind === "CLIP" ? <span className="rounded border border-white/10 px-1.5 text-[9px] uppercase tracking-[0.12em] text-amber-200">Clip</span> : null}
           </p>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{post.content}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{plainText(post.content)}</p>
           {post.mediaUrl ? (
             post.kind === "CLIP" ? (
               <ClipEmbed url={post.mediaUrl} className="mt-2 max-w-2xl" />
@@ -80,10 +88,20 @@ export function PostCard({ post, selfId, onLike, onDelete, linkAuthor = false, c
             >
               <Heart className={`h-3.5 w-3.5 ${post.liked ? "fill-current" : ""}`} /> {post._count.likes}
             </button>
+            <button
+              type="button"
+              onClick={() => setShowComments((open) => !open)}
+              aria-expanded={showComments}
+              aria-label={`${commentCount} comment${commentCount === 1 ? "" : "s"}`}
+              className={`inline-flex items-center gap-1 transition hover:text-amber-200 ${showComments ? "text-amber-200" : ""}`}
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> {commentCount}
+            </button>
             {onDelete && post.authorId === selfId ? (
               <button type="button" onClick={() => onDelete(post.id)} className="ml-auto inline-flex items-center gap-1 text-slate-500 hover:text-rose-300"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
             ) : null}
           </div>
+          {showComments ? <PostComments postId={post.id} postAuthorId={post.authorId} onCountChange={(delta) => setCommentDelta((value) => value + delta)} /> : null}
         </div>
       </div>
     </article>

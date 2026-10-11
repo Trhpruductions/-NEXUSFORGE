@@ -7,6 +7,7 @@ import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { messageRateLimit } from "../middleware/rate-limit.js";
 
 /** Follows, posts/clips, and the public profile summary used by the Profile page. */
 export const socialRouter = Router();
@@ -23,7 +24,7 @@ const createPostSchema = z.object({
 
 const postInclude = {
   author: { select: { id: true, username: true, displayName: true, avatar: true, isStaff: true, isPartner: true, isCreator: true } },
-  _count: { select: { likes: true } },
+  _count: { select: { likes: true, comments: true } },
 } as const;
 
 async function attachLiked<T extends { id: string }>(posts: T[], userId: string) {
@@ -283,6 +284,75 @@ socialRouter.post("/posts/:id/like", async (req, res) => {
   }
   const count = await prisma.postLike.count({ where: { postId: post.id } });
   res.json({ liked: !existing, likes: count });
+});
+
+// ---------------------------------------------------------------------------
+// Comments on posts
+// ---------------------------------------------------------------------------
+
+const commentAuthorSelect = { id: true, username: true, displayName: true, avatar: true, isStaff: true } as const;
+const commentSchema = z.object({ content: z.string().trim().min(1).max(1000) });
+
+function canModerate(role: string | undefined) {
+  return role === "ADMIN" || role === "OWNER" || role === "EXEC";
+}
+
+socialRouter.get("/posts/:id/comments", async (req, res) => {
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const comments = await prisma.postComment.findMany({
+    where: { postId: post.id },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+    include: { author: { select: commentAuthorSelect } },
+  });
+  res.json({ comments });
+});
+
+socialRouter.post("/posts/:id/comments", messageRateLimit, async (req, res) => {
+  const parsed = commentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Write a comment (up to 1,000 characters)." });
+    return;
+  }
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true, authorId: true, content: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const comment = await prisma.postComment.create({
+    data: { postId: post.id, authorId: req.user!.id, content: xss(parsed.data.content) },
+    include: { author: { select: commentAuthorSelect } },
+  });
+  if (post.authorId !== req.user!.id) {
+    void createNotification({
+      userId: post.authorId,
+      type: "SYSTEM",
+      title: `@${comment.author.username} commented on your post`,
+      body: comment.content.slice(0, 140),
+      data: { kind: "post-comment", postId: post.id, commentId: comment.id },
+    }).catch(() => undefined);
+  }
+  res.status(201).json({ comment });
+});
+
+/** The commenter, the post's author, or staff can remove a comment. */
+socialRouter.delete("/comments/:id", async (req, res) => {
+  const comment = await prisma.postComment.findUnique({ where: { id: req.params.id }, select: { id: true, authorId: true, post: { select: { authorId: true } } } });
+  if (!comment) {
+    res.status(404).json({ error: "Comment not found" });
+    return;
+  }
+  const allowed = comment.authorId === req.user!.id || comment.post.authorId === req.user!.id || canModerate(req.user!.appRole);
+  if (!allowed) {
+    res.status(403).json({ error: "You can't delete this comment" });
+    return;
+  }
+  await prisma.postComment.delete({ where: { id: comment.id } });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
