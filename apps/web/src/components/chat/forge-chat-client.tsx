@@ -68,6 +68,7 @@ import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { MessageList } from "@/components/chat/message-list";
 import { MemberList } from "@/components/chat/member-list";
+import { plainText } from "@/lib/plain-text";
 
 const inviteSourcePresets = ["direct", "social", "stream", "partner", "campaign"] as const;
 
@@ -3206,7 +3207,7 @@ export function ForgeChatClient() {
               <div className="mb-2 flex items-center gap-2 rounded-[14px] border border-amber-500/30 bg-amber-950/25 px-3 py-1.5 text-xs text-amber-100">
                 <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-amber-300">Replying to</span>
                 <span className="shrink-0 font-semibold">{replyTarget.botName ?? replyTarget.author?.username ?? "message"}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-300">{replyTarget.content}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-300">{plainText(replyTarget.content)}</span>
                 <button type="button" onClick={() => setReplyTarget(null)} className="shrink-0 rounded-full border border-slate-700/70 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-300 hover:border-amber-500/50">
                   Cancel
                 </button>
@@ -3398,7 +3399,7 @@ export function ForgeChatClient() {
             {dmMessagesQuery.data?.messages.map((message) => (
               <div key={message.id} className="rounded-[14px] border border-slate-700/70 bg-[#0d1119] px-2 py-1 text-xs text-slate-300">
                 <span className="mr-1 text-amber-300">{message.author.username}:</span>
-                {message.content}
+                {plainText(message.content)}
               </div>
             ))}
             {!dmMessagesQuery.data?.messages.length ? <p className="text-xs text-slate-500">Select a DM thread.</p> : null}

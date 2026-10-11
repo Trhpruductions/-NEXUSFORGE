@@ -5,6 +5,7 @@ import { Check, CornerUpLeft, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X
 import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
+import { plainText } from "@/lib/plain-text";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
 
@@ -97,7 +98,7 @@ export function MessageList({
 
   const startEdit = (message: Message) => {
     setEditingId(message.id);
-    setEditDraft(message.content);
+    setEditDraft(plainText(message.content));
     setPickerFor(null);
     setConfirmDeleteId(null);
   };
@@ -167,7 +168,7 @@ export function MessageList({
                   <span className="shrink-0 font-semibold text-slate-300">
                     {message.replyTo.botName ?? message.replyTo.author?.username ?? "someone"}
                   </span>
-                  <span className="truncate">{message.replyTo.content}</span>
+                  <span className="truncate">{plainText(message.replyTo.content)}</span>
                 </div>
               ) : null}
 
@@ -232,7 +233,7 @@ export function MessageList({
                       </div>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{message.content}</p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{plainText(message.content)}</p>
                   )}
 
                   {message.attachments?.length ? (

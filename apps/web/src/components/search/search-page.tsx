@@ -8,6 +8,7 @@ import { Hash, Loader2, MessageSquare, Search, Users } from "lucide-react";
 import { searchForges, searchMessages, searchUsers } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { plainText } from "@/lib/plain-text";
 
 const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
 const sectionTitle = "nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white";
@@ -114,7 +115,7 @@ function SearchInner() {
                           <span className="inline-flex items-center gap-0.5 text-amber-300"><Hash className="h-3 w-3" />{message.channel.name}</span>
                           <span>{new Date(message.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                         </p>
-                        <p className="mt-1 line-clamp-2 text-sm text-slate-200">{highlight(message.content, term)}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-200">{highlight(plainText(message.content), term)}</p>
                       </Link>
                     </li>
                   ))}

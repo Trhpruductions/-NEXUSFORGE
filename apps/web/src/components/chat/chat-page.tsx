@@ -41,6 +41,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
+import { plainText } from "@/lib/plain-text";
 
 
 const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-amber-200";
@@ -664,7 +665,7 @@ function ChatInner() {
                         )}
                         <div className="min-w-0">
                           <p className="flex items-baseline gap-2 text-xs text-slate-400"><span className="text-sm font-semibold text-white">{msg.author.username}</span>{formatTime(msg.createdAt)}</p>
-                          <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{msg.content}</p>
+                          <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{plainText(msg.content)}</p>
                         </div>
                       </div>
                     ))}
@@ -727,7 +728,7 @@ function ChatInner() {
                           pinsQuery.data.messages.map((pinned) => (
                             <div key={pinned.id} className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
                               <p className="text-[11px] text-slate-400"><span className="font-semibold text-slate-200">{pinned.botName ?? pinned.author?.username ?? "Unknown"}</span> · {new Date(pinned.createdAt).toLocaleDateString()}</p>
-                              <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-sm text-slate-100">{pinned.content}</p>
+                              <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-sm text-slate-100">{plainText(pinned.content)}</p>
                               {canModerate ? <button type="button" onClick={() => pinMutation.mutate({ messageId: pinned.id, pinned: false })} className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500 hover:text-rose-300">Unpin</button> : null}
                             </div>
                           ))
@@ -756,7 +757,7 @@ function ChatInner() {
                   <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-1.5 text-xs text-amber-100">
                     <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-amber-300">Replying to</span>
                     <span className="shrink-0 font-semibold">{replyTarget.botName ?? replyTarget.author?.username ?? "message"}</span>
-                    <span className="min-w-0 flex-1 truncate text-slate-300">{replyTarget.content}</span>
+                    <span className="min-w-0 flex-1 truncate text-slate-300">{plainText(replyTarget.content)}</span>
                     <button type="button" onClick={() => setReplyTarget(null)} className="text-slate-400 hover:text-white" title="Cancel reply"><X className="h-3.5 w-3.5" /></button>
                   </div>
                 ) : null}

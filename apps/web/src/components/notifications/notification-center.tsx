@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { listNotifications, markNotificationsRead } from "@/lib/notifications-api";
 import { Bell, ShieldAlert, Zap, Filter, CheckCircle2 } from "lucide-react";
+import { plainText } from "@/lib/plain-text";
 
 type NotificationFilter = "all" | "unread" | "activity";
 
@@ -96,7 +97,7 @@ export function NotificationCenter() {
                   <div className="flex-1 space-y-1">
                      <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-500">{note.type || 'System log'}</span>
                      <h3 className="text-lg font-semibold tracking-tight text-white">{note.title}</h3>
-                     <p className="text-[11px] font-medium tracking-wide leading-relaxed text-slate-500">{note.body}</p>
+                     <p className="text-[11px] font-medium tracking-wide leading-relaxed text-slate-500">{plainText(note.body)}</p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-2">
                      <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">{new Date(note.createdAt).toLocaleTimeString()}</span>

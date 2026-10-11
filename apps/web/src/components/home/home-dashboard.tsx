@@ -8,6 +8,7 @@ import { Calendar, Hash, Heart, Link2, MessageCircle, Mic2, Radio, ShoppingBag, 
 import { getHomeSummary } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { plainText } from "@/lib/plain-text";
 
 function initials(name: string) {
   return (
@@ -194,7 +195,7 @@ export function HomeDashboard() {
                       <span>{timeAgo(item.createdAt)}</span>
                     </p>
                     <p className="truncate text-sm text-slate-200">
-                      {item.content} <Link href={`/app/chat?forge=${selectedForgeId}&channel=${item.channel.id}`} className="text-amber-300">#{item.channel.name}</Link>
+                      {plainText(item.content)} <Link href={`/app/chat?forge=${selectedForgeId}&channel=${item.channel.id}`} className="text-amber-300">#{item.channel.name}</Link>
                     </p>
                     <p className="mt-1 flex items-center gap-3 text-[11px] text-slate-500">
                       <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" /> {item.reactions}</span>
