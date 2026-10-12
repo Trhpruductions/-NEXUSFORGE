@@ -29,6 +29,9 @@ const createMessageSchema = z.object({
   optimisticId: z.string().optional(),
   /** Post into a thread of this channel instead of the channel itself. */
   threadId: z.string().uuid().optional(),
+  /** Forum channels: a new post needs a title (and may pick tags). */
+  forumTitle: z.string().trim().min(1).max(100).optional(),
+  forumTags: z.array(z.string().trim().min(1).max(20)).max(5).optional(),
 });
 
 const editMessageSchema = z.object({
@@ -224,6 +227,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       name: true,
       type: true,
       slowmodeSeconds: true,
+      forumTags: true,
       forge: {
         select: {
           name: true,
@@ -237,8 +241,19 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     return;
   }
 
-  if (channel.type !== "TEXT" && channel.type !== "ANNOUNCEMENT") {
+  if (channel.type === "FORUM") {
+    // A forum has no flat chat: either a reply inside a post, or a new titled post.
+    if (!parsed.data.threadId && !parsed.data.forumTitle) {
+      res.status(400).json({ error: "Give your post a title", code: "FORUM_TITLE" });
+      return;
+    }
+  } else if (channel.type !== "TEXT" && channel.type !== "ANNOUNCEMENT") {
     res.status(400).json({ error: "Messages are only allowed in text-based channels" });
+    return;
+  }
+  const forumTags = channel.type === "FORUM" && parsed.data.forumTags ? [...new Set(parsed.data.forumTags)] : [];
+  if (forumTags.some((tag) => !channel.forumTags.includes(tag))) {
+    res.status(400).json({ error: "Pick tags from this forum's list" });
     return;
   }
 
@@ -280,7 +295,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
-  const automod = await runAutoMod({ forgeId: channel.forgeId, channelId: channel.id, content: parsed.data.content, member: memberContext, username: req.user!.username });
+  const automod = await runAutoMod({ forgeId: channel.forgeId, channelId: channel.id, content: parsed.data.forumTitle ? `${parsed.data.forumTitle}\n${parsed.data.content}` : parsed.data.content, member: memberContext, username: req.user!.username });
   if (automod.blocked) {
     res.status(400).json({ error: automod.message, code: "AUTOMOD", rule: automod.ruleName });
     return;
@@ -329,6 +344,16 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     },
     include: messageInclude,
   });
+
+  // A new forum post: the message is the post body, and a thread holds its replies.
+  if (channel.type === "FORUM" && !thread && parsed.data.forumTitle) {
+    const post = await prisma.thread.create({
+      data: { channelId: channel.id, title: xss(parsed.data.forumTitle), starterPostId: created.id, creatorId: req.user!.id, tags: forumTags, lastMessageAt: created.createdAt },
+      select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true, creatorId: true, tags: true },
+    });
+    (created as { startedThread?: unknown }).startedThread = post;
+    getIo().to(`channel:${channel.id}`).emit("thread:updated", { channelId: channel.id, messageId: created.id, thread: post });
+  }
 
   if (thread) {
     // Like Discord, a new reply brings an archived thread back.

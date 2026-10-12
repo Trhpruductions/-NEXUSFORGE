@@ -68,7 +68,8 @@ const idListSchema = z.array(z.string().uuid()).max(100);
 
 const createChannelSchema = z.object({
   name: channelNameSchema,
-  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE", "CATEGORY"]).default("TEXT"),
+  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE", "CATEGORY", "FORUM"]).default("TEXT"),
+  forumTags: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   topic: z.string().trim().max(240).optional(),
   parentId: z.string().uuid().nullable().optional(),
   slowmodeSeconds: slowmodeSchema.optional(),
@@ -87,6 +88,7 @@ const updateChannelSchema = z
     isPrivate: z.boolean().optional(),
     allowedRoleIds: idListSchema.optional(),
     allowedUserIds: idListSchema.optional(),
+    forumTags: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
 
@@ -886,7 +888,7 @@ forgeManagementRouter.post("/:id/channels", async (req, res) => {
     select: { position: true },
   });
 
-  const name = parsed.data.type === "TEXT" || parsed.data.type === "ANNOUNCEMENT"
+  const name = parsed.data.type === "TEXT" || parsed.data.type === "ANNOUNCEMENT" || parsed.data.type === "FORUM"
     ? parsed.data.name.toLowerCase().replace(/\s+/g, "-")
     : parsed.data.name;
 
@@ -908,6 +910,7 @@ forgeManagementRouter.post("/:id/channels", async (req, res) => {
       isPrivate: parsed.data.isPrivate ?? false,
       allowedRoleIds: [...new Set(parsed.data.allowedRoleIds ?? [])],
       allowedUserIds: [...new Set(parsed.data.allowedUserIds ?? [])],
+      forumTags: parsed.data.type === "FORUM" ? [...new Set(parsed.data.forumTags ?? [])] : [],
     },
   });
 
@@ -939,7 +942,7 @@ forgeManagementRouter.patch("/:id/channels/:channelId", async (req, res) => {
   }
 
   const nextName = parsed.data.name
-    ? existing.type === "TEXT" || existing.type === "ANNOUNCEMENT"
+    ? existing.type === "TEXT" || existing.type === "ANNOUNCEMENT" || existing.type === "FORUM"
       ? parsed.data.name.toLowerCase().replace(/\s+/g, "-")
       : parsed.data.name
     : undefined;
@@ -961,6 +964,7 @@ forgeManagementRouter.patch("/:id/channels/:channelId", async (req, res) => {
       isPrivate: parsed.data.isPrivate,
       allowedRoleIds: parsed.data.allowedRoleIds ? [...new Set(parsed.data.allowedRoleIds)] : undefined,
       allowedUserIds: parsed.data.allowedUserIds ? [...new Set(parsed.data.allowedUserIds)] : undefined,
+      forumTags: existing.type === "FORUM" && parsed.data.forumTags ? [...new Set(parsed.data.forumTags)] : undefined,
     },
   });
 

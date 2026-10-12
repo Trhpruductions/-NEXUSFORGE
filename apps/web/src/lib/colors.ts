@@ -78,4 +78,5 @@ export const channelHue: Record<string, HueName> = {
   VOICE: "emerald",
   STAGE: "pink",
   CATEGORY: "violet",
+  FORUM: "violet",
 };

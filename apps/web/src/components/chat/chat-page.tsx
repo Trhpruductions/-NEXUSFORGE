@@ -48,6 +48,7 @@ import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { ThreadPanel } from "@/components/chat/thread-panel";
+import { ForumView } from "@/components/chat/forum-view";
 import { createThread, listForgeEmojis, listThreads } from "@/lib/api";
 import { CustomEmoji } from "@/components/chat/rich-text";
 import { plainText } from "@/lib/plain-text";
@@ -122,7 +123,7 @@ function ChatInner() {
     enabled: Boolean(accessToken && selectedForgeId),
   });
   const forge = forgeQuery.data?.forge;
-  const textChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT"), [forge]);
+  const textChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT" || channel.type === "FORUM"), [forge]);
   const voiceChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "VOICE" || channel.type === "STAGE"), [forge]);
 
   const accessQuery = useQuery({
@@ -927,6 +928,8 @@ function ChatInner() {
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {messagesQuery.isLoading ? (
                 <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading messages...</p>
+              ) : channel?.type === "FORUM" ? (
+                <ForumView channel={channel} emojis={emojiMap} onOpenPost={(threadId) => setOpenThreadId(threadId)} />
               ) : channel ? (
                 <>
                   {!messagesQuery.data?.nextCursor && !search ? (
@@ -989,7 +992,7 @@ function ChatInner() {
               )}
             </div>
 
-            {channel ? (
+            {channel && channel.type !== "FORUM" ? (
               <div className="shrink-0 border-t border-white/5 px-4 pb-3 pt-2">
                 <div className="mb-1 h-4 text-[11px] text-amber-200">
                   {typingNames.length ? `${typingNames.slice(0, 3).join(", ")} ${typingNames.length === 1 ? "is" : "are"} typing...` : null}

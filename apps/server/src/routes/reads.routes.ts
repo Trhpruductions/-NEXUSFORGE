@@ -18,7 +18,7 @@ type ChannelUnread = { channelId: string; unread: number; mentions: number; last
 async function computeForgeUnreads(userId: string, forgeId: string): Promise<ChannelUnread[]> {
   const hidden = await hiddenChannelIdsForUser(userId, forgeId);
   const channels = await prisma.channel.findMany({
-    where: { forgeId, type: { in: ["TEXT", "ANNOUNCEMENT"] }, id: { notIn: hidden } },
+    where: { forgeId, type: { in: ["TEXT", "ANNOUNCEMENT", "FORUM"] }, id: { notIn: hidden } },
     select: { id: true },
   });
   if (!channels.length) return [];

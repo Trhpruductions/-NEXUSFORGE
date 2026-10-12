@@ -35,6 +35,7 @@ import {
   BellOff,
   Lock,
   ChevronRight,
+  MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
@@ -194,7 +195,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     enabled: Boolean(accessToken && selectedForgeId),
   });
   const forge = forgeQuery.data?.forge;
-  const textChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT"), [forge]);
+  const textChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT" || channel.type === "FORUM"), [forge]);
   const voiceChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "VOICE" || channel.type === "STAGE"), [forge]);
   // Categories group channels under a collapsible heading; channels with no (known)
   // category stay in the plain Text / Voice lists at the top.
@@ -450,6 +451,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
         >
           {channel.type === "ANNOUNCEMENT" ? (
             <Megaphone className="h-3.5 w-3.5 shrink-0" style={{ color: hues.orange.base }} />
+          ) : channel.type === "FORUM" ? (
+            <MessagesSquare className="h-3.5 w-3.5 shrink-0" style={{ color: hues.violet.base }} />
           ) : (
             <Hash className="h-3.5 w-3.5 shrink-0" style={{ color: active || counts?.unread ? hues.sky.light : alpha(hues.sky.base, 0.7) }} />
           )}

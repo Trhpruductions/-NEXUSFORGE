@@ -19,7 +19,7 @@ export const threadsRouter = Router();
 threadsRouter.use(requireAuth);
 threadsRouter.use(requireCsrf);
 
-export const threadSummarySelect = { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true, creatorId: true, createdAt: true } as const;
+export const threadSummarySelect = { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true, creatorId: true, createdAt: true, tags: true } as const;
 
 function emit(channelId: string, event: string, payload: Record<string, unknown>) {
   try {
@@ -50,7 +50,7 @@ threadsRouter.post("/", async (req, res) => {
     return;
   }
   if (starter.channel.type !== "TEXT" && starter.channel.type !== "ANNOUNCEMENT") {
-    res.status(400).json({ error: "Threads can only start in text channels" });
+    res.status(400).json({ error: starter.channel.type === "FORUM" ? "Forum posts already have their own replies" : "Threads can only start in text channels" });
     return;
   }
   if (starter.threadId) {
@@ -82,10 +82,15 @@ threadsRouter.get("/channel/:channelId", async (req, res) => {
   const threads = await prisma.thread.findMany({
     where: { channelId: req.params.channelId },
     orderBy: [{ archived: "asc" }, { lastMessageAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-    take: 50,
-    select: { ...threadSummarySelect, starterPostId: true },
+    take: 100,
+    select: {
+      ...threadSummarySelect,
+      starterPostId: true,
+      // Forum cards show who posted and the start of the post.
+      starterMessage: { select: { content: true, attachments: true, createdAt: true, author: { select: { id: true, username: true, avatar: true } } } },
+    },
   });
-  res.json({ threads });
+  res.json({ threads: threads.map((entry) => ({ ...entry, starterMessage: entry.starterMessage ? { ...entry.starterMessage, content: entry.starterMessage.content.slice(0, 300) } : null })) });
 });
 
 threadsRouter.get("/:id", async (req, res) => {
@@ -108,7 +113,7 @@ threadsRouter.get("/:id", async (req, res) => {
 });
 
 const updateSchema = z
-  .object({ title: z.string().trim().min(1).max(100).optional(), archived: z.boolean().optional() })
+  .object({ title: z.string().trim().min(1).max(100).optional(), archived: z.boolean().optional(), tags: z.array(z.string().trim().min(1).max(20)).max(5).optional() })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
 
 threadsRouter.patch("/:id", async (req, res) => {
@@ -128,9 +133,16 @@ threadsRouter.patch("/:id", async (req, res) => {
     res.status(403).json({ error: "Only the person who started the thread or a moderator can change it" });
     return;
   }
+  if (parsed.data.tags) {
+    const channel = await prisma.channel.findUnique({ where: { id: existing.channelId }, select: { forumTags: true } });
+    if (parsed.data.tags.some((tag) => !channel?.forumTags.includes(tag))) {
+      res.status(400).json({ error: "Pick tags from this forum's list" });
+      return;
+    }
+  }
   const thread = await prisma.thread.update({
     where: { id: existing.id },
-    data: { title: parsed.data.title ? xss(parsed.data.title) : undefined, archived: parsed.data.archived },
+    data: { title: parsed.data.title ? xss(parsed.data.title) : undefined, archived: parsed.data.archived, tags: parsed.data.tags ? [...new Set(parsed.data.tags)] : undefined },
     select: { ...threadSummarySelect, channelId: true, starterPostId: true },
   });
   emit(existing.channelId, "thread:updated", { channelId: existing.channelId, messageId: existing.starterPostId, thread });

@@ -76,7 +76,7 @@ export type Channel = {
   forgeId: string;
   name: string;
   topic?: string | null;
-  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE" | "CATEGORY";
+  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE" | "CATEGORY" | "FORUM";
   position: number;
   /** The CATEGORY this channel is grouped under. */
   parentId?: string | null;
@@ -84,6 +84,8 @@ export type Channel = {
   isPrivate?: boolean;
   allowedRoleIds?: string[];
   allowedUserIds?: string[];
+  /** Forum channels: tags posts can be labelled with. */
+  forumTags?: string[];
 };
 
 /** Channel fields a manager can set on create/update. */
@@ -93,6 +95,7 @@ export type ChannelSettings = {
   isPrivate?: boolean;
   allowedRoleIds?: string[];
   allowedUserIds?: string[];
+  forumTags?: string[];
 };
 
 export type Forge = {
@@ -419,7 +422,22 @@ export async function deleteAutoModRule(accessToken: string, csrfToken: string, 
   await api.delete(`/api/forges/${forgeId}/automod/${ruleId}`, { headers: authHeaders(accessToken, csrfToken) });
 }
 
-export type ThreadSummary = { id: string; title: string; messageCount: number; lastMessageAt: string | null; archived: boolean; creatorId?: string | null; starterPostId?: string | null };
+export type ThreadSummary = {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastMessageAt: string | null;
+  archived: boolean;
+  creatorId?: string | null;
+  starterPostId?: string | null;
+  createdAt?: string;
+  tags?: string[];
+};
+
+/** A thread as listed for a channel (forum cards show who posted and the start of the post). */
+export type ThreadListEntry = ThreadSummary & {
+  starterMessage?: { content: string; createdAt: string; author: { id: string; username: string; avatar?: string | null } | null } | null;
+};
 
 export async function createThread(accessToken: string, csrfToken: string, payload: { messageId: string; title: string }) {
   const response = await api.post<{ thread: ThreadSummary & { channelId: string } }>("/api/threads", payload, { headers: authHeaders(accessToken, csrfToken) });
@@ -427,7 +445,7 @@ export async function createThread(accessToken: string, csrfToken: string, paylo
 }
 
 export async function listThreads(accessToken: string, channelId: string) {
-  const response = await api.get<{ threads: ThreadSummary[] }>(`/api/threads/channel/${channelId}`, { headers: authHeaders(accessToken) });
+  const response = await api.get<{ threads: ThreadListEntry[] }>(`/api/threads/channel/${channelId}`, { headers: authHeaders(accessToken) });
   return response.data;
 }
 
@@ -1868,7 +1886,7 @@ export async function toggleReaction(accessToken: string, csrfToken: string, mes
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[] },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),

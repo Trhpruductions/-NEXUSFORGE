@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { X, Hash, Volume2, Megaphone, Radio, Plus, Trash2, Pencil, Check, ShieldAlert, Ban, LogOut, Loader2, ArrowUp, ArrowDown, Lock, Copy, Folder, Clock, Crown } from "lucide-react";
+import { X, Hash, Volume2, Megaphone, Radio, Plus, Trash2, Pencil, Check, ShieldAlert, Ban, LogOut, Loader2, ArrowUp, ArrowDown, Lock, Copy, Folder, Clock, Crown, MessagesSquare } from "lucide-react";
 import {
   banForgeUser,
   createForgeChannel,
@@ -84,6 +84,7 @@ function channelIcon(type: Channel["type"]) {
   if (type === "STAGE") return <Radio className="h-3.5 w-3.5" />;
   if (type === "ANNOUNCEMENT") return <Megaphone className="h-3.5 w-3.5" />;
   if (type === "CATEGORY") return <Folder className="h-3.5 w-3.5" />;
+  if (type === "FORUM") return <MessagesSquare className="h-3.5 w-3.5" />;
   return <Hash className="h-3.5 w-3.5" />;
 }
 
@@ -403,6 +404,7 @@ function slowmodeLabel(seconds: number) {
 }
 
 type ChannelDraft = {
+  forumTags?: string;
   name: string;
   topic: string;
   parentId: string;
@@ -421,6 +423,7 @@ function draftFrom(channel: Channel): ChannelDraft {
     isPrivate: Boolean(channel.isPrivate),
     allowedRoleIds: channel.allowedRoleIds ?? [],
     allowedUserIds: channel.allowedUserIds ?? [],
+    forumTags: (channel.forumTags ?? []).join(", "),
   };
 }
 
@@ -438,7 +441,7 @@ function ChannelAccessFields({
 }) {
   const [memberQuery, setMemberQuery] = useState("");
   const categories = forge.channels.filter((channel) => channel.type === "CATEGORY");
-  const isText = type === "TEXT" || type === "ANNOUNCEMENT";
+  const isText = type === "TEXT" || type === "ANNOUNCEMENT" || type === "FORUM";
   const roles = [...forge.roles].filter((role) => role.position < 100).sort((a, b) => b.position - a.position);
   const memberMatches = memberQuery.trim()
     ? forge.members
@@ -474,6 +477,12 @@ function ChannelAccessFields({
         ) : null}
       </div>
 
+      {type === "FORUM" ? (
+        <label className="block text-xs text-slate-300">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Post tags (comma separated)</span>
+          <input className={inputClass} value={draft.forumTags ?? ""} onChange={(event) => setDraft((current) => ({ ...current, forumTags: event.target.value }))} placeholder="question, guide, lfg, bug" />
+        </label>
+      ) : null}
       {type !== "CATEGORY" ? (
         <div className="rounded-[12px] border border-slate-800/80 bg-slate-950/40 p-3">
           <label className="flex items-start gap-2 text-xs text-slate-200">
@@ -590,8 +599,9 @@ function ChannelsTab({
   }, [sorted]);
 
   const settingsPayload = (draft: ChannelDraft, type: Channel["type"]) => ({
+    forumTags: type === "FORUM" ? [...new Set((draft.forumTags ?? "").split(",").map((tag) => tag.trim().slice(0, 20)).filter(Boolean))].slice(0, 20) : undefined,
     parentId: type === "CATEGORY" ? undefined : draft.parentId || null,
-    slowmodeSeconds: type === "TEXT" || type === "ANNOUNCEMENT" ? draft.slowmodeSeconds : undefined,
+    slowmodeSeconds: type === "TEXT" || type === "ANNOUNCEMENT" || type === "FORUM" ? draft.slowmodeSeconds : undefined,
     isPrivate: type === "CATEGORY" ? undefined : draft.isPrivate,
     allowedRoleIds: type === "CATEGORY" ? undefined : draft.allowedRoleIds,
     allowedUserIds: type === "CATEGORY" ? undefined : draft.allowedUserIds,
@@ -735,6 +745,7 @@ function ChannelsTab({
               <option value="ANNOUNCEMENT">Announcement</option>
               <option value="VOICE">Voice</option>
               <option value="STAGE">Stage</option>
+              <option value="FORUM">Forum</option>
               <option value="CATEGORY">Category</option>
             </select>
             {newType !== "CATEGORY" ? (

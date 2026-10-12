@@ -25,6 +25,8 @@ enum ChannelType {
   STAGE
   /// A heading that groups channels in the sidebar; holds no messages.
   CATEGORY
+  /// Every post is a titled thread; the channel itself has no flat chat.
+  FORUM
 }
 
 enum MessageType {
@@ -916,6 +918,8 @@ model Channel {
   isPrivate           Boolean               @default(false)
   allowedRoleIds      String[]              @default([])
   allowedUserIds      String[]              @default([])
+  /// Forum channels: the tags posts can be labelled with.
+  forumTags           String[]              @default([])
   forge               Forge                 @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   messages            Message[]
   threads             Thread[]
@@ -995,6 +999,8 @@ model Thread {
   starterPostId  String?   @unique
   creatorId      String?
   archived       Boolean   @default(false)
+  /// Forum posts: tags picked from the channel's forumTags.
+  tags           String[]  @default([])
   messageCount   Int       @default(0)
   lastMessageAt  DateTime?
   createdAt      DateTime  @default(now())
