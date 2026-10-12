@@ -788,7 +788,7 @@ export async function register(payload: { username: string; email: string; passw
 
 export type LoginResponse =
   | { requiresTwoFactor?: false; accessToken: string; csrfToken: string; user: User }
-  | { requiresTwoFactor: true; challengeToken: string; channels: string[]; devCode?: string };
+  | { requiresTwoFactor: true; challengeToken: string; channels: string[]; devCode?: string; method?: "totp" };
 
 export async function login(payload: { email: string; password: string }) {
   const response = await api.post<LoginResponse>("/api/auth/login", payload);
@@ -2266,7 +2266,7 @@ export async function grantMedal(accessToken: string, csrfToken: string, userId:
 // ===========================================================================
 
 export type ChannelUnread = { channelId: string; unread: number; mentions: number; lastReadAt: string | null };
-export type ForgeUnreadSummary = { forgeId: string; unread: number; mentions: number };
+export type ForgeUnreadSummary = { forgeId: string; unread: number; mentions: number; muted?: boolean };
 
 export async function getUnreadSummary(accessToken: string) {
   const response = await api.get<{ forges: ForgeUnreadSummary[] }>("/api/reads/summary", { headers: authHeaders(accessToken) });

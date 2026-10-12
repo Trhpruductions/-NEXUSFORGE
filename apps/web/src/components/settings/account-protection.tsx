@@ -15,6 +15,7 @@ import {
   setTwoFactor,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { AuthenticatorCard } from "@/components/settings/authenticator-card";
 
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
@@ -156,7 +157,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
           <p className="text-xs text-slate-400">Verify your email and phone, then turn on two-factor so nobody can take your account.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{steps}/3 complete</span>
+          <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{protection.complete ? "Protected" : `${steps}/3 complete`}</span>
           <span className="flex gap-1">
             {[0, 1, 2].map((index) => <span key={index} className={`h-1.5 w-6 rounded-full ${index < steps ? "bg-emerald-400" : "bg-slate-700"}`} />)}
           </span>
@@ -274,6 +275,10 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
               </button>
             </div>
           )}
+        </div>
+
+        <div className="col-span-full">
+          <AuthenticatorCard protection={protection} />
         </div>
       </div>
     </section>

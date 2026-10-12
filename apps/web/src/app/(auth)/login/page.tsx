@@ -39,7 +39,9 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   const [deletionScheduled, setDeletionScheduled] = useState(false);
-  const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string } | null>(null);
+  const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string; method?: "totp" } | null>(null);
+  // Authenticator users can sign in with a one-time recovery code instead.
+  const [useRecovery, setUseRecovery] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const setSession = useAuthStore((state) => state.setSession);
@@ -97,8 +99,9 @@ export default function LoginPage() {
     try {
       const payload = await login(values);
       if ("requiresTwoFactor" in payload && payload.requiresTwoFactor) {
-        setChallenge({ token: payload.challengeToken, channels: payload.channels, devCode: payload.devCode });
+        setChallenge({ token: payload.challengeToken, channels: payload.channels, devCode: payload.devCode, method: payload.method });
         setCode("");
+        setUseRecovery(false);
         return;
       }
       finishLogin(payload);
@@ -138,8 +141,14 @@ export default function LoginPage() {
     >
       {challenge ? (
         <AuthFormCard
-          title="Check your codes"
-          subtitle={`We sent a 6-digit sign-in code. ${challenge.channels.join(" and ")}.`}
+          title={challenge.method === "totp" ? "Enter your app code" : "Check your codes"}
+          subtitle={
+            challenge.method === "totp"
+              ? useRecovery
+                ? "Enter one of the recovery codes you saved when you set up your authenticator app. Each works once."
+                : "Open your authenticator app and enter the 6-digit code for Vexora Gaming."
+              : `We sent a 6-digit sign-in code. ${challenge.channels.join(" and ")}.`
+          }
           eyebrow="Two-factor sign-in"
           footer={
             <button type="button" onClick={() => setChallenge(null)} className="font-semibold text-amber-200 transition hover:text-white">
@@ -150,13 +159,15 @@ export default function LoginPage() {
           <div className="space-y-5">
             <AuthField
               id="login-2fa-code"
-              label="6-digit code"
-              inputMode="numeric"
+              label={useRecovery ? "Recovery code" : "6-digit code"}
+              inputMode={useRecovery ? "text" : "numeric"}
               autoComplete="one-time-code"
-              placeholder="123456"
-              maxLength={6}
+              placeholder={useRecovery ? "abcd-2345" : "123456"}
+              maxLength={useRecovery ? 9 : 6}
               value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) =>
+                setCode(useRecovery ? event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 9) : event.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               onKeyDown={(event) => {
                 if (event.key === "Enter") void submitCode();
               }}
@@ -171,13 +182,26 @@ export default function LoginPage() {
                 {serverError}
               </div>
             ) : null}
-            <button type="button" onClick={() => void submitCode()} disabled={busy || code.length !== 6} className={authPrimaryButtonClass}>
+            <button type="button" onClick={() => void submitCode()} disabled={busy || (useRecovery ? code.replace("-", "").length !== 8 : code.length !== 6)} className={authPrimaryButtonClass}>
               {busy ? "Checking..." : "Verify and sign in"}
               {!busy ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
-            <button type="button" onClick={() => void resendCode()} disabled={busy} className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200">
-              Resend code
-            </button>
+            {challenge.method === "totp" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setUseRecovery((value) => !value);
+                  setCode("");
+                }}
+                className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200"
+              >
+                {useRecovery ? "Use my authenticator app instead" : "Lost your phone? Use a recovery code"}
+              </button>
+            ) : (
+              <button type="button" onClick={() => void resendCode()} disabled={busy} className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200">
+                Resend code
+              </button>
+            )}
           </div>
         </AuthFormCard>
       ) : (

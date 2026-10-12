@@ -32,11 +32,13 @@ import {
   X,
   LifeBuoy,
   Newspaper,
+  BellOff,
   Lock,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
+import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
 import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
@@ -260,6 +262,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     for (const entry of summaryQuery.data.forges) next[entry.forgeId] = { unread: entry.unread, mentions: entry.mentions };
     setForgeCounts(next);
   }, [summaryQuery.data, setForgeCounts]);
+  // Muted forges show no unread dot (mention badges still show), like Discord.
+  const mutedForgeIds = useMemo(() => new Set((summaryQuery.data?.forges ?? []).filter((entry) => entry.muted).map((entry) => entry.forgeId)), [summaryQuery.data]);
+  const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
 
   const dmUnreadQuery = useQuery({
     queryKey: ["dm-unread", accessToken],
@@ -530,6 +535,19 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 </button>
               );
             })}
+            {forge ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setForgeMenuOpen(false);
+                  setNotifyDialogOpen(true);
+                }}
+                className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-slate-200 hover:bg-white/5"
+              >
+                {mutedForgeIds.has(forge.id) ? <BellOff className="h-3.5 w-3.5 text-violet-300" /> : <Bell className="h-3.5 w-3.5 text-sky-300" />}
+                Notification settings for {forge.name}
+              </button>
+            ) : null}
             <Link href="/app/server" onClick={() => setForgeMenuOpen(false)} className="mt-1 flex items-center gap-2 rounded-lg border border-dashed border-amber-500/30 px-2 py-2 text-xs text-amber-200 hover:bg-amber-500/10">
               <Plus className="h-3.5 w-3.5" /> Create or join a forge
             </Link>
@@ -700,6 +718,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       </div>
       <VoiceEngine />
       <ConsentRenewal />
+      {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(230,179,37,0.25)]" title="Vexora Gaming">
@@ -733,8 +752,13 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 )}
                 {counts?.mentions ? (
                   <span className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-1 text-[9px] font-bold text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]">{counts.mentions}</span>
-                ) : counts?.unread ? (
+                ) : counts?.unread && !mutedForgeIds.has(entry.id) ? (
                   <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#080b12] bg-white" />
+                ) : null}
+                {mutedForgeIds.has(entry.id) ? (
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#080b12] bg-slate-700 text-slate-200" title="Muted">
+                    <BellOff className="h-2.5 w-2.5" />
+                  </span>
                 ) : null}
                 {active ? <span className="absolute -left-[13px] h-7 w-1 rounded-r" style={{ background: hueFor(entry.id).base }} /> : null}
               </button>
