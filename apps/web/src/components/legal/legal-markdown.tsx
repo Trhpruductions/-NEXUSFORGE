@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from "react";
 
 /**
  * A deliberately small Markdown renderer for legal text: headings (#, ##, ###),
- * paragraphs, "- " lists, **bold**, *italic* and [links](https://...). It builds React
+ * paragraphs, "- " and "1. " lists, simple | tables |, **bold**, *italic* and [links](https://...). It builds React
  * elements only (never HTML strings), so policy text can't inject markup or scripts.
  */
 
@@ -11,7 +11,11 @@ export type LegalHeading = { id: string; text: string; level: 2 | 3 };
 type Block =
   | { kind: "h1" | "h2" | "h3"; text: string; id: string }
   | { kind: "p"; text: string }
-  | { kind: "ul"; items: string[] };
+  | { kind: "ul"; items: string[] }
+  | { kind: "ol"; items: string[] }
+  | { kind: "table"; header: string[]; rows: string[][] };
+
+const tableCells = (line: string) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 
 export function slugify(text: string) {
   return text
@@ -36,11 +40,21 @@ export function parseLegal(content: string): { blocks: Block[]; headings: LegalH
 
   let paragraph: string[] = [];
   let list: string[] | null = null;
+  let listKind: "ul" | "ol" = "ul";
+  let table: string[][] | null = null;
+  const flushList = () => {
+    if (list) blocks.push({ kind: listKind, items: list });
+    list = null;
+  };
+  const flushTable = () => {
+    if (table?.length) blocks.push({ kind: "table", header: table[0], rows: table.slice(1) });
+    table = null;
+  };
   const flush = () => {
     if (paragraph.length) blocks.push({ kind: "p", text: paragraph.join(" ") });
     paragraph = [];
-    if (list) blocks.push({ kind: "ul", items: list });
-    list = null;
+    flushList();
+    flushTable();
   };
 
   for (const raw of content.replace(/\r\n/g, "\n").split("\n")) {
@@ -55,12 +69,24 @@ export function parseLegal(content: string): { blocks: Block[]; headings: LegalH
       if (level > 1) headings.push({ id, text, level: level as 2 | 3 });
       continue;
     }
-    const item = /^\s*[-*]\s+(.+)$/.exec(line);
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      if (paragraph.length || list) flush();
+      // The "|---|---|" line under the header is just a divider.
+      if (!/^[\s|:-]+$/.test(line)) (table ??= []).push(tableCells(line));
+      continue;
+    }
+    flushTable();
+    const bullet = /^\s*[-*]\s+(.+)$/.exec(line);
+    const numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line);
+    const item = bullet ?? numbered;
     if (item) {
       if (paragraph.length) {
         blocks.push({ kind: "p", text: paragraph.join(" ") });
         paragraph = [];
       }
+      const kind = bullet ? "ul" : "ol";
+      if (list && listKind !== kind) flushList();
+      listKind = kind;
       (list ??= []).push(item[1]);
       continue;
     }
@@ -68,10 +94,7 @@ export function parseLegal(content: string): { blocks: Block[]; headings: LegalH
       flush();
       continue;
     }
-    if (list) {
-      blocks.push({ kind: "ul", items: list });
-      list = null;
-    }
+    flushList();
     // A line ending a "**Label:** value" run reads better as its own line.
     if (paragraph.length && /^\*\*[^*]+:\*\*/.test(line)) {
       blocks.push({ kind: "p", text: paragraph.join(" ") });
@@ -90,7 +113,7 @@ function safeHref(href: string) {
 /** **bold**, *italic*, [text](href) and highlighted [Placeholders]. */
 function inline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\)|\[[A-Z][^\]]{1,80}\])/g;
+  const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\)|\[[A-Z0-9][^\]]{0,160}\])/g;
   let last = 0;
   let index = 0;
   for (const match of text.matchAll(pattern)) {
@@ -138,6 +161,29 @@ export function LegalMarkdown({ content, onCopySection }: { content: string; onC
             <ul key={i} className="list-disc space-y-1.5 pl-6 marker:text-violet-400">
               {block.items.map((item, j) => <li key={j}>{inline(item, `${i}-${j}`)}</li>)}
             </ul>
+          );
+        }
+        if (block.kind === "ol") {
+          return (
+            <ol key={i} className="list-decimal space-y-1.5 pl-6 marker:text-violet-400">
+              {block.items.map((item, j) => <li key={j}>{inline(item, `${i}-${j}`)}</li>)}
+            </ol>
+          );
+        }
+        if (block.kind === "table") {
+          return (
+            <div key={i} className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.12em] text-slate-400">
+                  <tr>{block.header.map((cell, j) => <th key={j} scope="col" className="px-3 py-2 font-semibold">{inline(cell, `${i}-h${j}`)}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.06]">
+                  {block.rows.map((row, r) => (
+                    <tr key={r}>{row.map((cell, j) => <td key={j} className="px-3 py-2 align-top">{inline(cell, `${i}-${r}-${j}`)}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
         return <p key={i}>{inline(block.text, String(i))}</p>;

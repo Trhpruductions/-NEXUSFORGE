@@ -43,7 +43,8 @@ export function nextStatus(action: VersionAction): VersionStatus | null {
 /** Bracketed fill-ins such as "[Legal Operator Name]" or "[Official Support Email]". */
 export function findPlaceholders(content: string): string[] {
   const found = new Set<string>();
-  for (const match of content.matchAll(/\[([A-Z][^\]\n]{1,80})\]/g)) {
+  // Text placeholders ("[Launch Date]") and number placeholders ("[30]") alike.
+  for (const match of content.matchAll(/\[([A-Z0-9][^\]\n]{0,160})\]/g)) {
     // Markdown links look like [text](url); those aren't placeholders.
     const after = content.slice((match.index ?? 0) + match[0].length, (match.index ?? 0) + match[0].length + 1);
     if (after === "(") continue;

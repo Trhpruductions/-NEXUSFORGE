@@ -2,16 +2,33 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma.js";
 import { defaultConsentText, pendingConsents, type CurrentRequired } from "./legal-rules.js";
 import { legalPolicyCatalog, privacySeedContent, privacySeedSummary, termsSeedContent, termsSeedSummary } from "./legal-content.js";
+import {
+  acceptableUseSeedContent,
+  acceptableUseSeedSummary,
+  appealsSeedContent,
+  appealsSeedSummary,
+  communityRulesSeedContent,
+  communityRulesSeedSummary,
+  cookiesSeedContent,
+  cookiesSeedSummary,
+  moderationSeedContent,
+  moderationSeedSummary,
+} from "./legal-drafts.js";
 
 /** First drafts, loaded for review the first time a policy has no versions at all. */
 const seeds: Record<string, { content: string; summary: string }> = {
   terms: { content: termsSeedContent, summary: termsSeedSummary },
   privacy: { content: privacySeedContent, summary: privacySeedSummary },
+  cookies: { content: cookiesSeedContent, summary: cookiesSeedSummary },
+  "acceptable-use": { content: acceptableUseSeedContent, summary: acceptableUseSeedSummary },
+  "community-rules": { content: communityRulesSeedContent, summary: communityRulesSeedSummary },
+  moderation: { content: moderationSeedContent, summary: moderationSeedSummary },
+  appeals: { content: appealsSeedContent, summary: appealsSeedSummary },
 };
 
 const SYSTEM_ACTOR = "system";
 
-/** Makes sure every catalog policy exists; seeds the first drafts (Terms, Privacy) once. */
+/** Makes sure every catalog policy exists; seeds each first draft once (only while a policy has no versions). */
 export async function ensureLegalPolicies() {
   for (const entry of legalPolicyCatalog) {
     const policy = await prisma.legalPolicy.upsert({

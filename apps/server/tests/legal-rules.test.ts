@@ -102,3 +102,9 @@ test("the seeded Privacy Policy can't be published until its placeholders are fi
   assert.ok(!found.some((entry) => entry.startsWith("[Terms of Service") || entry.startsWith("[Cookie Policy")));
   assert.ok(privacySeedContent.includes("do not sell"), "states the no-sale commitment");
 });
+
+test("number placeholders and long placeholders are found too", () => {
+  const long = "[Legal Bases Statement for Users in the EEA, UK or Other Jurisdictions That Require One]";
+  assert.deepEqual(findPlaceholders(`Lasts up to [30] days. ${long}`).sort(), [long, "[30]"].sort());
+  assert.deepEqual(findPlaceholders("Read [1](/legal/terms) first."), [], "a numbered link isn't a placeholder");
+});
