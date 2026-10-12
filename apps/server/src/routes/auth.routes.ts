@@ -14,6 +14,8 @@ import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
 import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
 import { checkSecondFactor } from "../lib/second-factor.js";
+import { currentRequiredPolicies, recordAcceptances } from "../lib/legal-policies.js";
+import { missingSignupAcceptances } from "../lib/legal-rules.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
 
@@ -24,6 +26,8 @@ const registerSchema = z.object({
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
+  /** Exact published versions of the required policies the person ticked to accept. */
+  acceptedPolicyVersionIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
 const loginSchema = z.object({
@@ -200,6 +204,15 @@ authRouter.post("/register", async (req, res) => {
     return;
   }
 
+  // Every published policy that's required at sign-up must have been explicitly accepted,
+  // by its exact current version (a stale page can't accept an outdated version).
+  const requiredPolicies = await currentRequiredPolicies();
+  const missingPolicies = missingSignupAcceptances(requiredPolicies, parsed.data.acceptedPolicyVersionIds ?? []);
+  if (missingPolicies.length) {
+    res.status(400).json({ error: "Please read and accept the Terms of Service and Privacy Policy to continue.", missingPolicies, required: requiredPolicies });
+    return;
+  }
+
   const passwordHash = await hashPassword(parsed.data.password);
   const emailVerifyToken = randomToken(24);
 
@@ -232,6 +245,10 @@ authRouter.post("/register", async (req, res) => {
       ageVerified: true,
     },
   });
+
+  if (requiredPolicies.length) {
+    await recordAcceptances(user.id, requiredPolicies.map((policy) => policy.versionId), "SIGNUP");
+  }
 
   const emailCode = await issueCode({ userId: user.id, channel: "EMAIL", purpose: "VERIFY_EMAIL", target: user.email });
   const tokens = await issueTokens(user, deviceContext(req));

@@ -493,6 +493,82 @@ model ForgeInvite {
   @@index([forgeId, createdAt])
 }
 
+/// A legal document (Terms, Privacy Policy...). Its text lives in versions; the public
+/// only ever sees PUBLISHED and ARCHIVED (historical) versions, never drafts.
+model LegalPolicy {
+  id        String               @id @default(uuid())
+  slug      String               @unique
+  title     String
+  summary   String?
+  sortOrder Int                  @default(0)
+  /// Asked for at sign-up (and again when a new version needs renewed consent).
+  requiredAtSignup Boolean       @default(false)
+  createdAt DateTime             @default(now())
+  versions  LegalPolicyVersion[]
+}
+
+/// One version of a policy. Lifecycle: DRAFT -> IN_REVIEW -> PUBLISHED -> ARCHIVED.
+/// Published and archived text is never edited; changes always make a new version.
+model LegalPolicyVersion {
+  id              String      @id @default(uuid())
+  policyId        String
+  version         Int
+  status          String      @default("DRAFT")
+  content         String
+  changeSummary   String?
+  /// When it takes effect (shown on the page). Set at publish time.
+  effectiveAt     DateTime?
+  /// Material change: users who accepted an older version must accept this one.
+  requiresConsent Boolean     @default(false)
+  /// The exact sentence users tick to accept this version.
+  consentText     String?
+  createdById     String
+  publishedById   String?
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  /// Set when this draft was restored from an older version.
+  restoredFromId  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  policy          LegalPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  acceptances     PolicyAcceptance[]
+
+  @@unique([policyId, version])
+  @@index([policyId, status])
+}
+
+/// Proof that a user accepted a specific version: who, which version, the wording they
+/// agreed to, and a server timestamp. No passwords, tokens or other personal data.
+model PolicyAcceptance {
+  id              String             @id @default(uuid())
+  userId          String
+  policyVersionId String
+  policySlug      String
+  version         Int
+  consentText     String
+  /// SIGNUP or RENEWAL
+  source          String
+  acceptedAt      DateTime           @default(now())
+  policyVersion   LegalPolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, policyVersionId])
+  @@index([userId, policySlug])
+}
+
+/// Who changed what in the legal documents.
+model LegalAuditEntry {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  policySlug String
+  versionId  String?
+  version    Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([policySlug, createdAt])
+}
+
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
 /// DM reports go to platform staff. The message is copied at report time so deleting it
 /// doesn't destroy the evidence.
