@@ -432,14 +432,18 @@ io.on("connection", (socket) => {
   });
 
   /** Mute/deafen state, so everyone in the room sees each other's icons. */
-  socket.on("voice:state", (payload: { channelId?: string; muted?: boolean; deafened?: boolean }) => {
+  socket.on("voice:state", (payload: { channelId?: string; muted?: boolean; deafened?: boolean; cameraStreamId?: unknown; screenStreamId?: unknown }) => {
     if (!payload || typeof payload.channelId !== "string") return;
     if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    // Media stream ids (so others can tell camera from screen share); short opaque strings only.
+    const streamId = (value: unknown) => (typeof value === "string" && /^[\w{}-]{1,100}$/.test(value) ? value : null);
     socket.to(`voice:${payload.channelId}`).emit("voice:state", {
       channelId: payload.channelId,
       userId: socket.data.user.id,
       muted: Boolean(payload.muted),
       deafened: Boolean(payload.deafened),
+      cameraStreamId: streamId(payload.cameraStreamId),
+      screenStreamId: streamId(payload.screenStreamId),
     });
   });
 

@@ -22,6 +22,14 @@ export type MeshPeer = {
   stream: MediaStream | null;
   /** Remote screen share, when the peer is sharing. */
   video: MediaStream | null;
+  /** Remote camera, when the peer has video on. */
+  camera: MediaStream | null;
+  /** Every incoming video stream by id; the peer's state says which is camera/screen. */
+  videoStreams: Map<string, MediaStream>;
+  screenId: string | null;
+  cameraId: string | null;
+  /** The peer labels its streams (newer clients); then unlabelled leftovers are ignored. */
+  labelled: boolean;
   state: RTCPeerConnectionState;
   /** What the peer last told us about their mic and headphones. */
   remoteMuted: boolean;
@@ -47,6 +55,9 @@ export type MeshVoiceOptions = {
   /** Fired when the local screen share stops (user pressed the browser's Stop sharing). */
   onScreenShareEnded?: () => void;
   onLocalScreen?: (stream: MediaStream | null) => void;
+  /** Local camera preview, and a callback when the camera stops on its own (unplugged, revoked). */
+  onLocalCamera?: (stream: MediaStream | null) => void;
+  onCameraEnded?: () => void;
 };
 
 type SignalData =
@@ -68,6 +79,8 @@ export class MeshVoice {
   private raw: MediaStream | null = null;
   private local: MediaStream | null = null;
   private screen: MediaStream | null = null;
+  private camera: MediaStream | null = null;
+  private cameraSenders = new Map<string, RTCRtpSender>();
   private screenSenders = new Map<string, RTCRtpSender>();
   private audioContext: AudioContext | null = null;
   private analysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> }>();
@@ -134,6 +147,7 @@ export class MeshVoice {
     for (const timer of this.timers) window.clearTimeout(timer);
     this.timers.clear();
     this.stopScreenShare(false);
+    this.stopCamera(false);
     for (const peer of Array.from(this.peers.values())) this.drop(peer.userId, false);
     this.peers.clear();
     if (this.meter) window.clearInterval(this.meter);
@@ -180,6 +194,54 @@ export class MeshVoice {
   setOutputDevice(deviceId: string | null) {
     this.outputDeviceId = deviceId;
     for (const peer of this.peers.values()) this.applySink(peer.audio);
+  }
+
+  /** Turn the camera on for everyone in the room (like screen share: a video track per peer). */
+  async startCamera(deviceId?: string | null) {
+    if (this.camera) return;
+    try {
+      this.camera = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 }, ...(deviceId ? { deviceId: { exact: deviceId } } : {}) },
+        audio: false,
+      });
+    } catch (error) {
+      this.camera = null;
+      this.options.onError(error instanceof Error && error.name === "NotAllowedError" ? "Camera permission was denied" : "Couldn't start your camera");
+      this.options.onCameraEnded?.();
+      return;
+    }
+    if (this.closed) {
+      this.camera.getTracks().forEach((entry) => entry.stop());
+      this.camera = null;
+      return;
+    }
+    const [track] = this.camera.getVideoTracks();
+    track.onended = () => this.stopCamera(true);
+    this.options.onLocalCamera?.(this.camera);
+    for (const peer of this.peers.values()) {
+      this.cameraSenders.set(peer.userId, peer.connection.addTrack(track, this.camera));
+      void this.renegotiate(peer.userId);
+    }
+    this.broadcastState();
+  }
+
+  stopCamera(notify: boolean) {
+    if (!this.camera) return;
+    this.camera.getTracks().forEach((entry) => entry.stop());
+    this.camera = null;
+    for (const [userId, sender] of this.cameraSenders) {
+      const peer = this.peers.get(userId);
+      try {
+        peer?.connection.removeTrack(sender);
+      } catch {
+        // connection already closed
+      }
+      if (peer) void this.renegotiate(userId);
+    }
+    this.cameraSenders.clear();
+    this.options.onLocalCamera?.(null);
+    this.broadcastState();
+    if (notify) this.options.onCameraEnded?.();
   }
 
   /** Share the screen with everyone in the room (adds a video track to each peer and renegotiates). */
@@ -264,7 +326,14 @@ export class MeshVoice {
 
   private broadcastState() {
     if (this.closed) return;
-    this.options.socket.emit("voice:state", { channelId: this.options.channelId, muted: this.muted || this.deafened, deafened: this.deafened });
+    this.options.socket.emit("voice:state", {
+      channelId: this.options.channelId,
+      muted: this.muted || this.deafened,
+      deafened: this.deafened,
+      // Lets everyone tell our camera from our screen share.
+      cameraStreamId: this.camera?.id ?? null,
+      screenStreamId: this.screen?.id ?? null,
+    });
   }
 
   private emitPeers() {
@@ -299,14 +368,32 @@ export class MeshVoice {
     this.options.onFull?.(payload.limit);
   };
 
-  private handleState = (payload: { channelId: string; userId: string; muted: boolean; deafened: boolean }) => {
+  private handleState = (payload: { channelId: string; userId: string; muted: boolean; deafened: boolean; cameraStreamId?: string | null; screenStreamId?: string | null }) => {
     if (payload.channelId !== this.options.channelId) return;
     const peer = this.peers.get(payload.userId);
     if (!peer) return;
     peer.remoteMuted = Boolean(payload.muted);
     peer.remoteDeafened = Boolean(payload.deafened);
+    if ("cameraStreamId" in payload || "screenStreamId" in payload) peer.labelled = true;
+    peer.cameraId = payload.cameraStreamId ?? null;
+    peer.screenId = payload.screenStreamId ?? null;
+    this.classifyVideo(peer);
     this.emitPeers();
   };
+
+  /** Decide which incoming stream is the camera and which is the screen share. */
+  private classifyVideo(peer: MeshPeer) {
+    peer.camera = peer.cameraId ? peer.videoStreams.get(peer.cameraId) ?? null : null;
+    if (peer.screenId) {
+      peer.video = peer.videoStreams.get(peer.screenId) ?? null;
+    } else if (peer.labelled) {
+      // A stream that just stopped can linger for a moment; it is not a screen share.
+      peer.video = null;
+    } else {
+      // Older clients don't label streams: anything that isn't the camera is the screen.
+      peer.video = Array.from(peer.videoStreams.values()).find((stream) => stream !== peer.camera) ?? null;
+    }
+  }
 
   private handleOccupancy = (payload: { channelId: string; userIds: string[] }) => {
     if (payload.channelId !== this.options.channelId) return;
@@ -332,15 +419,19 @@ export class MeshVoice {
     try {
       if (data.type === "offer") {
         const peer = this.ensurePeer(from);
-        if (peer.connection.signalingState !== "stable") {
-          // Both sides offered at once: drop ours and answer theirs.
-          await peer.connection.setLocalDescription({ type: "rollback" });
-        }
+        // Both sides offered at once (e.g. two people turn their camera on together).
+        // "Perfect negotiation": the side that leads keeps its offer and ignores theirs;
+        // the other side rolls back, answers, then re-sends its own change. Without the
+        // re-send, the yielding side's new track would never be negotiated.
+        const collision = peer.connection.signalingState !== "stable";
+        if (collision && this.leads(from)) return;
+        if (collision) await peer.connection.setLocalDescription({ type: "rollback" });
         await peer.connection.setRemoteDescription({ type: "offer", sdp: data.sdp });
         await this.flushIce(from);
         const answer = await peer.connection.createAnswer();
         await peer.connection.setLocalDescription(answer);
         this.signal(from, { type: "answer", sdp: answer.sdp ?? "" });
+        if (collision) this.later(() => void this.renegotiate(from), 100);
       } else if (data.type === "answer") {
         const peer = this.peers.get(from);
         if (peer && peer.connection.signalingState === "have-local-offer") {
@@ -388,13 +479,17 @@ export class MeshVoice {
     this.applySink(audio);
     document.body.appendChild(audio);
 
-    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, state: connection.connectionState, remoteMuted: false, remoteDeafened: false };
+    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, camera: null, videoStreams: new Map(), screenId: null, cameraId: null, labelled: false, state: connection.connectionState, remoteMuted: false, remoteDeafened: false };
     this.peers.set(userId, peer);
 
     this.local?.getTracks().forEach((track) => connection.addTrack(track, this.local!));
     if (this.screen) {
       const [track] = this.screen.getVideoTracks();
       if (track) this.screenSenders.set(userId, connection.addTrack(track, this.screen));
+    }
+    if (this.camera) {
+      const [track] = this.camera.getVideoTracks();
+      if (track) this.cameraSenders.set(userId, connection.addTrack(track, this.camera));
     }
 
     connection.onicecandidate = (event) => {
@@ -404,31 +499,33 @@ export class MeshVoice {
       const [stream] = event.streams;
       if (event.track.kind === "video") {
         const videoStream = stream ?? new MediaStream([event.track]);
-        peer.video = videoStream;
-        let stall: number | null = null;
-        event.track.onended = () => {
-          peer.video = null;
+        const show = () => {
+          peer.videoStreams.set(videoStream.id, videoStream);
+          this.classifyVideo(peer);
           this.emitPeers();
         };
+        const hide = () => {
+          peer.videoStreams.delete(videoStream.id);
+          this.classifyVideo(peer);
+          this.emitPeers();
+        };
+        let stall: number | null = null;
+        event.track.onended = hide;
         // A muted track is often just a network stall; hide it only if it lasts, and
         // bring it back when frames resume.
         event.track.onmute = () => {
           if (stall) return;
           stall = window.setTimeout(() => {
             stall = null;
-            peer.video = null;
-            this.emitPeers();
+            hide();
           }, SCREEN_STALL_GRACE_MS);
         };
         event.track.onunmute = () => {
           if (stall) window.clearTimeout(stall);
           stall = null;
-          if (peer.video !== videoStream) {
-            peer.video = videoStream;
-            this.emitPeers();
-          }
+          if (!peer.videoStreams.has(videoStream.id)) show();
         };
-        this.emitPeers();
+        show();
         return;
       }
       peer.stream = stream ?? new MediaStream([event.track]);

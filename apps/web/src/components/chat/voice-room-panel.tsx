@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Headphones, HeadphoneOff, Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Radio, Wifi } from "lucide-react";
+import { Headphones, HeadphoneOff, Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, Radio, Video, VideoOff, Wifi } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 
 type MemberLike = { userId: string; user: { id: string; username: string; displayName?: string | null; avatar?: string | null } };
 
-type Participant = { userId: string; name: string; avatar?: string | null; connected: boolean; self: boolean; muted: boolean; deafened: boolean };
+type Participant = { userId: string; name: string; avatar?: string | null; connected: boolean; self: boolean; muted: boolean; deafened: boolean; camera: MediaStream | null };
+
+/** A camera feed filling a participant tile. Your own preview is mirrored, like a mirror. */
+function CameraVideo({ stream, mirror }: { stream: MediaStream; mirror: boolean }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+  return <video ref={ref} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" style={mirror ? { transform: "scaleX(-1)" } : undefined} />;
+}
 
 function ScreenTile({ stream, label, muted = false }: { stream: MediaStream; label: string; muted?: boolean }) {
   const ref = useRef<HTMLVideoElement | null>(null);
@@ -29,7 +38,7 @@ function initials(name: string) {
 /** Visible voice room. All state comes from the voice store; the engine runs in the app shell. */
 export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
   const user = useAuthStore((state) => state.user);
-  const { session, flags, connection, remote, levels, localScreen, error, toggle, leave, pushToTalk } = useVoiceStore();
+  const { session, flags, connection, remote, levels, localScreen, localCamera, error, toggle, leave, pushToTalk } = useVoiceStore();
 
   const nameOf = (userId: string) => {
     const member = members.find((entry) => entry.userId === userId || entry.user.id === userId);
@@ -47,10 +56,12 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
       // Deafen cuts the mic too; with push-to-talk the mic is off until the key is held.
       muted: flags.muted || flags.deafened || (pushToTalk.enabled && !pushToTalk.talking),
       deafened: flags.deafened,
+      camera: localCamera,
     };
-    return [self, ...remote.map((entry) => ({ userId: entry.userId, name: entry.name || nameOf(entry.userId), avatar: avatarOf(entry.userId), connected: entry.connected, self: false, muted: Boolean(entry.muted), deafened: Boolean(entry.deafened) }))];
+    return [self, ...remote.map((entry) => ({ userId: entry.userId, name: entry.name || nameOf(entry.userId), avatar: avatarOf(entry.userId), connected: entry.connected, self: false, muted: Boolean(entry.muted), deafened: Boolean(entry.deafened), camera: entry.camera ?? null }))];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remote, connection, user, members, flags.muted, flags.deafened, pushToTalk]);
+  }, [remote, connection, user, members, flags.muted, flags.deafened, pushToTalk, localCamera]);
+  const anyCamera = participants.some((participant) => participant.camera);
 
   if (!session) return null;
 
@@ -85,10 +96,21 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className={`grid gap-3 ${anyCamera ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
         {participants.map((participant) => {
           const level = levels[participant.self ? "self" : participant.userId] ?? 0;
           const speaking = level > 8;
+          if (participant.camera) {
+            return (
+              <div key={participant.userId} className={`relative aspect-video overflow-hidden rounded-xl border-2 bg-black transition ${speaking ? "border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)]" : "border-white/10"}`}>
+                <CameraVideo stream={participant.camera} mirror={participant.self} />
+                <span className="absolute bottom-2 left-2 inline-flex max-w-[80%] items-center gap-1.5 rounded-lg bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
+                  {participant.deafened ? <HeadphoneOff className="h-3 w-3 text-rose-300" /> : participant.muted ? <MicOff className="h-3 w-3 text-rose-300" /> : <Mic className="h-3 w-3 text-emerald-300" />}
+                  <span className="truncate">{participant.name}{participant.self ? " (you)" : ""}</span>
+                </span>
+              </div>
+            );
+          }
           return (
             <div key={participant.userId} className={`flex flex-col items-center gap-2 rounded-xl border bg-[#11151e] px-3 py-4 transition ${speaking ? "border-emerald-400/60 shadow-[0_0_20px_rgba(52,211,153,0.25)]" : "border-white/5"}`}>
               <span className="relative">
@@ -126,6 +148,11 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
         <button type="button" onClick={() => toggle("deafened")} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${flags.deafened ? "border-rose-400/50 bg-rose-500/10 text-rose-200" : "border-white/10 text-slate-200 hover:border-amber-400/50"}`}>
           {flags.deafened ? <HeadphoneOff className="h-3.5 w-3.5" /> : <Headphones className="h-3.5 w-3.5" />} {flags.deafened ? "Undeafen" : "Deafen"}
         </button>
+        {session.mode === "mesh" ? (
+          <button type="button" onClick={() => toggle("camera")} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${flags.camera ? "border-sky-400/60 bg-sky-500/10 text-sky-200" : "border-white/10 text-slate-200 hover:border-sky-400/50"}`}>
+            {flags.camera ? <VideoOff className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />} {flags.camera ? "Stop video" : "Video"}
+          </button>
+        ) : null}
         {session.mode === "mesh" ? (
           <button type="button" onClick={() => toggle("screenSharing")} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${flags.screenSharing ? "border-amber-400/60 bg-amber-500/10 text-amber-200" : "border-white/10 text-slate-200 hover:border-amber-400/50"}`}>
             {flags.screenSharing ? <MonitorX className="h-3.5 w-3.5" /> : <MonitorUp className="h-3.5 w-3.5" />} {flags.screenSharing ? "Stop sharing" : "Share screen"}

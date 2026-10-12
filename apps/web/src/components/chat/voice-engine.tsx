@@ -76,7 +76,11 @@ export function VoiceEngine() {
         useVoiceStore.getState().leave();
       },
       onPeersChanged: (peers: MeshPeer[]) =>
-        useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video, muted: peer.remoteMuted, deafened: peer.remoteDeafened }))),
+        useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video, camera: peer.camera, muted: peer.remoteMuted, deafened: peer.remoteDeafened }))),
+      onLocalCamera: (stream) => useVoiceStore.getState().setLocalCamera(stream),
+      onCameraEnded: () => {
+        if (useVoiceStore.getState().flags.camera) useVoiceStore.getState().toggle("camera");
+      },
       onScreenShareEnded: () => {
         if (useVoiceStore.getState().flags.screenSharing) useVoiceStore.getState().toggle("screenSharing");
       },
@@ -150,6 +154,14 @@ export function VoiceEngine() {
     if (flags.screenSharing) void mesh.startScreenShare();
     else mesh.stopScreenShare(false);
   }, [flags.screenSharing]);
+
+  // Camera on/off (built-in voice).
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    if (flags.camera) void mesh.startCamera(null);
+    else mesh.stopCamera(false);
+  }, [flags.camera]);
 
   // ------------------------------------------------------------- LiveKit
   useEffect(() => {
