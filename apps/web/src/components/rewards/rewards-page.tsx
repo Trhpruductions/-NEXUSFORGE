@@ -10,7 +10,7 @@ import { CoinHistory } from "./coin-history";
 import { JackpotPanel } from "./jackpot-panel";
 import { SendCoinsDialog } from "./send-coins-dialog";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 const currencyMeta: Record<string, { label: string; hint: string }> = {
@@ -133,7 +133,7 @@ export function RewardsPage() {
         </div>
 
         <aside className={panel}>
-          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Award className="h-4 w-4 text-amber-300" /> Achievements</h2>
+          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Award className="h-4 w-4 vx-accent" /> Achievements</h2>
           {medalsQuery.isLoading ? (
             <p className="text-sm text-slate-400">Loading...</p>
           ) : medalsQuery.data?.medals.length ? (

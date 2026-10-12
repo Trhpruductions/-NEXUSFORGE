@@ -11,7 +11,7 @@ import { plainText } from "@/lib/plain-text";
 
 type Filter = "all" | "unread" | "mentions" | "friends" | "system";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 
 const typeMeta: Record<NotificationItem["type"], { icon: typeof Bell; tone: string; label: string }> = {

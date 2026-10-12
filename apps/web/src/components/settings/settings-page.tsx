@@ -85,7 +85,7 @@ const notificationRows: Array<{ key: NotificationToggleKey; label: string; hint:
   { key: "push", label: "Push notifications", hint: "Deliver to this device even when Vexora is closed." },
 ];
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
@@ -749,7 +749,7 @@ function SettingsInner() {
             <div className="grid gap-4 xl:grid-cols-2">
               <section className={`${panel} space-y-4`}>
                 <div className="flex items-center justify-between">
-                  <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Mic className="h-4 w-4 text-amber-300" /> Voice</h2>
+                  <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Mic className="h-4 w-4 vx-accent" /> Voice</h2>
                   <button type="button" className={ghostBtn} onClick={() => void detectDevices()}>Detect devices</button>
                 </div>
                 {deviceError ? <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{deviceError}</p> : null}
@@ -801,7 +801,7 @@ function SettingsInner() {
                 </ul>
               </section>
               <section className={`${panel} space-y-4`}>
-                <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Video className="h-4 w-4 text-amber-300" /> Video</h2>
+                <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Video className="h-4 w-4 vx-accent" /> Video</h2>
                 <label className="block text-xs text-slate-300">
                   <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Camera</span>
                   <select className={inputClass} value={voice.cameraDeviceId ?? ""} onChange={(event) => setVoice((current) => (current ? { ...current, cameraDeviceId: event.target.value || null } : current))}>

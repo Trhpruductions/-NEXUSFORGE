@@ -8,7 +8,7 @@ import { createPost, deletePost, getApiErrorMessage, listPosts, togglePostLike, 
 import { useAuthStore } from "@/store/auth-store";
 import { PostCard } from "./post-card";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 type Scope = "following" | "all";
 type Kind = "POST" | "CLIP" | undefined;
 type Page = { posts: Post[]; nextCursor: string | null };

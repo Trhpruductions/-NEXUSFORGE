@@ -806,7 +806,16 @@ export function VexoraShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main
+        className="flex min-w-0 flex-1 flex-col"
+        style={(() => {
+          const key = Object.keys(sectionHue)
+            .filter((href) => pathname === href || (href !== "/app" && pathname.startsWith(href)))
+            .sort((a, b) => b.length - a.length)[0] ?? "/app";
+          const hue = hues[sectionHue[key] ?? "amber"];
+          return { "--page-accent": hue.base, "--page-accent-light": hue.light } as React.CSSProperties;
+        })()}
+      >
         <header className="relative flex h-14 shrink-0 items-center gap-3 bg-[#0b0e17]/75 px-3 backdrop-blur-xl md:px-5">
           <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 via-50% to-cyan-400/60" />
           <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu">

@@ -13,7 +13,7 @@ type Manifest = {
   forceUpdate?: boolean;
 };
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300";
 
 export function DownloadsPage() {

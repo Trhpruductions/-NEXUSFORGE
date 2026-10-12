@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { plainText } from "@/lib/plain-text";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 function initials(name: string) {
@@ -141,7 +141,7 @@ function SearchInner() {
           </div>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <section className={panel}>
-              <h2 className={`${sectionTitle} mb-3`}><MessageSquare className="h-4 w-4 text-amber-300" /> Messages ({messagesQuery.data?.messages.length ?? 0})</h2>
+              <h2 className={`${sectionTitle} mb-3`}><MessageSquare className="h-4 w-4 vx-accent" /> Messages ({messagesQuery.data?.messages.length ?? 0})</h2>
               {messagesQuery.data?.messages.length ? (
                 <ul className="space-y-1.5">
                   {messagesQuery.data.messages.map((message) => (
@@ -168,7 +168,7 @@ function SearchInner() {
 
             <div className="space-y-4">
               <section className={panel}>
-                <h2 className={`${sectionTitle} mb-3`}><Users className="h-4 w-4 text-amber-300" /> People ({usersQuery.data?.users.length ?? 0})</h2>
+                <h2 className={`${sectionTitle} mb-3`}><Users className="h-4 w-4 vx-accent" /> People ({usersQuery.data?.users.length ?? 0})</h2>
                 {usersQuery.data?.users.length ? (
                   <ul className="space-y-1.5">
                     {usersQuery.data.users.map((person) => (
@@ -194,7 +194,7 @@ function SearchInner() {
               </section>
 
               <section className={panel}>
-                <h2 className={`${sectionTitle} mb-3`}><Hash className="h-4 w-4 text-amber-300" /> Forges ({forgesQuery.data?.forges.length ?? 0})</h2>
+                <h2 className={`${sectionTitle} mb-3`}><Hash className="h-4 w-4 vx-accent" /> Forges ({forgesQuery.data?.forges.length ?? 0})</h2>
                 {forgesQuery.data?.forges.length ? (
                   <ul className="space-y-1.5">
                     {forgesQuery.data.forges.map((forge) => (

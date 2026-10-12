@@ -41,7 +41,7 @@ const rarityMeta: Record<CosmeticRarity, { label: string; tone: string; glow: st
   MYTHIC: { label: "Mythic", tone: "text-rose-300 border-rose-400/50 bg-rose-500/10", glow: "rgba(244,63,94,0.35)", border: "rgba(244,63,94,0.55)" },
 };
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 function errorText(error: unknown) {

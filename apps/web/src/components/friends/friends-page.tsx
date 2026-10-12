@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/auth-store";
 
 type Tab = "online" | "all" | "pending" | "add";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 

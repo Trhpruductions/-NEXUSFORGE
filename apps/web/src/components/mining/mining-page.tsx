@@ -12,7 +12,7 @@ type Rig = { rigId: string; name: string; tier: string; hashRate: number; effici
 type Stats = { rigCount: number; activeRigs: number; totalHashRate: number; avgEfficiency: number; totalYield: string; pendingYield: string; estimatedHourlyIncome: string };
 type Pricing = { tier: string; cost: string; hashRate: number; efficiency: number };
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
@@ -178,7 +178,7 @@ export function MiningPage() {
         </section>
 
         <aside className={panel}>
-          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Zap className="h-4 w-4 text-amber-300" /> Rig tiers</h2>
+          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Zap className="h-4 w-4 vx-accent" /> Rig tiers</h2>
           <ul className="space-y-2">
             {(pricingQuery.data ?? []).map((entry) => (
               <li key={entry.tier} className="flex items-center justify-between rounded-xl border border-white/5 bg-[#11151e] px-3 py-2">

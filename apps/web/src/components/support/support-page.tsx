@@ -17,7 +17,7 @@ import {
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119]";
+const panel = "vx-panel rounded-2xl";
 const inputClass = "w-full rounded-lg border border-white/10 bg-[#0a0d14] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 hover:border-amber-400/50 disabled:opacity-50";

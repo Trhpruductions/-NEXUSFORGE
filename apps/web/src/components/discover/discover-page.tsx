@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 function initials(name: string) {
@@ -164,7 +164,7 @@ export function DiscoverPage() {
         </div>
 
         <aside className={panel}>
-          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><TrendingUp className="h-4 w-4 text-amber-300" /> Popular Right Now</h2>
+          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><TrendingUp className="h-4 w-4 vx-accent" /> Popular Right Now</h2>
           {data?.popularTags.length ? (
             <ul className="space-y-1.5">
               {data.popularTags.map((entry) => (
