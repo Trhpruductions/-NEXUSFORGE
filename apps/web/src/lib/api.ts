@@ -3412,3 +3412,35 @@ export async function getAdminAnalytics(accessToken: string, days: 7 | 30 | 90) 
   const response = await api.get<AdminAnalytics>(`/api/admin/analytics?days=${days}`, { headers: authHeaders(accessToken) });
   return response.data;
 }
+
+// ---------------------------------------------------------------- saved messages & notes (only you see these)
+export type SavedKind = "CHANNEL" | "DM";
+export type SavedItem = {
+  id: string;
+  kind: SavedKind;
+  savedAt: string;
+  message: { id: string; content: string; createdAt: string; attachments: number; author: { id: string | null; username: string; avatar?: string | null } | null };
+  where: { forgeId?: string; forgeName?: string; forgeIcon?: string | null; channelId?: string; channelName?: string; threadId?: string | null; dmThreadId?: string; label?: string };
+};
+
+export async function listSaved(accessToken: string) {
+  return (await api.get<{ items: SavedItem[] }>("/api/me/saved", { headers: authHeaders(accessToken) })).data;
+}
+
+export async function listSavedIds(accessToken: string) {
+  return (await api.get<{ channel: string[]; dm: string[] }>("/api/me/saved/ids", { headers: authHeaders(accessToken) })).data;
+}
+
+export async function setSaved(accessToken: string, csrfToken: string, kind: SavedKind, messageId: string, saved: boolean) {
+  if (saved) await api.put("/api/me/saved", { kind, messageId }, { headers: authHeaders(accessToken, csrfToken) });
+  else await api.delete(`/api/me/saved/${kind}/${messageId}`, { headers: authHeaders(accessToken, csrfToken) });
+  return saved;
+}
+
+export async function getUserNote(accessToken: string, userId: string) {
+  return (await api.get<{ note: string; updatedAt: string | null }>(`/api/me/notes/${userId}`, { headers: authHeaders(accessToken) })).data;
+}
+
+export async function saveUserNote(accessToken: string, csrfToken: string, userId: string, note: string) {
+  return (await api.put<{ note: string }>(`/api/me/notes/${userId}`, { note }, { headers: authHeaders(accessToken, csrfToken) })).data;
+}

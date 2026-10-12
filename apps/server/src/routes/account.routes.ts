@@ -110,7 +110,7 @@ accountRouter.get("/export", async (req, res) => {
     return;
   }
 
-  const [memberships, friends, follows, sessions, coinAccounts, cosmetics, medals, events, tickets, devices, apiKeys, notifications] = await Promise.all([
+  const [memberships, friends, follows, sessions, coinAccounts, cosmetics, medals, events, tickets, devices, apiKeys, notifications, notes, saved] = await Promise.all([
     prisma.forgeMember.findMany({ where: { userId }, select: { nickname: true, joinedAt: true, forge: { select: { id: true, name: true } }, roleLinks: { select: { role: { select: { name: true } } } } } }),
     prisma.friend.findMany({
       where: { OR: [{ senderId: userId }, { receiverId: userId }] },
@@ -126,6 +126,9 @@ accountRouter.get("/export", async (req, res) => {
     prisma.pushSubscription.findMany({ where: { userId }, select: { deviceName: true, platform: true, createdAt: true } }),
     prisma.apiKey.findMany({ where: { userId }, select: { name: true, enabled: true, createdAt: true, lastUsedAt: true } }),
     prisma.notification.findMany({ where: { userId }, select: { type: true, title: true, body: true, read: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1000 }),
+    // Notes you wrote (not other people's notes about you: those are theirs).
+    prisma.userNote.findMany({ where: { authorId: userId }, select: { note: true, updatedAt: true, target: { select: { username: true } } } }),
+    prisma.savedMessage.findMany({ where: { userId }, select: { createdAt: true, messageId: true, dmMessageId: true }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -167,6 +170,10 @@ accountRouter.get("/export", async (req, res) => {
   writeJson(res, tickets);
   res.write(",\n\"notifications\": ");
   writeJson(res, notifications);
+  res.write(",\n\"notesAboutOthers\": ");
+  writeJson(res, notes.map((entry) => ({ about: entry.target.username, note: entry.note, updatedAt: entry.updatedAt })));
+  res.write(",\n\"savedMessages\": ");
+  writeJson(res, saved.map((entry) => ({ savedAt: entry.createdAt, channelMessageId: entry.messageId, directMessageId: entry.dmMessageId })));
 
   try {
     await writeBatched(

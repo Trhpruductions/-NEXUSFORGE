@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
+  Bookmark,
   Calendar,
   ChevronDown,
   Coins,
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
 import { QuickSwitcher } from "@/components/layout/quick-switcher";
+import { SavedPanel } from "@/components/chat/saved-panel";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
 import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
@@ -267,6 +269,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   // Muted forges show no unread dot (mention badges still show), like Discord.
   const mutedForgeIds = useMemo(() => new Set((summaryQuery.data?.forges ?? []).filter((entry) => entry.muted).map((entry) => entry.forgeId)), [summaryQuery.data]);
   const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
 
   const dmUnreadQuery = useQuery({
     queryKey: ["dm-unread", accessToken],
@@ -725,6 +728,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       <VoiceEngine />
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
+      <SavedPanel open={savedOpen} onClose={() => setSavedOpen(false)} />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
@@ -850,6 +854,9 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             <Link href="/app/friends" className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-amber-200" title="Friends">
               <Users className="h-4 w-4" />
             </Link>
+            <button type="button" onClick={() => setSavedOpen(true)} className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-amber-200" title="Saved messages" aria-label="Saved messages">
+              <Bookmark className="h-4 w-4" />
+            </button>
             <Link href="/app/notifications" className="relative rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-amber-200" title="Notifications">
               <Bell className="h-4 w-4" />
               {unreadNotifications ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" /> : null}

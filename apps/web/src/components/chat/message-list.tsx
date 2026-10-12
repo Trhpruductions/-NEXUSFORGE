@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CornerUpLeft, Flag, Loader2, MessagesSquare, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { Bookmark, BookmarkCheck, Check, CornerUpLeft, Flag, Loader2, MessagesSquare, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { useSavedMessages } from "@/components/chat/use-saved";
 import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
@@ -102,6 +103,7 @@ export function MessageList({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [lastMessageId]);
 
+  const saved = useSavedMessages();
   const memberByUserId = useMemo(() => new Map(members.map((member) => [member.userId, member] as const)), [members]);
 
   // For mention pills and highlighting: who's reading, the forge's roles, and id -> name.
@@ -348,6 +350,15 @@ export function MessageList({
                   <button type="button" className={iconBtn} title="Reply" onClick={() => onReply(message)}>
                     <CornerUpLeft className="h-3.5 w-3.5" />
                   </button>
+                  {saved.isSaved("CHANNEL", message.id) ? (
+                    <button type="button" className={iconBtn} title="Remove from saved" aria-label="Remove from saved" onClick={() => saved.setSaved("CHANNEL", message.id, false)}>
+                      <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" />
+                    </button>
+                  ) : (
+                    <button type="button" className={iconBtn} title="Save for later" aria-label="Save for later" onClick={() => saved.setSaved("CHANNEL", message.id, true)}>
+                      <Bookmark className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {canModerate && onPin ? (
                     <button type="button" className={iconBtn} title={message.pinnedAt ? "Unpin" : "Pin"} onClick={() => onPin(message.id, !message.pinnedAt)}>
                       {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}

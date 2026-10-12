@@ -97,6 +97,9 @@ export async function anonymizeUser(userId: string) {
     prisma.channelReadState.deleteMany({ where: { userId } }),
     prisma.avatarPreset.deleteMany({ where: { userId } }),
     prisma.postLike.deleteMany({ where: { userId } }),
+    prisma.savedMessage.deleteMany({ where: { userId } }),
+    // Notes they wrote, and other people's notes about an account that no longer exists.
+    prisma.userNote.deleteMany({ where: { OR: [{ authorId: userId }, { targetId: userId }] } }),
     // Their own feed posts and comments are profile content, not conversation: removed.
     prisma.postComment.deleteMany({ where: { authorId: userId } }),
     prisma.post.deleteMany({ where: { authorId: userId } }),

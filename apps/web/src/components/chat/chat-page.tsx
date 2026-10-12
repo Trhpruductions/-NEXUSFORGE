@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, BarChart3, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, BarChart3, Bookmark, BookmarkCheck, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -44,6 +44,7 @@ import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MessageList } from "@/components/chat/message-list";
 import { PollComposer } from "@/components/chat/poll-composer";
+import { useSavedMessages } from "@/components/chat/use-saved";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
@@ -453,6 +454,7 @@ function ChatInner() {
     }
   };
 
+  const saved = useSavedMessages();
   // Polls: the question is sent as the message text.
   const [pollOpen, setPollOpen] = useState(false);
   const sendPoll = async (question: string, poll: PollDraft) => {
@@ -906,6 +908,9 @@ function ChatInner() {
                         </div>
                         {msg.authorId !== user?.id ? (
                           <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
+                            <button type="button" title={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} aria-label={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => saved.setSaved("DM", msg.id, !saved.isSaved("DM", msg.id))}>
+                              {saved.isSaved("DM", msg.id) ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" /> : <Bookmark className="h-3.5 w-3.5" />}
+                            </button>
                             <button type="button" title="Report" className="rounded p-1 text-slate-400 hover:text-rose-300" onClick={() => setReportTarget({ kind: "DM", messageId: msg.id, authorName: msg.author.username, content: msg.content })}>
                               <Flag className="h-3.5 w-3.5" />
                             </button>
@@ -913,6 +918,9 @@ function ChatInner() {
                         ) : null}
                         {msg.authorId === user?.id && dmEditing?.id !== msg.id ? (
                           <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
+                            <button type="button" title={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} aria-label={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => saved.setSaved("DM", msg.id, !saved.isSaved("DM", msg.id))}>
+                              {saved.isSaved("DM", msg.id) ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" /> : <Bookmark className="h-3.5 w-3.5" />}
+                            </button>
                             <button type="button" title="Edit" className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => { setDmEditing({ id: msg.id, text: plainText(msg.content) }); setDmConfirmDelete(null); }}>
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
