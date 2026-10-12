@@ -24,7 +24,11 @@ export type ForgeAuditAction =
   | "invite.revoke"
   | "message.delete"
   | "message.pin"
-  | "message.unpin";
+  | "message.unpin"
+  | "automod.block"
+  | "automod.rule.create"
+  | "automod.rule.update"
+  | "automod.rule.delete";
 
 export type AuditTarget = { type: "forge" | "channel" | "role" | "member" | "invite" | "message"; id?: string; label?: string };
 

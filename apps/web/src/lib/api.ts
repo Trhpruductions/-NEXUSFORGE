@@ -328,6 +328,55 @@ export type MessageReaction = {
   createdAt?: string;
 };
 
+export type AutoModRule = {
+  id: string;
+  forgeId: string;
+  name: string;
+  enabled: boolean;
+  type: "KEYWORDS" | "LINKS" | "INVITES" | "MENTION_SPAM";
+  keywords: string[];
+  allowList: string[];
+  mentionLimit: number | null;
+  blockMessage: boolean;
+  alertModerators: boolean;
+  timeoutMinutes: 1 | 5 | 10 | 60 | 1440 | 10080 | null;
+  customMessage: string | null;
+  exemptRoleIds: string[];
+  exemptChannelIds: string[];
+  position: number;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+};
+type AutoModInput = Partial<Omit<AutoModRule, "id" | "forgeId" | "position" | "createdById" | "createdAt" | "updatedAt">>;
+
+const autoModFields = ["name", "enabled", "type", "keywords", "allowList", "mentionLimit", "blockMessage", "alertModerators", "timeoutMinutes", "customMessage", "exemptRoleIds", "exemptChannelIds"] as const;
+/** Only the fields the server accepts (a rule loaded for editing carries ids and dates too). */
+function autoModBody(rule: AutoModInput) {
+  return Object.fromEntries(autoModFields.filter((field) => field in rule).map((field) => [field, rule[field]]));
+}
+
+export async function listAutoModRules(accessToken: string, forgeId: string) {
+  const response = await api.get<{ rules: AutoModRule[] }>(`/api/forges/${forgeId}/automod`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createAutoModRule(accessToken: string, csrfToken: string, forgeId: string, rule: AutoModInput) {
+  const body = autoModBody(rule);
+  const response = await api.post<{ rule: AutoModRule }>(`/api/forges/${forgeId}/automod`, body, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updateAutoModRule(accessToken: string, csrfToken: string, forgeId: string, ruleId: string, rule: AutoModInput) {
+  const body = autoModBody(rule);
+  const response = await api.patch<{ rule: AutoModRule }>(`/api/forges/${forgeId}/automod/${ruleId}`, body, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteAutoModRule(accessToken: string, csrfToken: string, forgeId: string, ruleId: string) {
+  await api.delete(`/api/forges/${forgeId}/automod/${ruleId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export type ThreadSummary = { id: string; title: string; messageCount: number; lastMessageAt: string | null; archived: boolean; creatorId?: string | null; starterPostId?: string | null };
 
 export async function createThread(accessToken: string, csrfToken: string, payload: { messageId: string; title: string }) {

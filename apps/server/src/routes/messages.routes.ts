@@ -14,6 +14,7 @@ import { messageRateLimit } from "../middleware/rate-limit.js";
 import { recordMentions } from "./reads.routes.js";
 import { bypassesSlowmode, canViewChannel, channelAccessSelect, isTimedOut, loadMemberContext, privateChannelViewerIds, userCanViewChannel } from "../lib/channel-access.js";
 import { logForgeAction } from "../lib/forge-audit.js";
+import { runAutoMod } from "../lib/automod-runtime.js";
 
 function timeoutError(until: Date | null) {
   return { error: `You're timed out until ${until?.toISOString() ?? "later"}`, code: "TIMED_OUT", timeoutUntil: until };
@@ -279,6 +280,12 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
+  const automod = await runAutoMod({ forgeId: channel.forgeId, channelId: channel.id, content: parsed.data.content, member: memberContext, username: req.user!.username });
+  if (automod.blocked) {
+    res.status(400).json({ error: automod.message, code: "AUTOMOD", rule: automod.ruleName });
+    return;
+  }
+
   // Announcement channels are read-only for regular members.
   if (channel.type === "ANNOUNCEMENT") {
     const access = resolveForgeAccess(
@@ -518,6 +525,13 @@ messagesRouter.patch("/:id", async (req, res) => {
   if (isTimedOut(view.member)) {
     res.status(403).json(timeoutError(view.member!.timeoutUntil));
     return;
+  }
+  if (view.member && view.channel) {
+    const automod = await runAutoMod({ forgeId: view.channel.forgeId, channelId: view.channel.id, content: parsed.data.content, member: view.member, username: req.user!.username });
+    if (automod.blocked) {
+      res.status(400).json({ error: automod.message, code: "AUTOMOD", rule: automod.ruleName });
+      return;
+    }
   }
 
   const message = await prisma.message.update({

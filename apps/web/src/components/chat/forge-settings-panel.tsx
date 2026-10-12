@@ -41,8 +41,9 @@ import {
   type ForgeRole,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { AutoModTab } from "@/components/chat/automod-tab";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -163,6 +164,7 @@ export function ForgeSettingsPanel({
     list.push({ id: "members", label: "Members" });
     list.push({ id: "invites", label: "Invites" });
     if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
+    if (can("manageForge")) list.push({ id: "automod", label: "AutoMod" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
@@ -240,6 +242,8 @@ export function ForgeSettingsPanel({
             <InvitesTab forge={forge} setNotice={setNotice} />
           ) : tab === "reports" ? (
             <ReportsTab forgeId={forgeId} setNotice={setNotice} />
+          ) : tab === "automod" ? (
+            <AutoModTab forge={forge} setNotice={setNotice} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "audit" ? (
@@ -1437,6 +1441,7 @@ const auditFilters = [
   { value: "role", label: "Roles" },
   { value: "invite", label: "Invites" },
   { value: "forge", label: "Forge settings" },
+  { value: "automod", label: "AutoMod" },
 ];
 
 const auditFieldNames: Record<string, string> = {
@@ -1478,6 +1483,10 @@ function describeAudit(entry: ForgeAuditEntry): string {
     case "message.delete": return `deleted a message by ${target}`;
     case "message.pin": return "pinned a message";
     case "message.unpin": return "unpinned a message";
+    case "automod.block": return `tripped AutoMod rule "${String(details.rule ?? "")}"${details.blocked ? " (message blocked)" : ""}${details.timeoutMinutes ? `, timed out ${details.timeoutMinutes} min` : ""}`;
+    case "automod.rule.create": return `created AutoMod rule ${target}`;
+    case "automod.rule.update": return `updated AutoMod rule ${target}`;
+    case "automod.rule.delete": return `deleted AutoMod rule ${target}`;
     default: return `${entry.action} ${target}`;
   }
 }

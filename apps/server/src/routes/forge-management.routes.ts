@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
 import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtime.js";
 import { logForgeAction } from "../lib/forge-audit.js";
+import { clearAutoModCache } from "../lib/automod-runtime.js";
 import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
 import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -359,6 +360,120 @@ forgeManagementRouter.put("/:id/notification-settings", async (req, res) => {
     mutedUntil: muted && member.mutedUntil!.getTime() < FOREVER.getTime() ? member.mutedUntil : null,
     mutedForever: muted && member.mutedUntil!.getTime() >= FOREVER.getTime(),
   });
+});
+
+// ---------------------------------------------------------------------------
+// AutoMod rules (manageForge)
+// ---------------------------------------------------------------------------
+
+const wordList = z.array(z.string().trim().min(1).max(60)).max(200);
+// No .default() here: a partial update must only change the fields it sends.
+const automodFields = {
+  name: z.string().trim().min(1).max(60),
+  enabled: z.boolean(),
+  type: z.enum(["KEYWORDS", "LINKS", "INVITES", "MENTION_SPAM"]),
+  keywords: wordList,
+  allowList: wordList,
+  mentionLimit: z.number().int().min(1).max(50).nullable(),
+  blockMessage: z.boolean(),
+  alertModerators: z.boolean(),
+  timeoutMinutes: z.union([z.literal(1), z.literal(5), z.literal(10), z.literal(60), z.literal(1440), z.literal(10080)]).nullable(),
+  customMessage: z.string().trim().max(150).nullable(),
+  exemptRoleIds: z.array(z.string().uuid()).max(50),
+  exemptChannelIds: z.array(z.string().uuid()).max(100),
+};
+const automodUpdateSchema = z.object(automodFields).partial();
+const automodCreateSchema = automodUpdateSchema.required({ name: true, type: true }).transform((value) => ({
+  enabled: true,
+  keywords: [] as string[],
+  allowList: [] as string[],
+  mentionLimit: null as number | null,
+  blockMessage: true,
+  alertModerators: true,
+  timeoutMinutes: null as number | null,
+  customMessage: null as string | null,
+  exemptRoleIds: [] as string[],
+  exemptChannelIds: [] as string[],
+  ...Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)),
+  name: value.name,
+  type: value.type,
+}));
+
+function automodProblem(rule: { type: string; keywords: string[]; mentionLimit: number | null; blockMessage: boolean; alertModerators: boolean; timeoutMinutes: number | null }) {
+  if (rule.type === "KEYWORDS" && !rule.keywords.length) return "Add at least one word or phrase";
+  if (rule.type === "MENTION_SPAM" && !rule.mentionLimit) return "Set how many mentions are allowed";
+  if (!rule.blockMessage && !rule.alertModerators && !rule.timeoutMinutes) return "Pick at least one action";
+  return null;
+}
+
+forgeManagementRouter.get("/:id/automod", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const rules = await prisma.forgeAutoModRule.findMany({ where: { forgeId: context.forge.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+  res.json({ rules });
+});
+
+forgeManagementRouter.post("/:id/automod", async (req, res) => {
+  const parsed = automodCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid rule", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const problem = automodProblem(parsed.data);
+  if (problem) {
+    res.status(400).json({ error: problem });
+    return;
+  }
+  const count = await prisma.forgeAutoModRule.count({ where: { forgeId: context.forge.id } });
+  if (count >= 20) {
+    res.status(400).json({ error: "A forge can have up to 20 AutoMod rules" });
+    return;
+  }
+  const rule = await prisma.forgeAutoModRule.create({ data: { ...parsed.data, forgeId: context.forge.id, position: count, createdById: req.user!.id } });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.create", { type: "forge", id: rule.id, label: rule.name }, { type: rule.type });
+  res.status(201).json({ rule });
+});
+
+forgeManagementRouter.patch("/:id/automod/:ruleId", async (req, res) => {
+  const parsed = automodUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid rule", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeAutoModRule.findFirst({ where: { id: req.params.ruleId, forgeId: context.forge.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Rule not found" });
+    return;
+  }
+  const merged = { ...existing, ...parsed.data };
+  const problem = automodProblem(merged);
+  if (problem) {
+    res.status(400).json({ error: problem });
+    return;
+  }
+  const rule = await prisma.forgeAutoModRule.update({ where: { id: existing.id }, data: parsed.data });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.update", { type: "forge", id: rule.id, label: rule.name }, { changed: Object.keys(parsed.data) });
+  res.json({ rule });
+});
+
+forgeManagementRouter.delete("/:id/automod/:ruleId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeAutoModRule.findFirst({ where: { id: req.params.ruleId, forgeId: context.forge.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Rule not found" });
+    return;
+  }
+  await prisma.forgeAutoModRule.delete({ where: { id: existing.id } });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.delete", { type: "forge", id: existing.id, label: existing.name });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------

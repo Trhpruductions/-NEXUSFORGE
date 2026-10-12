@@ -434,7 +434,7 @@ function ChatInner() {
     } catch (error) {
       setStatus(getApiErrorMessage(error));
       const data = axios.isAxiosError(error) ? (error.response?.data as { code?: string; retryAfter?: number } | undefined) : undefined;
-      if (data?.code === "SLOWMODE" || data?.code === "TIMED_OUT") {
+      if (data?.code === "SLOWMODE" || data?.code === "TIMED_OUT" || data?.code === "AUTOMOD") {
         // Not sent: give the text back so nothing is lost.
         if (!files.length) setDraft(content);
         if (data.code === "SLOWMODE" && data.retryAfter) setSlowUntil((current) => ({ ...current, [channelId]: Date.now() + data.retryAfter! * 1000 }));
@@ -719,7 +719,7 @@ function ChatInner() {
     // screens (phones, where the header and banner wrap) the panel grew past the bottom and hid the composer.
     <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
       {selectedForgeId ? (
-        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
+        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
 

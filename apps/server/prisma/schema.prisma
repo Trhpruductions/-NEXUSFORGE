@@ -569,6 +569,32 @@ model LegalAuditEntry {
   @@index([policySlug, createdAt])
 }
 
+/// A forge's AutoMod rule (see lib/automod.ts). Checked before messages are saved.
+model ForgeAutoModRule {
+  id               String   @id @default(uuid())
+  forgeId          String
+  name             String
+  enabled          Boolean  @default(true)
+  /// KEYWORDS, LINKS, INVITES or MENTION_SPAM
+  type             String
+  keywords         String[] @default([])
+  /// Allowed phrases (KEYWORDS) or allowed domains (LINKS).
+  allowList        String[] @default([])
+  mentionLimit     Int?
+  blockMessage     Boolean  @default(true)
+  alertModerators  Boolean  @default(true)
+  timeoutMinutes   Int?
+  customMessage    String?
+  exemptRoleIds    String[] @default([])
+  exemptChannelIds String[] @default([])
+  position         Int      @default(0)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([forgeId, position])
+}
+
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
 /// DM reports go to platform staff. The message is copied at report time so deleting it
 /// doesn't destroy the evidence.
