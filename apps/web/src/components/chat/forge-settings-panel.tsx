@@ -43,8 +43,9 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { AutoModTab } from "@/components/chat/automod-tab";
 import { EmojiTab } from "@/components/chat/emoji-tab";
+import { WebhooksTab } from "@/components/chat/webhooks-tab";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "webhooks" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -167,6 +168,7 @@ export function ForgeSettingsPanel({
     if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
     if (can("manageForge")) list.push({ id: "automod", label: "AutoMod" });
     if (can("manageForge")) list.push({ id: "emoji", label: "Emoji" });
+    if (can("manageChannels")) list.push({ id: "webhooks", label: "Webhooks" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
@@ -248,6 +250,8 @@ export function ForgeSettingsPanel({
             <AutoModTab forge={forge} setNotice={setNotice} />
           ) : tab === "emoji" ? (
             <EmojiTab forge={forge} setNotice={setNotice} />
+          ) : tab === "webhooks" ? (
+            <WebhooksTab forge={forge} setNotice={setNotice} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "audit" ? (
@@ -1491,6 +1495,10 @@ function describeAudit(entry: ForgeAuditEntry): string {
     case "automod.rule.create": return `created AutoMod rule ${target}`;
     case "automod.rule.update": return `updated AutoMod rule ${target}`;
     case "automod.rule.delete": return `deleted AutoMod rule ${target}`;
+    case "webhook.create": return `created webhook ${target}`;
+    case "webhook.update": return `updated webhook ${target}`;
+    case "webhook.reset": return `made a new URL for webhook ${target}`;
+    case "webhook.delete": return `deleted webhook ${target}`;
     default: return `${entry.action} ${target}`;
   }
 }

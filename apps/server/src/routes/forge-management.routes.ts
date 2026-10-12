@@ -6,6 +6,7 @@ import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtim
 import { logForgeAction } from "../lib/forge-audit.js";
 import { clearAutoModCache } from "../lib/automod-runtime.js";
 import { isOwnUploadUrl } from "../lib/storage.js";
+import { hashWebhookToken, newWebhookToken } from "./webhooks.routes.js";
 import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
 import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -361,6 +362,117 @@ forgeManagementRouter.put("/:id/notification-settings", async (req, res) => {
     mutedUntil: muted && member.mutedUntil!.getTime() < FOREVER.getTime() ? member.mutedUntil : null,
     mutedForever: muted && member.mutedUntil!.getTime() >= FOREVER.getTime(),
   });
+});
+
+// ---------------------------------------------------------------------------
+// Channel webhooks (manageChannels). The secret URL is shown once, on create or reset.
+// ---------------------------------------------------------------------------
+
+const webhookSelect = { id: true, channelId: true, name: true, avatarUrl: true, creatorId: true, lastUsedAt: true, createdAt: true } as const;
+const webhookSchema = z.object({
+  channelId: z.string().uuid(),
+  name: z.string().trim().min(1).max(80),
+  avatarUrl: z.string().url().max(2048).nullable().optional(),
+});
+
+function webhookUrl(id: string, token: string) {
+  const base = (process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? 4001}`).replace(/\/$/, "");
+  return `${base}/api/webhooks/${id}/${token}`;
+}
+
+async function webhookChannelOk(forgeId: string, channelId: string) {
+  const channel = await prisma.channel.findFirst({ where: { id: channelId, forgeId }, select: { type: true } });
+  return Boolean(channel && (channel.type === "TEXT" || channel.type === "ANNOUNCEMENT"));
+}
+
+forgeManagementRouter.get("/:id/webhooks", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const webhooks = await prisma.channelWebhook.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: webhookSelect });
+  res.json({ webhooks });
+});
+
+forgeManagementRouter.post("/:id/webhooks", async (req, res) => {
+  const parsed = webhookSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give the webhook a name and pick a text channel" });
+    return;
+  }
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  if (!(await webhookChannelOk(context.forge.id, parsed.data.channelId))) {
+    res.status(400).json({ error: "Pick a text or announcement channel in this forge" });
+    return;
+  }
+  if (parsed.data.avatarUrl && !isOwnUploadUrl(parsed.data.avatarUrl)) {
+    res.status(400).json({ error: "Upload the avatar image instead of linking to it" });
+    return;
+  }
+  if ((await prisma.channelWebhook.count({ where: { forgeId: context.forge.id } })) >= 25) {
+    res.status(400).json({ error: "A forge can have up to 25 webhooks" });
+    return;
+  }
+  const token = newWebhookToken();
+  const webhook = await prisma.channelWebhook.create({
+    data: { forgeId: context.forge.id, channelId: parsed.data.channelId, name: parsed.data.name, avatarUrl: parsed.data.avatarUrl ?? null, tokenHash: hashWebhookToken(token), creatorId: req.user!.id },
+    select: webhookSelect,
+  });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.create", { type: "channel", id: webhook.channelId, label: webhook.name });
+  res.status(201).json({ webhook, url: webhookUrl(webhook.id, token) });
+});
+
+forgeManagementRouter.patch("/:id/webhooks/:webhookId", async (req, res) => {
+  const parsed = webhookSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  if (parsed.data.channelId && !(await webhookChannelOk(context.forge.id, parsed.data.channelId))) {
+    res.status(400).json({ error: "Pick a text or announcement channel in this forge" });
+    return;
+  }
+  if (parsed.data.avatarUrl && !isOwnUploadUrl(parsed.data.avatarUrl)) {
+    res.status(400).json({ error: "Upload the avatar image instead of linking to it" });
+    return;
+  }
+  const webhook = await prisma.channelWebhook.update({ where: { id: existing.id }, data: parsed.data, select: webhookSelect });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.update", { type: "channel", id: webhook.channelId, label: webhook.name }, { changed: Object.keys(parsed.data) });
+  res.json({ webhook });
+});
+
+/** New secret URL; the old one stops working immediately. */
+forgeManagementRouter.post("/:id/webhooks/:webhookId/reset", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true, name: true, channelId: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  const token = newWebhookToken();
+  await prisma.channelWebhook.update({ where: { id: existing.id }, data: { tokenHash: hashWebhookToken(token) } });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.reset", { type: "channel", id: existing.channelId, label: existing.name });
+  res.json({ url: webhookUrl(existing.id, token) });
+});
+
+forgeManagementRouter.delete("/:id/webhooks/:webhookId", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true, name: true, channelId: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  await prisma.channelWebhook.delete({ where: { id: existing.id } });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.delete", { type: "channel", id: existing.channelId, label: existing.name });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------

@@ -328,6 +328,32 @@ export type MessageReaction = {
   createdAt?: string;
 };
 
+export type ChannelWebhook = { id: string; channelId: string; name: string; avatarUrl: string | null; creatorId: string; lastUsedAt: string | null; createdAt: string };
+
+export async function listWebhooks(accessToken: string, forgeId: string) {
+  const response = await api.get<{ webhooks: ChannelWebhook[] }>(`/api/forges/${forgeId}/webhooks`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createWebhook(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; channelId: string; avatarUrl?: string | null }) {
+  const response = await api.post<{ webhook: ChannelWebhook; url: string }>(`/api/forges/${forgeId}/webhooks`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updateWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string, payload: { name?: string; channelId?: string; avatarUrl?: string | null }) {
+  const response = await api.patch<{ webhook: ChannelWebhook }>(`/api/forges/${forgeId}/webhooks/${webhookId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function resetWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string) {
+  const response = await api.post<{ url: string }>(`/api/forges/${forgeId}/webhooks/${webhookId}/reset`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string) {
+  await api.delete(`/api/forges/${forgeId}/webhooks/${webhookId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export type ForgeEmoji = { id: string; name: string; imageUrl: string; creatorId: string; createdAt: string };
 
 export async function listForgeEmojis(accessToken: string, forgeId: string) {
@@ -433,6 +459,8 @@ export type Message = {
   pinnedById?: string | null;
   /** Set on replies inside a thread. */
   threadId?: string | null;
+  /** Set when the message came in through a channel webhook. */
+  webhookId?: string | null;
   /** Set on the message a thread was started from. */
   startedThread?: ThreadSummary | null;
   replyTo?: {

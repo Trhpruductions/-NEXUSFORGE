@@ -595,6 +595,23 @@ model ForgeAutoModRule {
   @@index([forgeId, position])
 }
 
+/// An incoming webhook: a secret URL that posts messages into one channel (stream
+/// alerts, game-server logs, GitHub...). Only a hash of the token is stored.
+model ChannelWebhook {
+  id         String    @id @default(uuid())
+  forgeId    String
+  channelId  String
+  name       String
+  avatarUrl  String?
+  tokenHash  String
+  creatorId  String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([forgeId])
+  @@index([channelId])
+}
+
 /// A forge's own emoji, used in messages and reactions as :name:.
 model ForgeEmoji {
   id        String   @id @default(uuid())
@@ -929,6 +946,8 @@ model Message {
   botId        String?
   botName      String?
   botAvatar    String?
+  /// Set when the message was posted through a channel webhook.
+  webhookId    String?
   content      String       @db.Text
   attachments  Json?
   edited       Boolean      @default(false)

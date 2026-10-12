@@ -28,7 +28,11 @@ export type ForgeAuditAction =
   | "automod.block"
   | "automod.rule.create"
   | "automod.rule.update"
-  | "automod.rule.delete";
+  | "automod.rule.delete"
+  | "webhook.create"
+  | "webhook.update"
+  | "webhook.reset"
+  | "webhook.delete";
 
 export type AuditTarget = { type: "forge" | "channel" | "role" | "member" | "invite" | "message"; id?: string; label?: string };
 

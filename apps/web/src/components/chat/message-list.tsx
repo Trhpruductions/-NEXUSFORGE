@@ -125,6 +125,7 @@ export function MessageList({
 
   const authorMeta = (message: Message) => {
     if (message.botId) return { name: message.botName ?? "Bot", color: "#e879f9", nickname: null as string | null };
+    if (message.webhookId) return { name: message.botName ?? "Webhook", color: "#7dd3fc", nickname: null as string | null };
     const member = message.authorId ? memberByUserId.get(message.authorId) : undefined;
     const top = member ? topRoleFor(member, roles, ownerId) : null;
     // Role color when they have one; otherwise everyone still gets their own color.
@@ -227,7 +228,7 @@ export function MessageList({
                   ) : (
                     <span
                       className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
-                      style={{ background: message.botId ? tileGradient(hueFor("bot")) : tileGradient(hueFor(message.authorId)) }}
+                      style={{ background: message.botId ? tileGradient(hueFor("bot")) : message.webhookId ? tileGradient(hueFor(message.webhookId)) : tileGradient(hueFor(message.authorId)) }}
                     >
                       {initials(meta.name)}
                     </span>
@@ -247,6 +248,10 @@ export function MessageList({
                     {message.botId ? (
                       <span className="rounded-[14px] border border-fuchsia-500/40 bg-fuchsia-950/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-fuchsia-200">
                         Bot
+                      </span>
+                    ) : message.webhookId ? (
+                      <span className="rounded-[14px] border border-sky-500/40 bg-sky-950/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-sky-200">
+                        Webhook
                       </span>
                     ) : null}
                     <span className="text-[11px]">{formatTime(message.createdAt)}</span>
