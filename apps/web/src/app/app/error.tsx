@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RefreshCcw, Terminal, ShieldAlert } from "lucide-react";
+import { RefreshCcw, Terminal, ShieldAlert } from "lucide-react";
 
 export default function GlobalAppError({
   error,

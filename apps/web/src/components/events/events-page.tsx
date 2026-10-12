@@ -144,7 +144,7 @@ export function EventsPage() {
     onError: (error) => setNotice(errorText(error)),
   });
 
-  const events = eventsQuery.data?.events ?? [];
+  const events = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
   const calendarEvents = useMemo(() => [...(upcomingAllQuery.data?.events ?? []), ...(liveQuery.data?.events ?? [])], [upcomingAllQuery.data, liveQuery.data]);
   const liveTournament = liveQuery.data?.events.find((event) => event.type === "TOURNAMENT") ?? null;
   const nextTournament = upcomingAllQuery.data?.events.find((event) => event.type === "TOURNAMENT") ?? null;

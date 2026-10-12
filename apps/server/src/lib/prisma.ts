@@ -22,6 +22,15 @@ const pool = new pg.Pool({
   max: 20, // Prisma 7 stability: limited pool size to prevent exhaustion
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+  // Keep idle connections alive through NAT/firewall timeouts.
+  keepAlive: true,
+});
+
+// An idle connection that drops (Postgres restarted, network blip) emits "error" on the
+// pool. Without a listener Node treats it as unhandled and the whole server exits; the
+// pool already discards the broken connection, so logging it is all that's needed.
+pool.on("error", (error) => {
+  console.error("[db] idle connection lost:", error.message);
 });
 
 const adapter = new PrismaPg(pool);

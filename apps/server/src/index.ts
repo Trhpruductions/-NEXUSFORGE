@@ -39,6 +39,7 @@ import { threadsRouter } from "./routes/threads.routes.js";
 import { webhookExecuteRouter } from "./routes/webhooks.routes.js";
 import { ensureLegalPolicies } from "./lib/legal-policies.js";
 import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
+import { runStartupTask } from "./lib/startup.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
@@ -80,6 +81,10 @@ morgan.token('remote-addr-masked', (req: any) => {
 });
 
 const app = express();
+// Behind a tunnel or reverse proxy on this machine (cloudflared, nginx), every request
+// arrives from 127.0.0.1. Trust X-Forwarded-For only from loopback so req.ip is the real
+// visitor (rate limits, session IP prefixes); remote clients can't spoof it.
+app.set("trust proxy", "loopback");
 const httpServer = createServer(app);
 
 initializeAuditLogger(prisma);
@@ -534,12 +539,13 @@ io.on("connection", (socket) => {
 });
 
 setIo(io);
-void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
-void ensureLegalPolicies().catch((error) => console.warn("[legal] policy seed failed", error));
-void loadActiveSuspensions().catch((error) => console.warn("[suspension] load failed", error));
+// Startup tasks retry on their own if the database isn't reachable yet.
+void runStartupTask("cosmetics catalog", ensureCosmeticCatalog);
+void runStartupTask("legal policies", ensureLegalPolicies);
+void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 });
 startEventReminders();
 startDeletionSweeper();
-void ensureAchievementCatalog().catch((error) => console.warn("[achievements] catalog seed failed", error));
+void runStartupTask("achievements catalog", ensureAchievementCatalog);
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
@@ -585,4 +591,11 @@ process.on("SIGINT", () => {
 
 process.on("SIGTERM", () => {
   void gracefulShutdown();
+});
+
+// A forgotten .catch() somewhere shouldn't take the whole server (and everyone's calls)
+// down; log it so it can be fixed. Uncaught exceptions still exit and pm2 restarts us,
+// because the process may be in a broken state after one.
+process.on("unhandledRejection", (reason) => {
+  console.error("[process] unhandled promise rejection:", reason);
 });

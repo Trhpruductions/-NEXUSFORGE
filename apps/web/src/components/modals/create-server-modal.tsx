@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Zap, Users, Gamepad2, BookOpen, Building2, Terminal, ArrowRight, ShieldCheck, Cpu } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { X, Zap, Users, Gamepad2, Building2, Terminal, ArrowRight, ShieldCheck, Cpu } from "lucide-react";
 import { createForge } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 

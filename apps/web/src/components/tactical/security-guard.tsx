@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Shield, Lock, Eye, Terminal } from "lucide-react";
+import { Lock, Eye, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SecurityGuardProps {

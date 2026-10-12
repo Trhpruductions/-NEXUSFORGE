@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, MessageSquare, Search, UserMinus, UserPlus, Users, X, Eye } from "lucide-react";
-import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus, type Friendship } from "@/lib/api";
+import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 

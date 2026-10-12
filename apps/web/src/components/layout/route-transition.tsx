@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -21,7 +21,12 @@ export function RouteTransition({ children }: RouteTransitionProps) {
           ? "admin"
           : "nexus";
 
-  const routeAnnouncement = pathname ? `Navigated to ${pathname}` : "Navigated to Vexora Gaming";
+  // Set after load, not during render: prebuilt pages (like the 404 page) don't know the
+  // real path on the server, and the text must match when the page hydrates.
+  const [routeAnnouncement, setRouteAnnouncement] = useState("");
+  useEffect(() => {
+    setRouteAnnouncement(pathname ? `Navigated to ${pathname}` : "Navigated to Vexora Gaming");
+  }, [pathname]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme-mode", themeMode);

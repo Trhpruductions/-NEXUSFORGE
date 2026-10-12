@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Mic, Radio, Users, Activity, Settings, Shield, Plus, ArrowRight, Volume2, Maximize2 } from "lucide-react";
+import { Mic, Radio, Activity, Settings, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function SpectrumBar({ active }: { active: boolean }) {

@@ -46,7 +46,6 @@ import {
   sendFriendRequest,
   updateForgeInviteCode,
   updateFriendStatus,
-  updateVoiceState,
   runForgeOnboardingAction,
   type ForgeOnboardingAction,
   type VoiceTokenResponse,
@@ -109,10 +108,6 @@ const botCommandPresetCatalog = {
     requiredPermission: "manageRoles",
   },
 } as const;
-
-function formatTime(date: string): string {
-  return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 function threadLabel(thread: DmThread, selfId: string): string {
   if (thread.isGroup) return thread.name ?? "Group Chat";
@@ -226,7 +221,10 @@ export function ForgeChatClient() {
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const selectedChannelIdRef = useRef<string | null>(null);
-  selectedChannelIdRef.current = selectedChannelId;
+  // Socket handlers read the open channel through this ref.
+  useEffect(() => {
+    selectedChannelIdRef.current = selectedChannelId;
+  }, [selectedChannelId]);
   const [messageDraft, setMessageDraft] = useState("");
   const [forgeName, setForgeName] = useState("");
   const [forgeDescription, setForgeDescription] = useState("");
@@ -273,14 +271,6 @@ export function ForgeChatClient() {
 
   const [selectedVoiceChannelId, setSelectedVoiceChannelId] = useState<string | null>(null);
   const [voiceSession, setVoiceSession] = useState<(VoiceTokenResponse & { channelId: string }) | null>(null);
-  const [voiceState, setVoiceState] = useState({
-    muted: false,
-    deafened: false,
-    screenSharing: false,
-    noiseSuppression: true,
-    voiceActivity: true,
-  });
-
   const [statusMessage, setStatusMessage] = useState<string>("");
   const [desktopStartupHealth, setDesktopStartupHealth] = useState<DesktopStartupHealth | null>(null);
   const [desktopDiagnosticsOpen, setDesktopDiagnosticsOpen] = useState(false);
@@ -1011,11 +1001,6 @@ export function ForgeChatClient() {
       useVoiceStore.getState().join({ ...data, channelId: selectedVoiceChannelId, channelName, forgeId: selectedForgeId ?? null });
       setStatusMessage("Voice session token issued.");
     },
-  });
-
-  const voiceStateMutation = useMutation({
-    mutationFn: (payload: typeof voiceState & { channelId: string }) =>
-      updateVoiceState(accessToken!, csrfToken!, payload),
   });
 
   const textChannels = useMemo(

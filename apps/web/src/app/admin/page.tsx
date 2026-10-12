@@ -65,7 +65,8 @@ export default function AdminPage() {
         offset: 0,
         status: "blocked",
       }),
-    enabled: Boolean(accessToken && csrfToken),
+    // Only staff can see the review queue; don't ask for it on behalf of everyone else.
+    enabled: Boolean(accessToken && csrfToken && user?.isAdmin),
     staleTime: 30_000,
   });
 

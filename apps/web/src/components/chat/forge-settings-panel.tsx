@@ -111,7 +111,7 @@ export function ForgeSettingsPanel({
   initialTab?: Tab;
 }) {
   const queryClient = useQueryClient();
-  const { accessToken, csrfToken, user } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
   const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
   useEffect(() => {
     if (open && initialTab) setTab(initialTab);

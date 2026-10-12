@@ -63,10 +63,8 @@ function shouldLogRequest(path: string, method: string): boolean {
 }
 
 function extractIpAddress(req: Request): string | undefined {
-  return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    (req.socket?.remoteAddress as string)
-  );
+  // req.ip honours "trust proxy" (loopback only), so a client can't forge it with a header.
+  return req.ip || (req.socket?.remoteAddress as string);
 }
 
 /**

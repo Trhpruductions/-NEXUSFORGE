@@ -19,13 +19,13 @@ export const globalRateLimit = rateLimit({
 // Endpoints worth brute-forcing or spamming: guessing passwords and codes, mass sign-ups,
 // mailbombing. Everything else under /api/auth (GET /me on every page load, profile
 // edits, telemetry) needs a valid session already and is covered by globalRateLimit.
-// Putting /me under this 40-per-15-minutes budget throttled ordinary browsing.
+// Putting /me under this 40-per-15-minutes budget throttled ordinary browsing. /refresh is
+// left out too: refresh tokens are random (nothing to guess) and every open tab refreshes.
 const CREDENTIAL_AUTH_PATHS = new Set([
   "/register",
   "/login",
   "/2fa/verify",
   "/2fa/resend",
-  "/refresh",
   "/verify-email",
   "/forgot-password",
   "/reset-password",
