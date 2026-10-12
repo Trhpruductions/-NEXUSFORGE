@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -14,6 +14,7 @@ import {
   SAMPLE_PROFILE_GENERATION_STALE_MS,
 } from "../lib/profile-tool-generation.js";
 import {
+  appRoleRank,
   canAssignRole,
   canModifyTarget,
   hasAdminAccess,
@@ -25,6 +26,7 @@ import { getRemotePricingCatalog } from "../lib/pricing-catalog-client.js";
 import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
+import { cachedSuspension, describeSuspension, liftSuspension, suspendAccount, SUSPENSION_MAX_DAYS, SUSPENSION_REASON_MAX } from "../lib/account-suspension.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
 import { adminAnalytics, ANALYTICS_RANGES, type AnalyticsRange } from "../lib/admin-analytics.js";
 
@@ -529,6 +531,99 @@ adminRouter.get("/users", async (req, res) => {
       manualBadges: user.medals
         .map((entry) => manualBadgeReverseMap[entry.medal.key])
         .filter((value): value is z.infer<typeof manualBadgeKeySchema> => Boolean(value)),
+      suspension: (() => {
+        const active = cachedSuspension(user.id);
+        return active ? describeSuspension(active) : null;
+      })(),
+    })),
+  });
+});
+
+// ---------------------------------------------------------------- suspensions
+const suspendSchema = z.object({
+  reason: z.string().trim().min(3).max(SUSPENSION_REASON_MAX),
+  /** null = until lifted */
+  days: z.number().int().min(1).max(SUSPENSION_MAX_DAYS).nullable(),
+});
+const liftSchema = z.object({ note: z.string().trim().max(SUSPENSION_REASON_MAX).optional() });
+
+/** Staff can only suspend accounts ranked below them, and never their own. */
+async function suspensionTargets(req: Request, res: Response) {
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: req.user!.id }, select: { id: true, appRole: true, isAdmin: true } }),
+    prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, username: true, appRole: true, isAdmin: true, deletedAt: true } }),
+  ]);
+  if (!actor) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  if (!target || target.deletedAt) {
+    res.status(404).json({ error: "User not found" });
+    return null;
+  }
+  if (actor.id === target.id) {
+    res.status(400).json({ error: "You can't suspend your own account" });
+    return null;
+  }
+  const actorRole = resolveEffectiveRole(actor.appRole as AppRole | null, actor.isAdmin);
+  const targetRole = resolveEffectiveRole(target.appRole as AppRole | null, target.isAdmin);
+  if (appRoleRank[targetRole] >= appRoleRank[actorRole]) {
+    res.status(403).json({ error: "You can only suspend accounts ranked below you" });
+    return null;
+  }
+  return { actor, target };
+}
+
+adminRouter.post("/users/:id/suspend", async (req, res) => {
+  const parsed = suspendSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give a reason (3 to 500 characters) and a length", details: parsed.error.flatten() });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const entry = await suspendAccount({ actorId: targets.actor.id, userId: targets.target.id, reason: parsed.data.reason, days: parsed.data.days });
+  if (!entry) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  console.log(`[SUSPENSION] ${targets.actor.id} suspended ${targets.target.id} (${parsed.data.days ?? "until lifted"} days)`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, suspension: describeSuspension(entry) });
+});
+
+adminRouter.post("/users/:id/unsuspend", async (req, res) => {
+  const parsed = liftSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const lifted = await liftSuspension({ actorId: targets.actor.id, userId: targets.target.id, note: parsed.data.note ?? null });
+  if (!lifted) {
+    res.status(404).json({ error: "This account isn't suspended" });
+    return;
+  }
+  console.log(`[SUSPENSION] ${targets.actor.id} lifted the suspension on ${targets.target.id}`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, suspension: null });
+});
+
+/** Every suspension on an account, newest first (for appeals). */
+adminRouter.get("/users/:id/suspensions", async (req, res) => {
+  const rows = await prisma.accountSuspension.findMany({ where: { userId: req.params.id }, orderBy: { createdAt: "desc" }, take: 50 });
+  const staffIds = Array.from(new Set(rows.flatMap((row) => [row.actorId, row.liftedById]).filter((id): id is string => Boolean(id))));
+  const staff = await prisma.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, username: true } });
+  const nameOf = (id: string | null) => (id ? staff.find((entry) => entry.id === id)?.username ?? "Former staff" : null);
+  res.json({
+    suspensions: rows.map((row) => ({
+      id: row.id,
+      reason: row.reason,
+      since: row.createdAt,
+      until: row.until,
+      by: nameOf(row.actorId),
+      liftedAt: row.liftedAt,
+      liftedBy: nameOf(row.liftedById),
+      liftNote: row.liftNote,
     })),
   });
 });

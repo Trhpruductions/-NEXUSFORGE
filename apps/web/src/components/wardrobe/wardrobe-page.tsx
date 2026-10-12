@@ -217,7 +217,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           ) : (
             <div className={`${panel} text-sm text-slate-500`}>
               {mode === "store" ? "No items match." : (
-                <>Nothing here yet. Browse the <Link href="/app/store" className="text-amber-300">Store</Link> to pick up your first pieces.</>
+                <>Nothing here yet. Browse the <Link href="/app/store" className="text-amber-300">Store</Link>{" "}to pick up your first pieces.</>
               )}
             </div>
           )}

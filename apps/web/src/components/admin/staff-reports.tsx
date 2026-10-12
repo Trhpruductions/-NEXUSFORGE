@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, MessageSquare, RotateCcw, Trash2, X } from "lucide-react";
 import { getApiErrorMessage, handleReport, listStaffReports, type ReportStatus } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { SuspensionControl } from "@/components/admin/suspension-control";
+import type { SuspensionInfo } from "@/lib/suspension";
 
 const reasonLabels: Record<string, string> = {
   SPAM: "Spam",
@@ -27,6 +29,8 @@ export function StaffReports() {
   const [status, setStatus] = useState<ReportStatus>("OPEN");
   const [kind, setKind] = useState<"DM" | "CHANNEL" | "">("DM");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  // Suspensions applied from this page (the report list itself doesn't carry account state).
+  const [suspendedAuthors, setSuspendedAuthors] = useState<Record<string, SuspensionInfo | null>>({});
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const reportsQuery = useQuery({
@@ -84,6 +88,14 @@ export function StaffReports() {
                 {report.attachmentsSnapshot.length ? <span className="mt-1 block text-[11px] text-slate-500">{report.attachmentsSnapshot.length} attachment{report.attachmentsSnapshot.length === 1 ? "" : "s"} (not shown)</span> : null}
               </blockquote>
               {report.details ? <p className="text-xs text-slate-300">Reporter&apos;s note: {report.details}</p> : null}
+              {report.authorId ? (
+                <SuspensionControl
+                  userId={report.authorId}
+                  username={report.authorUsername ?? "this user"}
+                  suspension={suspendedAuthors[report.authorId] ?? null}
+                  onChange={(next) => setSuspendedAuthors((current) => ({ ...current, [report.authorId!]: next }))}
+                />
+              ) : null}
               {report.status !== "OPEN" ? (
                 <p className="text-[11px] text-slate-500">
                   {report.status.toLowerCase()} by {report.handledBy?.username ?? "staff"}

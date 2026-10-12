@@ -18,6 +18,7 @@ import { currentRequiredPolicies, recordAcceptances } from "../lib/legal-policie
 import { missingSignupAcceptances } from "../lib/legal-rules.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
+import { currentSuspension, suspendedResponse } from "../lib/account-suspension.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -298,6 +299,12 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
+  const suspension = await currentSuspension(user.id);
+  if (suspension) {
+    res.status(403).json(suspendedResponse(suspension));
+    return;
+  }
+
   if (user.totpEnabledAt) {
     const token = jwt.sign({ sub: user.id, purpose: "2fa", method: "totp" }, env.JWT_ACCESS_SECRET, { expiresIn: "10m" });
     res.json({ requiresTwoFactor: true, challengeToken: token, method: "totp", channels: ["Authenticator app"] });
@@ -423,6 +430,11 @@ authRouter.post("/2fa/verify", async (req, res) => {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+  const suspension = await currentSuspension(user.id);
+  if (suspension) {
+    res.status(403).json(suspendedResponse(suspension));
+    return;
+  }
 
   const ctx = deviceContext(req);
   const tokens = await issueTokens(user, ctx);
@@ -496,6 +508,12 @@ authRouter.post("/refresh", async (req, res) => {
   if (!session || session.revokedAt || session.expiresAt < new Date()) {
     res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
     res.status(401).json({ error: "Invalid refresh token" });
+    return;
+  }
+  const suspension = await currentSuspension(session.userId);
+  if (suspension) {
+    res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    res.status(403).json(suspendedResponse(suspension));
     return;
   }
 

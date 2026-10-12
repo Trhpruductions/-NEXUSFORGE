@@ -767,6 +767,8 @@ export type LaunchModeState = {
   source: "env" | "runtime";
 };
 
+import { handleSuspended, isSuspensionInfo } from "./suspension";
+
 const LOCAL_API_BASE_URL = "http://127.0.0.1:4000";
 const LOCAL_API_FALLBACK_URL = "http://127.0.0.1:4001";
 
@@ -843,6 +845,12 @@ api.interceptors.response.use(
         __retriedOnFallbackPort: true,
         baseURL: LOCAL_API_FALLBACK_URL,
       } as RetriableRequestConfig);
+    }
+
+    // Suspended by Vexora staff (sign-in or any request): leave the app and explain why.
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const suspended = (error.response.data as { suspended?: unknown } | undefined)?.suspended;
+      if (isSuspensionInfo(suspended)) handleSuspended(suspended);
     }
 
     if (axios.isAxiosError(error) && error.response?.status === 401) {

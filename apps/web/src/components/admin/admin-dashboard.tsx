@@ -10,6 +10,8 @@ import { CORE_PLUS_TIER_DISPLAY_LABELS, PAID_FEATURE_DISPLAY_LABELS } from "@/li
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AdminAnalyticsPanel } from "@/components/admin/admin-analytics";
+import { SuspensionControl } from "@/components/admin/suspension-control";
+import type { SuspensionInfo } from "@/lib/suspension";
 
 type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
 type ManualBadgeKey = "vip" | "investor" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner";
@@ -109,7 +111,7 @@ export function AdminDashboard() {
       const response = await api.get<{
         actorRole: AppRole;
         canManageHighRoles: boolean;
-        users: Array<{ id: string; username: string; email: string; appRole: AppRole; isAdmin: boolean; premium: boolean; status: string; manualBadges?: ManualBadgeKey[] }>;
+        users: Array<{ id: string; username: string; email: string; appRole: AppRole; isAdmin: boolean; premium: boolean; status: string; manualBadges?: ManualBadgeKey[]; suspension?: SuspensionInfo | null }>;
       }>(
         "/api/admin/users",
         { headers: authHeaders(accessToken, csrfToken) },
@@ -659,6 +661,7 @@ export function AdminDashboard() {
                   </span>
                 </p>
                 <p className="text-xs text-slate-400">{entry.email}</p>
+                <SuspensionControl userId={entry.id} username={entry.username} suspension={entry.suspension ?? null} />
                               {(entry.manualBadges?.length ?? 0) > 0 ? (
                                 <div className="mt-2 flex flex-wrap gap-1">
                                   {entry.manualBadges!.map((badgeKey) => (

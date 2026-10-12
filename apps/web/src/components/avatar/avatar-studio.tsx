@@ -444,7 +444,7 @@ export function AvatarStudio() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Custom color</p>
                   <Swatches colors={outfitColors} value={config.topColor} onPick={(topColor) => update({ topColor })} />
                 </div>
-                <p className="text-[11px] text-slate-500">Owned cosmetics from the <Link href="/app/wardrobe" className="text-amber-300">Wardrobe</Link> apply their colors here when equipped.</p>
+                <p className="text-[11px] text-slate-500">Owned cosmetics from the <Link href="/app/wardrobe" className="text-amber-300">Wardrobe</Link>{" "}apply their colors here when equipped.</p>
               </>
             ) : null}
 

@@ -197,7 +197,7 @@ Use **Report** on any message, or block someone to stop them contacting you. Rep
 `;
 
 export const moderationSeedSummary =
-  "Initial Moderation Policy describing how moderation actually works today: reports (8 reasons, saved snapshot, 20/hour limit), forge moderators (delete, timeout, kick, ban, slowmode, AutoMod, audit log, rank checks) and platform staff (DM reports, ID review). Platform-level account suspension is described as a staff action; the app does not yet have a suspension tool, so build it before publishing or remove that wording. Fill in the [placeholders].";
+  "Initial Moderation Policy describing how moderation actually works today: reports (8 reasons, saved snapshot, 20/hour limit), forge moderators (delete, timeout, kick, ban, slowmode, AutoMod, audit log, rank checks) and platform staff (DM reports, ID review). Fill in the [placeholders].";
 
 export const moderationSeedContent = `# Vexora Gaming Moderation Policy
 
@@ -243,7 +243,8 @@ Depending on what happened, Vexora staff may:
 
 - Remove content anywhere on the platform.
 - Resolve or dismiss reports and record why.
-- Restrict features, or suspend or permanently close an account. [Confirm: account suspension tools must be in place before this policy is published.]
+- Suspend an account for a set time or until we lift it. A suspended account is signed out everywhere and can't sign in, and its owner is emailed the reason and when it ends.
+- Permanently close an account.
 - Remove a forge, or remove its owner's control of it.
 - Review age verification submissions.
 - Remove coins or items gained by breaking our rules.

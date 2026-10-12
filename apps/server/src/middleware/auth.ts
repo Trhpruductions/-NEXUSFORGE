@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { prisma } from "../lib/prisma.js";
+import { cachedSuspension, suspendedResponse } from "../lib/account-suspension.js";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
@@ -13,6 +14,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   try {
     const payload = verifyAccessToken(token);
+    // Suspended by Vexora staff: an access token issued earlier stops working right away.
+    const suspension = cachedSuspension(payload.sub);
+    if (suspension) {
+      res.status(403).json(suspendedResponse(suspension));
+      return;
+    }
     req.user = {
       id: payload.sub,
       username: payload.username,

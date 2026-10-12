@@ -38,6 +38,7 @@ import { linkPreviewRouter } from "./routes/link-preview.routes.js";
 import { threadsRouter } from "./routes/threads.routes.js";
 import { webhookExecuteRouter } from "./routes/webhooks.routes.js";
 import { ensureLegalPolicies } from "./lib/legal-policies.js";
+import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
@@ -208,6 +209,7 @@ io.use((socket, next) => {
   const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
   try {
     const payload = verifyAccessToken(token);
+    if (cachedSuspension(payload.sub)) return next(new Error("Account suspended"));
     socket.data.user = {
       id: payload.sub,
       // Username and Email removed from realtime context for security.
@@ -534,6 +536,7 @@ io.on("connection", (socket) => {
 setIo(io);
 void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
 void ensureLegalPolicies().catch((error) => console.warn("[legal] policy seed failed", error));
+void loadActiveSuspensions().catch((error) => console.warn("[suspension] load failed", error));
 startEventReminders();
 startDeletionSweeper();
 void ensureAchievementCatalog().catch((error) => console.warn("[achievements] catalog seed failed", error));

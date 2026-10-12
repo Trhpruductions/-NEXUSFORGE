@@ -257,6 +257,7 @@ model User {
   deletionRequestedAt  DateTime?
   deletionScheduledFor DateTime?
   deletedAt            DateTime?
+  suspensions          AccountSuspension[]
   dailyStreak        Int            @default(0)
   ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
   ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
@@ -629,6 +630,25 @@ model ForgeEmoji {
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
 /// DM reports go to platform staff. The message is copied at report time so deleting it
 /// doesn't destroy the evidence.
+/// A platform-level suspension applied by Vexora staff. Rows are kept as history (for
+/// appeals); one is in force while liftedAt is null and until is null or in the future.
+model AccountSuspension {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Staff member who applied it.
+  actorId     String
+  reason      String    @db.VarChar(500)
+  /// null = until lifted
+  until       DateTime?
+  createdAt   DateTime  @default(now())
+  liftedAt    DateTime?
+  liftedById  String?
+  liftNote    String?   @db.VarChar(500)
+
+  @@index([userId, liftedAt])
+}
+
 model MessageReport {
   id                  String    @id @default(uuid())
   reporterId          String
