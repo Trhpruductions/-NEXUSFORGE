@@ -13,7 +13,9 @@ import { createServer } from "node:http";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { setIo } from "./lib/realtime.js";
-import { isTimedOut, userCanViewChannel } from "./lib/channel-access.js";
+import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
+import { hasForgePermission } from "./lib/forge-permissions.js";
+import { stageJoin, stageRaise, stageSetSpeaker, stageSnapshot, stageSync } from "./lib/stage.js";
 import { verifyAccessToken } from "./lib/jwt.js";
 import { globalRateLimit, authRateLimit } from "./middleware/rate-limit.js";
 import { authRouter } from "./routes/auth.routes.js";
@@ -272,6 +274,16 @@ async function broadcastVoiceOccupancy(channelId: string) {
   if (!forgeId) return;
   const userIds = voiceMembers(channelId);
   io.to(`forge:${forgeId}`).emit("voice:occupancy", { forgeId, channelId, userIds, count: userIds.length });
+  if (stageChannels.has(channelId)) {
+    stageSync(channelId, userIds);
+    broadcastStage(channelId);
+  }
+}
+
+/** Stage channels seen so far (their type never changes). */
+const stageChannels = new Set<string>();
+function broadcastStage(channelId: string) {
+  io.to(`voice:${channelId}`).emit("stage:state", { channelId, ...stageSnapshot(channelId) });
 }
 
 /** Current occupancy of every voice channel in a forge (seeds the sidebar). */
@@ -380,12 +392,33 @@ io.on("connection", (socket) => {
     socket.emit("voice:peers", { channelId, userIds: peers });
     socket.join(`voice:${channelId}`);
     joinVoice(channelId, socket.data.user.id, socket.id);
+    // Stage: owners, chat moderators and channel managers go straight on stage.
+    const joinedChannel = await prisma.channel.findUnique({ where: { id: channelId }, select: { type: true, forgeId: true } }).catch(() => null);
+    if (joinedChannel?.type === "STAGE") {
+      stageChannels.add(channelId);
+      const member = await loadMemberContext(socket.data.user.id, joinedChannel.forgeId);
+      const moderator = Boolean(member && (member.access.isOwner || hasForgePermission(member.access, "moderateChat") || hasForgePermission(member.access, "manageChannels")));
+      stageJoin(channelId, socket.data.user.id, moderator);
+    }
     void broadcastVoiceOccupancy(channelId);
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
       action: "joined",
     });
+  });
+
+  // Stage: raise/lower a hand, and moderators bring people up or move them down.
+  socket.on("stage:raise", (payload: { channelId?: string; raised?: boolean }) => {
+    if (!payload || typeof payload.channelId !== "string" || !stageChannels.has(payload.channelId)) return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    if (stageRaise(payload.channelId, socket.data.user.id, Boolean(payload.raised))) broadcastStage(payload.channelId);
+  });
+  socket.on("stage:speaker", (payload: { channelId?: string; userId?: string; speaker?: boolean }) => {
+    if (!payload || typeof payload.channelId !== "string" || typeof payload.userId !== "string" || !stageChannels.has(payload.channelId)) return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    if (!voiceMembers(payload.channelId).includes(payload.userId)) return;
+    if (stageSetSpeaker(payload.channelId, socket.data.user.id, payload.userId, Boolean(payload.speaker))) broadcastStage(payload.channelId);
   });
 
   socket.on("voice:leave", (channelId: string) => {

@@ -51,6 +51,32 @@ export function VoiceEngine() {
     };
   }, [sessionChannelId, accessToken]);
 
+  // Stage channels: who's speaking, who has a hand up, who runs the stage.
+  const stageSession = Boolean(session?.stage);
+  useEffect(() => {
+    if (!sessionChannelId || !accessToken || !stageSession) return;
+    const socket = getSocket(accessToken);
+    const onStage = (payload: { channelId: string; speakers: string[]; raised: string[]; moderators: string[] }) => {
+      if (payload.channelId !== sessionChannelId) return;
+      useVoiceStore.getState().setStage({ speakers: payload.speakers, raised: payload.raised, moderators: payload.moderators });
+    };
+    socket.on("stage:state", onStage);
+    return () => {
+      socket.off("stage:state", onStage);
+    };
+  }, [sessionChannelId, accessToken, stageSession]);
+  const stage = useVoiceStore((state) => state.stage);
+  useEffect(() => {
+    // Until the first stage update arrives, nobody is heard (and your mic stays off).
+    meshRef.current?.setStage(stageSession ? stage?.speakers ?? [] : null);
+    // Moved to the audience: switch off your camera and screen share.
+    if (stageSession && stage && user && !stage.speakers.includes(user.id)) {
+      const { flags, toggle } = useVoiceStore.getState();
+      if (flags.camera) toggle("camera");
+      if (flags.screenSharing) toggle("screenSharing");
+    }
+  }, [stage, stageSession, user]);
+
   // ------------------------------------------------------------- built-in mesh
   useEffect(() => {
     if (!session || session.mode !== "mesh" || !accessToken || !user) return;
@@ -89,6 +115,7 @@ export function VoiceEngine() {
       onError: (message) => useVoiceStore.getState().setError(message),
     });
     meshRef.current = mesh;
+    if (session.stage) mesh.setStage(useVoiceStore.getState().stage?.speakers ?? []);
     void mesh.start().then(() => {
       if (meshRef.current === mesh) useVoiceStore.getState().setConnection("connected");
     });

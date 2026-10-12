@@ -80,6 +80,8 @@ export class MeshVoice {
   private local: MediaStream | null = null;
   private screen: MediaStream | null = null;
   private camera: MediaStream | null = null;
+  /** Stage channels: only these people are heard and seen (null = ordinary voice room). */
+  private stageSpeakers: Set<string> | null = null;
   private cameraSenders = new Map<string, RTCRtpSender>();
   private screenSenders = new Map<string, RTCRtpSender>();
   private audioContext: AudioContext | null = null;
@@ -169,7 +171,7 @@ export class MeshVoice {
   /** Deafening also cuts your mic, like Discord. */
   setDeafened(deafened: boolean) {
     this.deafened = deafened;
-    for (const peer of this.peers.values()) peer.audio.muted = deafened;
+    for (const peer of this.peers.values()) this.applyPlayback(peer);
     this.applyMute();
     this.broadcastState();
   }
@@ -308,8 +310,27 @@ export class MeshVoice {
     }
   }
 
+  /**
+   * Stage mode: pass the current speakers (or null to leave stage mode). Audio from
+   * anyone else isn't played, and your own mic stays off unless you're on stage.
+   */
+  setStage(speakers: string[] | null) {
+    this.stageSpeakers = speakers ? new Set(speakers) : null;
+    for (const peer of this.peers.values()) this.applyPlayback(peer);
+    this.applyMute();
+  }
+
+  isHeard(userId: string) {
+    return !this.stageSpeakers || this.stageSpeakers.has(userId);
+  }
+
+  private applyPlayback(peer: MeshPeer) {
+    peer.audio.muted = this.deafened || !this.isHeard(peer.userId);
+  }
+
   private applyMute() {
-    const live = !this.muted && !this.deafened && (!this.pushToTalk || this.talking);
+    const onStage = !this.stageSpeakers || this.stageSpeakers.has(this.options.selfId);
+    const live = onStage && !this.muted && !this.deafened && (!this.pushToTalk || this.talking);
     this.local?.getAudioTracks().forEach((track) => {
       track.enabled = live;
     });
@@ -486,7 +507,7 @@ export class MeshVoice {
     const connection = new RTCPeerConnection({ iceServers: this.options.iceServers });
     const audio = document.createElement("audio");
     audio.autoplay = true;
-    audio.muted = this.deafened;
+    audio.muted = this.deafened || !this.isHeard(userId);
     audio.volume = this.outputVolume;
     audio.setAttribute("playsinline", "true");
     this.applySink(audio);

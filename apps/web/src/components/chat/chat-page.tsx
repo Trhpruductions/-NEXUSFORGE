@@ -453,7 +453,7 @@ function ChatInner() {
     try {
       const token = await requestVoiceToken(accessToken, csrfToken, target.id);
       // The engine in the app shell runs the call, so it keeps going when you leave this page.
-      joinVoiceStore({ ...token, channelId: target.id, channelName: target.name, forgeId: forge?.id ?? null });
+      joinVoiceStore({ ...token, channelId: target.id, channelName: target.name, forgeId: forge?.id ?? null, stage: target.type === "STAGE" });
       await updateVoiceState(accessToken, csrfToken, { channelId: target.id, ...useVoiceStore.getState().flags }).catch(() => undefined);
     } catch (error) {
       setStatus(getApiErrorMessage(error));
