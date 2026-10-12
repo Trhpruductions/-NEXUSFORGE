@@ -8,6 +8,7 @@ import { topRoleFor } from "@/components/chat/member-list";
 import { plainText } from "@/lib/plain-text";
 import { hueFor, tileGradient } from "@/lib/colors";
 import { MessageAttachments } from "@/components/chat/message-attachments";
+import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
@@ -274,6 +275,7 @@ export function MessageList({
                   )}
 
                   {message.attachments?.length ? <MessageAttachments urls={message.attachments} /> : null}
+                  {!message.optimistic && !isEditing && !message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
 
                   {reactionGroups.size ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">

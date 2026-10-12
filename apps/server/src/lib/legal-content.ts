@@ -431,7 +431,11 @@ While you are signed in we record whether you are online and when you were last 
 
 We keep the notifications we send you so they appear in your inbox. If you turn on push notifications, your browser gives us a push address for your device; we use it only to deliver Vexora notifications, and you can turn it off at any time.
 
-### 2.5 Cookies and local storage
+### 2.5 Link previews
+
+When a message contains a link, our server visits that page to show a preview (its title, description and image), and serves the preview image itself. This means the linked site sees a request from our server, not from you or the people reading the message. If you click the link, your browser visits the site directly.
+
+### 2.6 Cookies and local storage
 
 We use a small number of cookies and browser storage that are needed for the Services to work. We do not use advertising or cross-site tracking cookies. See our [Cookie Policy](/legal/cookies) for the details. In short:
 

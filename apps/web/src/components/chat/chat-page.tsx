@@ -46,6 +46,7 @@ import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
+import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { plainText } from "@/lib/plain-text";
 import { RichText } from "@/components/chat/rich-text";
 
@@ -790,6 +791,7 @@ function ChatInner() {
                             <>
                               <RichText content={msg.content} />
                               {msg.edited ? <span className="text-[10px] text-slate-500">(edited)</span> : null}
+                              {!msg.attachments?.length && firstLink(msg.content) ? <LinkPreviewCard url={firstLink(msg.content)!} /> : null}
                             </>
                           )}
                         </div>

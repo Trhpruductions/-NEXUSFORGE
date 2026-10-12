@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
+import { QuickSwitcher } from "@/components/layout/quick-switcher";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
 import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
@@ -718,6 +719,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       </div>
       <VoiceEngine />
       <ConsentRenewal />
+      <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
@@ -807,6 +809,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 via-50% to-cyan-400/60" />
           <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu">
             <Layers className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("vexora:quick-switcher"))}
+            className="hidden shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:border-violet-400/50 hover:text-white md:inline-flex"
+            title="Quick switcher (Ctrl+K)"
+          >
+            Jump to <kbd className="rounded border border-white/10 px-1 text-[10px]">Ctrl K</kbd>
           </button>
           <form onSubmit={onSearch} className="relative max-w-md flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
