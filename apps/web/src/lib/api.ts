@@ -396,6 +396,7 @@ export type DmMessage = {
   authorId: string;
   content: string;
   attachments?: string[];
+  edited?: boolean;
   createdAt: string;
   author: {
     id: string;
@@ -1840,6 +1841,15 @@ export async function getDmMessages(accessToken: string, threadId: string) {
   return response.data;
 }
 
+export async function editDmMessage(accessToken: string, csrfToken: string, messageId: string, content: string) {
+  const response = await api.patch<{ message: DmMessage }>(`/api/dms/messages/${messageId}`, { content }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteDmMessage(accessToken: string, csrfToken: string, messageId: string) {
+  await api.delete(`/api/dms/messages/${messageId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export async function postDmMessage(
   accessToken: string,
   csrfToken: string,
@@ -2758,8 +2768,104 @@ export type ProtectionStatus = {
   email: string;
   twoFactorEnabled: boolean;
   twoFactorChannels: string[];
+  /** Authenticator-app two-factor is on. */
+  totpEnabled?: boolean;
+  recoveryCodesLeft?: number;
   complete: boolean;
 };
+
+export async function startTotpSetup(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.post<{ secret: string; otpauthUrl: string }>("/api/verification/two-factor/totp/setup", { password }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function enableTotp(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; recoveryCodes: string[]; protection: ProtectionStatus }>("/api/verification/two-factor/totp/enable", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function disableTotp(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; protection: ProtectionStatus }>("/api/verification/two-factor/totp/disable", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function regenerateRecoveryCodes(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; recoveryCodes: string[]; protection: ProtectionStatus }>("/api/verification/two-factor/totp/recovery-codes", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+// --- message reports --------------------------------------------------------
+
+export type ReportReason = "SPAM" | "HARASSMENT" | "HATE" | "SEXUAL" | "VIOLENCE" | "SELF_HARM" | "SCAM" | "OTHER";
+export type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
+
+export type MessageReport = {
+  id: string;
+  kind: "CHANNEL" | "DM";
+  messageId: string;
+  forgeId: string | null;
+  channelId: string | null;
+  channelName?: string | null;
+  threadId: string | null;
+  authorId: string | null;
+  authorUsername: string | null;
+  contentSnapshot: string;
+  attachmentsSnapshot: string[];
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  resolutionNote: string | null;
+  handledAt: string | null;
+  createdAt: string;
+  reporter: { id: string; username: string } | null;
+  handledBy: { id: string; username: string } | null;
+};
+
+export async function reportMessage(accessToken: string, csrfToken: string, payload: { kind: "CHANNEL" | "DM"; messageId: string; reason: ReportReason; details?: string }) {
+  const response = await api.post<{ ok: true; reportId: string; duplicate?: boolean }>("/api/reports", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function listForgeReports(accessToken: string, forgeId: string, status: ReportStatus | "ALL" = "OPEN") {
+  const response = await api.get<{ reports: MessageReport[]; openCount: number }>(`/api/reports/forge/${forgeId}`, { headers: authHeaders(accessToken), params: { status } });
+  return response.data;
+}
+
+export async function listStaffReports(accessToken: string, params: { status?: ReportStatus | "ALL"; kind?: "CHANNEL" | "DM" } = {}) {
+  const response = await api.get<{ reports: MessageReport[]; openCount: number }>("/api/reports/staff", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export async function handleReport(accessToken: string, csrfToken: string, reportId: string, payload: { status: ReportStatus; note?: string; deleteMessage?: boolean }) {
+  const response = await api.patch<{ report: MessageReport; messageDeleted: boolean }>(`/api/reports/${reportId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+// --- per-server notification settings ----------------------------------------
+
+export type ForgeNotificationSettings = {
+  notifyLevel: "ALL" | "MENTIONS" | "NONE";
+  suppressEveryone: boolean;
+  muted: boolean;
+  mutedUntil: string | null;
+  mutedForever: boolean;
+};
+
+export async function getForgeNotificationSettings(accessToken: string, forgeId: string) {
+  const response = await api.get<ForgeNotificationSettings>(`/api/forges/${forgeId}/notification-settings`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+/** muteMinutes: 0 unmutes, -1 mutes until turned back on. */
+export async function updateForgeNotificationSettings(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { notifyLevel?: ForgeNotificationSettings["notifyLevel"]; muteMinutes?: -1 | 0 | 15 | 60 | 180 | 480 | 1440; suppressEveryone?: boolean },
+) {
+  const response = await api.put<ForgeNotificationSettings>(`/api/forges/${forgeId}/notification-settings`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
 
 export type SendCodeResult = { ok: true; sentTo?: string; transport?: string; devCode?: string; alreadyVerified?: boolean };
 

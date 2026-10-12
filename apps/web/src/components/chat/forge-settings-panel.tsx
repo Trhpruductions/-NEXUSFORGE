@@ -10,7 +10,9 @@ import {
   createForgeChannel,
   createForgeInvite,
   getForgeAuditLog,
+  handleReport,
   listForgeInvites,
+  listForgeReports,
   revokeForgeInvite,
   timeoutForgeMember,
   transferForgeOwnership,
@@ -40,7 +42,7 @@ import {
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -160,6 +162,7 @@ export function ForgeSettingsPanel({
     if (can("manageRoles")) list.push({ id: "roles", label: "Roles" });
     list.push({ id: "members", label: "Members" });
     list.push({ id: "invites", label: "Invites" });
+    if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
@@ -235,6 +238,8 @@ export function ForgeSettingsPanel({
             <MembersTab forge={forge} access={access} selfId={user?.id ?? ""} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "invites" ? (
             <InvitesTab forge={forge} setNotice={setNotice} />
+          ) : tab === "reports" ? (
+            <ReportsTab forgeId={forgeId} setNotice={setNotice} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "audit" ? (
@@ -1547,6 +1552,104 @@ function AuditLogTab({ forgeId }: { forgeId: string }) {
           {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Load older
         </button>
       ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reports (moderators)
+// ---------------------------------------------------------------------------
+
+const reportReasonLabels: Record<string, string> = {
+  SPAM: "Spam",
+  HARASSMENT: "Harassment",
+  HATE: "Hate speech",
+  SEXUAL: "Sexual content",
+  VIOLENCE: "Violence",
+  SELF_HARM: "Self-harm",
+  SCAM: "Scam",
+  OTHER: "Other",
+};
+
+function ReportsTab({ forgeId, setNotice }: { forgeId: string; setNotice: NoticeSetter }) {
+  const queryClient = useQueryClient();
+  const { accessToken, csrfToken } = useTokens();
+  const [status, setStatus] = useState<"OPEN" | "RESOLVED" | "DISMISSED">("OPEN");
+  const queryKey = ["forge-reports", forgeId, status, accessToken];
+  const reportsQuery = useQuery({ queryKey, queryFn: () => listForgeReports(accessToken, forgeId, status), enabled: Boolean(accessToken) });
+
+  const handleMutation = useMutation({
+    mutationFn: (input: { reportId: string; status: "OPEN" | "RESOLVED" | "DISMISSED"; deleteMessage?: boolean }) =>
+      handleReport(accessToken, csrfToken, input.reportId, { status: input.status, deleteMessage: input.deleteMessage }),
+    onSuccess: async (result) => {
+      setNotice({ tone: "ok", text: result.messageDeleted ? "Message deleted and report resolved." : result.report.status === "OPEN" ? "Report reopened." : `Report ${result.report.status.toLowerCase()}.` });
+      await queryClient.invalidateQueries({ queryKey: ["forge-reports", forgeId] });
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+
+  const reports = reportsQuery.data?.reports ?? [];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {(["OPEN", "RESOLVED", "DISMISSED"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setStatus(value)}
+            className={status === value ? "rounded-full border border-amber-500/45 bg-amber-950/45 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-100" : "rounded-full border border-slate-700/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 hover:text-slate-100"}
+          >
+            {value === "OPEN" ? `Open${reportsQuery.data ? ` (${reportsQuery.data.openCount})` : ""}` : value.toLowerCase()}
+          </button>
+        ))}
+      </div>
+      {reportsQuery.isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading reports...</p>
+      ) : reports.length === 0 ? (
+        <p className="text-sm text-slate-400">{status === "OPEN" ? "Nothing to review. Members can report a message from its hover menu." : "None yet."}</p>
+      ) : (
+        <ul className="space-y-2">
+          {reports.map((report) => (
+            <li key={report.id} className="space-y-2 rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                <span className="rounded-full border border-rose-500/40 bg-rose-950/40 px-2 py-0.5 font-semibold text-rose-100">{reportReasonLabels[report.reason] ?? report.reason}</span>
+                <span>#{report.channelName ?? "channel"}</span>
+                <span>· reported {new Date(report.createdAt).toLocaleString()}</span>
+              </div>
+              <blockquote className="rounded-[10px] border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-200">
+                <span className="font-semibold text-slate-50">@{report.authorUsername ?? "unknown"}</span>: <span className="break-words">{report.contentSnapshot}</span>
+              </blockquote>
+              {report.details ? <p className="text-xs text-slate-300">Reporter&apos;s note: {report.details}</p> : null}
+              {report.status !== "OPEN" ? (
+                <p className="text-[11px] text-slate-500">
+                  {report.status.toLowerCase()} by {report.handledBy?.username ?? "a moderator"}{report.handledAt ? ` · ${new Date(report.handledAt).toLocaleString()}` : ""}{report.resolutionNote ? ` · ${report.resolutionNote}` : ""}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {report.status === "OPEN" ? (
+                  <>
+                    <button type="button" className={dangerBtn} disabled={handleMutation.isPending} onClick={() => handleMutation.mutate({ reportId: report.id, status: "RESOLVED", deleteMessage: true })}>
+                      <Trash2 className="h-3.5 w-3.5" /> Delete message
+                    </button>
+                    <button type="button" className={ghostBtn} disabled={handleMutation.isPending} onClick={() => handleMutation.mutate({ reportId: report.id, status: "RESOLVED" })}>
+                      <Check className="h-3.5 w-3.5" /> Resolved
+                    </button>
+                    <button type="button" className={ghostBtn} disabled={handleMutation.isPending} onClick={() => handleMutation.mutate({ reportId: report.id, status: "DISMISSED" })}>
+                      <X className="h-3.5 w-3.5" /> Dismiss
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className={ghostBtn} disabled={handleMutation.isPending} onClick={() => handleMutation.mutate({ reportId: report.id, status: "OPEN" })}>
+                    Reopen
+                  </button>
+                )}
+              </div>
+              {report.status === "OPEN" ? <p className="text-[10px] text-slate-500">To time out or ban the author, use the Members tab.</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

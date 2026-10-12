@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Check, Clock, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Plus, Radio, Search, Send, Settings2, Timer, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Check, Clock, Flag, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -20,6 +20,8 @@ import {
   getForgeUnreads,
   markChannelRead,
   postDmMessage,
+  editDmMessage,
+  deleteDmMessage,
   postMessage,
   requestVoiceToken,
   toggleReaction,
@@ -43,6 +45,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
+import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { plainText } from "@/lib/plain-text";
 import { RichText } from "@/components/chat/rich-text";
 
@@ -525,11 +528,27 @@ function ChatInner() {
       });
       if (payload.message.authorId !== user?.id) markRead();
     };
+    const onDmUpdated = (payload: { threadId: string; message: DmMessage }) => {
+      if (payload.threadId !== dmThreadId) return;
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+        current ? { messages: current.messages.map((msg) => (msg.id === payload.message.id ? payload.message : msg)) } : current,
+      );
+    };
+    const onDmDeleted = (payload: { threadId: string; messageId: string }) => {
+      if (payload.threadId !== dmThreadId) return;
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+        current ? { messages: current.messages.filter((msg) => msg.id !== payload.messageId) } : current,
+      );
+    };
     socket.on("dm:message", onDm);
+    socket.on("dm:message:updated", onDmUpdated);
+    socket.on("dm:message:deleted", onDmDeleted);
     return () => {
       socket.emit("dm:leave", dmThreadId);
       socket.off("connect", rejoin);
       socket.off("dm:message", onDm);
+      socket.off("dm:message:updated", onDmUpdated);
+      socket.off("dm:message:deleted", onDmDeleted);
     };
   }, [accessToken, csrfToken, dmThreadId, mode, queryClient, user?.id]);
   const dmSend = useMutation({
@@ -540,6 +559,32 @@ function ChatInner() {
         const messages = current?.messages ?? [];
         return messages.some((msg) => msg.id === data.message.id) ? current : { messages: [...messages, data.message] };
       });
+    },
+    onError: (error) => setStatus(getApiErrorMessage(error)),
+  });
+  // Editing / deleting your own DMs.
+  const [dmEditing, setDmEditing] = useState<{ id: string; text: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [dmConfirmDelete, setDmConfirmDelete] = useState<string | null>(null);
+  const putDm = (message: DmMessage) =>
+    queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+      current ? { messages: current.messages.map((msg) => (msg.id === message.id ? message : msg)) } : current,
+    );
+  const dmEdit = useMutation({
+    mutationFn: (input: { id: string; text: string }) => editDmMessage(accessToken!, csrfToken!, input.id, input.text),
+    onSuccess: (data) => {
+      putDm(data.message);
+      setDmEditing(null);
+    },
+    onError: (error) => setStatus(getApiErrorMessage(error)),
+  });
+  const dmDelete = useMutation({
+    mutationFn: (id: string) => deleteDmMessage(accessToken!, csrfToken!, id),
+    onSuccess: (_data, id) => {
+      setDmConfirmDelete(null);
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+        current ? { messages: current.messages.filter((msg) => msg.id !== id) } : current,
+      );
     },
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
@@ -605,8 +650,9 @@ function ChatInner() {
     // screens (phones, where the header and banner wrap) the panel grew past the bottom and hid the composer.
     <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
       {selectedForgeId ? (
-        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
+        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
+      <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
 
       <div className="flex min-w-0 flex-1 flex-col bg-[#0a0d14]">
         {header}
@@ -708,7 +754,7 @@ function ChatInner() {
                 {dmThreadId ? (
                   <div className="space-y-1.5">
                     {(dmMessagesQuery.data?.messages ?? []).map((msg) => (
-                      <div key={msg.id} className="flex gap-3 rounded-[14px] px-3 py-2 hover:bg-slate-900/60">
+                      <div key={msg.id} className="group relative flex gap-3 rounded-[14px] px-3 py-2 hover:bg-slate-900/60">
                         {msg.author.avatar ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={msg.author.avatar} alt="" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
@@ -717,8 +763,55 @@ function ChatInner() {
                         )}
                         <div className="min-w-0">
                           <p className="flex items-baseline gap-2 text-xs text-slate-400"><span className="text-sm font-semibold text-white">{msg.author.username}</span>{formatTime(msg.createdAt)}</p>
-                          <RichText content={msg.content} />
+                          {dmEditing?.id === msg.id ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <input
+                                autoFocus
+                                value={dmEditing.text}
+                                onChange={(event) => setDmEditing({ id: msg.id, text: event.target.value })}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Escape") setDmEditing(null);
+                                  if (event.key === "Enter" && !event.shiftKey && dmEditing.text.trim()) {
+                                    event.preventDefault();
+                                    dmEdit.mutate({ id: msg.id, text: dmEditing.text.trim() });
+                                  }
+                                }}
+                                maxLength={4000}
+                                aria-label="Edit message"
+                                className="h-8 min-w-[200px] flex-1 rounded-lg border border-amber-400/50 bg-[#11151e] px-2 text-sm text-slate-100 outline-none"
+                              />
+                              <span className="text-[10px] text-slate-500">Enter to save · Esc to cancel</span>
+                            </div>
+                          ) : (
+                            <>
+                              <RichText content={msg.content} />
+                              {msg.edited ? <span className="text-[10px] text-slate-500">(edited)</span> : null}
+                            </>
+                          )}
                         </div>
+                        {msg.authorId !== user?.id ? (
+                          <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
+                            <button type="button" title="Report" className="rounded p-1 text-slate-400 hover:text-rose-300" onClick={() => setReportTarget({ kind: "DM", messageId: msg.id, authorName: msg.author.username, content: msg.content })}>
+                              <Flag className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : null}
+                        {msg.authorId === user?.id && dmEditing?.id !== msg.id ? (
+                          <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
+                            <button type="button" title="Edit" className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => { setDmEditing({ id: msg.id, text: plainText(msg.content) }); setDmConfirmDelete(null); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            {dmConfirmDelete === msg.id ? (
+                              <button type="button" className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-rose-200 hover:bg-rose-500/20" disabled={dmDelete.isPending} onClick={() => dmDelete.mutate(msg.id)}>
+                                Delete?
+                              </button>
+                            ) : (
+                              <button type="button" title="Delete" className="rounded p-1 text-slate-400 hover:text-rose-300" onClick={() => setDmConfirmDelete(msg.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                     {!dmMessagesQuery.data?.messages.length && !dmMessagesQuery.isLoading ? <p className="text-sm text-slate-500">Say hi.</p> : null}
@@ -767,6 +860,7 @@ function ChatInner() {
                     onDelete={async (messageId) => { await deleteMutation.mutateAsync(messageId); }}
                     onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
                     onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
+                    onReport={(message) => setReportTarget({ kind: "CHANNEL", messageId: message.id, authorName: message.author?.username ?? "this member", content: message.content })}
                     lastReadAt={unreadSince?.channelId === channelId ? unreadSince.at : null}
                   />
                   {pinsOpen ? (

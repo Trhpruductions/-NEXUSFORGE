@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CornerUpLeft, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { Check, CornerUpLeft, Flag, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
 import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
@@ -26,6 +26,8 @@ type MessageListProps = {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onPin?: (messageId: string, pinned: boolean) => void;
+  /** Report someone else's message to the server's moderators. */
+  onReport?: (message: Message) => void;
   /** When the reader last read this channel; draws a "New messages" line before anything newer. */
   lastReadAt?: string | null;
 };
@@ -73,6 +75,7 @@ export function MessageList({
   onDelete,
   onReact,
   onPin,
+  onReport,
   lastReadAt,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -304,6 +307,11 @@ export function MessageList({
                   {canModerate && onPin ? (
                     <button type="button" className={iconBtn} title={message.pinnedAt ? "Unpin" : "Pin"} onClick={() => onPin(message.id, !message.pinnedAt)}>
                       {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                    </button>
+                  ) : null}
+                  {onReport && message.authorId && message.authorId !== selfId ? (
+                    <button type="button" className={iconBtn} title="Report" onClick={() => onReport(message)}>
+                      <Flag className="h-3.5 w-3.5" />
                     </button>
                   ) : null}
                   {canEdit ? (
