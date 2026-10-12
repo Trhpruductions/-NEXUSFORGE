@@ -10,6 +10,7 @@ import { hueFor, tileGradient } from "@/lib/colors";
 import { MessageAttachments } from "@/components/chat/message-attachments";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { CustomEmoji, mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
+import { PollCard } from "@/components/chat/poll-card";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
 
@@ -173,7 +174,8 @@ export function MessageList({
         const showDay = index === 0 || day !== formatDay(messages[index - 1].createdAt);
         const meta = authorMeta(message);
         const isSelf = message.authorId === selfId;
-        const canEdit = isSelf && !message.botId;
+        // Polls can't be edited: people may already have voted on the question.
+        const canEdit = isSelf && !message.botId && !message.poll;
         const canDelete = (isSelf || canModerate) && !message.optimistic;
         const isEditing = editingId === message.id;
 
@@ -284,12 +286,22 @@ export function MessageList({
                         <span>Enter to save, Esc to cancel</span>
                       </div>
                     </div>
+                  ) : message.poll ? (
+                    <PollCard
+                      message={message}
+                      selfId={selfId}
+                      canModerate={canModerate}
+                      nameOf={(userId) => {
+                        const member = memberByUserId.get(userId);
+                        return member?.nickname || member?.user.username || "Former member";
+                      }}
+                    />
                   ) : (
                     <RichText content={message.content} context={mentionContext} />
                   )}
 
                   {message.attachments?.length ? <MessageAttachments urls={message.attachments} /> : null}
-                  {!message.optimistic && !isEditing && !message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
+                  {!message.optimistic && !isEditing && !message.poll && !message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
                   {message.startedThread ? (
                     <button
                       type="button"

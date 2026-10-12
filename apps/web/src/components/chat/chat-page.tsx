@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, BarChart3, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -35,6 +35,7 @@ import {
   type DmMessage,
   type DmThread,
   type Message,
+  type PollDraft,
 } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MessageList } from "@/components/chat/message-list";
+import { PollComposer } from "@/components/chat/poll-composer";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
@@ -307,7 +309,7 @@ function ChatInner() {
   };
 
   const sendMutation = useMutation({
-    mutationFn: (payload: { channelId: string; content: string; optimisticId: string; attachments?: string[]; replyToId?: string }) => postMessage(accessToken!, csrfToken!, payload),
+    mutationFn: (payload: { channelId: string; content: string; optimisticId: string; attachments?: string[]; replyToId?: string; poll?: PollDraft }) => postMessage(accessToken!, csrfToken!, payload),
     onMutate: async (payload) => {
       const key = ["messages", payload.channelId, accessToken];
       await queryClient.cancelQueries({ queryKey: key });
@@ -326,6 +328,10 @@ function ChatInner() {
         replyTo: replyTarget && replyTarget.id === payload.replyToId ? { id: replyTarget.id, content: replyTarget.content, authorId: replyTarget.authorId, botName: replyTarget.botName, author: replyTarget.author ? { id: replyTarget.author.id, username: replyTarget.author.username } : null } : null,
         reactions: [],
         author: user ? { id: user.id, username: user.username, avatar: user.avatar, premium: user.premium } : undefined,
+        // Shown (disabled) until the server confirms it.
+        poll: payload.poll
+          ? { id: payload.optimisticId, options: payload.poll.options.map((text, index) => ({ id: `tmp-${index}`, text })), allowMultiple: payload.poll.allowMultiple, endsAt: new Date(Date.now() + payload.poll.durationHours * 3600_000).toISOString(), closedAt: null, votes: [] }
+          : null,
       };
       queryClient.setQueryData(key, { messages: [...(previous?.messages ?? []), optimistic], nextCursor: previous?.nextCursor ?? null });
       return { previous, key };
@@ -444,6 +450,22 @@ function ChatInner() {
       }
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Polls: the question is sent as the message text.
+  const [pollOpen, setPollOpen] = useState(false);
+  const sendPoll = async (question: string, poll: PollDraft) => {
+    if (!channelId) return;
+    if (timedOutUntil) {
+      setStatus(`You're timed out until ${timedOutUntil.toLocaleTimeString()}.`);
+      throw new Error("timed out");
+    }
+    try {
+      await sendMutation.mutateAsync({ channelId, content: question, optimisticId: `tmp-${crypto.randomUUID()}`, poll });
+    } catch (error) {
+      setStatus(getApiErrorMessage(error));
+      throw error;
     }
   };
 
@@ -744,6 +766,7 @@ function ChatInner() {
         <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
+      <PollComposer open={pollOpen} onClose={() => setPollOpen(false)} onSubmit={sendPoll} busy={sendMutation.isPending} />
 
       <div className="flex min-w-0 flex-1 flex-col bg-[#0a0d14]/80 backdrop-blur-sm">
         {header}
@@ -1059,6 +1082,7 @@ function ChatInner() {
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-violet-400/60 focus-within:shadow-[0_0_0_3px_rgba(167,139,250,0.14),0_0_24px_rgba(56,189,248,0.12)] transition">
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setPollOpen(true)} className="text-slate-500 hover:text-violet-200" title="Create a poll" aria-label="Create a poll"><BarChart3 className="h-4 w-4" /></button>
                     <div className="relative">
                       <button type="button" onClick={() => setEmojiPickerOpen((value) => !value)} className="text-slate-500 hover:text-amber-200" title="Emoji" aria-expanded={emojiPickerOpen}><Smile className="h-4 w-4" /></button>
                       {emojiPickerOpen ? (

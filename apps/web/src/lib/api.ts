@@ -459,6 +459,28 @@ export async function updateThread(accessToken: string, csrfToken: string, threa
   return response.data;
 }
 
+export type MessagePoll = {
+  id: string;
+  options: Array<{ id: string; text: string }>;
+  allowMultiple: boolean;
+  endsAt: string;
+  closedAt: string | null;
+  /** Polls aren't anonymous: who picked what. */
+  votes: Array<{ optionId: string; userId: string }>;
+};
+
+export type PollDraft = { options: string[]; allowMultiple: boolean; durationHours: number };
+
+export async function votePoll(accessToken: string, csrfToken: string, messageId: string, optionIds: string[]) {
+  const response = await api.put<{ message: Message }>(`/api/messages/${messageId}/poll/votes`, { optionIds }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function endPoll(accessToken: string, csrfToken: string, messageId: string) {
+  const response = await api.post<{ message: Message }>(`/api/messages/${messageId}/poll/end`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
 export type Message = {
   id: string;
   channelId: string;
@@ -481,6 +503,8 @@ export type Message = {
   webhookId?: string | null;
   /** Set on the message a thread was started from. */
   startedThread?: ThreadSummary | null;
+  /** A poll; the message content is its question. */
+  poll?: MessagePoll | null;
   replyTo?: {
     id: string;
     content: string;
@@ -1894,7 +1918,7 @@ export async function toggleReaction(accessToken: string, csrfToken: string, mes
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[] },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[]; poll?: PollDraft },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),

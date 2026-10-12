@@ -15,6 +15,7 @@ import { recordMentions } from "./reads.routes.js";
 import { bypassesSlowmode, canViewChannel, channelAccessSelect, isTimedOut, loadMemberContext, privateChannelViewerIds, userCanViewChannel } from "../lib/channel-access.js";
 import { logForgeAction } from "../lib/forge-audit.js";
 import { runAutoMod } from "../lib/automod-runtime.js";
+import { buildPollOptions, isPollOpen, POLL_DURATIONS_HOURS, POLL_MAX_OPTIONS, POLL_QUESTION_MAX, validateVote, type PollOption } from "../lib/polls.js";
 
 function timeoutError(until: Date | null) {
   return { error: `You're timed out until ${until?.toISOString() ?? "later"}`, code: "TIMED_OUT", timeoutUntil: until };
@@ -32,7 +33,17 @@ const createMessageSchema = z.object({
   /** Forum channels: a new post needs a title (and may pick tags). */
   forumTitle: z.string().trim().min(1).max(100).optional(),
   forumTags: z.array(z.string().trim().min(1).max(20)).max(5).optional(),
+  /** Attach a poll; the message content is its question. */
+  poll: z
+    .object({
+      options: z.array(z.string().max(200)).min(2).max(POLL_MAX_OPTIONS + 5),
+      allowMultiple: z.boolean().default(false),
+      durationHours: z.number().refine((hours) => (POLL_DURATIONS_HOURS as readonly number[]).includes(hours), "Pick a poll length"),
+    })
+    .optional(),
 });
+
+const voteSchema = z.object({ optionIds: z.array(z.string().max(20)).max(POLL_MAX_OPTIONS) });
 
 const editMessageSchema = z.object({
   content: z.string().min(1).max(4000),
@@ -66,6 +77,8 @@ export const messageInclude = {
   },
   // A message that started a thread shows the thread's name and size under it.
   startedThread: { select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true } },
+  // Polls aren't anonymous (like Discord): everyone in the channel sees who picked what.
+  poll: { select: { id: true, options: true, allowMultiple: true, endsAt: true, closedAt: true, votes: { select: { optionId: true, userId: true } } } },
 } as const;
 
 function normalizeBotCommandName(raw: string) {
@@ -332,6 +345,24 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
+  let pollOptions: PollOption[] | null = null;
+  if (parsed.data.poll) {
+    if (parsed.data.forumTitle) {
+      res.status(400).json({ error: "Polls can't be forum posts" });
+      return;
+    }
+    if (parsed.data.content.trim().length > POLL_QUESTION_MAX) {
+      res.status(400).json({ error: `A poll question can be up to ${POLL_QUESTION_MAX} characters` });
+      return;
+    }
+    const built = buildPollOptions(parsed.data.poll.options.map((text) => xss(text)));
+    if ("error" in built) {
+      res.status(400).json({ error: built.error });
+      return;
+    }
+    pollOptions = built;
+  }
+
   const sanitizedContent = xss(parsed.data.content.trim());
   const created = await prisma.message.create({
     data: {
@@ -341,6 +372,17 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       attachments: parsed.data.attachments ?? [],
       replyToId: parsed.data.replyToId,
       threadId: thread?.id,
+      ...(pollOptions && parsed.data.poll
+        ? {
+            poll: {
+              create: {
+                options: pollOptions,
+                allowMultiple: parsed.data.poll.allowMultiple,
+                endsAt: new Date(Date.now() + parsed.data.poll.durationHours * 60 * 60 * 1000),
+              },
+            },
+          }
+        : {}),
     },
     include: messageInclude,
   });
@@ -515,6 +557,78 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   void evaluateAchievements(req.user!.id);
 });
 
+/** Load a poll message and check the caller can see its channel. */
+async function pollContext(req: import("express").Request, res: import("express").Response) {
+  const message = await prisma.message.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, channelId: true, authorId: true, poll: { select: { id: true, options: true, allowMultiple: true, endsAt: true, closedAt: true } }, channel: { select: { forgeId: true } } },
+  });
+  if (!message?.poll) {
+    res.status(404).json({ error: "Poll not found" });
+    return null;
+  }
+  const view = await userCanViewChannel(req.user!.id, message.channelId);
+  if (!view.ok || !view.member) {
+    res.status(404).json({ error: "Poll not found" });
+    return null;
+  }
+  return { message, poll: message.poll, member: view.member };
+}
+
+async function broadcastPoll(messageId: string, channelId: string) {
+  const message = await prisma.message.findUnique({ where: { id: messageId }, include: messageInclude });
+  if (message) getIo().to(`channel:${channelId}`).emit("message:updated", { message });
+  return message;
+}
+
+/** Vote (replaces your previous vote). An empty list removes your vote. */
+messagesRouter.put("/:id/poll/votes", async (req, res) => {
+  const parsed = voteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  const ctx = await pollContext(req, res);
+  if (!ctx) return;
+  if (isTimedOut(ctx.member)) {
+    res.status(403).json(timeoutError(ctx.member.timeoutUntil));
+    return;
+  }
+  if (!isPollOpen(ctx.poll)) {
+    res.status(400).json({ error: "This poll has ended" });
+    return;
+  }
+  const choice = validateVote({ options: ctx.poll.options as PollOption[], allowMultiple: ctx.poll.allowMultiple }, parsed.data.optionIds);
+  if ("error" in choice) {
+    res.status(400).json({ error: choice.error });
+    return;
+  }
+  await prisma.$transaction([
+    prisma.pollVote.deleteMany({ where: { pollId: ctx.poll.id, userId: req.user!.id } }),
+    ...(choice.length ? [prisma.pollVote.createMany({ data: choice.map((optionId) => ({ pollId: ctx.poll.id, optionId, userId: req.user!.id })) })] : []),
+  ]);
+  const message = await broadcastPoll(ctx.message.id, ctx.message.channelId);
+  res.json({ message });
+});
+
+/** End a poll early: the person who posted it, or a moderator. */
+messagesRouter.post("/:id/poll/end", async (req, res) => {
+  const ctx = await pollContext(req, res);
+  if (!ctx) return;
+  const isAuthor = ctx.message.authorId === req.user!.id;
+  if (!isAuthor && !ctx.member.access.isOwner && !hasForgePermission(ctx.member.access, "moderateChat")) {
+    res.status(403).json({ error: "Only the person who posted this poll or a moderator can end it" });
+    return;
+  }
+  if (!isPollOpen(ctx.poll)) {
+    res.status(400).json({ error: "This poll has already ended" });
+    return;
+  }
+  await prisma.poll.update({ where: { id: ctx.poll.id }, data: { closedAt: new Date() } });
+  const message = await broadcastPoll(ctx.message.id, ctx.message.channelId);
+  res.json({ message });
+});
+
 messagesRouter.patch("/:id", async (req, res) => {
   const parsed = editMessageSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -528,11 +642,17 @@ messagesRouter.patch("/:id", async (req, res) => {
       channel: {
         select: { forgeId: true },
       },
+      poll: { select: { id: true } },
     },
   });
 
   if (!existing) {
     res.status(404).json({ error: "Message not found" });
+    return;
+  }
+  // People may already have voted on the question as written.
+  if (existing.poll) {
+    res.status(400).json({ error: "Polls can't be edited" });
     return;
   }
 

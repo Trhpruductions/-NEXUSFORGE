@@ -258,6 +258,7 @@ model User {
   deletionScheduledFor DateTime?
   deletedAt            DateTime?
   suspensions          AccountSuspension[]
+  pollVotes            PollVote[]
   dailyStreak        Int            @default(0)
   ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
   ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
@@ -649,6 +650,33 @@ model AccountSuspension {
   @@index([userId, liftedAt])
 }
 
+/// A poll attached to a message (the message text is the question). Like Discord, votes
+/// are not anonymous. Closed once endsAt passes or someone ends it early (closedAt).
+model Poll {
+  id            String     @id @default(uuid())
+  messageId     String     @unique
+  message       Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  /// [{ id, text }]
+  options       Json
+  allowMultiple Boolean    @default(false)
+  endsAt        DateTime
+  closedAt      DateTime?
+  createdAt     DateTime   @default(now())
+  votes         PollVote[]
+}
+
+model PollVote {
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([pollId, userId, optionId])
+  @@index([pollId, optionId])
+}
+
 model MessageReport {
   id                  String    @id @default(uuid())
   reporterId          String
@@ -989,6 +1017,7 @@ model Message {
   replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies      Message[]    @relation("MessageReplies")
   startedThread Thread?     @relation("ThreadStarter")
+  poll          Poll?
 
   @@index([channelId, botId])
   @@index([threadId, createdAt])
