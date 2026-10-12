@@ -37,6 +37,7 @@ async function computeForgeUnreads(userId: string, forgeId: string): Promise<Cha
           channelId,
           ...(state ? { createdAt: { gt: state.lastReadAt } } : {}),
           NOT: { authorId: userId },
+          threadId: null,
         },
       });
       return {

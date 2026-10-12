@@ -26,6 +26,8 @@ const createMessageSchema = z.object({
   attachments: z.array(z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Attachments must be http(s) links")).max(8).optional(),
   replyToId: z.string().uuid().optional(),
   optimisticId: z.string().optional(),
+  /** Post into a thread of this channel instead of the channel itself. */
+  threadId: z.string().uuid().optional(),
 });
 
 const editMessageSchema = z.object({
@@ -58,6 +60,8 @@ export const messageInclude = {
       author: { select: { id: true, username: true } },
     },
   },
+  // A message that started a thread shows the thread's name and size under it.
+  startedThread: { select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true } },
 } as const;
 
 function normalizeBotCommandName(raw: string) {
@@ -185,7 +189,8 @@ messagesRouter.get("/:channelId", async (req, res) => {
   }
 
   const messages = await prisma.message.findMany({
-    where: { channelId },
+    // Thread replies live in their thread, not in the channel's main history.
+    where: { channelId, threadId: null },
     take: limit,
     ...(cursor
       ? {
@@ -286,6 +291,15 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
+  let thread: { id: string; archived: boolean } | null = null;
+  if (parsed.data.threadId) {
+    thread = await prisma.thread.findFirst({ where: { id: parsed.data.threadId, channelId: channel.id }, select: { id: true, archived: true } });
+    if (!thread) {
+      res.status(404).json({ error: "Thread not found" });
+      return;
+    }
+  }
+
   // A reply must point at a message in this same channel; otherwise its preview (which
   // echoes the original's content) would leak messages from channels you can't read.
   if (parsed.data.replyToId) {
@@ -304,9 +318,20 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       content: sanitizedContent,
       attachments: parsed.data.attachments ?? [],
       replyToId: parsed.data.replyToId,
+      threadId: thread?.id,
     },
     include: messageInclude,
   });
+
+  if (thread) {
+    // Like Discord, a new reply brings an archived thread back.
+    const updated = await prisma.thread.update({
+      where: { id: thread.id },
+      data: { messageCount: { increment: 1 }, lastMessageAt: created.createdAt, archived: false },
+      select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true, starterPostId: true },
+    });
+    getIo().to(`channel:${channel.id}`).emit("thread:updated", { channelId: channel.id, messageId: updated.starterPostId, thread: updated });
+  }
 
   // Mentions. Only members of this forge are ever notified.
   //  - @username
@@ -412,6 +437,8 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   const activity = {
     forgeId: channel.forgeId,
     channelId: parsed.data.channelId,
+    // Thread replies don't count as unread in the channel (mentions still do).
+    threadId: thread?.id ?? null,
     messageId: created.id,
     authorId: req.user!.id,
     mentionedUserIds,
@@ -647,6 +674,13 @@ messagesRouter.delete("/:id", async (req, res) => {
 
   await prisma.message.delete({ where: { id: existing.id } });
   getIo().to(`channel:${existing.channelId}`).emit("message:deleted", { messageId: existing.id });
+  if (existing.threadId) {
+    const updated = await prisma.thread.updateMany({ where: { id: existing.threadId, messageCount: { gt: 0 } }, data: { messageCount: { decrement: 1 } } });
+    if (updated.count) {
+      const thread = await prisma.thread.findUnique({ where: { id: existing.threadId }, select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true, starterPostId: true } });
+      if (thread) getIo().to(`channel:${existing.channelId}`).emit("thread:updated", { channelId: existing.channelId, messageId: thread.starterPostId, thread });
+    }
+  }
   if (!isAuthor) {
     const author = existing.authorId ? await prisma.user.findUnique({ where: { id: existing.authorId }, select: { username: true } }) : null;
     void logForgeAction(existing.channel.forgeId, req.user!.id, "message.delete", { type: "message", id: existing.id, label: author?.username ?? existing.botName ?? "unknown" }, { channelId: existing.channelId, excerpt: existing.content.slice(0, 200) });

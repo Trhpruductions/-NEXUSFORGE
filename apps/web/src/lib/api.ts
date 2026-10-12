@@ -328,6 +328,28 @@ export type MessageReaction = {
   createdAt?: string;
 };
 
+export type ThreadSummary = { id: string; title: string; messageCount: number; lastMessageAt: string | null; archived: boolean; creatorId?: string | null; starterPostId?: string | null };
+
+export async function createThread(accessToken: string, csrfToken: string, payload: { messageId: string; title: string }) {
+  const response = await api.post<{ thread: ThreadSummary & { channelId: string } }>("/api/threads", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function listThreads(accessToken: string, channelId: string) {
+  const response = await api.get<{ threads: ThreadSummary[] }>(`/api/threads/channel/${channelId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function getThread(accessToken: string, threadId: string) {
+  const response = await api.get<{ thread: ThreadSummary & { channelId: string; starterMessage: Message | null }; messages: Message[] }>(`/api/threads/${threadId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function updateThread(accessToken: string, csrfToken: string, threadId: string, payload: { title?: string; archived?: boolean }) {
+  const response = await api.patch<{ thread: ThreadSummary }>(`/api/threads/${threadId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
 export type Message = {
   id: string;
   channelId: string;
@@ -344,6 +366,10 @@ export type Message = {
   replyToId?: string | null;
   pinnedAt?: string | null;
   pinnedById?: string | null;
+  /** Set on replies inside a thread. */
+  threadId?: string | null;
+  /** Set on the message a thread was started from. */
+  startedThread?: ThreadSummary | null;
   replyTo?: {
     id: string;
     content: string;
@@ -1749,7 +1775,7 @@ export async function toggleReaction(accessToken: string, csrfToken: string, mes
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),

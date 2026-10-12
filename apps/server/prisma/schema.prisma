@@ -910,6 +910,7 @@ model Message {
   startedThread Thread?     @relation("ThreadStarter")
 
   @@index([channelId, botId])
+  @@index([threadId, createdAt])
 
   @@index([channelId, createdAt])
   @@index([authorId, createdAt])
@@ -926,15 +927,23 @@ model MessageReaction {
   @@unique([messageId, userId, emoji])
 }
 
+/// A side conversation started from a message. Its messages are ordinary channel
+/// messages with threadId set, so channel access, timeouts, slowmode and moderation all
+/// apply unchanged; they're left out of the main channel history and unread counts.
 model Thread {
   id             String    @id @default(uuid())
   channelId      String
   title          String
-  starterPostId  String    @unique
+  /// Null once the starting message is deleted; the thread and its replies stay.
+  starterPostId  String?   @unique
+  creatorId      String?
+  archived       Boolean   @default(false)
+  messageCount   Int       @default(0)
+  lastMessageAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  starterMessage Message   @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: Cascade)
+  starterMessage Message?  @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: SetNull)
   messages       Message[]
 }
 

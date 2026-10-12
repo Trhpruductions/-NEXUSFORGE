@@ -340,9 +340,11 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     };
     join();
 
-    const handleActivity = (payload: { forgeId: string; channelId: string; authorId: string; mentionedUserIds?: string[] }) => {
+    const handleActivity = (payload: { forgeId: string; channelId: string; authorId: string; mentionedUserIds?: string[]; threadId?: string | null }) => {
       if (payload.authorId === user?.id) return;
       const mentioned = Boolean(user?.id && payload.mentionedUserIds?.includes(user.id));
+      // Thread replies don't make the channel unread unless they mention you.
+      if (payload.threadId && !mentioned) return;
       bumpChannel(payload.forgeId, payload.channelId, mentioned);
     };
     const handleChannels = (payload: { forgeId: string }) => {

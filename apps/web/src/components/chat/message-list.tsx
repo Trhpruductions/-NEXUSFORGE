@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CornerUpLeft, Flag, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { Check, CornerUpLeft, Flag, Loader2, MessagesSquare, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
 import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
@@ -30,6 +30,9 @@ type MessageListProps = {
   onPin?: (messageId: string, pinned: boolean) => void;
   /** Report someone else's message to the server's moderators. */
   onReport?: (message: Message) => void;
+  /** Start a thread from a message, or open the one it already has. */
+  onStartThread?: (message: Message) => void;
+  onOpenThread?: (threadId: string) => void;
   /** When the reader last read this channel; draws a "New messages" line before anything newer. */
   lastReadAt?: string | null;
 };
@@ -78,6 +81,8 @@ export function MessageList({
   onReact,
   onPin,
   onReport,
+  onStartThread,
+  onOpenThread,
   lastReadAt,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -276,6 +281,20 @@ export function MessageList({
 
                   {message.attachments?.length ? <MessageAttachments urls={message.attachments} /> : null}
                   {!message.optimistic && !isEditing && !message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
+                  {message.startedThread ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenThread?.(message.startedThread!.id)}
+                      className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100 transition hover:border-violet-300/60"
+                    >
+                      <MessagesSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate font-semibold">{message.startedThread.title}</span>
+                      <span className="shrink-0 text-violet-300/80">
+                        {message.startedThread.messageCount} repl{message.startedThread.messageCount === 1 ? "y" : "ies"}
+                        {message.startedThread.archived ? " · archived" : ""}
+                      </span>
+                    </button>
+                  ) : null}
 
                   {reactionGroups.size ? (
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -311,6 +330,11 @@ export function MessageList({
                   {canModerate && onPin ? (
                     <button type="button" className={iconBtn} title={message.pinnedAt ? "Unpin" : "Pin"} onClick={() => onPin(message.id, !message.pinnedAt)}>
                       {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                    </button>
+                  ) : null}
+                  {onStartThread && !message.threadId ? (
+                    <button type="button" className={iconBtn} title={message.startedThread ? "Open thread" : "Create thread"} onClick={() => (message.startedThread && onOpenThread ? onOpenThread(message.startedThread.id) : onStartThread(message))}>
+                      <MessagesSquare className="h-3.5 w-3.5" />
                     </button>
                   ) : null}
                   {onReport && message.authorId && message.authorId !== selfId ? (

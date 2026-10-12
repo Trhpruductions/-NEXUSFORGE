@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Check, Clock, Flag, Hash, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Check, Clock, Flag, Hash, MessagesSquare, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -47,6 +47,8 @@ import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
+import { ThreadPanel } from "@/components/chat/thread-panel";
+import { createThread, listThreads } from "@/lib/api";
 import { plainText } from "@/lib/plain-text";
 import { RichText } from "@/components/chat/rich-text";
 
@@ -211,6 +213,8 @@ function ChatInner() {
 
     const onCreated = (payload: { message: Message; optimisticId?: string }) => {
       if (payload.message.channelId !== channelId) return;
+      // Thread replies show in the thread panel, not the channel.
+      if (payload.message.threadId) return;
       patch((current) => {
         if (payload.optimisticId && current.messages.some((msg) => msg.id === payload.optimisticId)) {
           return { ...current, messages: current.messages.map((msg) => (msg.id === payload.optimisticId ? payload.message : msg)) };
@@ -236,6 +240,12 @@ function ChatInner() {
       setTyping((current) => ({ ...current, [payload.channelId]: (current[payload.channelId] ?? []).filter((name) => name !== nameOf(payload.userId)) }));
     };
 
+    const onThreadUpdated = (payload: { channelId: string; messageId: string | null; thread: Message["startedThread"] }) => {
+      if (payload.channelId !== channelId) return;
+      if (payload.messageId) patch((current) => ({ ...current, messages: current.messages.map((msg) => (msg.id === payload.messageId ? { ...msg, startedThread: payload.thread } : msg)) }));
+      void queryClient.invalidateQueries({ queryKey: ["threads", channelId] });
+    };
+    socket.on("thread:updated", onThreadUpdated);
     socket.on("message:created", onCreated);
     socket.on("message:updated", onUpdated);
     socket.on("message:deleted", onDeleted);
@@ -246,6 +256,7 @@ function ChatInner() {
     return () => {
       socket.emit("channel:leave", channelId);
       socket.off("connect", rejoin);
+      socket.off("thread:updated", onThreadUpdated);
       socket.off("message:created", onCreated);
       socket.off("message:updated", onUpdated);
       socket.off("message:deleted", onDeleted);
@@ -566,6 +577,30 @@ function ChatInner() {
   // Editing / deleting your own DMs.
   const [dmEditing, setDmEditing] = useState<{ id: string; text: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  // Threads: the one open beside the channel, and the channel's thread list.
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const [threadsOpen, setThreadsOpen] = useState(false);
+  useEffect(() => {
+    setOpenThreadId(null);
+    setThreadsOpen(false);
+  }, [channelId]);
+  const threadsQuery = useQuery({
+    queryKey: ["threads", channelId, accessToken],
+    queryFn: () => listThreads(accessToken!, channelId!),
+    enabled: Boolean(accessToken && channelId && threadsOpen),
+  });
+  const startThread = async (message: Message) => {
+    if (!accessToken || !csrfToken) return;
+    const suggested = plainText(message.content).replace(/\s+/g, " ").trim().slice(0, 60) || "New thread";
+    const title = window.prompt("Name this thread", suggested);
+    if (!title?.trim()) return;
+    try {
+      const result = await createThread(accessToken, csrfToken, { messageId: message.id, title: title.trim() });
+      setOpenThreadId(result.thread.id);
+    } catch (error) {
+      setStatus(getApiErrorMessage(error));
+    }
+  };
   const [dmConfirmDelete, setDmConfirmDelete] = useState<string | null>(null);
   const putDm = (message: DmMessage) =>
     queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
@@ -627,6 +662,35 @@ function ChatInner() {
         </>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {mode === "channel" && channel ? (
+          <div className="relative">
+            <button type="button" onClick={() => setThreadsOpen((value) => !value)} title="Threads" aria-expanded={threadsOpen} className={cn("rounded-lg p-1.5 transition hover:bg-white/5", threadsOpen ? "text-violet-200" : "text-slate-400 hover:text-white")}>
+              <MessagesSquare className="h-4 w-4" />
+            </button>
+            {threadsOpen ? (
+              <div className="absolute right-0 top-[calc(100%+6px)] z-40 w-72 rounded-xl border border-white/10 bg-[#0d1119] p-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300/80">Threads in #{channel.name}</p>
+                {threadsQuery.isLoading ? (
+                  <p className="px-2 py-2 text-xs text-slate-400">Loading...</p>
+                ) : threadsQuery.data?.threads.length ? (
+                  <ul className="max-h-72 overflow-y-auto">
+                    {threadsQuery.data.threads.map((entry) => (
+                      <li key={entry.id}>
+                        <button type="button" onClick={() => { setOpenThreadId(entry.id); setThreadsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-white/5">
+                          <MessagesSquare className={cn("h-3.5 w-3.5 shrink-0", entry.archived ? "text-slate-600" : "text-violet-300")} />
+                          <span className="min-w-0 flex-1 truncate">{entry.title}</span>
+                          <span className="shrink-0 text-[10px] text-slate-500">{entry.archived ? "archived" : `${entry.messageCount}`}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-2 py-2 text-xs text-slate-400">No threads yet. Hover a message and choose the thread button to start one.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {mode === "channel" ? (
           <div className={cn("flex items-center", searchOpen ? "w-56" : "w-8")}>
             {searchOpen ? (
@@ -867,6 +931,8 @@ function ChatInner() {
                     onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
                     onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
                     onReport={(message) => setReportTarget({ kind: "CHANNEL", messageId: message.id, authorName: message.author?.username ?? "this member", content: message.content })}
+                    onStartThread={(message) => void startThread(message)}
+                    onOpenThread={(threadId) => setOpenThreadId(threadId)}
                     lastReadAt={unreadSince?.channelId === channelId ? unreadSince.at : null}
                   />
                   {pinsOpen ? (
@@ -1013,7 +1079,11 @@ function ChatInner() {
         )}
       </div>
 
-      {membersOpen && forge && mode !== "dm" ? (
+      {openThreadId && channelId && mode === "channel" ? (
+        <div className="fixed inset-0 z-40 lg:static lg:z-auto lg:flex">
+          <ThreadPanel threadId={openThreadId} channelId={channelId} canModerate={canModerate} onClose={() => setOpenThreadId(null)} />
+        </div>
+      ) : membersOpen && forge && mode !== "dm" ? (
         <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0b0e17]/80 p-3 backdrop-blur-xl lg:block">
           <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} />
         </aside>
