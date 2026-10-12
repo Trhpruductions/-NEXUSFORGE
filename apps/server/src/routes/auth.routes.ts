@@ -13,6 +13,7 @@ import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
 import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
+import { checkSecondFactor } from "../lib/second-factor.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
 
@@ -280,6 +281,12 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
+  if (user.totpEnabledAt) {
+    const token = jwt.sign({ sub: user.id, purpose: "2fa", method: "totp" }, env.JWT_ACCESS_SECRET, { expiresIn: "10m" });
+    res.json({ requiresTwoFactor: true, challengeToken: token, method: "totp", channels: ["Authenticator app"] });
+    return;
+  }
+
   if (user.twoFactorEnabled) {
     const challenge = await startTwoFactorChallenge(user);
     if (!challenge.ok) {
@@ -363,7 +370,8 @@ function readChallenge(token: unknown): string | null {
 
 const twoFactorVerifySchema = z.object({
   challengeToken: z.string().min(10),
-  code: z.string().trim().regex(/^\d{6}$/),
+  // 6 digits, or an authenticator recovery code like "k7xm-q2pd".
+  code: z.string().trim().regex(/^(\d{6}|[a-z0-9]{4}-?[a-z0-9]{4})$/i),
 });
 
 authRouter.post("/2fa/verify", async (req, res) => {
@@ -377,10 +385,21 @@ authRouter.post("/2fa/verify", async (req, res) => {
     res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
     return;
   }
-  const check = await verifyCode({ userId, purpose: "LOGIN", code: parsed.data.code });
-  if (!check.ok) {
-    res.status(400).json({ error: check.error, attemptsLeft: check.attemptsLeft });
-    return;
+  const pending = await prisma.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true } });
+  let recoveryCodesLeft: number | undefined;
+  if (pending?.totpEnabledAt) {
+    const factor = await checkSecondFactor(userId, parsed.data.code);
+    if (!factor.ok) {
+      res.status(factor.status).json({ error: factor.error });
+      return;
+    }
+    if (factor.usedRecoveryCode) recoveryCodesLeft = factor.recoveryCodesLeft;
+  } else {
+    const check = await verifyCode({ userId, purpose: "LOGIN", code: parsed.data.code });
+    if (!check.ok) {
+      res.status(400).json({ error: check.error, attemptsLeft: check.attemptsLeft });
+      return;
+    }
   }
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -398,6 +417,7 @@ authRouter.post("/2fa/verify", async (req, res) => {
   res.json({
     accessToken: tokens.accessToken,
     csrfToken,
+    ...(recoveryCodesLeft !== undefined ? { recoveryCodesLeft } : {}),
     user: {
       id: user.id,
       username: user.username,
@@ -426,9 +446,13 @@ authRouter.post("/2fa/resend", async (req, res) => {
     res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
     return;
   }
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, phoneNumber: true, twoFactorChannels: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, phoneNumber: true, twoFactorChannels: true, totpEnabledAt: true } });
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  if (user.totpEnabledAt) {
+    res.status(400).json({ error: "Open your authenticator app for the code, or use one of your recovery codes." });
     return;
   }
   const challenge = await startTwoFactorChallenge(user);

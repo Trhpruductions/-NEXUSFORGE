@@ -377,3 +377,44 @@ dmsRouter.post("/threads/:threadId/messages", messageRateLimit, async (req, res)
 
   res.status(201).json({ message });
 });
+
+const editDmSchema = z.object({ content: z.string().min(1).max(4000) });
+
+/** Author-only: load a DM the caller wrote, in a thread they're still part of. */
+async function ownDm(userId: string, messageId: string) {
+  const message = await prisma.directMessage.findUnique({ where: { id: messageId }, select: { id: true, threadId: true, authorId: true } });
+  if (!message || message.authorId !== userId) return null;
+  const participant = await prisma.directMessageParticipant.findUnique({ where: { threadId_userId: { threadId: message.threadId, userId } }, select: { id: true } });
+  return participant ? message : null;
+}
+
+dmsRouter.patch("/messages/:messageId", messageRateLimit, async (req, res) => {
+  const parsed = editDmSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const own = await ownDm(req.user!.id, String(req.params.messageId));
+  if (!own) {
+    res.status(403).json({ error: "You can only edit your own messages" });
+    return;
+  }
+  const message = await prisma.directMessage.update({
+    where: { id: own.id },
+    data: { content: xss(parsed.data.content.trim()), edited: true },
+    include: { author: { select: { id: true, username: true, avatar: true, premium: true } } },
+  });
+  getIo().to(`dm:${own.threadId}`).emit("dm:message:updated", { threadId: own.threadId, message });
+  res.json({ message });
+});
+
+dmsRouter.delete("/messages/:messageId", async (req, res) => {
+  const own = await ownDm(req.user!.id, String(req.params.messageId));
+  if (!own) {
+    res.status(403).json({ error: "You can only delete your own messages" });
+    return;
+  }
+  await prisma.directMessage.delete({ where: { id: own.id } });
+  getIo().to(`dm:${own.threadId}`).emit("dm:message:deleted", { threadId: own.threadId, messageId: own.id });
+  res.status(204).send();
+});

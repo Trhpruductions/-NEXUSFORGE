@@ -142,7 +142,17 @@ export async function verifyCode(params: { userId: string; purpose: Verification
 }
 
 /** Whether the user has completed the account-protection checklist. */
-export function protectionSummary(user: { emailVerified: boolean; phoneVerified: boolean; twoFactorEnabled: boolean; phoneNumber?: string | null; email: string; twoFactorChannels: string[] }) {
+export function protectionSummary(user: {
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  twoFactorEnabled: boolean;
+  phoneNumber?: string | null;
+  email: string;
+  twoFactorChannels: string[];
+  totpEnabledAt?: Date | null;
+  totpRecoveryHashes?: string[];
+}) {
+  const totpEnabled = Boolean(user.totpEnabledAt);
   return {
     emailVerified: user.emailVerified,
     phoneVerified: user.phoneVerified,
@@ -150,6 +160,9 @@ export function protectionSummary(user: { emailVerified: boolean; phoneVerified:
     email: maskEmail(user.email),
     twoFactorEnabled: user.twoFactorEnabled,
     twoFactorChannels: user.twoFactorChannels,
-    complete: user.emailVerified && user.phoneVerified && user.twoFactorEnabled,
+    totpEnabled,
+    recoveryCodesLeft: totpEnabled ? user.totpRecoveryHashes?.length ?? 0 : 0,
+    // An authenticator app on its own counts as fully protected; otherwise email + phone + code-based 2FA.
+    complete: user.emailVerified && (totpEnabled || (user.phoneVerified && user.twoFactorEnabled)),
   };
 }

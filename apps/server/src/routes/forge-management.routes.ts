@@ -300,6 +300,68 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Your own notification settings for this forge (any member)
+// ---------------------------------------------------------------------------
+
+const notificationSettingsSchema = z
+  .object({
+    notifyLevel: z.enum(["ALL", "MENTIONS", "NONE"]).optional(),
+    /** Minutes to mute for; 0 unmutes; -1 mutes until turned back on. */
+    muteMinutes: z.union([z.literal(-1), z.literal(0), z.literal(15), z.literal(60), z.literal(180), z.literal(480), z.literal(1440)]).optional(),
+    suppressEveryone: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
+
+/** "Until I turn it back on" is stored as a date far in the future. */
+const FOREVER = new Date("9999-12-31T00:00:00Z");
+
+forgeManagementRouter.get("/:id/notification-settings", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const member = await prisma.forgeMember.findUnique({
+    where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
+    select: { notifyLevel: true, mutedUntil: true, suppressEveryone: true },
+  });
+  const muted = Boolean(member?.mutedUntil && member.mutedUntil > new Date());
+  res.json({
+    notifyLevel: member?.notifyLevel ?? "MENTIONS",
+    suppressEveryone: member?.suppressEveryone ?? false,
+    muted,
+    mutedUntil: muted ? (member!.mutedUntil!.getTime() >= FOREVER.getTime() ? null : member!.mutedUntil) : null,
+    mutedForever: muted && member!.mutedUntil!.getTime() >= FOREVER.getTime(),
+  });
+});
+
+forgeManagementRouter.put("/:id/notification-settings", async (req, res) => {
+  const parsed = notificationSettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res);
+  if (!context) return;
+  const { muteMinutes } = parsed.data;
+  const member = await prisma.forgeMember.update({
+    where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
+    data: {
+      notifyLevel: parsed.data.notifyLevel,
+      suppressEveryone: parsed.data.suppressEveryone,
+      mutedUntil: muteMinutes === undefined ? undefined : muteMinutes === 0 ? null : muteMinutes === -1 ? FOREVER : new Date(Date.now() + muteMinutes * 60_000),
+    },
+    select: { notifyLevel: true, mutedUntil: true, suppressEveryone: true },
+  });
+  emitUserEvent(req.user!.id, "forge:notification-settings", { forgeId: context.forge.id });
+  const muted = Boolean(member.mutedUntil && member.mutedUntil > new Date());
+  res.json({
+    notifyLevel: member.notifyLevel,
+    suppressEveryone: member.suppressEveryone,
+    muted,
+    mutedUntil: muted && member.mutedUntil!.getTime() < FOREVER.getTime() ? member.mutedUntil : null,
+    mutedForever: muted && member.mutedUntil!.getTime() >= FOREVER.getTime(),
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 

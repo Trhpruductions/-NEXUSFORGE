@@ -232,6 +232,13 @@ model User {
   phoneVerified      Boolean        @default(false)
   twoFactorEnabled   Boolean        @default(false)
   twoFactorChannels  String[]       @default([])
+  /// Authenticator-app (TOTP) two-factor. Secrets are AES-GCM encrypted; recovery codes
+  /// are stored as SHA-256 hashes and each works once. totpLastStep blocks code replay.
+  totpSecretEnc      String?
+  totpPendingEnc     String?
+  totpEnabledAt      DateTime?
+  totpLastStep       Int?
+  totpRecoveryHashes String[]       @default([])
   verificationCodes  VerificationCode[]
   emailVerifyToken   String?        @unique
   emailVerifyExpires DateTime?
@@ -486,6 +493,37 @@ model ForgeInvite {
   @@index([forgeId, createdAt])
 }
 
+/// A member reporting a message. Server-channel reports go to that forge's moderators;
+/// DM reports go to platform staff. The message is copied at report time so deleting it
+/// doesn't destroy the evidence.
+model MessageReport {
+  id                  String    @id @default(uuid())
+  reporterId          String
+  /// CHANNEL or DM
+  kind                String
+  messageId           String
+  forgeId             String?
+  channelId           String?
+  threadId            String?
+  authorId            String?
+  authorUsername      String?
+  contentSnapshot     String
+  attachmentsSnapshot String[]  @default([])
+  /// SPAM, HARASSMENT, HATE, SEXUAL, VIOLENCE, SELF_HARM, SCAM, OTHER
+  reason              String
+  details             String?
+  /// OPEN, RESOLVED, DISMISSED
+  status              String    @default("OPEN")
+  handledById         String?
+  handledAt           DateTime?
+  resolutionNote      String?
+  createdAt           DateTime  @default(now())
+
+  @@unique([reporterId, messageId])
+  @@index([forgeId, status, createdAt])
+  @@index([kind, status, createdAt])
+}
+
 /// Who did what in a forge (moderation and settings changes), for its owner and admins.
 model ForgeAuditEntry {
   id          String   @id @default(uuid())
@@ -715,6 +753,12 @@ model ForgeMember {
   joinedAt  DateTime @default(now())
   /// Timed out until this moment: can read, but not send, react or join voice.
   timeoutUntil DateTime?
+  /// This member's own notification settings for the forge (Discord's per-server mute):
+  /// ALL, MENTIONS or NONE; muted until a time (far future = until turned off);
+  /// and whether @everyone / @here pings them.
+  notifyLevel      String    @default("MENTIONS")
+  mutedUntil       DateTime?
+  suppressEveryone Boolean   @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   forge     Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   roleLinks MemberRole[]

@@ -7,6 +7,9 @@ import { issueCode, normalizePhone, protectionSummary, verifyCode } from "../lib
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { authRateLimit } from "../middleware/rate-limit.js";
+import { comparePassword } from "../lib/password.js";
+import { checkSecondFactor } from "../lib/second-factor.js";
+import { decryptSecret, encryptSecret, generateRecoveryCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
 
 /**
  * Account protection: email verification, phone verification and two-factor settings.
@@ -25,7 +28,7 @@ const twoFactorSchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/).optional(),
 });
 
-const userSelect = { id: true, email: true, emailVerified: true, phoneNumber: true, phoneVerified: true, twoFactorEnabled: true, twoFactorChannels: true } as const;
+const userSelect = { id: true, email: true, emailVerified: true, phoneNumber: true, phoneVerified: true, twoFactorEnabled: true, twoFactorChannels: true, totpEnabledAt: true, totpRecoveryHashes: true } as const;
 
 verificationRouter.get("/status", async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: userSelect });
@@ -202,4 +205,101 @@ verificationRouter.put("/two-factor", authRateLimit, async (req, res) => {
   }
   const updated = await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false }, select: userSelect });
   res.json({ ok: true, protection: protectionSummary(updated) });
+});
+
+// ---------------------------------------------------------------------------
+// Authenticator app (TOTP)
+// ---------------------------------------------------------------------------
+
+const passwordSchema = z.object({ password: z.string().min(1).max(200) });
+const anyCodeSchema = z.object({ code: z.string().trim().min(6).max(12) });
+
+/** Step 1: confirm the password, get a fresh secret to scan. Nothing changes until step 2. */
+verificationRouter.post("/two-factor/totp/setup", authRateLimit, async (req, res) => {
+  const parsed = passwordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter your password" });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { password: true, username: true, totpEnabledAt: true } });
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  if (!(await comparePassword(parsed.data.password, user.password))) {
+    res.status(403).json({ error: "That password isn't right" });
+    return;
+  }
+  if (user.totpEnabledAt) {
+    res.status(400).json({ error: "An authenticator app is already set up. Turn it off first to switch apps." });
+    return;
+  }
+  const secret = generateTotpSecret();
+  await prisma.user.update({ where: { id: req.user!.id }, data: { totpPendingEnc: encryptSecret(secret) } });
+  res.json({ secret, otpauthUrl: otpauthUrl(secret, user.username) });
+});
+
+/** Step 2: prove the app works by entering its current code. Returns recovery codes, shown once. */
+verificationRouter.post("/two-factor/totp/enable", authRateLimit, async (req, res) => {
+  const parsed = codeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter the 6-digit code from your app" });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { totpPendingEnc: true, totpEnabledAt: true } });
+  const secret = user?.totpPendingEnc ? decryptSecret(user.totpPendingEnc) : null;
+  if (!user || !secret || user.totpEnabledAt) {
+    res.status(400).json({ error: "Start the setup again" });
+    return;
+  }
+  const step = verifyTotp(secret, parsed.data.code, null);
+  if (step === null) {
+    res.status(400).json({ error: "That code didn't match. Check the time on your phone is set automatically, then try the newest code." });
+    return;
+  }
+  const recovery = generateRecoveryCodes();
+  const updated = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { totpSecretEnc: encryptSecret(secret), totpPendingEnc: null, totpEnabledAt: new Date(), totpLastStep: step, totpRecoveryHashes: recovery.hashes },
+    select: userSelect,
+  });
+  void evaluateAchievements(req.user!.id);
+  res.json({ ok: true, recoveryCodes: recovery.codes, protection: protectionSummary(updated) });
+});
+
+/** Turning it off needs a current app code (or a recovery code), so a stolen session can't. */
+verificationRouter.post("/two-factor/totp/disable", authRateLimit, async (req, res) => {
+  const parsed = anyCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a code from your app or a recovery code" });
+    return;
+  }
+  const check = await checkSecondFactor(req.user!.id, parsed.data.code);
+  if (!check.ok) {
+    res.status(check.status).json({ error: check.error });
+    return;
+  }
+  const updated = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { totpSecretEnc: null, totpPendingEnc: null, totpEnabledAt: null, totpLastStep: null, totpRecoveryHashes: [] },
+    select: userSelect,
+  });
+  res.json({ ok: true, protection: protectionSummary(updated) });
+});
+
+/** New set of recovery codes (the old ones stop working). */
+verificationRouter.post("/two-factor/totp/recovery-codes", authRateLimit, async (req, res) => {
+  const parsed = anyCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a code from your app" });
+    return;
+  }
+  const check = await checkSecondFactor(req.user!.id, parsed.data.code);
+  if (!check.ok) {
+    res.status(check.status).json({ error: check.error });
+    return;
+  }
+  const recovery = generateRecoveryCodes();
+  const updated = await prisma.user.update({ where: { id: req.user!.id }, data: { totpRecoveryHashes: recovery.hashes }, select: userSelect });
+  res.json({ ok: true, recoveryCodes: recovery.codes, protection: protectionSummary(updated) });
 });

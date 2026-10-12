@@ -317,6 +317,8 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   const mentionedUserIds: string[] = [];
   let mentionLabel = "you";
   const recipients = new Set<string>();
+  // People pinged by name or role, as opposed to only through @everyone / @here.
+  const directRecipients = new Set<string>();
 
   const usernames = [...new Set(Array.from(raw.matchAll(/@([a-zA-Z0-9_]+)/g)).map((match) => match[1]))].filter((name) => name !== "everyone" && name !== "here");
   if (usernames.length) {
@@ -324,14 +326,20 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       where: { username: { in: usernames }, memberships: { some: { forgeId: channel.forgeId } } },
       select: { id: true },
     });
-    users.forEach((entry) => recipients.add(entry.id));
+    users.forEach((entry) => {
+      recipients.add(entry.id);
+      directRecipients.add(entry.id);
+    });
   }
 
   const forgeRoles = await prisma.role.findMany({ where: { forgeId: channel.forgeId }, select: { id: true, name: true } });
   const mentionedRoles = forgeRoles.filter((role) => role.name && raw.includes(`@${role.name}`) && role.name.toLowerCase() !== "@everyone");
   if (mentionedRoles.length) {
     const holders = await prisma.memberRole.findMany({ where: { roleId: { in: mentionedRoles.map((role) => role.id) } }, select: { forgeMember: { select: { userId: true } } } });
-    holders.forEach((entry) => recipients.add(entry.forgeMember.userId));
+    holders.forEach((entry) => {
+      recipients.add(entry.forgeMember.userId);
+      directRecipients.add(entry.forgeMember.userId);
+    });
     mentionLabel = `@${mentionedRoles[0].name}`;
   }
 
@@ -356,14 +364,35 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   recipients.delete(req.user!.id);
   // In a private channel, only people who can open it get pinged.
   const viewerIds = channel.isPrivate ? new Set(await privateChannelViewerIds(channel)) : null;
+  // Each member's own settings for this forge: "Nothing" drops the ping entirely,
+  // "suppress @everyone" drops pings that only came from @everyone/@here, and a mute
+  // keeps the mention badge but sends no notification.
+  const candidateIds = [...recipients].filter((id) => !viewerIds || viewerIds.has(id));
+  const prefs = candidateIds.length
+    ? await prisma.forgeMember.findMany({
+        where: { forgeId: channel.forgeId, userId: { in: candidateIds } },
+        select: { userId: true, notifyLevel: true, mutedUntil: true, suppressEveryone: true },
+      })
+    : [];
+  const prefByUser = new Map<string, { notifyLevel: string; mutedUntil: Date | null; suppressEveryone: boolean }>(prefs.map((pref) => [pref.userId, pref] as const));
+  const nowMs = Date.now();
+  const mutedIds = new Set<string>();
+  const wanted = candidateIds.filter((id) => {
+    const pref = prefByUser.get(id);
+    if (!pref) return true;
+    if (pref.notifyLevel === "NONE") return false;
+    if (pref.suppressEveryone && !directRecipients.has(id)) return false;
+    if (pref.mutedUntil && pref.mutedUntil.getTime() > nowMs) mutedIds.add(id);
+    return true;
+  });
   // Bound the cost of one message in a very large forge.
-  mentionedUserIds.push(...[...recipients].filter((id) => !viewerIds || viewerIds.has(id)).slice(0, 500));
+  mentionedUserIds.push(...wanted.slice(0, 500));
 
   if (mentionedUserIds.length) {
     void recordMentions(parsed.data.channelId, mentionedUserIds).catch(() => undefined);
     const channelName = (await prisma.channel.findUnique({ where: { id: parsed.data.channelId }, select: { name: true } }))?.name;
     await Promise.all(
-      mentionedUserIds.map((userId) =>
+      mentionedUserIds.filter((userId) => !mutedIds.has(userId)).map((userId) =>
         createNotification({
           userId,
           type: "MENTION",

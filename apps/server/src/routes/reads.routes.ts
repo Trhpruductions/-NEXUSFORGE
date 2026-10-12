@@ -54,16 +54,21 @@ async function computeForgeUnreads(userId: string, forgeId: string): Promise<Cha
 readsRouter.get("/summary", async (req, res) => {
   const memberships = await prisma.forgeMember.findMany({
     where: { userId: req.user!.id },
-    select: { forgeId: true },
+    select: { forgeId: true, mutedUntil: true, notifyLevel: true },
   });
 
+  const now = Date.now();
   const forges = await Promise.all(
-    memberships.map(async ({ forgeId }) => {
+    memberships.map(async ({ forgeId, mutedUntil, notifyLevel }) => {
       const channels = await computeForgeUnreads(req.user!.id, forgeId);
+      // A muted forge shows no unread dot, only mention badges (Discord does the same);
+      // "Nothing" hides those too.
+      const muted = Boolean(mutedUntil && mutedUntil.getTime() > now);
       return {
         forgeId,
-        unread: channels.reduce((sum, entry) => sum + entry.unread, 0),
-        mentions: channels.reduce((sum, entry) => sum + entry.mentions, 0),
+        muted,
+        unread: muted ? 0 : channels.reduce((sum, entry) => sum + entry.unread, 0),
+        mentions: notifyLevel === "NONE" ? 0 : channels.reduce((sum, entry) => sum + entry.mentions, 0),
       };
     }),
   );
