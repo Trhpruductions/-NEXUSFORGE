@@ -159,7 +159,7 @@ export function VoiceEngine() {
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    if (flags.camera) void mesh.startCamera(null);
+    if (flags.camera) void mesh.startCamera(voicePrefsRef.current?.cameraDeviceId ?? null);
     else mesh.stopCamera(false);
   }, [flags.camera]);
 

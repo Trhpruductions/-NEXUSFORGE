@@ -199,11 +199,15 @@ export class MeshVoice {
   /** Turn the camera on for everyone in the room (like screen share: a video track per peer). */
   async startCamera(deviceId?: string | null) {
     if (this.camera) return;
+    const video: MediaTrackConstraints = { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } };
     try {
-      this.camera = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 }, ...(deviceId ? { deviceId: { exact: deviceId } } : {}) },
-        audio: false,
-      });
+      try {
+        this.camera = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { ...video, deviceId: { exact: deviceId } } : video, audio: false });
+      } catch (error) {
+        // The chosen camera is gone (unplugged): use the default one instead.
+        if (!deviceId || (error instanceof Error && error.name === "NotAllowedError")) throw error;
+        this.camera = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+      }
     } catch (error) {
       this.camera = null;
       this.options.onError(error instanceof Error && error.name === "NotAllowedError" ? "Camera permission was denied" : "Couldn't start your camera");
@@ -263,6 +267,8 @@ export class MeshVoice {
       this.screenSenders.set(peer.userId, sender);
       void this.renegotiate(peer.userId);
     }
+    // Tell everyone which incoming stream is the screen (vs the camera).
+    this.broadcastState();
   }
 
   stopScreenShare(notify: boolean) {
@@ -280,12 +286,19 @@ export class MeshVoice {
     }
     this.screenSenders.clear();
     this.options.onLocalScreen?.(null);
+    this.broadcastState();
     if (notify) this.options.onScreenShareEnded?.();
   }
 
-  private async renegotiate(userId: string, iceRestart = false) {
+  private async renegotiate(userId: string, iceRestart = false, attempt = 0) {
     const peer = this.peers.get(userId);
-    if (!peer || peer.connection.signalingState !== "stable") return;
+    if (!peer || this.closed) return;
+    if (peer.connection.signalingState !== "stable") {
+      // Mid-negotiation (e.g. answering their change): try again shortly instead of
+      // dropping ours, or a camera/screen change could silently never reach them.
+      if (attempt < 20) this.later(() => void this.renegotiate(userId, iceRestart, attempt + 1), 250);
+      return;
+    }
     try {
       const offer = await peer.connection.createOffer({ iceRestart });
       await peer.connection.setLocalDescription(offer);
