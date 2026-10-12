@@ -602,21 +602,25 @@ function ChatInner() {
   const typingNames = channelId ? typing[channelId] ?? [] : [];
 
   const header = (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-amber-500/15 px-4">
+    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-gradient-to-r from-sky-500/[0.07] via-transparent to-violet-500/[0.07] px-4">
       {mode === "voice" ? (
         <>
-          <Volume2 className="h-4 w-4 text-amber-300" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300"><Volume2 className="h-4 w-4" /></span>
           <span className="text-sm font-semibold text-white">{voiceChannel?.name ?? "Voice"}</span>
           <span className="text-xs text-slate-500">{voiceChannel?.type === "STAGE" ? "Stage" : "Voice channel"}</span>
         </>
       ) : mode === "dm" ? (
         <>
-          <AtSign className="h-4 w-4 text-amber-300" />
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-500/15 text-pink-300"><AtSign className="h-4 w-4" /></span>
           <span className="text-sm font-semibold text-white">{dmThread ? dmLabel(dmThread) : "Direct messages"}</span>
         </>
       ) : (
         <>
-          {channel?.type === "ANNOUNCEMENT" ? <Megaphone className="h-4 w-4 text-amber-300" /> : <Hash className="h-4 w-4 text-amber-300" />}
+          {channel?.type === "ANNOUNCEMENT" ? (
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-orange-300"><Megaphone className="h-4 w-4" /></span>
+          ) : (
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300"><Hash className="h-4 w-4" /></span>
+          )}
           <span className="text-sm font-semibold text-white">{channel?.name ?? (forgeQuery.isLoading ? "Loading..." : "No channel")}</span>
           {channel?.topic ? <span className="hidden truncate text-xs text-slate-500 md:inline">{channel.topic}</span> : null}
         </>
@@ -654,7 +658,7 @@ function ChatInner() {
       ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
 
-      <div className="flex min-w-0 flex-1 flex-col bg-[#0a0d14]">
+      <div className="flex min-w-0 flex-1 flex-col bg-[#0a0d14]/80 backdrop-blur-sm">
         {header}
 
         {status ? (
@@ -825,7 +829,7 @@ function ChatInner() {
                 <div className="border-t border-white/5 p-3">
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2">
                     <input value={dmDraft} onChange={(event) => setDmDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (dmDraft.trim()) dmSend.mutate(); } }} placeholder={`Message ${dmThread ? dmLabel(dmThread) : ""}`} className="h-8 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500" />
-                    <button type="button" onClick={() => dmSend.mutate()} disabled={!dmDraft.trim() || dmSend.isPending} className="rounded-lg bg-amber-400 p-2 text-slate-950 disabled:opacity-40" title="Send"><Send className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => dmSend.mutate()} disabled={!dmDraft.trim() || dmSend.isPending} className="rounded-lg bg-gradient-to-br from-amber-300 via-orange-400 to-pink-500 p-2 text-slate-950 disabled:opacity-40" title="Send"><Send className="h-4 w-4" /></button>
                   </div>
                 </div>
               ) : null}
@@ -959,7 +963,7 @@ function ChatInner() {
                     </div>
                   ) : (
                   <>
-                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-amber-400/50">
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-violet-400/60 focus-within:shadow-[0_0_0_3px_rgba(167,139,250,0.14),0_0_24px_rgba(56,189,248,0.12)] transition">
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
                     <input
@@ -984,7 +988,7 @@ function ChatInner() {
                       placeholder={`Message #${channel.name}`}
                       className="h-8 min-w-0 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                     />
-                    <button type="button" onClick={() => void send()} disabled={(!draft.trim() && !pendingFiles.length) || uploading || sendMutation.isPending} className="rounded-lg bg-amber-400 p-2 text-slate-950 transition hover:bg-amber-300 disabled:opacity-40" title="Send">
+                    <button type="button" onClick={() => void send()} disabled={(!draft.trim() && !pendingFiles.length) || uploading || sendMutation.isPending} className="rounded-lg bg-gradient-to-br from-amber-300 via-orange-400 to-pink-500 p-2 text-slate-950 shadow-[0_0_14px_rgba(251,138,60,0.35)] transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none" title="Send">
                       {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
                   </div>
@@ -1008,7 +1012,7 @@ function ChatInner() {
       </div>
 
       {membersOpen && forge && mode !== "dm" ? (
-        <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-amber-500/15 bg-[#0b0e15] p-3 lg:block">
+        <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0b0e17]/80 p-3 backdrop-blur-xl lg:block">
           <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} />
         </aside>
       ) : null}

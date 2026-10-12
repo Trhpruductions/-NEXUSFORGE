@@ -6,6 +6,7 @@ import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
 import { plainText } from "@/lib/plain-text";
+import { hueFor, tileGradient } from "@/lib/colors";
 import { MessageAttachments } from "@/components/chat/message-attachments";
 import { mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
 
@@ -116,9 +117,10 @@ export function MessageList({
     if (message.botId) return { name: message.botName ?? "Bot", color: "#e879f9", nickname: null as string | null };
     const member = message.authorId ? memberByUserId.get(message.authorId) : undefined;
     const top = member ? topRoleFor(member, roles, ownerId) : null;
+    // Role color when they have one; otherwise everyone still gets their own color.
     return {
       name: member?.nickname || message.author?.username || "Unknown",
-      color: top?.color ?? "#e2e8f0",
+      color: top?.color ?? hueFor(message.authorId).light,
       nickname: member?.nickname ?? null,
     };
   };
@@ -181,10 +183,10 @@ export function MessageList({
               </div>
             ) : null}
             {showDay ? (
-              <div className="my-2 flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                <span className="h-px flex-1 bg-slate-800" />
-                {day}
-                <span className="h-px flex-1 bg-slate-800" />
+              <div className="my-3 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em]">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/40 to-violet-500/60" />
+                <span className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-violet-200">{day}</span>
+                <span className="h-px flex-1 bg-gradient-to-l from-transparent via-cyan-500/40 to-cyan-500/60" />
               </div>
             ) : null}
 
@@ -214,8 +216,8 @@ export function MessageList({
                     <img src={message.botAvatar ?? message.author?.avatar ?? ""} alt="" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
                   ) : (
                     <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[11px] font-semibold"
-                      style={{ color: meta.color }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
+                      style={{ background: message.botId ? tileGradient(hueFor("bot")) : tileGradient(hueFor(message.authorId)) }}
                     >
                       {initials(meta.name)}
                     </span>

@@ -36,6 +36,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
 import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
@@ -434,16 +435,21 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           onClick={() => openChannel(channel)}
           className={cn(
             "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition",
-            active ? "bg-amber-500/10 text-amber-100" : counts?.unread ? "text-white hover:bg-white/[0.04]" : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200",
+            active ? "text-white" : counts?.unread ? "text-white hover:bg-white/[0.05]" : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200",
           )}
+          style={active ? { background: `linear-gradient(90deg, ${alpha(hues[channelHue[channel.type]].base, 0.22)}, ${alpha(hues[channelHue[channel.type]].base, 0.04)})`, boxShadow: `inset 2px 0 0 ${hues[channelHue[channel.type]].base}` } : undefined}
         >
-          {channel.type === "ANNOUNCEMENT" ? <Megaphone className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Hash className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+          {channel.type === "ANNOUNCEMENT" ? (
+            <Megaphone className="h-3.5 w-3.5 shrink-0" style={{ color: hues.orange.base }} />
+          ) : (
+            <Hash className="h-3.5 w-3.5 shrink-0" style={{ color: active || counts?.unread ? hues.sky.light : alpha(hues.sky.base, 0.7) }} />
+          )}
           <span className="min-w-0 flex-1 truncate">{channel.name}</span>
           {channel.isPrivate ? <Lock className="h-3 w-3 shrink-0 text-slate-500" aria-label="Private channel" /> : null}
           {counts?.mentions ? (
-            <span className="rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">@{counts.mentions}</span>
+            <span className="rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-1.5 text-[10px] font-bold text-white shadow-[0_0_10px_rgba(244,63,94,0.5)]">@{counts.mentions}</span>
           ) : counts?.unread ? (
-            <span className="text-xs font-semibold text-amber-300">{counts.unread}</span>
+            <span className="rounded-full bg-sky-400/15 px-1.5 text-[10px] font-semibold text-sky-200">{counts.unread}</span>
           ) : null}
         </button>
       </li>
@@ -456,11 +462,15 @@ export function VexoraShell({ children }: { children: ReactNode }) {
         type="button"
         onClick={() => openChannel(channel)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/[0.04] hover:text-slate-200",
-          voiceSession?.channelId === channel.id ? "bg-emerald-500/10 text-emerald-200" : "text-slate-400",
+          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/[0.05] hover:text-slate-200",
+          voiceSession?.channelId === channel.id ? "bg-emerald-500/15 text-emerald-100 shadow-[inset_2px_0_0_#34d399]" : "text-slate-400",
         )}
       >
-        {channel.type === "STAGE" ? <Radio className="h-3.5 w-3.5 shrink-0 text-slate-500" /> : <Volume2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+        {channel.type === "STAGE" ? (
+          <Radio className="h-3.5 w-3.5 shrink-0" style={{ color: hues.pink.base }} />
+        ) : (
+          <Volume2 className="h-3.5 w-3.5 shrink-0" style={{ color: hues.emerald.base }} />
+        )}
         <span className="min-w-0 flex-1 truncate">{channel.name}</span>
         {channel.isPrivate ? <Lock className="h-3 w-3 shrink-0 text-slate-500" aria-label="Private channel" /> : null}
         {voiceCounts[channel.id] ? (
@@ -474,18 +484,22 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   );
 
   const sidebar = (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-amber-500/15 bg-[#0b0e15]">
+    <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
       <div className="relative p-3" ref={forgeMenuRef}>
         <button
           type="button"
           onClick={() => setForgeMenuOpen((open) => !open)}
-          className="flex w-full items-center gap-3 rounded-xl border border-amber-500/25 bg-[#11151e] px-3 py-2.5 text-left transition hover:border-amber-400/50"
+          className="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:brightness-110"
+          style={{
+            borderColor: alpha(hueFor(forge?.id ?? "vexora").base, 0.35),
+            background: `linear-gradient(120deg, ${alpha(hueFor(forge?.id ?? "vexora").base, 0.18)}, rgba(17,21,30,0.9) 70%)`,
+          }}
         >
           {forge?.icon ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={forge.icon} alt="" className="h-9 w-9 rounded-lg object-cover" />
           ) : (
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-700 text-xs font-bold text-slate-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold text-slate-950 shadow-[0_4px_14px_rgba(0,0,0,0.35)]" style={{ background: tileGradient(hueFor(forge?.id ?? "vexora")) }}>
               {initials(forge?.name ?? "Vexora")}
             </span>
           )}
@@ -509,7 +523,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                     entry.id === selectedForgeId ? "text-amber-200" : "text-slate-200",
                   )}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-800 text-[10px] font-bold">{initials(entry.name)}</span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold text-slate-950" style={{ background: tileGradient(hueFor(entry.id)) }}>{initials(entry.name)}</span>
                   <span className="min-w-0 flex-1 truncate">{entry.name}</span>
                   {counts?.unread ? <span className="rounded-full bg-amber-500/20 px-1.5 text-[10px] font-semibold text-amber-200">{counts.unread}</span> : null}
                 </button>
@@ -525,19 +539,24 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       <nav className="space-y-0.5 px-3">
         {navLinks.map((link) => {
           const active = isActive(pathname, link.href);
+          const hue = hues[sectionHue[link.href] ?? "amber"];
           return (
             <Link
               key={link.href}
               href={link.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition",
-                active
-                  ? "border-amber-400/60 bg-amber-500/10 text-amber-100 shadow-[inset_0_0_0_1px_rgba(230,179,37,0.2)]"
-                  : "border-transparent text-slate-300 hover:border-white/5 hover:bg-white/[0.03] hover:text-white",
+                "group flex items-center gap-3 rounded-lg border px-2 py-1.5 text-sm transition",
+                active ? "text-white" : "border-transparent text-slate-300 hover:bg-white/[0.04] hover:text-white",
               )}
+              style={active ? { borderColor: alpha(hue.base, 0.45), background: `linear-gradient(90deg, ${alpha(hue.base, 0.2)}, ${alpha(hue.base, 0.03)})`, boxShadow: `0 0 18px ${alpha(hue.base, 0.12)}` } : undefined}
             >
-              <link.icon className={cn("h-4 w-4", active ? "text-amber-300" : "text-slate-500")} />
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-md transition group-hover:scale-105"
+                style={{ background: alpha(hue.base, active ? 0.28 : 0.13), color: active ? hue.light : hue.base }}
+              >
+                <link.icon className="h-4 w-4" />
+              </span>
               {link.label}
             </Link>
           );
@@ -546,7 +565,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
 
       <div className="mt-4 flex-1 overflow-y-auto px-3 pb-3 no-scrollbar">
         <div className="mb-1.5 flex items-center justify-between px-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Text channels</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300/70">Text channels</p>
           <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=channels` : "/app/chat"} className="text-slate-600 transition hover:text-amber-300" title="Add or manage channels">
             <Plus className="h-3.5 w-3.5" />
           </Link>
@@ -558,7 +577,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
 
         {looseVoice.length || !categories.length ? (
           <>
-            <p className="mb-1.5 mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Voice channels</p>
+            <p className="mb-1.5 mt-5 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300/70">Voice channels</p>
             <ul className="space-y-0.5">{looseVoice.map((channel) => renderVoiceChannel(channel))}</ul>
           </>
         ) : null}
@@ -575,7 +594,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => toggleCategory(category.id)}
                 aria-expanded={!collapsed}
-                className={cn("mb-1 flex w-full items-center gap-1 px-1 text-left text-[10px] font-semibold uppercase tracking-[0.2em] transition hover:text-slate-300", unread ? "text-slate-200" : "text-slate-500")}
+                className={cn("mb-1 flex w-full items-center gap-1 px-1 text-left text-[10px] font-semibold uppercase tracking-[0.2em] transition hover:text-violet-200", unread ? "text-violet-100" : "text-violet-300/70")}
               >
                 {collapsed ? <ChevronRight className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />}
                 <span className="min-w-0 flex-1 truncate">{category.name}</span>
@@ -589,7 +608,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
         })}
 
         {forge ? (
-          <div className="mt-5 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] text-slate-500">
+          <div className="mt-5 rounded-lg border border-emerald-400/15 bg-gradient-to-r from-emerald-500/[0.08] to-sky-500/[0.05] px-3 py-2 text-[11px] text-slate-400">
             <span className="text-emerald-300">{onlineCount}</span> online · {forge.members.length} members
           </div>
         ) : null}
@@ -610,14 +629,14 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       ) : null}
-      <div className="border-t border-amber-500/15 bg-[#0d1119] p-3">
+      <div className="border-t border-white/[0.06] bg-gradient-to-r from-violet-500/[0.08] via-[#0d1119] to-sky-500/[0.06] p-3">
         <div className="flex items-center gap-2.5">
           <Link href="/app/profile" className="relative shrink-0">
             {user?.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatar} alt="" className="h-9 w-9 rounded-full border border-amber-500/40 object-cover" />
             ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/40 bg-slate-800 text-xs font-bold text-amber-100">{initials(displayName)}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-slate-950" style={{ background: tileGradient(hueFor(user?.id)) }}>{initials(displayName)}</span>
             )}
             <span className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0d1119]", presence.dot)} />
           </Link>
@@ -671,14 +690,20 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#070a10] text-slate-100">
+    <div className="relative isolate flex h-dvh overflow-hidden bg-[#070a10] text-slate-100">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-violet-600/20 blur-[120px]" />
+        <div className="absolute -right-32 top-1/4 h-[460px] w-[460px] rounded-full bg-cyan-500/[0.13] blur-[120px]" />
+        <div className="absolute bottom-[-180px] left-1/3 h-[520px] w-[620px] rounded-full bg-fuchsia-600/[0.13] blur-[140px]" />
+        <div className="absolute right-1/4 top-[-120px] h-[300px] w-[420px] rounded-full bg-amber-500/[0.08] blur-[110px]" />
+      </div>
       <VoiceEngine />
       {/* Forge rail */}
-      <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-amber-500/15 bg-[#080b12] py-3 lg:flex">
+      <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(230,179,37,0.25)]" title="Vexora Gaming">
           <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora" width={40} height={40} className="h-10 w-10 object-cover" />
         </Link>
-        <span className="mb-1 h-px w-8 bg-amber-500/25" />
+        <span className="mb-1 h-px w-8 bg-gradient-to-r from-violet-400/40 via-amber-400/50 to-cyan-400/40" />
         <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto no-scrollbar">
           {forges.map((entry) => {
             const counts = forgeCounts[entry.id];
@@ -690,41 +715,44 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 onClick={() => selectForge(entry.id)}
                 title={entry.name}
                 className={cn(
-                  "relative flex h-10 w-10 items-center justify-center rounded-xl border text-[11px] font-bold transition",
-                  active ? "border-amber-400 bg-amber-500/15 text-amber-100" : "border-white/10 bg-slate-900 text-slate-300 hover:border-amber-400/50 hover:text-white",
+                  "relative flex h-10 w-10 items-center justify-center text-[11px] font-bold text-slate-950 transition-all duration-200",
+                  active ? "rounded-[14px]" : "rounded-[20px] opacity-85 hover:rounded-[14px] hover:opacity-100",
                 )}
+                style={{
+                  background: entry.icon ? undefined : tileGradient(hueFor(entry.id)),
+                  boxShadow: active ? `0 0 0 2px #080b12, 0 0 0 4px ${hueFor(entry.id).base}, 0 0 18px ${alpha(hueFor(entry.id).base, 0.45)}` : undefined,
+                }}
               >
                 {entry.icon ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={entry.icon} alt="" className="h-full w-full rounded-xl object-cover" />
+                  <img src={entry.icon} alt="" className={cn("h-full w-full object-cover", active ? "rounded-[14px]" : "rounded-[20px]")} />
                 ) : (
                   initials(entry.name)
                 )}
                 {counts?.mentions ? (
-                  <span className="absolute -right-1 -top-1 rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">{counts.mentions}</span>
+                  <span className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-1 text-[9px] font-bold text-white shadow-[0_0_8px_rgba(244,63,94,0.6)]">{counts.mentions}</span>
                 ) : counts?.unread ? (
-                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#080b12] bg-amber-400" />
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#080b12] bg-white" />
                 ) : null}
-                {active ? <span className="absolute -left-[13px] h-6 w-1 rounded-r bg-amber-400" /> : null}
+                {active ? <span className="absolute -left-[13px] h-7 w-1 rounded-r" style={{ background: hueFor(entry.id).base }} /> : null}
               </button>
             );
           })}
-          <Link href="/app/server" className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-amber-500/30 text-amber-300 transition hover:bg-amber-500/10" title="Create or join">
+          <Link href="/app/server" className="flex h-10 w-10 items-center justify-center rounded-[20px] border border-dashed border-emerald-400/40 text-emerald-300 transition-all hover:rounded-[14px] hover:bg-emerald-500/15" title="Create or join">
             <Plus className="h-4 w-4" />
           </Link>
-          <span className="my-1 h-px w-8 bg-amber-500/25" />
+          <span className="my-1 h-px w-8 bg-gradient-to-r from-violet-400/40 via-amber-400/50 to-cyan-400/40" />
           {railLinks.map((link) => {
             const active = isActive(pathname, link.href);
+            const hue = hues[sectionHue[link.href] ?? "amber"];
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 title={link.label}
                 aria-label={link.label}
-                className={cn(
-                  "relative flex h-9 w-9 items-center justify-center rounded-lg border transition",
-                  active ? "border-amber-400/60 bg-amber-500/15 text-amber-200" : "border-transparent text-slate-500 hover:border-amber-400/40 hover:text-amber-200",
-                )}
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-transparent transition hover:scale-105"
+                style={{ color: active ? hue.light : hue.base, background: alpha(hue.base, active ? 0.25 : 0.1), borderColor: active ? alpha(hue.base, 0.5) : "transparent" }}
               >
                 <link.icon className="h-4 w-4" />
                 {link.href === "/app/chat" && dmUnread ? (
@@ -749,7 +777,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       ) : null}
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-amber-500/15 bg-[#0b0e15]/90 px-3 backdrop-blur md:px-5">
+        <header className="relative flex h-14 shrink-0 items-center gap-3 bg-[#0b0e17]/75 px-3 backdrop-blur-xl md:px-5">
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 via-50% to-cyan-400/60" />
           <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu">
             <Layers className="h-4 w-4" />
           </button>
@@ -759,7 +788,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search Vexora Gaming..."
-              className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60"
+              className="h-9 w-full rounded-full border border-white/10 bg-[#11151e]/80 pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 transition focus:border-violet-400/60 focus:shadow-[0_0_0_3px_rgba(167,139,250,0.15)]"
             />
             {search ? (
               <button type="button" onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white" title="Clear">
