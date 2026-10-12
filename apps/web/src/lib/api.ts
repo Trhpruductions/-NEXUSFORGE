@@ -2920,8 +2920,10 @@ export async function removeFriend(accessToken: string, csrfToken: string, frien
 
 export type SearchMessage = Message & { channel: { id: string; name: string; forgeId: string } };
 
+export type SearchFilters = { text: string; from: string[]; in: string[]; has: string[]; mentions: string[]; before: string | null; after: string | null; pinned: boolean | null };
+
 export async function searchMessages(accessToken: string, q: string, forgeId?: string) {
-  const response = await api.get<{ messages: SearchMessage[] }>("/api/search/messages", { headers: authHeaders(accessToken), params: { q, forgeId } });
+  const response = await api.get<{ messages: SearchMessage[]; filters?: SearchFilters }>("/api/search/messages", { headers: authHeaders(accessToken), params: { q, forgeId } });
   return response.data;
 }
 

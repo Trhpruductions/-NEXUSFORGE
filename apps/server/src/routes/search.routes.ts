@@ -3,6 +3,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { hiddenChannelIdsForUser } from "../lib/channel-access.js";
+import { hasAnyFilter, parseSearchQuery } from "../lib/search-query.js";
+import { Prisma } from "@prisma/client";
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif)(\?|$)/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v)(\?|$)/i;
+const attachmentUrls = (value: unknown) => (Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : []);
 
 const querySchema = z.object({
   q: z.string().min(1).max(120),
@@ -50,13 +56,37 @@ searchRouter.get("/messages", async (req, res) => {
     return;
   }
 
-  const messages = await prisma.message.findMany({
+  // from:, in:, has:, mentions:, before:, after:, during:, pinned: (see lib/search-query).
+  const filters = parseSearchQuery(parsed.data.q);
+  if (!hasAnyFilter(filters)) {
+    res.json({ messages: [], filters });
+    return;
+  }
+  const and: Prisma.MessageWhereInput[] = [];
+  if (filters.text) and.push({ content: { contains: filters.text, mode: "insensitive" } });
+  if (filters.from.length) {
+    const authors = await prisma.user.findMany({
+      where: { OR: filters.from.map((name) => ({ username: { equals: name, mode: "insensitive" as const } })) },
+      select: { id: true },
+    });
+    and.push({ authorId: { in: authors.map((author) => author.id) } });
+  }
+  if (filters.in.length) and.push({ channel: { OR: filters.in.map((name) => ({ name: { equals: name, mode: "insensitive" as const } })) } });
+  for (const name of filters.mentions) and.push({ content: { contains: `@${name}`, mode: "insensitive" } });
+  if (filters.has.includes("link")) and.push({ content: { contains: "http", mode: "insensitive" } });
+  // attachments is a JSON array: "has a file" = not empty and not null.
+  if (filters.has.some((kind) => kind !== "link")) and.push({ NOT: [{ attachments: { equals: [] } }, { attachments: { equals: Prisma.DbNull } }] });
+  if (filters.before) and.push({ createdAt: { lt: filters.before } });
+  if (filters.after) and.push({ createdAt: { gt: filters.after } });
+  if (filters.pinned === true) and.push({ pinnedAt: { not: null } });
+  if (filters.pinned === false) and.push({ pinnedAt: null });
+  // Image/video can't be told apart in the query (attachments are URLs), so filter after.
+  const needsTypeCheck = filters.has.includes("image") || filters.has.includes("video");
+
+  const found = await prisma.message.findMany({
     where: {
+      AND: and,
       ...(hidden.length && !parsed.data.channelId ? { channelId: { notIn: hidden } } : {}),
-      content: {
-        contains: parsed.data.q,
-        mode: "insensitive",
-      },
       ...(parsed.data.channelId ? { channelId: parsed.data.channelId } : {}),
       ...(parsed.data.forgeId
         ? {
@@ -85,10 +115,19 @@ searchRouter.get("/messages", async (req, res) => {
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: needsTypeCheck ? 300 : 50,
   });
 
-  res.json({ messages });
+  const messages = needsTypeCheck
+    ? found
+        .filter((message) =>
+          (!filters.has.includes("image") || attachmentUrls(message.attachments).some((url) => IMAGE_EXT.test(url))) &&
+          (!filters.has.includes("video") || attachmentUrls(message.attachments).some((url) => VIDEO_EXT.test(url))),
+        )
+        .slice(0, 50)
+    : found;
+
+  res.json({ messages, filters });
 });
 
 searchRouter.get("/users", async (req, res) => {
