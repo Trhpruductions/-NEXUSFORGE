@@ -30,8 +30,8 @@ export default function AgeGatePage() {
 
           <div className="mt-6 flex flex-wrap gap-4 border-t border-white/5 pt-4 text-xs text-slate-500">
             <Link href="/support" className="hover:text-amber-200">Support</Link>
-            <Link href="/terms" className="hover:text-amber-200">Terms</Link>
-            <Link href="/privacy" className="hover:text-amber-200">Privacy</Link>
+            <Link href="/legal/terms" className="hover:text-amber-200">Terms</Link>
+            <Link href="/legal/privacy" className="hover:text-amber-200">Privacy</Link>
           </div>
         </div>
       </main>

@@ -44,8 +44,8 @@ export default function SupportPage() {
           <div className="rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4">
             <h2 className="nf-heading mb-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">Policies</h2>
             <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.16em]">
-              <Link href="/terms" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Terms</Link>
-              <Link href="/privacy" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Privacy</Link>
+              <Link href="/legal/terms" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Terms</Link>
+              <Link href="/legal/privacy" className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-200 hover:border-amber-400/50">Privacy</Link>
             </div>
           </div>
         </aside>

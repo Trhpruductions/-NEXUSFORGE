@@ -233,8 +233,8 @@ export default function Home() {
             <span>Vexora Gaming © 2026. Built for gamers. Connected by community.</span>
           </div>
           <div className="flex items-center gap-5 uppercase tracking-[0.18em]">
-            <Link href="/terms" className="transition hover:text-white">Terms</Link>
-            <Link href="/privacy" className="transition hover:text-white">Privacy</Link>
+            <Link href="/legal/terms" className="transition hover:text-white">Terms</Link>
+            <Link href="/legal/privacy" className="transition hover:text-white">Privacy</Link>
             <Link href="/support" className="transition hover:text-white">Support</Link>
           </div>
         </div>

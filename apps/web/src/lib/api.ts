@@ -773,7 +773,7 @@ export function authHeaders(
   };
 }
 
-export async function register(payload: { username: string; email: string; password: string; birthdate: string }) {
+export async function register(payload: { username: string; email: string; password: string; birthdate: string; acceptedPolicyVersionIds?: string[] }) {
   const response = await api.post<{
     accessToken: string;
     csrfToken: string;
