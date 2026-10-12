@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { prisma } from "./prisma.js";
 import { hashPassword } from "./password.js";
 import { sendEmail } from "./delivery.js";
+import { deleteDocument } from "./age-verification.js";
 
 /**
  * Account deletion, Discord-style: the user asks, every session is signed out, and the
@@ -70,6 +71,15 @@ export async function anonymizeUser(userId: string) {
   if (!existing || existing.deletedAt) return;
   const tag = randomBytes(4).toString("hex");
   const now = new Date();
+
+  // ID-verification photos are normally deleted once reviewed; remove any still waiting
+  // for review, and the verification records themselves.
+  const verifications = await prisma.ageVerification.findMany({ where: { userId }, select: { documentPath: true, selfiePath: true } });
+  for (const entry of verifications) {
+    await deleteDocument(entry.documentPath);
+    if (entry.selfiePath) await deleteDocument(entry.selfiePath);
+  }
+  await prisma.ageVerification.deleteMany({ where: { userId } });
 
   await prisma.$transaction([
     // Sessions, codes and keys: nothing left that can act as them.

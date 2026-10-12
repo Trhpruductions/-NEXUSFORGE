@@ -91,3 +91,14 @@ test("legal admin access is decided by role, not by the page", () => {
   assert.equal(canPublishLegal({ isAdmin: false, appRole: "OWNER" }), true);
   assert.equal(canPublishLegal({ isAdmin: false, appRole: "EXEC" }), true);
 });
+
+test("the seeded Privacy Policy can't be published until its placeholders are filled", async () => {
+  const { privacySeedContent } = await import("../src/lib/legal-content.js");
+  const found = findPlaceholders(privacySeedContent);
+  for (const expected of ["[Legal Operator Name]", "[Privacy Contact Email]", "[Hosting Provider and Location]", "[Server Log Retention Period]"]) {
+    assert.ok(found.includes(expected), expected);
+  }
+  // Links to other policies are markdown links, not placeholders.
+  assert.ok(!found.some((entry) => entry.startsWith("[Terms of Service") || entry.startsWith("[Cookie Policy")));
+  assert.ok(privacySeedContent.includes("do not sell"), "states the no-sale commitment");
+});

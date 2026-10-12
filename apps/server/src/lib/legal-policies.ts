@@ -1,11 +1,17 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma.js";
-import { legalPolicyCatalog, termsSeedContent, termsSeedSummary } from "./legal-content.js";
 import { defaultConsentText, pendingConsents, type CurrentRequired } from "./legal-rules.js";
+import { legalPolicyCatalog, privacySeedContent, privacySeedSummary, termsSeedContent, termsSeedSummary } from "./legal-content.js";
+
+/** First drafts, loaded for review the first time a policy has no versions at all. */
+const seeds: Record<string, { content: string; summary: string }> = {
+  terms: { content: termsSeedContent, summary: termsSeedSummary },
+  privacy: { content: privacySeedContent, summary: privacySeedSummary },
+};
 
 const SYSTEM_ACTOR = "system";
 
-/** Makes sure every catalog policy exists; seeds the Terms draft the first time only. */
+/** Makes sure every catalog policy exists; seeds the first drafts (Terms, Privacy) once. */
 export async function ensureLegalPolicies() {
   for (const entry of legalPolicyCatalog) {
     const policy = await prisma.legalPolicy.upsert({
@@ -13,11 +19,12 @@ export async function ensureLegalPolicies() {
       update: {},
       create: { slug: entry.slug, title: entry.title, summary: entry.summary, sortOrder: entry.sortOrder, requiredAtSignup: entry.requiredAtSignup },
     });
-    if (entry.slug === "terms") {
+    const seed = seeds[entry.slug];
+    if (seed) {
       const count = await prisma.legalPolicyVersion.count({ where: { policyId: policy.id } });
       if (count === 0) {
         const version = await prisma.legalPolicyVersion.create({
-          data: { policyId: policy.id, version: 1, status: "IN_REVIEW", content: termsSeedContent, changeSummary: termsSeedSummary, createdById: SYSTEM_ACTOR, consentText: defaultConsentText(policy.title, 1) },
+          data: { policyId: policy.id, version: 1, status: "IN_REVIEW", content: seed.content, changeSummary: seed.summary, createdById: SYSTEM_ACTOR, consentText: defaultConsentText(policy.title, 1) },
         });
         await logLegal(SYSTEM_ACTOR, "version.create", entry.slug, version.id, 1, { note: "Initial draft loaded for review" });
       }
