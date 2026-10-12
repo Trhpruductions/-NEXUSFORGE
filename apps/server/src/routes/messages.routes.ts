@@ -734,6 +734,14 @@ messagesRouter.post("/:id/reactions", async (req, res) => {
     return;
   }
 
+  if (/^:[a-z0-9_]{2,30}:$/.test(parsed.data.emoji)) {
+    const custom = await prisma.forgeEmoji.findUnique({ where: { forgeId_name: { forgeId: message.channel.forgeId, name: parsed.data.emoji.slice(1, -1) } }, select: { id: true } });
+    if (!custom) {
+      res.status(400).json({ error: "That emoji isn't in this forge" });
+      return;
+    }
+  }
+
   // Toggle: a second reaction with the same emoji removes it.
   const reactionKey = {
     messageId_userId_emoji: {

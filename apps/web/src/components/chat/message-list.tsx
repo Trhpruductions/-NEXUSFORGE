@@ -9,7 +9,7 @@ import { plainText } from "@/lib/plain-text";
 import { hueFor, tileGradient } from "@/lib/colors";
 import { MessageAttachments } from "@/components/chat/message-attachments";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
-import { mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
+import { CustomEmoji, mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
 
@@ -30,6 +30,8 @@ type MessageListProps = {
   onPin?: (messageId: string, pinned: boolean) => void;
   /** Report someone else's message to the server's moderators. */
   onReport?: (message: Message) => void;
+  /** This forge's custom emoji (name -> image URL). */
+  emojis?: Record<string, string>;
   /** Start a thread from a message, or open the one it already has. */
   onStartThread?: (message: Message) => void;
   onOpenThread?: (threadId: string) => void;
@@ -83,6 +85,7 @@ export function MessageList({
   onReport,
   onStartThread,
   onOpenThread,
+  emojis,
   lastReadAt,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -109,8 +112,9 @@ export function MessageList({
       roleNames: roles.map((role) => role.name),
       usernamesById: Object.fromEntries(members.map((member) => [member.userId, member.user.username])),
       selfRoleNames: (self?.roleLinks ?? []).map((link) => roleNameById.get(link.roleId)).filter((name): name is string => Boolean(name)),
+      emojis,
     };
-  }, [memberByUserId, members, roles, selfId]);
+  }, [memberByUserId, members, roles, selfId, emojis]);
 
   // First message from someone else that arrived after the last read: the "New" line goes above it.
   const firstUnreadId = useMemo(() => {
@@ -310,7 +314,7 @@ export function MessageList({
                           }`}
                           title={entry.mine ? "Remove your reaction" : "React"}
                         >
-                          <span>{emoji}</span>
+                          <span>{/^:[a-z0-9_]{2,30}:$/.test(emoji) ? <CustomEmoji name={emoji.slice(1, -1)} emojis={emojis} size={16} /> : emoji}</span>
                           <span className="text-[11px]">{entry.count}</span>
                         </button>
                       ))}
@@ -381,6 +385,20 @@ export function MessageList({
                       }}
                     >
                       {emoji}
+                    </button>
+                  ))}
+                  {Object.keys(emojis ?? {}).slice(0, 12).map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      title={`:${name}:`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-slate-800"
+                      onClick={() => {
+                        onReact(message.id, `:${name}:`);
+                        setPickerFor(null);
+                      }}
+                    >
+                      <CustomEmoji name={name} emojis={emojis} size={20} />
                     </button>
                   ))}
                 </div>

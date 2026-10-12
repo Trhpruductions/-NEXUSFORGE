@@ -595,6 +595,18 @@ model ForgeAutoModRule {
   @@index([forgeId, position])
 }
 
+/// A forge's own emoji, used in messages and reactions as :name:.
+model ForgeEmoji {
+  id        String   @id @default(uuid())
+  forgeId   String
+  name      String
+  imageUrl  String
+  creatorId String
+  createdAt DateTime @default(now())
+
+  @@unique([forgeId, name])
+}
+
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
 /// DM reports go to platform staff. The message is copied at report time so deleting it
 /// doesn't destroy the evidence.

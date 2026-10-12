@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Check, Clock, Flag, Hash, MessagesSquare, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -48,7 +48,8 @@ import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { ThreadPanel } from "@/components/chat/thread-panel";
-import { createThread, listThreads } from "@/lib/api";
+import { createThread, listForgeEmojis, listThreads } from "@/lib/api";
+import { CustomEmoji } from "@/components/chat/rich-text";
 import { plainText } from "@/lib/plain-text";
 import { RichText } from "@/components/chat/rich-text";
 
@@ -577,6 +578,26 @@ function ChatInner() {
   // Editing / deleting your own DMs.
   const [dmEditing, setDmEditing] = useState<{ id: string; text: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  // This forge's custom emoji, for :name: in messages, reactions and the picker.
+  const emojiQuery = useQuery({
+    queryKey: ["forge-emojis", selectedForgeId, accessToken],
+    queryFn: () => listForgeEmojis(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+    staleTime: 60_000,
+  });
+  const emojiMap = useMemo(() => Object.fromEntries((emojiQuery.data?.emojis ?? []).map((emoji) => [emoji.name, emoji.imageUrl])), [emojiQuery.data]);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  useEffect(() => {
+    if (!accessToken || !selectedForgeId) return;
+    const socket = getSocket(accessToken);
+    const onEmojis = (payload: { forgeId: string }) => {
+      if (payload.forgeId === selectedForgeId) void queryClient.invalidateQueries({ queryKey: ["forge-emojis", selectedForgeId] });
+    };
+    socket.on("forge:emojis", onEmojis);
+    return () => {
+      socket.off("forge:emojis", onEmojis);
+    };
+  }, [accessToken, selectedForgeId, queryClient]);
   // Threads: the one open beside the channel, and the channel's thread list.
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
   const [threadsOpen, setThreadsOpen] = useState(false);
@@ -932,6 +953,7 @@ function ChatInner() {
                     onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
                     onReport={(message) => setReportTarget({ kind: "CHANNEL", messageId: message.id, authorName: message.author?.username ?? "this member", content: message.content })}
                     onStartThread={(message) => void startThread(message)}
+                    emojis={emojiMap}
                     onOpenThread={(threadId) => setOpenThreadId(threadId)}
                     lastReadAt={unreadSince?.channelId === channelId ? unreadSince.at : null}
                   />
@@ -1034,6 +1056,30 @@ function ChatInner() {
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2 focus-within:border-violet-400/60 focus-within:shadow-[0_0_0_3px_rgba(167,139,250,0.14),0_0_24px_rgba(56,189,248,0.12)] transition">
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
+                    <div className="relative">
+                      <button type="button" onClick={() => setEmojiPickerOpen((value) => !value)} className="text-slate-500 hover:text-amber-200" title="Emoji" aria-expanded={emojiPickerOpen}><Smile className="h-4 w-4" /></button>
+                      {emojiPickerOpen ? (
+                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-64 rounded-xl border border-white/10 bg-[#0d1119] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                          <div className="grid grid-cols-8 gap-0.5">
+                            {["😀", "😂", "😅", "😍", "😎", "🤔", "😭", "😡", "👍", "👎", "🙏", "👏", "🔥", "💯", "🎉", "❤️", "🎮", "🕹️", "🏆", "⚔️", "🛡️", "💀", "👀", "✅"].map((emoji) => (
+                              <button key={emoji} type="button" className="h-7 w-7 rounded text-lg hover:bg-white/10" onClick={() => { setDraft((current) => `${current}${emoji}`); setEmojiPickerOpen(false); }}>{emoji}</button>
+                            ))}
+                          </div>
+                          {Object.keys(emojiMap).length ? (
+                            <>
+                              <p className="mb-1 mt-2 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300/80">{forge?.name ?? "This forge"}</p>
+                              <div className="grid max-h-40 grid-cols-8 gap-0.5 overflow-y-auto">
+                                {Object.keys(emojiMap).map((name) => (
+                                  <button key={name} type="button" title={`:${name}:`} className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/10" onClick={() => { setDraft((current) => `${current}${current && !current.endsWith(" ") ? " " : ""}:${name}: `); setEmojiPickerOpen(false); }}>
+                                    <CustomEmoji name={name} emojis={emojiMap} size={20} />
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                     <input
                       value={draft}
                       onChange={(event) => onDraftChange(event.target.value)}
@@ -1081,7 +1127,7 @@ function ChatInner() {
 
       {openThreadId && channelId && mode === "channel" ? (
         <div className="fixed inset-0 z-40 lg:static lg:z-auto lg:flex">
-          <ThreadPanel threadId={openThreadId} channelId={channelId} canModerate={canModerate} onClose={() => setOpenThreadId(null)} />
+          <ThreadPanel threadId={openThreadId} channelId={channelId} canModerate={canModerate} onClose={() => setOpenThreadId(null)} emojis={emojiMap} />
         </div>
       ) : membersOpen && forge && mode !== "dm" ? (
         <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0b0e17]/80 p-3 backdrop-blur-xl lg:block">

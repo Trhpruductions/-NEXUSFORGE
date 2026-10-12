@@ -14,7 +14,7 @@ function time(iso: string) {
   return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function Row({ message }: { message: Message }) {
+function Row({ message, emojis }: { message: Message; emojis?: Record<string, string> }) {
   const name = message.author?.username ?? message.botName ?? "Unknown";
   return (
     <div className="flex gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.03]">
@@ -31,7 +31,7 @@ function Row({ message }: { message: Message }) {
           <span className="text-sm font-semibold" style={{ color: hueFor(message.authorId ?? name).light }}>{name}</span>
           {time(message.createdAt)}
         </p>
-        <RichText content={message.content} />
+        <RichText content={message.content} context={{ emojis }} />
         {!message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
       </div>
     </div>
@@ -39,7 +39,7 @@ function Row({ message }: { message: Message }) {
 }
 
 /** A thread, opened beside the channel. Replies are posted to the channel with the thread's id. */
-export function ThreadPanel({ threadId, channelId, canModerate, onClose }: { threadId: string; channelId: string; canModerate: boolean; onClose: () => void }) {
+export function ThreadPanel({ threadId, channelId, canModerate, onClose, emojis }: { threadId: string; channelId: string; canModerate: boolean; onClose: () => void; emojis?: Record<string, string> }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
   const [draft, setDraft] = useState("");
@@ -141,12 +141,12 @@ export function ThreadPanel({ threadId, channelId, canModerate, onClose }: { thr
           <>
             {data?.thread.starterMessage ? (
               <div className="mb-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-1">
-                <Row message={data.thread.starterMessage} />
+                <Row message={data.thread.starterMessage} emojis={emojis} />
               </div>
             ) : (
               <p className="mb-2 px-2 text-[11px] italic text-slate-500">The message that started this thread was deleted.</p>
             )}
-            {data?.messages.map((message) => <Row key={message.id} message={message} />)}
+            {data?.messages.map((message) => <Row key={message.id} message={message} emojis={emojis} />)}
             {data && !data.messages.length ? <p className="px-2 py-3 text-xs text-slate-500">No replies yet. Start the conversation.</p> : null}
             <div ref={bottomRef} />
           </>

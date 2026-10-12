@@ -42,8 +42,9 @@ import {
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { AutoModTab } from "@/components/chat/automod-tab";
+import { EmojiTab } from "@/components/chat/emoji-tab";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -165,6 +166,7 @@ export function ForgeSettingsPanel({
     list.push({ id: "invites", label: "Invites" });
     if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
     if (can("manageForge")) list.push({ id: "automod", label: "AutoMod" });
+    if (can("manageForge")) list.push({ id: "emoji", label: "Emoji" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
@@ -244,6 +246,8 @@ export function ForgeSettingsPanel({
             <ReportsTab forgeId={forgeId} setNotice={setNotice} />
           ) : tab === "automod" ? (
             <AutoModTab forge={forge} setNotice={setNotice} />
+          ) : tab === "emoji" ? (
+            <EmojiTab forge={forge} setNotice={setNotice} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "audit" ? (

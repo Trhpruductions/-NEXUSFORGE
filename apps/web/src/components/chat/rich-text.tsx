@@ -19,7 +19,17 @@ export type MentionContext = {
   roleNames?: string[];
   /** user id -> username, for bot output like <@uuid>. */
   usernamesById?: Record<string, string>;
+  /** This forge's custom emoji: name -> image URL, for :name:. */
+  emojis?: Record<string, string>;
 };
+
+/** A custom emoji image (or its :name: text if it no longer exists). */
+export function CustomEmoji({ name, emojis, size = 22 }: { name: string; emojis?: Record<string, string>; size?: number }) {
+  const src = emojis?.[name];
+  if (!src) return <>{`:${name}:`}</>;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={`:${name}:`} title={`:${name}:`} width={size} height={size} loading="lazy" className="object-contain" style={{ width: size, height: size, display: "inline-block", verticalAlign: "text-bottom" }} />;
+}
 
 const URL_RE = /https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/;
 
@@ -46,6 +56,7 @@ function buildTokens(ctx: MentionContext): Token[] {
   const escaped = roles.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const tokens: Token[] = [
     { re: /`([^`\n]+)`/, render: (m, key) => <code key={key} className="rounded bg-black/40 px-1 py-0.5 font-mono text-[0.85em] text-amber-100">{m[1]}</code> },
+    { re: /:([a-z0-9_]{2,30}):/, render: (m, key, c) => <CustomEmoji key={key} name={m[1]} emojis={c.emojis} /> },
     { re: /\|\|([\s\S]+?)\|\|/, render: (m, key, c) => <Spoiler key={key}>{renderInline(m[1], c, key)}</Spoiler> },
     { re: /\*\*([\s\S]+?)\*\*/, render: (m, key, c) => <strong key={key} className="font-semibold text-white">{renderInline(m[1], c, key)}</strong> },
     { re: /__([\s\S]+?)__/, render: (m, key, c) => <u key={key}>{renderInline(m[1], c, key)}</u> },

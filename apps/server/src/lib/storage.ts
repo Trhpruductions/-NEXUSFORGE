@@ -145,3 +145,20 @@ export async function createUploadUrl(input: {
 
   return { key, uploadUrl, fileUrl };
 }
+
+/**
+ * True for a file that came from our own upload storage (local /uploads or the
+ * configured S3 bucket). Used where the app shows an image inline to other people, so a
+ * link can't be used as a tracking pixel.
+ */
+export function isOwnUploadUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const local = new URL(apiBaseUrl());
+    if (parsed.origin === local.origin && parsed.pathname.startsWith("/uploads/")) return true;
+    if (env.S3_PUBLIC_BASE_URL && url.startsWith(`${env.S3_PUBLIC_BASE_URL.replace(/\/$/, "")}/`)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}

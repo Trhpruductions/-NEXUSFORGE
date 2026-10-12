@@ -328,6 +328,22 @@ export type MessageReaction = {
   createdAt?: string;
 };
 
+export type ForgeEmoji = { id: string; name: string; imageUrl: string; creatorId: string; createdAt: string };
+
+export async function listForgeEmojis(accessToken: string, forgeId: string) {
+  const response = await api.get<{ emojis: ForgeEmoji[]; max: number }>(`/api/forges/${forgeId}/emojis`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function addForgeEmoji(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; imageUrl: string }) {
+  const response = await api.post<{ emoji: ForgeEmoji }>(`/api/forges/${forgeId}/emojis`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteForgeEmoji(accessToken: string, csrfToken: string, forgeId: string, emojiId: string) {
+  await api.delete(`/api/forges/${forgeId}/emojis/${emojiId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export type AutoModRule = {
   id: string;
   forgeId: string;

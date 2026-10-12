@@ -5,6 +5,7 @@ import { createNotification } from "../lib/notifications.js";
 import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtime.js";
 import { logForgeAction } from "../lib/forge-audit.js";
 import { clearAutoModCache } from "../lib/automod-runtime.js";
+import { isOwnUploadUrl } from "../lib/storage.js";
 import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
 import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -360,6 +361,64 @@ forgeManagementRouter.put("/:id/notification-settings", async (req, res) => {
     mutedUntil: muted && member.mutedUntil!.getTime() < FOREVER.getTime() ? member.mutedUntil : null,
     mutedForever: muted && member.mutedUntil!.getTime() >= FOREVER.getTime(),
   });
+});
+
+// ---------------------------------------------------------------------------
+// Custom emoji
+// ---------------------------------------------------------------------------
+
+const MAX_EMOJI = 50;
+const emojiSchema = z.object({
+  name: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{2,30}$/, "Emoji names are 2-30 letters, numbers or underscores"),
+  imageUrl: z.string().url().max(2048),
+});
+
+forgeManagementRouter.get("/:id/emojis", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const emojis = await prisma.forgeEmoji.findMany({ where: { forgeId: context.forge.id }, orderBy: { name: "asc" }, select: { id: true, name: true, imageUrl: true, creatorId: true, createdAt: true } });
+  res.json({ emojis, max: MAX_EMOJI });
+});
+
+forgeManagementRouter.post("/:id/emojis", async (req, res) => {
+  const parsed = emojiSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid emoji" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  // Only images uploaded to our own storage: an outside URL would let the uploader see
+  // everyone who views a message with the emoji.
+  if (!isOwnUploadUrl(parsed.data.imageUrl) || !/\.(png|gif|webp|jpe?g)(\?|$)/i.test(parsed.data.imageUrl)) {
+    res.status(400).json({ error: "Upload a PNG, GIF, WebP or JPEG image" });
+    return;
+  }
+  if ((await prisma.forgeEmoji.count({ where: { forgeId: context.forge.id } })) >= MAX_EMOJI) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_EMOJI} emoji` });
+    return;
+  }
+  const taken = await prisma.forgeEmoji.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } });
+  if (taken) {
+    res.status(409).json({ error: `:${parsed.data.name}: already exists` });
+    return;
+  }
+  const emoji = await prisma.forgeEmoji.create({ data: { forgeId: context.forge.id, name: parsed.data.name, imageUrl: parsed.data.imageUrl, creatorId: req.user!.id }, select: { id: true, name: true, imageUrl: true, creatorId: true, createdAt: true } });
+  emitForgeEvent(context.forge.id, "forge:emojis", { action: "created", emoji });
+  res.status(201).json({ emoji });
+});
+
+forgeManagementRouter.delete("/:id/emojis/:emojiId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeEmoji.findFirst({ where: { id: req.params.emojiId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Emoji not found" });
+    return;
+  }
+  await prisma.forgeEmoji.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:emojis", { action: "deleted", emojiId: existing.id });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
