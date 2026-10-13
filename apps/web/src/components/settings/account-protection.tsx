@@ -221,7 +221,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
             <div className="space-y-2">
               {!phoneSent ? (
                 <>
-                  <input className={inputClass} type="tel" autoComplete="tel" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  <input className={inputClass} type="tel" autoComplete="tel" aria-label="Phone number" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
                   <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || sendPhone.isPending} onClick={() => sendPhone.mutate()}>
                     {sendPhone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />} Text me a code
                   </button>

@@ -437,8 +437,8 @@ function SettingsInner() {
           <div className="border-t border-white/5 pt-4">
             <p className="mb-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"><KeyRound className="h-3.5 w-3.5" /> Password</p>
             <div className="space-y-2">
-              <input className={inputClass} type="password" autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
-              <input className={inputClass} type="password" autoComplete="new-password" placeholder="New password (8+ characters)" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              <input className={inputClass} type="password" autoComplete="current-password" aria-label="Current password" placeholder="Current password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+              <input className={inputClass} type="password" autoComplete="new-password" aria-label="New password" placeholder="New password (8+ characters)" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
               <button type="button" className={ghostBtn} disabled={currentPassword.length < 8 || newPassword.length < 8 || passwordMutation.isPending} onClick={() => passwordMutation.mutate()}>
                 {passwordMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Change password
               </button>

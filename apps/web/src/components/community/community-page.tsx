@@ -140,7 +140,7 @@ export function CommunityPage() {
             <h2 className="nf-heading mb-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">Join with invite</h2>
             <p className="mb-3 text-xs text-slate-400">Paste an invite code or link from a friend.</p>
             <div className="flex gap-2">
-              <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="invite-code" className={inputClass} onKeyDown={(event) => { if (event.key === "Enter" && inviteCode.trim()) joinMutation.mutate(); }} />
+              <input aria-label="Invite code or link" value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="invite-code" className={inputClass} onKeyDown={(event) => { if (event.key === "Enter" && inviteCode.trim()) joinMutation.mutate(); }} />
               <button type="button" className={goldBtn} disabled={!inviteCode.trim() || joinMutation.isPending} onClick={() => joinMutation.mutate()}>{joinMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Join"}</button>
             </div>
           </div>

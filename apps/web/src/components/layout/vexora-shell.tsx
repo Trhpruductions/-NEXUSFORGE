@@ -850,6 +850,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search Vexora Gaming..."
+              aria-label="Search Vexora Gaming"
               className="h-9 w-full rounded-full border border-white/10 bg-[#11151e]/80 pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 transition focus:border-violet-400/60 focus:shadow-[0_0_0_3px_rgba(167,139,250,0.15)]"
             />
             {search ? (

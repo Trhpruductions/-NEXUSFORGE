@@ -261,7 +261,7 @@ export function AgeVerificationCard({ highlight = false }: { highlight?: boolean
                 </p>
               ) : null}
               <p className="text-xs text-slate-400">Upload a clear photo of a valid government ID showing your date of birth. Files are stored privately on the server, seen only by the reviewer, and deleted after the decision.</p>
-              <select className={inputClass} value={documentType} onChange={(event) => setDocumentType(event.target.value as AgeDocumentType)}>
+              <select className={inputClass} aria-label="ID document type" value={documentType} onChange={(event) => setDocumentType(event.target.value as AgeDocumentType)}>
                 {documentTypes.map((entry) => (
                   <option key={entry.value} value={entry.value}>{entry.label}</option>
                 ))}

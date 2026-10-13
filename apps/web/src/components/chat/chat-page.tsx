@@ -778,7 +778,7 @@ function ChatInner() {
             {searchOpen ? (
               <div className="relative w-full">
                 <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-                <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} onBlur={() => !search && setSearchOpen(false)} placeholder="Search messages" className="h-8 w-full rounded-lg border border-white/10 bg-[#11151e] pl-7 pr-7 text-xs text-slate-100 outline-none focus:border-amber-400/60" />
+                <input autoFocus aria-label="Search messages" value={search} onChange={(event) => setSearch(event.target.value)} onBlur={() => !search && setSearchOpen(false)} placeholder="Search messages" className="h-8 w-full rounded-lg border border-white/10 bg-[#11151e] pl-7 pr-7 text-xs text-slate-100 outline-none focus:border-amber-400/60" />
                 <button type="button" onClick={() => { setSearch(""); setSearchOpen(false); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white" title="Close search"><X className="h-3.5 w-3.5" /></button>
               </div>
             ) : (
@@ -864,7 +864,7 @@ function ChatInner() {
               {groupOpen ? (
                 <div className="mb-2 rounded-xl border border-amber-500/25 bg-[#0d1119] p-2">
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-200">New group</p>
-                  <input value={groupName} onChange={(event) => setGroupName(event.target.value)} maxLength={80} placeholder="Group name" className="mb-2 h-8 w-full rounded-lg border border-white/10 bg-[#11151e] px-2 text-xs text-slate-100 outline-none focus:border-amber-400/60" />
+                  <input aria-label="Group name" value={groupName} onChange={(event) => setGroupName(event.target.value)} maxLength={80} placeholder="Group name" className="mb-2 h-8 w-full rounded-lg border border-white/10 bg-[#11151e] px-2 text-xs text-slate-100 outline-none focus:border-amber-400/60" />
                   <div className="max-h-40 space-y-0.5 overflow-y-auto">
                     {friendsQuery.isLoading ? <p className="px-1 text-[11px] text-slate-500">Loading friends...</p> : null}
                     {friendOptions.map((friend) => {
@@ -1214,6 +1214,7 @@ function ChatInner() {
                         }
                       }}
                       placeholder={`Message #${channel.name}`}
+                      aria-label={`Message #${channel.name}`}
                       className="h-8 min-w-0 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500"
                     />
                     <button type="button" onClick={() => void send()} disabled={(!draft.trim() && !pendingFiles.length) || uploading || sendMutation.isPending} className="rounded-lg bg-gradient-to-br from-amber-300 via-orange-400 to-pink-500 p-2 text-slate-950 shadow-[0_0_14px_rgba(251,138,60,0.35)] transition hover:brightness-110 disabled:opacity-40 disabled:shadow-none" title="Send">

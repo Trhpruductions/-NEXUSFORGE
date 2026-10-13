@@ -2282,6 +2282,7 @@ export function ForgeChatClient() {
             value={forgeSearch}
             onChange={(event) => setForgeSearch(event.target.value)}
             placeholder="Filter forges"
+            aria-label="Filter forges"
             className="h-10 w-full rounded-[14px] border border-slate-700/70 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
           />
         </div>
@@ -3053,6 +3054,7 @@ export function ForgeChatClient() {
             value={channelSearch}
             onChange={(event) => setChannelSearch(event.target.value)}
             placeholder="Search channels"
+            aria-label="Search channels"
             className="h-10 w-full rounded-[14px] border border-slate-700/70 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
           />
         </div>
@@ -3223,6 +3225,7 @@ export function ForgeChatClient() {
                       void onSendChannelMessage();
                     }
                   }}
+                  aria-label="Message the channel"
                   placeholder={selectedChannelId ? "Broadcast to active channel or type / for automation" : "Select a channel to chat"}
                   className="h-11 w-full rounded-[14px] border border-slate-700/70 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none focus:border-amber-500"
                 />
@@ -3290,6 +3293,7 @@ export function ForgeChatClient() {
             value={friendQuery}
             onChange={(event) => setFriendQuery(event.target.value)}
             placeholder="Search users"
+            aria-label="Search users"
             className="mb-2 h-10 w-full rounded-[14px] border border-slate-700/70 bg-amber-400 px-3 text-sm text-slate-100"
           />
           <div className="max-h-24 space-y-1 overflow-y-auto">
@@ -3425,6 +3429,7 @@ export function ForgeChatClient() {
                 }
               }}
               placeholder="Message"
+              aria-label="Direct message"
               className="h-9 flex-1 rounded border border-slate-700/70 bg-amber-400 px-2 text-xs text-slate-100 outline-none focus:border-amber-500"
             />
             <Button className="nexus-interactive-btn h-9 px-3 text-xs" onClick={() => void onSendDmMessage()} disabled={!selectedDmThreadId}>

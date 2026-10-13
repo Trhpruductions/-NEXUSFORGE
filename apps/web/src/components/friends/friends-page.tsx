@@ -150,7 +150,7 @@ export function FriendsPage() {
             {tab === "online" || tab === "all" ? (
               <div className="relative ml-auto w-full max-w-xs">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter friends" className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60" />
+                <input aria-label="Filter friends" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter friends" className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60" />
               </div>
             ) : null}
           </div>
