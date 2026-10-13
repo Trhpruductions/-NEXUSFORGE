@@ -5,6 +5,7 @@ import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { env } from "../config/env.js";
 import { safeUser } from "../lib/safe-user.js";
 import {
   buildSampleGenerationConflictResponse,
@@ -901,6 +902,12 @@ adminRouter.post("/profile-tools/reset-generation-lock", async (req, res) => {
 });
 
 adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
+  // This writes made-up reputation, medals and activity onto the newest REAL accounts, so it
+  // must never run on the live app. Development databases only.
+  if (env.NODE_ENV === "production") {
+    res.status(403).json({ error: "Sample data can't be generated on the live app: it would change real people's profiles." });
+    return;
+  }
   await markStaleSampleGenerationJobsAsFailed();
 
   const activeJob = await getActiveSampleGenerationJob();
