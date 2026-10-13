@@ -4,10 +4,10 @@ import axios from "axios";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createCheckoutSession, getBillingReadiness, type PaidFeatureCode } from "@/lib/api";
-import { CORE_PLUS_TIER_PRICING, PAID_FEATURE_PRICE_LABELS } from "@/lib/pricing-catalog";
+import { createCheckoutSession, getBillingPlans, getBillingReadiness, type PaidFeatureCode, type PlanInfo } from "@/lib/api";
+import { CORE_PLUS_TIER_PRICING } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -23,7 +23,6 @@ const tierCards = [
     badge: "Best entry",
     description: "For players who want premium identity without overcommitting.",
     cta: "Start Core",
-    perks: ["Animated profile identity", "Faster text priority", "Member analytics starter pack", "Higher upload ceiling"],
   },
   {
     id: "PLUS",
@@ -36,7 +35,6 @@ const tierCards = [
     badge: "Most popular",
     description: "The sweet spot for active squads, creators, and fast-growing forges.",
     cta: "Upgrade to Plus",
-    perks: ["Everything in Core", "Voice priority lane", "Boost multiplier x1.5", "Priority support queue", "Premium room cosmetics"],
     spotlight: true,
   },
   {
@@ -50,7 +48,6 @@ const tierCards = [
     badge: "Creator growth",
     description: "Built for communities monetizing events, drops, and sponsor attention.",
     cta: "Go Elite",
-    perks: ["Everything in Plus", "Creator campaign slots", "Boost multiplier x2", "Featured promotion priority", "Advanced creator analytics"],
   },
   {
     id: "INFINITE",
@@ -63,7 +60,6 @@ const tierCards = [
     badge: "Full power",
     description: "Maximum velocity for premium brands, esports hubs, and top-tier community ops.",
     cta: "Unlock Infinite",
-    perks: ["Everything in Elite", "White-glove support", "Boost multiplier x3", "Launch concierge help", "Top-priority feature access"],
   },
 ];
 
@@ -79,87 +75,19 @@ const tierLogoById = Object.fromEntries(boostTierLogos.map((tier) => [tier.id, t
   (typeof boostTierLogos)[number]
 >;
 
-const paidCatalog = [
-  {
-    item: "Core+ subscription",
-    price: PAID_FEATURE_PRICE_LABELS.CORE_PLUS,
-    requiredFor: "Premium identity, routing priority, boost scaling, member prestige features",
-  },
-  {
-    item: "Forge Boost Packs",
-    price: PAID_FEATURE_PRICE_LABELS.FORGE_BOOST_PACK,
-    requiredFor: "XP acceleration, spotlight priority, momentum pushes during events",
-  },
-  {
-    item: "Creator Campaign Slot",
-    price: PAID_FEATURE_PRICE_LABELS.CREATOR_CAMPAIGN_SLOT,
-    requiredFor: "Featured placement, audience discovery, premium homepage exposure",
-  },
-  {
-    item: "Event Ticket Pass",
-    price: PAID_FEATURE_PRICE_LABELS.EVENT_TICKET_PASS,
-    requiredFor: "Premium tournaments, gated drops, exclusive stage and reward access",
-  },
-  {
-    item: "Team Branding Kit",
-    price: PAID_FEATURE_PRICE_LABELS.TEAM_BRANDING_KIT,
-    requiredFor: "Custom team badge pack, premium identity art, advanced profile cosmetics",
-  },
-  {
-    item: "Advanced Moderation AI",
-    price: PAID_FEATURE_PRICE_LABELS.ADVANCED_MODERATION_AI,
-    requiredFor: "Behavior scoring, raid-shield automation, incident replay intelligence",
-  },
-];
-
-const trustSignals = [
-  "Instant checkout redirect",
-  "Manage anytime in billing portal",
-  "Card, Apple Pay, Google Pay, PayPal, Crypto",
-  "No hidden platform fee surprise",
-];
-
-const comparisonRows = [
-  {
-    label: "Animated profile identity",
-    values: ["Included", "Premium skin set", "Creator prestige set", "Signature league set"],
-  },
-  {
-    label: "Priority routing",
-    values: ["Lite", "Fast lane", "Faster + creator priority", "Top priority"],
-  },
-  {
-    label: "Voice queue advantage",
-    values: ["-", "Included", "Included", "Maximum priority"],
-  },
-  {
-    label: "Boost multiplier",
-    values: ["x1.1", "x1.5", "x2", "x3"],
-  },
-  {
-    label: "Creator campaign access",
-    values: ["-", "Limited", "Priority", "Priority + concierge"],
-  },
-  {
-    label: "Support lane",
-    values: ["Standard", "Priority", "Priority creator lane", "White-glove"],
-  },
-];
-
-const upgradeOutcomes = [
-  {
-    title: "Look premium immediately",
-    detail: "Profiles, presence, and community identity upgrade the second billing activates.",
-  },
-  {
-    title: "Move faster in live ops",
-    detail: "Priority routing and boost advantages make active communities feel sharper right away.",
-  },
-  {
-    title: "Monetize without friction",
-    detail: "Campaign slots, event passes, and AI moderation unlock real operational leverage.",
-  },
-];
+/** Perk lines for a tier card, straight from the plan catalog the server enforces. */
+function perksFor(plan: PlanInfo | undefined, previous: PlanInfo | undefined) {
+  if (!plan) return [];
+  const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
+  const lines = [
+    `Uploads up to ${mb(plan.uploadBytes)}`,
+    `${plan.messageLength.toLocaleString()}-character messages`,
+    `Be in up to ${plan.maxServers} servers`,
+  ];
+  if (plan.ultraVideo && !previous?.ultraVideo) lines.push("Ultra video: 1440p60 screen share, 1080p camera");
+  if (previous && previous.tier !== "NONE") lines.unshift(`Everything in ${previous.label}`);
+  return lines;
+}
 
 const checkoutPreviewCopy: Record<PaidFeatureCode, { label: string; detail: string }> = {
   CORE_PLUS: {
@@ -204,9 +132,6 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
   const [interval, setInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [pendingCheckout, setPendingCheckout] = useState<{ featureCode: PaidFeatureCode; tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" } | null>(null);
   const [countdownNow, setCountdownNow] = useState(Date.now());
-  const [projectedMembers, setProjectedMembers] = useState(250);
-  const [projectedAdoptionPct, setProjectedAdoptionPct] = useState(8);
-  const [estimatedArpu, setEstimatedArpu] = useState(11.99);
 
   const checkoutMutation = useMutation({
     mutationFn: (payload: {
@@ -225,6 +150,8 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
     },
   });
 
+  const plansQuery = useQuery({ queryKey: ["billing-plans"], queryFn: getBillingPlans, staleTime: 5 * 60_000 });
+  const planByTier = Object.fromEntries((plansQuery.data?.plans ?? []).map((plan) => [plan.tier, plan])) as Record<string, PlanInfo>;
   const billingStatusQuery = useQuery({
     queryKey: ["billing-readiness"],
     queryFn: getBillingReadiness,
@@ -290,15 +217,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
 
   const founderCountdown = formatCountdown(founderWindowEndsAt.getTime() - countdownNow);
 
-  const projectedRevenue = useMemo(() => {
-    const activePaidMembers = Math.round(projectedMembers * (projectedAdoptionPct / 100));
-    const monthly = Math.round(activePaidMembers * estimatedArpu);
-    return {
-      activePaidMembers,
-      monthly,
-      annual: monthly * 12,
-    };
-  }, [estimatedArpu, projectedAdoptionPct, projectedMembers]);
+
 
   return (
     <section className="grid gap-4">
@@ -460,7 +379,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               </div>
               <p className="mt-1 text-xs text-amber-300">{tier.yearlySavings}</p>
               <ul className="mt-3 space-y-1.5 text-xs text-slate-400">
-                {tier.perks.map((perk) => (
+                {perksFor(planByTier[tier.id], planByTier[({ CORE: "NONE", PLUS: "CORE", ELITE: "PLUS", INFINITE: "ELITE" } as Record<string, string>)[tier.id]]).map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
               </ul>
@@ -487,31 +406,35 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Tier Comparison</p>
-            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-white">See what actually gets better as users move up.</h3>
+            <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-white">Exactly what each plan unlocks.</h3>
           </div>
           <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
             Plus Command is the strongest value-to-price tier
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left text-xs sm:text-sm">
+          <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-white/10 text-slate-500">
                 <th className="py-2 pr-3 font-semibold">Feature</th>
-                <th className="py-2 pr-3 font-semibold">Starter Core</th>
-                <th className="py-2 pr-3 font-semibold text-amber-200">Plus Command</th>
-                <th className="py-2 pr-3 font-semibold">Elite Creator</th>
-                <th className="py-2 font-semibold">Infinite League</th>
+                {(plansQuery.data?.plans ?? []).map((plan) => (
+                  <th key={plan.tier} className={`py-2 pr-3 font-semibold ${plan.tier === "PLUS" ? "text-amber-200" : ""}`}>{plan.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {comparisonRows.map((row) => (
+              {[
+                { label: "Upload size", value: (plan: PlanInfo) => `${Math.round(plan.uploadBytes / (1024 * 1024))} MB` },
+                { label: "Message length", value: (plan: PlanInfo) => `${plan.messageLength.toLocaleString()} characters` },
+                { label: "Servers you can be in", value: (plan: PlanInfo) => String(plan.maxServers) },
+                { label: "Profile banner", value: (plan: PlanInfo) => (plan.profileBanner ? "Yes" : "-") },
+                { label: "Animated (GIF) avatar", value: (plan: PlanInfo) => (plan.animatedAvatar ? "Yes" : "-") },
+                { label: "Screen share / camera", value: (plan: PlanInfo) => (plan.ultraVideo ? "1440p60 / 1080p" : "1080p30 / 720p") },
+              ].map((row) => (
                 <tr key={row.label} className="border-b border-white/10 text-slate-400">
                   <td className="py-2 pr-3 font-medium text-white">{row.label}</td>
-                  {row.values.map((value, index) => (
-                    <td key={`${row.label}-${index}`} className={`py-2 pr-3 ${index === 1 ? "text-amber-700" : "text-slate-400"}`}>
-                      {value}
-                    </td>
+                  {(plansQuery.data?.plans ?? []).map((plan) => (
+                    <td key={`${row.label}-${plan.tier}`} className={`py-2 pr-3 ${plan.tier === "PLUS" ? "text-amber-200" : "text-slate-400"}`}>{row.value(plan)}</td>
                   ))}
                 </tr>
               ))}
@@ -527,149 +450,14 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         transition={{ duration: 0.45, ease: "easeOut", delay: 0.05 }}
         className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-5 sm:p-6"
       >
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">Paid Feature Catalog</p>
-          <p className="text-xs text-slate-400">Payments designed to feel clean, fast, and low-risk.</p>
-        </div>
-        <div className="mb-4 grid gap-2 md:grid-cols-4">
-          {trustSignals.map((signal) => (
-            <div key={signal} className="glass-cut rounded-full border border-white/10 bg-[#11151e] px-3 py-2 text-xs text-slate-400">
-              {signal}
-            </div>
-          ))}
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] border-collapse text-left text-xs sm:text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-slate-500">
-                <th className="py-2 pr-3 font-semibold">Paid Item</th>
-                <th className="py-2 pr-3 font-semibold">Price</th>
-                <th className="py-2 font-semibold">Required For</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paidCatalog.map((row) => (
-                <tr key={row.item} className="border-b border-white/10 align-top text-slate-400">
-                  <td className="py-2 pr-3 font-medium text-white">{row.item}</td>
-                  <td className="py-2 pr-3 text-amber-200">{row.price}</td>
-                  <td className="py-2 text-slate-400">{row.requiredFor}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Quick Buy Paths</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                onClick={() => handleCheckout({ featureCode: "FORGE_BOOST_PACK", quantity: 1 })}
-                disabled={checkoutMutation.isPending || !billingReady}
-                variant="ghost"
-                className="h-9 rounded-full border-amber-500/40 px-3 text-xs text-amber-200"
-              >
-                Buy Boost Pack
-              </Button>
-              <Button
-                onClick={() => handleCheckout({ featureCode: "CREATOR_CAMPAIGN_SLOT", quantity: 1 })}
-                disabled={checkoutMutation.isPending || !billingReady}
-                variant="ghost"
-                className="h-9 rounded-full border-fuchsia-500/40 px-3 text-xs text-fuchsia-200"
-              >
-                Buy Campaign Slot
-              </Button>
-              <Button
-                onClick={() => handleCheckout({ featureCode: "ADVANCED_MODERATION_AI", quantity: 1 })}
-                disabled={checkoutMutation.isPending || !billingReady}
-                variant="ghost"
-                className="h-9 rounded-full border-rose-500/40 px-3 text-xs text-rose-200"
-              >
-                Buy Moderation AI
-              </Button>
-              <Link
-                href="/core-plus"
-                className="nexus-interactive-btn inline-flex h-9 items-center rounded-full border border-white/10 bg-[#11151e] px-3 text-xs font-semibold text-white hover:border-amber-300"
-              >
-                Manage Billing
-              </Link>
-            </div>
-            <div className="mt-4 grid gap-3 rounded-[24px] border border-white/10 bg-[#0d1119] p-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-amber-300">Growth Revenue Estimator</p>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <label className="text-[11px] text-slate-400">
-                  Members
-                  <input
-                    type="range"
-                    min={100}
-                    max={10000}
-                    step={50}
-                    value={projectedMembers}
-                    onChange={(event) => setProjectedMembers(Number(event.target.value))}
-                    className="mt-1 w-full"
-                  />
-                  <span className="mt-1 block text-slate-400">{projectedMembers.toLocaleString()}</span>
-                </label>
-                <label className="text-[11px] text-slate-400">
-                  Paid adoption
-                  <input
-                    type="range"
-                    min={2}
-                    max={40}
-                    step={1}
-                    value={projectedAdoptionPct}
-                    onChange={(event) => setProjectedAdoptionPct(Number(event.target.value))}
-                    className="mt-1 w-full"
-                  />
-                  <span className="mt-1 block text-slate-400">{projectedAdoptionPct}%</span>
-                </label>
-                <label className="text-[11px] text-slate-400">
-                  Avg paid ARPU
-                  <input
-                    type="range"
-                    min={5}
-                    max={45}
-                    step={1}
-                    value={estimatedArpu}
-                    onChange={(event) => setEstimatedArpu(Number(event.target.value))}
-                    className="mt-1 w-full"
-                  />
-                  <span className="mt-1 block text-slate-400">${estimatedArpu.toFixed(2)}</span>
-                </label>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Paid Members</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{projectedRevenue.activePaidMembers.toLocaleString()}</p>
-                </div>
-                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected MRR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.monthly.toLocaleString()}</p>
-                </div>
-                <div className="rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">Projected ARR</p>
-                  <p className="mt-1 text-sm font-semibold text-amber-200">${projectedRevenue.annual.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4 text-sm text-slate-400">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Checkout Confidence</p>
-            <ul className="mt-3 space-y-2 text-xs text-slate-400">
-              <li>• You are redirected instantly to a live checkout session.</li>
-              <li>• Subscription changes can be managed later from the billing portal.</li>
-              <li>• Successful payments activate subscriptions or entitlements automatically.</li>
-              <li>• Canceling checkout leaves your current access unchanged.</li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {upgradeOutcomes.map((outcome) => (
-            <div key={outcome.title} className="glass-cut rounded-[24px] border border-white/10 bg-[#11151e] p-4">
-              <p className="text-sm font-semibold text-white">{outcome.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{outcome.detail}</p>
-            </div>
-          ))}
-        </div>
+        <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">How payments work</p>
+        <ul className="mt-3 grid gap-2 text-xs text-slate-300 md:grid-cols-2">
+          <li>• Card payments are handled by Stripe on its own secure checkout page. Vexora never sees your card number.</li>
+          <li>• Your plan starts as soon as the payment goes through.</li>
+          <li>• Change or cancel any time from <Link href="/app/settings?section=billing" className="text-amber-200 underline underline-offset-2">Settings → Billing</Link>. Cancelling keeps your plan until the end of the period you paid for.</li>
+          <li>• If you cancel at checkout, nothing is charged and nothing changes.</li>
+        </ul>
+        <p className="mt-3 text-[11px] text-slate-500">See the <Link href="/legal/terms" className="underline underline-offset-2">Terms of Service</Link> and <Link href="/legal/refunds" className="underline underline-offset-2">Refund Policy</Link>.</p>
         {checkoutMutation.error ? <p className="mt-2 text-xs text-red-300">Checkout failed: {checkoutErrorMessage}</p> : null}
       </motion.article>
     </section>

@@ -1,6 +1,7 @@
 import express, { Router, type RequestHandler } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { cheapestTierWith, limitsFor, PLANS, upgradeRequired } from "../lib/plans.js";
 import {
   createLocalUploadUrl,
   createUploadUrl,
@@ -33,7 +34,7 @@ uploadsRouter.post("/presign", async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { premium: true },
+    select: { premium: true, premiumTier: true },
   });
 
   if (!user) {
@@ -41,11 +42,17 @@ uploadsRouter.post("/presign", async (req, res) => {
     return;
   }
 
-  const maxBytes = user.premium ? env.PREMIUM_UPLOAD_MAX_BYTES : env.UPLOAD_MAX_BYTES;
+  const limits = limitsFor(user);
+  const maxBytes = limits.uploadBytes;
   if (parsed.data.size > maxBytes) {
-    res.status(413).json({
-      error: `File exceeds upload limit (${maxBytes} bytes)` ,
-    });
+    const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
+    const biggest = PLANS.INFINITE.uploadBytes;
+    // A bigger plan would allow it: offer the upgrade. Otherwise it's just too big.
+    if (limits.enforced && parsed.data.size <= biggest) {
+      res.status(402).json(upgradeRequired(`Files can be up to ${mb(maxBytes)} on your plan.`, "UPLOAD_SIZE", cheapestTierWith((plan) => plan.uploadBytes >= parsed.data.size)));
+      return;
+    }
+    res.status(413).json({ error: `Files can be up to ${mb(maxBytes)}.` });
     return;
   }
 

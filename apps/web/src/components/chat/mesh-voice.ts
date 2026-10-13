@@ -80,6 +80,12 @@ export class MeshVoice {
   private local: MediaStream | null = null;
   private screen: MediaStream | null = null;
   private camera: MediaStream | null = null;
+  /** Ultra video (Core+ Plus and up): 1080p camera and 1440p60 screen share. Everyone else gets HD: 720p camera, 1080p30 screen share. */
+  private hdVideo = false;
+
+  setHdVideo(hd: boolean) {
+    this.hdVideo = hd;
+  }
   /** Stage channels: only these people are heard and seen (null = ordinary voice room). */
   private stageSpeakers: Set<string> | null = null;
   private cameraSenders = new Map<string, RTCRtpSender>();
@@ -201,7 +207,9 @@ export class MeshVoice {
   /** Turn the camera on for everyone in the room (like screen share: a video track per peer). */
   async startCamera(deviceId?: string | null) {
     if (this.camera) return;
-    const video: MediaTrackConstraints = { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24, max: 30 } };
+    const video: MediaTrackConstraints = this.hdVideo
+      ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }
+      : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } };
     try {
       try {
         this.camera = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { ...video, deviceId: { exact: deviceId } } : video, audio: false });
@@ -254,7 +262,12 @@ export class MeshVoice {
   async startScreenShare() {
     if (this.screen) return;
     try {
-      this.screen = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+      this.screen = await navigator.mediaDevices.getDisplayMedia({
+        video: this.hdVideo
+          ? { width: { max: 2560 }, height: { max: 1440 }, frameRate: { ideal: 60, max: 60 } }
+          : { width: { max: 1920 }, height: { max: 1080 }, frameRate: { ideal: 30, max: 30 } },
+        audio: false,
+      });
     } catch {
       this.options.onScreenShareEnded?.();
       return;

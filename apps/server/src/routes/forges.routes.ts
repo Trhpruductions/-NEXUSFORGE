@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { serverLimitProblem } from "../lib/user-limits.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -363,10 +364,11 @@ forgesRouter.post("/", async (req, res) => {
     return;
   }
 
-  const requestedBranding = Boolean(parsed.data.icon || parsed.data.banner);
-  if (requestedBranding) {
-    // Industrial Directive: Forge Branding (Icons/Banners) is now free for all users to promote community growth.
-    // Safeguard check bypassed.
+  // Server icons and banners are free for everyone (as on Discord).
+  const atServerLimit = await serverLimitProblem(req.user!.id);
+  if (atServerLimit) {
+    res.status(402).json(atServerLimit);
+    return;
   }
 
   const inviteCode = normalizeInviteCode(parsed.data.inviteCode ?? randomUUID().slice(0, 8));
@@ -547,6 +549,11 @@ forgesRouter.post("/join", async (req, res) => {
   });
 
   if (!existingMembership) {
+    const atServerLimit = await serverLimitProblem(req.user!.id);
+    if (atServerLimit) {
+      res.status(402).json(atServerLimit);
+      return;
+    }
     // Limited invites: only a new member uses up a slot, and the last slot can't be taken twice.
     if (resolved.inviteId && !(await consumeInvite(resolved.inviteId))) {
       res.status(410).json({ error: "This invite has expired" });

@@ -13,6 +13,8 @@ import {
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
+import { billingEnabled, PLANS, TIER_ORDER } from "../lib/plans.js";
+import { limitsForUser } from "../lib/user-limits.js";
 
 const checkoutSchema = z.object({
   featureCode: z.enum([
@@ -108,7 +110,8 @@ function getBillingReadiness(): BillingReadiness {
 
   return {
     provider: "stripe",
-    ready: hasStripeKey && corePlusTierPrices && addOnPrices,
+    // Only Core+ plans are on sale; add-ons aren't real features yet, so their prices are optional.
+    ready: hasStripeKey && corePlusTierPrices,
     configured: {
       stripeSecretKey: hasStripeKey,
       corePlusTierPrices,
@@ -130,6 +133,19 @@ function readSubscriptionPeriod(subscription: unknown): { start: Date | null; en
 
 billingRouter.get("/status", (_req, res) => {
   res.json({ billing: getBillingReadiness() });
+});
+
+/** Every plan and what it unlocks (public: the pricing page shows exactly this). */
+billingRouter.get("/plans", (_req, res) => {
+  res.json({
+    enforced: billingEnabled(),
+    plans: TIER_ORDER.map((tier) => ({ tier, ...PLANS[tier] })),
+  });
+});
+
+/** The limits that apply to me right now (the app uses these for counters and prompts). */
+billingRouter.get("/me/limits", requireAuth, async (req, res) => {
+  res.json({ limits: await limitsForUser(req.user!.id) });
 });
 
 billingRouter.get("/entitlements", requireAuth, async (req, res) => {
@@ -185,7 +201,13 @@ billingRouter.post("/checkout/session", requireAuth, async (req, res) => {
   }
 
   if (!stripeClient) {
-    res.status(503).json({ error: "Billing provider unavailable. Configure STRIPE_SECRET_KEY." });
+    res.status(503).json({ error: "Payments aren't open yet." });
+    return;
+  }
+  // Only Core+ plans are sold. The add-ons (boost packs, campaign slots, ...) don't do
+  // anything yet, so taking money for them would be selling nothing.
+  if (parsed.data.featureCode !== "CORE_PLUS") {
+    res.status(400).json({ error: "That add-on isn't available yet." });
     return;
   }
 

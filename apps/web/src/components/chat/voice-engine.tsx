@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSettings } from "@/lib/api";
+import { getMyLimits, getSettings } from "@/lib/api";
 import { ConnectionState, Room, RoomEvent, Track } from "livekit-client";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -23,6 +23,12 @@ export function VoiceEngine() {
   const flagsRef = useRef(flags);
   // Saved voice settings (Settings > Voice & Video). Shares the cached settings query.
   const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
+  // Plan limits: ultra video (1440p60) is a Core+ Plus perk; everyone gets HD.
+  const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
+  const hdVideo = Boolean(limitsQuery.data?.ultraVideo);
+  useEffect(() => {
+    meshRef.current?.setHdVideo(hdVideo);
+  }, [hdVideo]);
   const voicePrefs = settingsQuery.data?.preferences.voice;
   const voicePrefsRef = useRef(voicePrefs);
 
@@ -141,6 +147,7 @@ export function VoiceEngine() {
       onError: (message) => useVoiceStore.getState().setError(message),
     });
     meshRef.current = mesh;
+    mesh.setHdVideo(Boolean(limitsQuery.data?.ultraVideo));
     if (session.stage) mesh.setStage(useVoiceStore.getState().stage?.speakers ?? []);
     void mesh.start().then(() => {
       if (meshRef.current === mesh) useVoiceStore.getState().setConnection("connected");

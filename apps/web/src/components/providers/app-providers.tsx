@@ -1,5 +1,6 @@
 "use client";
 
+import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { setApiUnauthorizedHandler } from "@/lib/api";
@@ -71,6 +72,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <DesktopUpdateBanner />
         <DesktopLaunchModeBadge />
         <GlobalNotificationCenter />
+        <UpgradeDialog />
         {children}
       </GlobalNotificationProvider>
     </QueryClientProvider>

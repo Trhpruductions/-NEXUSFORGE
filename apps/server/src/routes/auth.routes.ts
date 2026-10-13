@@ -10,6 +10,8 @@ import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/enti
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
 import { sendEmail } from "../lib/delivery.js";
+import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
+import { upgradeRequired } from "../lib/plans.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
@@ -694,15 +696,17 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   });
   const isBetaCosmeticsBypass = requester ? betaCosmeticsBypassUsers.has(requester.username.toLowerCase()) : false;
 
-  const requestedPremiumCosmetics = parsed.data.avatar !== undefined || parsed.data.banner !== undefined;
-  if (requestedPremiumCosmetics && !isBetaCosmeticsBypass) {
-    const hasBrandingKit = await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT");
-    if (!hasBrandingKit) {
-      res.status(402).json({
-        error: "Payment required",
-        feature: "TEAM_BRANDING_KIT",
-        message: "Custom avatar and banner cosmetics require the Team Branding Kit.",
-      });
+  const wantsBanner = Boolean(parsed.data.banner);
+  const wantsAnimatedAvatar = typeof parsed.data.avatar === "string" && /\.gif(\?|$)/i.test(parsed.data.avatar);
+  if ((wantsBanner || wantsAnimatedAvatar) && !isBetaCosmeticsBypass) {
+    const limits = await limitsForUser(req.user!.id);
+    const allowed = (wantsBanner ? limits.profileBanner : true) && (wantsAnimatedAvatar ? limits.animatedAvatar : true);
+    if (!allowed && !(await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT"))) {
+      res.status(402).json(upgradeRequired(
+        wantsBanner ? "A profile banner is a Core+ perk." : "Animated avatars are a Core+ perk.",
+        wantsBanner ? "PROFILE_BANNER" : "ANIMATED_AVATAR",
+        "CORE",
+      ));
       return;
     }
   }

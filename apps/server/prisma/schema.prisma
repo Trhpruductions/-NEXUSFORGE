@@ -263,6 +263,8 @@ model User {
   discordUserId        String?        @unique
   discordLinkedAt      DateTime?
   discordLinkCodes     DiscordLinkCode[]
+  /// The newest "What's new" update this person has seen (null: anything after sign-up is new).
+  lastSeenUpdateAt     DateTime?
   savedMessages        SavedMessage[]
   notesWritten         UserNote[]     @relation("NoteAuthor")
   notesAbout           UserNote[]     @relation("NoteTarget")
@@ -675,6 +677,21 @@ model DiscordLinkCode {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// A "What's new" post from Vexora staff. Shown as a popup to everyone once it's published.
+model AppUpdate {
+  id          String    @id @default(uuid())
+  title       String    @db.VarChar(120)
+  /// Simple Markdown (headings, lists, bold, links).
+  body        String    @db.Text
+  version     String?   @db.VarChar(24)
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([publishedAt])
 }
 
 /// A member reporting a message. Server-channel reports go to that forge's moderators;

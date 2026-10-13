@@ -2,6 +2,7 @@ import { Router } from "express";
 import xss from "xss";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { messageLengthProblem } from "../lib/user-limits.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -300,6 +301,11 @@ dmsRouter.post("/threads/:threadId/messages", messageRateLimit, async (req, res)
       .json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
+    return;
+  }
 
   const threadId = req.params.threadId;
   const participant = await prisma.directMessageParticipant.findUnique({
@@ -392,6 +398,11 @@ dmsRouter.patch("/messages/:messageId", messageRateLimit, async (req, res) => {
   const parsed = editDmSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
     return;
   }
   const own = await ownDm(req.user!.id, String(req.params.messageId));

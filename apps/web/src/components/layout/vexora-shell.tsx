@@ -43,8 +43,9 @@ import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
 import { QuickSwitcher } from "@/components/layout/quick-switcher";
 import { SavedPanel } from "@/components/chat/saved-panel";
+import { WhatsNewDialog } from "@/components/updates/whats-new-dialog";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
-import { cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -270,6 +271,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
   const mutedForgeIds = useMemo(() => new Set((summaryQuery.data?.forges ?? []).filter((entry) => entry.muted).map((entry) => entry.forgeId)), [summaryQuery.data]);
   const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
+  const unseenUpdatesQuery = useQuery({ queryKey: ["updates-unseen", accessToken], queryFn: () => listUnseenUpdates(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
+  const hasUnseenUpdates = Boolean(unseenUpdatesQuery.data?.length);
 
   const dmUnreadQuery = useQuery({
     queryKey: ["dm-unread", accessToken],
@@ -729,6 +732,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
       <SavedPanel open={savedOpen} onClose={() => setSavedOpen(false)} />
+      <WhatsNewDialog />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
@@ -853,6 +857,10 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex items-center gap-1.5">
             <Link href="/app/friends" className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-amber-200" title="Friends">
               <Users className="h-4 w-4" />
+            </Link>
+            <Link href="/app/updates" className="relative rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-violet-200" title="What's new" aria-label="What's new">
+              <Megaphone className="h-4 w-4" />
+              {hasUnseenUpdates ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-400" /> : null}
             </Link>
             <button type="button" onClick={() => setSavedOpen(true)} className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-amber-200" title="Saved messages" aria-label="Saved messages">
               <Bookmark className="h-4 w-4" />

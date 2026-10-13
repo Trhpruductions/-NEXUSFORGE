@@ -34,6 +34,7 @@ import {
   getForge,
   getSettings,
   listForgeBans,
+  getMyLimits,
   listMyBots,
   sendSensitiveChallenge,
   updateAccountSettings,
@@ -194,6 +195,7 @@ function SettingsInner() {
     queryFn: () => getBillingEntitlements(accessToken!),
     enabled: Boolean(accessToken) && category === "billing",
   });
+  const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken) && category === "billing" });
   const botsQuery = useQuery({
     queryKey: ["my-bots", accessToken],
     queryFn: () => listMyBots(accessToken!),
@@ -991,7 +993,19 @@ function SettingsInner() {
                 <Link href="/core-plus" className={goldBtn}><Zap className="h-3.5 w-3.5" /> {account?.premiumTier && account.premiumTier !== "NONE" ? "Manage plan" : "Upgrade to Core+"}</Link>
               </section>
               <section className={`${panel} space-y-3`}>
-                <h2 className={sectionTitle}>Entitlements</h2>
+                <h2 className={sectionTitle}>Your plan includes</h2>
+                {limitsQuery.data ? (
+                  <ul className="grid gap-1.5 text-sm text-slate-300 sm:grid-cols-2">
+                    <li>Uploads up to <strong className="text-white">{Math.round(limitsQuery.data.uploadBytes / (1024 * 1024))} MB</strong></li>
+                    <li>Messages up to <strong className="text-white">{limitsQuery.data.messageLength.toLocaleString()}</strong> characters</li>
+                    <li>Up to <strong className="text-white">{limitsQuery.data.maxServers}</strong> servers</li>
+                    <li>Profile banner: <strong className="text-white">{limitsQuery.data.profileBanner ? "yes" : "no"}</strong></li>
+                    <li>Animated avatar: <strong className="text-white">{limitsQuery.data.animatedAvatar ? "yes" : "no"}</strong></li>
+                    <li>Video: <strong className="text-white">{limitsQuery.data.ultraVideo ? "Ultra (1440p60)" : "HD (1080p)"}</strong></li>
+                  </ul>
+                ) : null}
+                {limitsQuery.data && !limitsQuery.data.enforced ? <p className="text-xs text-slate-500">Payments aren&apos;t open yet, so everyone has these for now.</p> : null}
+                <Link href="/pricing" className="inline-block text-xs text-amber-200 underline underline-offset-2">Compare plans</Link>
                 {billingQuery.isLoading ? <p className="text-sm text-slate-400">Loading...</p> : null}
                 {billingQuery.data ? (
                   billingQuery.data.entitlements.length ? (
@@ -1004,7 +1018,7 @@ function SettingsInner() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-3 text-sm text-slate-500">No paid features on this account.</p>
+                    null
                   )
                 ) : null}
               </section>

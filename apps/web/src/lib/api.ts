@@ -816,6 +816,7 @@ export type LaunchModeState = {
 };
 
 import { handleSuspended, isSuspensionInfo } from "./suspension";
+import { isUpgradePrompt, usePaywallStore } from "@/store/paywall-store";
 
 const LOCAL_API_BASE_URL = "http://127.0.0.1:4000";
 const LOCAL_API_FALLBACK_URL = "http://127.0.0.1:4001";
@@ -893,6 +894,14 @@ api.interceptors.response.use(
         __retriedOnFallbackPort: true,
         baseURL: LOCAL_API_FALLBACK_URL,
       } as RetriableRequestConfig);
+    }
+
+    // Needs a higher plan: show the upgrade prompt (the caller still gets the error).
+    if (axios.isAxiosError(error) && error.response?.status === 402) {
+      const body = error.response.data as unknown;
+      if (isUpgradePrompt(body)) {
+        usePaywallStore.getState().show({ message: body.error, feature: body.feature, requiredTier: body.requiredTier, requiredTierLabel: body.requiredTierLabel });
+      }
     }
 
     // Suspended by Vexora staff (sign-in or any request): leave the app and explain why.
@@ -3467,4 +3476,55 @@ export async function getUserNote(accessToken: string, userId: string) {
 
 export async function saveUserNote(accessToken: string, csrfToken: string, userId: string, note: string) {
   return (await api.put<{ note: string }>(`/api/me/notes/${userId}`, { note }, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
+// ---------------------------------------------------------------- plans (what each Core+ tier unlocks)
+export type PlanTierCode = "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE";
+export type PlanInfo = {
+  tier: PlanTierCode;
+  label: string;
+  uploadBytes: number;
+  messageLength: number;
+  maxServers: number;
+  profileBanner: boolean;
+  animatedAvatar: boolean;
+  ultraVideo: boolean;
+};
+export type MyLimits = Omit<PlanInfo, "tier"> & { tier: PlanTierCode; enforced: boolean };
+
+export async function getBillingPlans() {
+  return (await api.get<{ enforced: boolean; plans: PlanInfo[] }>("/api/billing/plans")).data;
+}
+
+export async function getMyLimits(accessToken: string) {
+  return (await api.get<{ limits: MyLimits }>("/api/billing/me/limits", { headers: authHeaders(accessToken) })).data.limits;
+}
+
+// ---------------------------------------------------------------- what's new (release notes)
+export type AppUpdate = { id: string; title: string; body: string; version: string | null; publishedAt: string | null; unseen?: boolean };
+export type AppUpdateDraft = { title: string; body: string; version?: string | null };
+
+export async function listUpdates(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates", { headers: authHeaders(accessToken) })).data.updates;
+}
+export async function listUnseenUpdates(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates/unseen", { headers: authHeaders(accessToken) })).data.updates;
+}
+export async function markUpdatesSeen(accessToken: string, csrfToken: string) {
+  await api.post("/api/updates/seen", {}, { headers: authHeaders(accessToken, csrfToken) });
+}
+export async function listAllUpdatesForStaff(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates/admin", { headers: authHeaders(accessToken) })).data.updates;
+}
+export async function saveUpdate(accessToken: string, csrfToken: string, draft: AppUpdateDraft, id?: string) {
+  const headers = { headers: authHeaders(accessToken, csrfToken) };
+  return id
+    ? (await api.patch<{ update: AppUpdate }>(`/api/updates/admin/${id}`, draft, headers)).data.update
+    : (await api.post<{ update: AppUpdate }>("/api/updates/admin", draft, headers)).data.update;
+}
+export async function publishUpdate(accessToken: string, csrfToken: string, id: string) {
+  return (await api.post<{ update: AppUpdate }>(`/api/updates/admin/${id}/publish`, {}, { headers: authHeaders(accessToken, csrfToken) })).data.update;
+}
+export async function deleteUpdate(accessToken: string, csrfToken: string, id: string) {
+  await api.delete(`/api/updates/admin/${id}`, { headers: authHeaders(accessToken, csrfToken) });
 }

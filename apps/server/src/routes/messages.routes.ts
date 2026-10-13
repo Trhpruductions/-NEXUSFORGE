@@ -15,6 +15,7 @@ import { recordMentions } from "./reads.routes.js";
 import { bypassesSlowmode, canViewChannel, channelAccessSelect, isTimedOut, loadMemberContext, privateChannelViewerIds, userCanViewChannel } from "../lib/channel-access.js";
 import { logForgeAction } from "../lib/forge-audit.js";
 import { runAutoMod } from "../lib/automod-runtime.js";
+import { messageLengthProblem } from "../lib/user-limits.js";
 import { buildPollOptions, isPollOpen, POLL_DURATIONS_HOURS, POLL_MAX_OPTIONS, POLL_QUESTION_MAX, validateVote, type PollOption } from "../lib/polls.js";
 
 function timeoutError(until: Date | null) {
@@ -237,6 +238,11 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
   }
   if (!parsed.data.content.trim() && !parsed.data.stickerId) {
     res.status(400).json({ error: "Message can't be empty" });
+    return;
+  }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
     return;
   }
   if (parsed.data.stickerId && (parsed.data.poll || parsed.data.forumTitle)) {
@@ -654,6 +660,11 @@ messagesRouter.patch("/:id", async (req, res) => {
   const parsed = editMessageSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
     return;
   }
 
