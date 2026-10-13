@@ -11,6 +11,7 @@ import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { getAvatar } from "@/lib/api";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Filter = "all" | "outfits" | "accessories" | "cosmetics" | "emotes";
 
@@ -61,6 +62,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [presetName, setPresetName] = useState("");
   const [presetDialog, setPresetDialog] = useState(false);
+  useEscapeKey(presetDialog, () => setPresetDialog(false));
 
   const query = useQuery({
     queryKey: ["cosmetics", mode, accessToken],
@@ -300,7 +302,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
       </div>
 
       {presetDialog ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Save outfit" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPresetDialog(false)} />
           <div className="relative w-full max-w-sm rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Save outfit</h3>

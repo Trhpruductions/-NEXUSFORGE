@@ -10,6 +10,7 @@ import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Category = "body" | "head" | "hair" | "face" | "eyes" | "shirts" | "pants" | "shoes" | "accessories" | "background";
 type Tab = "studio" | "collection" | "animations";
@@ -170,6 +171,7 @@ export function AvatarStudio() {
   const [presetName, setPresetName] = useState("");
   const [presetTagline, setPresetTagline] = useState("");
   const [presetDialog, setPresetDialog] = useState(false);
+  useEscapeKey(presetDialog, () => setPresetDialog(false));
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [flipped, setFlipped] = useState(false);
@@ -599,7 +601,7 @@ export function AvatarStudio() {
       ) : null}
 
       {presetDialog ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Save avatar preset" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPresetDialog(false)} />
           <div className="relative w-full max-w-sm rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Save avatar preset</h3>

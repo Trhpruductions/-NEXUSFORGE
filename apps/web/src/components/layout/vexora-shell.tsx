@@ -52,6 +52,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { VoiceEngine } from "@/components/chat/voice-engine";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 // The six destinations from the design reference (design/vexora-app-mockup.png, Home panel).
 const navLinks = [
@@ -168,6 +169,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [statusMenuOpen]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  useEscapeKey(mobileOpen, () => setMobileOpen(false));
   const [search, setSearch] = useState("");
   const voiceSession = useVoiceStore((state) => state.session);
   const voiceFlags = useVoiceStore((state) => state.flags);
@@ -811,7 +813,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       <div className="hidden lg:flex">{sidebar}</div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-0 z-50 flex lg:hidden">
           <div className="absolute inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
           <div className="relative flex h-full">{sidebar}</div>
         </div>
@@ -831,7 +833,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       >
         <header className="relative flex h-14 shrink-0 items-center gap-3 bg-[#0b0e17]/75 px-3 backdrop-blur-xl md:px-5">
           <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 via-50% to-cyan-400/60" />
-          <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu">
+          <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu" aria-label="Open menu" aria-expanded={mobileOpen}>
             <Layers className="h-4 w-4" />
           </button>
           <button

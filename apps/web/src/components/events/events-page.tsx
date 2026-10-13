@@ -21,6 +21,7 @@ import {
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Scope = "upcoming" | "live" | "past";
 
@@ -530,7 +531,7 @@ function BracketModal({
   const rounds = event.bracket?.rounds?.length ?? 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+    <div role="dialog" aria-modal="true" aria-label="Event details" className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
       <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
         <header className="flex items-start justify-between gap-3 border-b border-white/5 px-5 py-4">
@@ -562,6 +563,7 @@ function BracketModal({
 }
 
 function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForgeId: string | null; onClose: () => void; onCreated: (event: VexoraEvent) => void }) {
+  useEscapeKey(true, onClose);
   const { accessToken, csrfToken } = useAuthStore();
   const forgesQuery = useQuery({ queryKey: ["forges", accessToken], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
   const [type, setType] = useState<"EVENT" | "TOURNAMENT">("EVENT");
@@ -595,7 +597,7 @@ function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForg
   });
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Create an event" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">

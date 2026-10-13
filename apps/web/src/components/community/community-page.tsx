@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 const panel = "vx-panel rounded-2xl p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -168,6 +169,7 @@ export function CommunityPage() {
 }
 
 function CreateForgeDialog({ onClose }: { onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
@@ -190,7 +192,7 @@ function CreateForgeDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Create a forge" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">

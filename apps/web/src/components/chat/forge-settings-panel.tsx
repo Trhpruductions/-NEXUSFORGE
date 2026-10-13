@@ -184,7 +184,7 @@ export function ForgeSettingsPanel({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+    <div role="dialog" aria-modal="true" aria-label="Server settings" className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={onClose} />
       <div className="nexus-panel-strong relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[18px] border border-slate-700/70 bg-slate-950/95 text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="flex items-start justify-between gap-3 border-b border-slate-800/80 px-5 py-4">
