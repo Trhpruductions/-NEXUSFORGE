@@ -102,13 +102,10 @@ These features are tested end to end with real accounts, and most also with two 
     - "Manage roles" links don't open the right panel.
 21. **Old redirects drop `?q=` and `?filter=`**: `/search`, `/notifications` and `/settings` lose their query strings.
 22. **Mobile menu missing on public pages**: landing, pricing and legal pages have no menu on phones.
-23. **Accessibility**:
-    - 9 popups aren't marked as dialogs.
-    - Chat inputs have no labels.
-    - The skip link points nowhere.
+23. **Accessibility**: ✅ Done. Pop-ups are labelled dialogs that close with Escape, every chat/search/settings field has a label, and "Skip to main content" works on every page.
 24. **Fake or placeholder content**:
-    - "Advanced Moderation AI" is just row counts.
-    - "Priority routing" and "+32% queue gain" are made up.
+    - ✅ "Advanced Moderation AI" is now "Activity pressure" and says it's a simple formula; the invented percentage is gone.
+    - ✅ The Core+ page now lists only real perks (uploads, servers, video).
     - Payment methods are over-claimed (PayPal and crypto aren't supported).
     - Beta-page metrics are made up.
     - "Generate sample data" writes fake data onto real users.
