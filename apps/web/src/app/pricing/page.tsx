@@ -11,13 +11,13 @@ export default async function PricingPage({
 
   return (
     <ExperienceShell
-      eyebrow="Monetization"
-      title="Pricing, Payments, and Upgrade Flows"
-      subtitle="Tiered subscriptions and add-ons built to feel premium, clear, and conversion-ready."
+      eyebrow="Core+"
+      title="Plans and pricing"
+      subtitle="Vexora is free, with more than Discord gives you for free. Core+ adds bigger uploads, more servers and ultra-quality video."
       metrics={[
-        { label: "Checkout", value: "Secure Redirect", tone: "emerald" },
-        { label: "Tier Ladder", value: "Core to Infinite", tone: "cyan" },
-        { label: "Upgrade Momentum", value: "Optimized", tone: "amber" },
+        { label: "Free plan", value: "$0, forever", tone: "emerald" },
+        { label: "Core+ from", value: "$3.99/mo", tone: "amber" },
+        { label: "Cancel", value: "Any time", tone: "cyan" },
       ]}
       actions={[
         { label: "Sign in", href: "/login?redirect=/pricing", tone: "ghost" },

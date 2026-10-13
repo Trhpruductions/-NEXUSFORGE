@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  Menu,
   ArrowRight,
   Bot,
   Crosshair,
@@ -91,6 +92,24 @@ export default function Home() {
               </Link>
             ))}
           </nav>
+
+          {/* Phones: the links in a drop-down (no JavaScript needed). */}
+          <details className="relative ml-auto md:hidden">
+            <summary className="flex cursor-pointer list-none items-center rounded-lg p-2 text-slate-300 hover:bg-white/5 [&::-webkit-details-marker]:hidden" aria-label="Menu">
+              <Menu className="h-5 w-5" />
+            </summary>
+            <div className="absolute right-0 z-50 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d1119] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+              {[
+                ["Workspace", "/app"],
+                ["Pricing", "/pricing"],
+                ["Developers", "/developer"],
+                ["Support", "/support"],
+                ["Sign in", "/login"],
+              ].map(([label, href]) => (
+                <Link key={label} href={href} className="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">{label}</Link>
+              ))}
+            </div>
+          </details>
 
           <div className="flex items-center gap-2">
             <Link

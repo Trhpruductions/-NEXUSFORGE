@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { globalNavActions } from "./experience-shell-nav";
@@ -31,6 +32,9 @@ function metricToneClass(tone: ExperienceMetric["tone"]) {
 export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], actions = [], children, maxWidthClassName = "max-w-7xl", showGlobalNav = true }: ExperienceShellProps) {
   const pathname = usePathname() ?? "";
   const user = useAuthStore((state) => state.user);
+  // Phones: the links live in a menu (they were simply hidden below the md breakpoint).
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   return (
     <div className="min-h-dvh bg-[#070a10] text-slate-100">
@@ -67,6 +71,11 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
             </nav>
           ) : null}
           <div className="ml-auto flex items-center gap-2">
+            {showGlobalNav ? (
+              <button type="button" onClick={() => setMenuOpen((value) => !value)} className="rounded-lg p-2 text-slate-300 hover:bg-white/5 hover:text-white md:hidden" aria-label={menuOpen ? "Close menu" : "Open menu"} aria-expanded={menuOpen} aria-controls="experience-mobile-nav">
+                {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            ) : null}
             {user ? (
               <Link href="/app" className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-[#11151e] py-1 pl-1 pr-3 text-xs text-slate-200 transition hover:border-amber-400/60">
                 {user.avatar ? (
@@ -85,6 +94,18 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
             )}
           </div>
         </div>
+        {showGlobalNav && menuOpen ? (
+          <nav id="experience-mobile-nav" className="border-t border-white/5 px-4 py-2 md:hidden">
+            {globalNavActions.map((action) => {
+              const active = pathname === action.href || (action.href !== "/app" && pathname.startsWith(action.href));
+              return (
+                <Link key={action.href} href={action.href} prefetch={false} className={cn("block rounded-lg px-3 py-2.5 text-sm font-semibold", active ? "bg-amber-500/10 text-amber-100" : "text-slate-300 hover:bg-white/5")}>
+                  {action.label}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
       </header>
 
       <div className={cn("relative mx-auto space-y-4 px-4 py-5 md:px-6", maxWidthClassName)}>
