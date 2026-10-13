@@ -87,7 +87,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       ? null
       : await prisma.friend.findFirst({
           where: { OR: [{ senderId: req.user!.id, receiverId: userId }, { senderId: userId, receiverId: req.user!.id }] },
-          select: { id: true, status: true, senderId: true },
+          select: { id: true, status: true, senderId: true, blockedById: true },
         });
   const [isFollowing, followsYou, reputationAccount] = await Promise.all([
     userId === req.user!.id
@@ -119,7 +119,12 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,
-    friendship: friendship ? { id: friendship.id, status: friendship.status, incoming: friendship.senderId === userId } : null,
+    // Someone else's block on you is theirs: you just see no relationship.
+    friendship:
+      friendship && !(friendship.status === "BLOCKED" && friendship.blockedById && friendship.blockedById !== req.user!.id)
+        ? { id: friendship.id, status: friendship.status, incoming: friendship.senderId === userId }
+        : null,
+    blockedByMe: Boolean(friendship && friendship.status === "BLOCKED" && friendship.blockedById === req.user!.id),
   });
 });
 

@@ -97,6 +97,46 @@ friendsRouter.post("/request", async (req, res) => {
   res.status(201).json({ friend: row });
 });
 
+/**
+ * Block anyone, friend or not (it used to need an existing friendship). One row per pair:
+ * a block replaces a pending request or friendship. Their block on you stays theirs.
+ */
+friendsRouter.post("/block/:userId", async (req, res) => {
+  const me = req.user!.id;
+  const them = String(req.params.userId);
+  if (me === them) {
+    res.status(400).json({ error: "You can't block yourself" });
+    return;
+  }
+  const target = await prisma.user.findUnique({ where: { id: them }, select: { id: true } });
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  const existing = await prisma.friend.findFirst({ where: { OR: [{ senderId: me, receiverId: them }, { senderId: them, receiverId: me }] } });
+  if (existing?.status === "BLOCKED" && existing.blockedById && existing.blockedById !== me) {
+    // They already blocked you; nothing more to do, and don't reveal it.
+    res.json({ blocked: true });
+    return;
+  }
+  if (existing) {
+    await prisma.friend.update({ where: { id: existing.id }, data: { status: "BLOCKED", blockedById: me } });
+  } else {
+    await prisma.friend.create({ data: { senderId: me, receiverId: them, status: "BLOCKED", blockedById: me } });
+  }
+  res.json({ blocked: true });
+});
+
+/** Unblock someone you blocked (you are not friends afterwards). */
+friendsRouter.delete("/block/:userId", async (req, res) => {
+  const me = req.user!.id;
+  const them = String(req.params.userId);
+  await prisma.friend.deleteMany({
+    where: { status: "BLOCKED", blockedById: me, OR: [{ senderId: me, receiverId: them }, { senderId: them, receiverId: me }] },
+  });
+  res.json({ blocked: false });
+});
+
 friendsRouter.patch("/:id", async (req, res) => {
   const parsed = updateStatusSchema.safeParse(req.body);
   if (!parsed.success) {

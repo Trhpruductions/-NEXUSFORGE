@@ -2640,6 +2640,8 @@ export type ProfileSummary = {
   isFollowing: boolean;
   followsYou: boolean;
   friendship?: { id: string; status: "PENDING" | "ACCEPTED" | "BLOCKED"; incoming: boolean } | null;
+  /** You blocked this person. */
+  blockedByMe?: boolean;
 };
 
 export async function getProfileSummary(accessToken: string, userId: string | "me") {

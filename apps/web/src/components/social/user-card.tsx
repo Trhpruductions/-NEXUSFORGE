@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Check, Loader2, MessageSquare, Radio, Sparkles, UserPlus, UserRound, X } from "lucide-react";
 import { UserNote } from "@/components/social/user-note";
+import { UserSafetyActions } from "@/components/social/user-safety-actions";
 import { createDmThread, followUser, getApiErrorMessage, getProfileSummary, sendFriendRequest, unfollowUser, updateFriendStatus } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
@@ -153,6 +154,7 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
               </div>
             ) : null}
             {profile && !profile.isSelf ? <UserNote userId={userId} /> : null}
+            {profile && !profile.isSelf && person ? <UserSafetyActions userId={userId} username={person.username} blockedByMe={Boolean(profile.blockedByMe)} /> : null}
             <Link href={profile?.isSelf ? "/app/profile" : `/app/profile?user=${userId}`} onClick={onClose} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200 hover:border-amber-400/50">
               <UserRound className="h-3.5 w-3.5" /> View profile
             </Link>

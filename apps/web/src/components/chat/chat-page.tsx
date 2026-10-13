@@ -44,6 +44,7 @@ import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MessageList } from "@/components/chat/message-list";
 import { PollComposer } from "@/components/chat/poll-composer";
+import { MessageAttachments } from "@/components/chat/message-attachments";
 import { useSavedMessages } from "@/components/chat/use-saved";
 import { MemberList } from "@/components/chat/member-list";
 import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
@@ -112,6 +113,10 @@ function ChatInner() {
   const voiceSession = useVoiceStore((state) => state.session);
   const joinVoiceStore = useVoiceStore((state) => state.join);
   const [dmDraft, setDmDraft] = useState("");
+  // DM composer: files waiting to be sent and the emoji picker.
+  const [dmFiles, setDmFiles] = useState<File[]>([]);
+  const [dmEmojiOpen, setDmEmojiOpen] = useState(false);
+  const dmFileInput = useRef<HTMLInputElement | null>(null);
   const typingTimer = useRef<number | null>(null);
   const isTyping = useRef(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -592,9 +597,13 @@ function ChatInner() {
     };
   }, [accessToken, csrfToken, dmThreadId, mode, queryClient, user?.id]);
   const dmSend = useMutation({
-    mutationFn: () => postDmMessage(accessToken!, csrfToken!, dmThreadId!, { content: dmDraft.trim() }),
+    mutationFn: async () => {
+      const attachments = dmFiles.length ? await uploadFiles(dmFiles) : undefined;
+      return postDmMessage(accessToken!, csrfToken!, dmThreadId!, { content: dmDraft.trim() || "Shared a file", attachments });
+    },
     onSuccess: (data) => {
       setDmDraft("");
+      setDmFiles([]);
       queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) => {
         const messages = current?.messages ?? [];
         return messages.some((msg) => msg.id === data.message.id) ? current : { messages: [...messages, data.message] };
@@ -925,8 +934,9 @@ function ChatInner() {
                             </div>
                           ) : (
                             <>
-                              <RichText content={msg.content} />
+                              {msg.attachments?.length && msg.content === "Shared a file" ? null : <RichText content={msg.content} />}
                               {msg.edited ? <span className="text-[10px] text-slate-500">(edited)</span> : null}
+                              {msg.attachments?.length ? <MessageAttachments urls={msg.attachments} /> : null}
                               {!msg.attachments?.length && firstLink(msg.content) ? <LinkPreviewCard url={firstLink(msg.content)!} /> : null}
                             </>
                           )}
@@ -971,9 +981,31 @@ function ChatInner() {
               </div>
               {dmThreadId ? (
                 <div className="border-t border-white/5 p-3">
+                  {dmFiles.length ? (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {dmFiles.map((file, index) => (
+                        <span key={`${file.name}-${index}`} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-[#11151e] px-2 py-1 text-[11px] text-slate-300">
+                          <Paperclip className="h-3 w-3" /> {file.name}
+                          <button type="button" onClick={() => setDmFiles((current) => current.filter((_, i) => i !== index))} className="text-slate-500 hover:text-rose-300" aria-label={`Remove ${file.name}`}><X className="h-3 w-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#11151e] px-3 py-2">
-                    <input value={dmDraft} onChange={(event) => setDmDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (dmDraft.trim()) dmSend.mutate(); } }} placeholder={`Message ${dmThread ? dmLabel(dmThread) : ""}`} className="h-8 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500" />
-                    <button type="button" onClick={() => dmSend.mutate()} disabled={!dmDraft.trim() || dmSend.isPending} className="rounded-lg bg-gradient-to-br from-amber-300 via-orange-400 to-pink-500 p-2 text-slate-950 disabled:opacity-40" title="Send"><Send className="h-4 w-4" /></button>
+                    <input ref={dmFileInput} type="file" multiple className="hidden" onChange={(event) => { setDmFiles((current) => [...current, ...Array.from(event.target.files ?? [])].slice(0, 8)); event.target.value = ""; }} />
+                    <button type="button" onClick={() => dmFileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files" aria-label="Attach files"><Paperclip className="h-4 w-4" /></button>
+                    <div className="relative">
+                      <button type="button" onClick={() => setDmEmojiOpen((value) => !value)} className="text-slate-500 hover:text-amber-200" title="Emoji" aria-label="Emoji" aria-expanded={dmEmojiOpen}><Smile className="h-4 w-4" /></button>
+                      {dmEmojiOpen ? (
+                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 grid w-64 grid-cols-8 gap-0.5 rounded-xl border border-white/10 bg-[#0d1119] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                          {["😀", "😂", "😅", "😍", "😎", "🤔", "😭", "😡", "👍", "👎", "🙏", "👏", "🔥", "💯", "🎉", "❤️", "🎮", "🕹️", "🏆", "⚔️", "🛡️", "💀", "👀", "✅"].map((emoji) => (
+                            <button key={emoji} type="button" className="h-7 w-7 rounded text-lg hover:bg-white/10" onClick={() => { setDmDraft((current) => `${current}${emoji}`); setDmEmojiOpen(false); }}>{emoji}</button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <input value={dmDraft} onChange={(event) => setDmDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (dmDraft.trim() || dmFiles.length) dmSend.mutate(); } }} placeholder={`Message ${dmThread ? dmLabel(dmThread) : ""}`} aria-label="Message" className="h-8 flex-1 bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-500" />
+                    <button type="button" onClick={() => dmSend.mutate()} disabled={(!dmDraft.trim() && !dmFiles.length) || dmSend.isPending} className="rounded-lg bg-gradient-to-br from-amber-300 via-orange-400 to-pink-500 p-2 text-slate-950 disabled:opacity-40" title="Send" aria-label="Send">{dmSend.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</button>
                   </div>
                 </div>
               ) : null}
