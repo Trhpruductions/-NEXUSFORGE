@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { signAccessToken, sha256, verifyAccessToken, randomToken } from "../lib/jwt.js";
 import { env } from "../config/env.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
 
 const oauthAuthorizeSchema = z.object({
   response_type: z.literal("code"),
@@ -212,40 +214,6 @@ export async function issueClientCredentialsToken(
   } as const;
 }
 
-async function getSessionUser(req: Request) {
-  const header = req.headers.authorization;
-  const token = typeof header === "string" && header.startsWith("Bearer ") ? header.slice(7) : undefined;
-
-  if (token) {
-    try {
-      const payload = verifyAccessToken(token);
-      return { id: payload.sub, username: payload.username, email: payload.email, appRole: payload.appRole };
-    } catch {
-      // continue to cookie fallback
-    }
-  }
-
-  const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME] as string | undefined;
-  if (!refreshToken) {
-    return null;
-  }
-
-  const session = await prisma.refreshToken.findUnique({
-    where: { tokenHash: sha256(refreshToken) },
-    include: { user: true },
-  });
-
-  if (!session || session.revokedAt || session.expiresAt < new Date()) {
-    return null;
-  }
-
-  return {
-    id: session.user.id,
-    username: session.user.username,
-    email: session.user.email,
-    appRole: session.user.appRole,
-  };
-}
 
 export async function issueAuthorizationCode(
   data: {
@@ -341,38 +309,78 @@ export async function issueAuthorizationCode(
 
 export const oauthRouter = Router();
 
-oauthRouter.get("/authorize", async (req, res) => {
-  const user = await getSessionUser(req);
-  if (!user) {
-    res.status(401).json({ error: "Authentication required" });
-    return;
+/**
+ * Step 1 of "Sign in with Vexora": never issues anything by itself. It sends the browser to
+ * the approval page in the app, which shows the app's name and what it gets. (It used to
+ * hand out a code straight away, even from just the sign-in cookie, so any registered app
+ * could take over whoever opened its link.)
+ */
+oauthRouter.get("/authorize", (req, res) => {
+  const params = new URLSearchParams();
+  for (const key of ["response_type", "client_id", "redirect_uri", "scope", "state"]) {
+    const value = req.query[key];
+    if (typeof value === "string") params.set(key, value);
   }
-  // There's no consent screen yet, and a code here becomes a full session. Until there is
-  // one, an app may only sign in the developer who owns it (enough to test it); otherwise
-  // any registered app could take over whoever opened its link.
-  const clientId = typeof req.query.client_id === "string" ? req.query.client_id : "";
-  const client = clientId ? await prisma.oAuthClient.findUnique({ where: { clientId }, select: { userId: true } }) : null;
-  if (client && client.userId !== user.id) {
-    res.status(403).json({ error: "access_denied", error_description: "This app can't sign in other people yet: Vexora doesn't have an approval screen for third-party apps." });
-    return;
-  }
+  res.redirect(`${env.APP_WEB_URL.replace(/\/+$/, "")}/oauth/authorize?${params.toString()}`);
+});
 
-  const result = await issueAuthorizationCode({
-    response_type: req.query.response_type as string,
-    client_id: req.query.client_id as string,
-    redirect_uri: req.query.redirect_uri as string,
-    scope: typeof req.query.scope === "string" ? req.query.scope : undefined,
-    state: typeof req.query.state === "string" ? req.query.state : undefined,
-    db: prisma,
-    user,
+/** Validates a request and returns what the approval page shows. */
+async function describeRequest(clientId: unknown, redirectUri: unknown) {
+  if (typeof clientId !== "string" || typeof redirectUri !== "string") return null;
+  const client = await prisma.oAuthClient.findUnique({
+    where: { clientId },
+    select: { name: true, enabled: true, redirectUris: true, createdAt: true, user: { select: { username: true } } },
   });
+  if (!client || !client.enabled || !client.redirectUris.includes(redirectUri)) return null;
+  let host = redirectUri;
+  try {
+    host = new URL(redirectUri).host;
+  } catch {
+    /* keep the raw value */
+  }
+  return { name: client.name, developer: client.user.username, createdAt: client.createdAt, redirectHost: host };
+}
 
-  if (result.status === 302) {
-    res.redirect(result.body.redirect_uri);
+oauthRouter.get("/authorize/info", requireAuth, async (req, res) => {
+  const app = await describeRequest(req.query.client_id, req.query.redirect_uri);
+  if (!app) {
+    res.status(400).json({ error: "This sign-in link isn't valid: the app doesn't exist, is disabled, or the return address isn't registered." });
     return;
   }
+  res.json({ app });
+});
 
+/** Step 2: you pressed Allow (signed in, with CSRF). Issue the code and say where to go. */
+oauthRouter.post("/authorize/approve", requireAuth, requireCsrf, async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const result = await issueAuthorizationCode({
+    response_type: String(body.response_type ?? ""),
+    client_id: String(body.client_id ?? ""),
+    redirect_uri: String(body.redirect_uri ?? ""),
+    scope: typeof body.scope === "string" ? body.scope : undefined,
+    state: typeof body.state === "string" ? body.state : undefined,
+    db: prisma,
+    user: { id: req.user!.id },
+  });
+  if (result.status === 302) {
+    res.json({ redirect: result.body.redirect_uri });
+    return;
+  }
   res.status(result.status).json(result.body);
+});
+
+/** You pressed Cancel: tell the app, the standard way. */
+oauthRouter.post("/authorize/deny", requireAuth, requireCsrf, async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const app = await describeRequest(body.client_id, body.redirect_uri);
+  if (!app) {
+    res.status(400).json({ error: "This sign-in link isn't valid." });
+    return;
+  }
+  const redirectUri = String(body.redirect_uri);
+  const separator = redirectUri.includes("?") ? "&" : "?";
+  const state = typeof body.state === "string" ? `&state=${encodeURIComponent(body.state)}` : "";
+  res.json({ redirect: `${redirectUri}${separator}error=access_denied${state}` });
 });
 
 oauthRouter.post("/token", async (req, res) => {
