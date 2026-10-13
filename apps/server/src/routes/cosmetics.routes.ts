@@ -165,30 +165,37 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
     return;
   }
 
-  if (item.priceCoins > 0) {
-    try {
-      await EconomyAuthority.adjustBalance({
-        userId: req.user!.id,
-        amount: BigInt(-item.priceCoins),
-        currencyType: "NC",
-        reason: `Cosmetic purchase: ${item.name}`,
-        referenceId: cosmeticPurchaseReference(req.user!.id, item.id),
-        metadata: { itemKey: item.key, slot: item.slot, rarity: item.rarity },
-      });
-    } catch (error) {
-      // Only a balance shortfall is the buyer's problem; anything else is ours and must
-      // not be dressed up as "you cannot afford this".
-      if (error instanceof InsufficientBalanceError) {
-        res.status(402).json({ error: "Not enough Vexora Coins" });
-        return;
+  // Grant and charge in ONE transaction. The item row is created first, so a double click
+  // hits the "already owned" unique key instead of charging twice; and if the charge fails
+  // the grant is rolled back (it used to take the coins even when the grant failed).
+  try {
+    await EconomyAuthority.serializable(async (tx, retryCount) => {
+      await tx.userCosmetic.create({ data: { userId: req.user!.id, itemId: item.id } });
+      if (item.priceCoins > 0) {
+        await EconomyAuthority.applyChange(tx, {
+          userId: req.user!.id,
+          amount: BigInt(-item.priceCoins),
+          currencyType: "NC",
+          reason: `Cosmetic purchase: ${item.name}`,
+          referenceId: cosmeticPurchaseReference(req.user!.id, item.id),
+          metadata: { itemKey: item.key, slot: item.slot, rarity: item.rarity },
+        }, retryCount);
       }
-      console.error("Cosmetic purchase failed", { itemId: item.id, userId: req.user!.id, error });
-      res.status(500).json({ error: "That purchase could not be completed. Please try again." });
+    });
+  } catch (error) {
+    if (error instanceof InsufficientBalanceError) {
+      res.status(402).json({ error: "Not enough Vexora Coins" });
       return;
     }
+    if ((error as { code?: string })?.code === "P2002") {
+      res.status(400).json({ error: "You already own this item" });
+      return;
+    }
+    console.error("Cosmetic purchase failed", { itemId: item.id, userId: req.user!.id, error });
+    res.status(500).json({ error: "That purchase could not be completed. Please try again." });
+    return;
   }
 
-  await prisma.userCosmetic.create({ data: { userId: req.user!.id, itemId: item.id } });
   res.status(201).json({ item: { ...item, owned: true, equipped: false }, coins: await coinBalance(req.user!.id) });
   void evaluateAchievements(req.user!.id);
 });
