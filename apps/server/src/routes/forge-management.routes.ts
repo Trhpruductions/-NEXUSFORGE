@@ -536,6 +536,109 @@ forgeManagementRouter.delete("/:id/emojis/:emojiId", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Stickers and soundboard sounds (manage: manageForge; everyone in the forge can list)
+// ---------------------------------------------------------------------------
+
+const MAX_STICKERS = 30;
+const MAX_SOUNDS = 40;
+const mediaName = z.string().trim().min(2, "Names are 2 to 30 characters").max(30, "Names are 2 to 30 characters").regex(/^[\p{L}\p{N} _'!?.-]+$/u, "Use letters, numbers, spaces and simple punctuation");
+const stickerSchema = z.object({ name: mediaName, description: z.string().trim().max(100).optional(), imageUrl: z.string().url().max(2048) });
+const soundSchema = z.object({ name: mediaName, emoji: z.string().trim().max(16).optional(), soundUrl: z.string().url().max(2048), volume: z.number().min(0.1).max(1).default(1) });
+const stickerSelect = { id: true, name: true, description: true, imageUrl: true, creatorId: true, createdAt: true } as const;
+const soundSelect = { id: true, name: true, emoji: true, soundUrl: true, volume: true, creatorId: true, createdAt: true } as const;
+
+forgeManagementRouter.get("/:id/stickers", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const stickers = await prisma.forgeSticker.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: stickerSelect });
+  res.json({ stickers, max: MAX_STICKERS });
+});
+
+forgeManagementRouter.post("/:id/stickers", async (req, res) => {
+  const parsed = stickerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid sticker" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  // Our own storage only, like emoji: an outside URL would reveal who views it.
+  if (!isOwnUploadUrl(parsed.data.imageUrl) || !/\.(png|gif|webp|jpe?g)(\?|$)/i.test(parsed.data.imageUrl)) {
+    res.status(400).json({ error: "Upload a PNG, GIF, WebP or JPEG image" });
+    return;
+  }
+  if ((await prisma.forgeSticker.count({ where: { forgeId: context.forge.id } })) >= MAX_STICKERS) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_STICKERS} stickers` });
+    return;
+  }
+  if (await prisma.forgeSticker.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } })) {
+    res.status(409).json({ error: `A sticker called "${parsed.data.name}" already exists` });
+    return;
+  }
+  const sticker = await prisma.forgeSticker.create({ data: { forgeId: context.forge.id, name: parsed.data.name, description: parsed.data.description || null, imageUrl: parsed.data.imageUrl, creatorId: req.user!.id }, select: stickerSelect });
+  emitForgeEvent(context.forge.id, "forge:stickers", { action: "created", sticker });
+  res.status(201).json({ sticker });
+});
+
+forgeManagementRouter.delete("/:id/stickers/:stickerId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeSticker.findFirst({ where: { id: req.params.stickerId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Sticker not found" });
+    return;
+  }
+  await prisma.forgeSticker.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:stickers", { action: "deleted", stickerId: existing.id });
+  res.json({ ok: true });
+});
+
+forgeManagementRouter.get("/:id/sounds", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const sounds = await prisma.forgeSound.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: soundSelect });
+  res.json({ sounds, max: MAX_SOUNDS });
+});
+
+forgeManagementRouter.post("/:id/sounds", async (req, res) => {
+  const parsed = soundSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid sound" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  if (!isOwnUploadUrl(parsed.data.soundUrl) || !/\.(mp3|ogg|wav)(\?|$)/i.test(parsed.data.soundUrl)) {
+    res.status(400).json({ error: "Upload an MP3, OGG or WAV file" });
+    return;
+  }
+  if ((await prisma.forgeSound.count({ where: { forgeId: context.forge.id } })) >= MAX_SOUNDS) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_SOUNDS} sounds` });
+    return;
+  }
+  if (await prisma.forgeSound.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } })) {
+    res.status(409).json({ error: `A sound called "${parsed.data.name}" already exists` });
+    return;
+  }
+  const sound = await prisma.forgeSound.create({ data: { forgeId: context.forge.id, name: parsed.data.name, emoji: parsed.data.emoji || null, soundUrl: parsed.data.soundUrl, volume: parsed.data.volume, creatorId: req.user!.id }, select: soundSelect });
+  emitForgeEvent(context.forge.id, "forge:sounds", { action: "created", sound });
+  res.status(201).json({ sound });
+});
+
+forgeManagementRouter.delete("/:id/sounds/:soundId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeSound.findFirst({ where: { id: req.params.soundId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Sound not found" });
+    return;
+  }
+  await prisma.forgeSound.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:sounds", { action: "deleted", soundId: existing.id });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // AutoMod rules (manageForge)
 // ---------------------------------------------------------------------------
 

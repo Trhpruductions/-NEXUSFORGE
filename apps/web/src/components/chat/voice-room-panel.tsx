@@ -5,6 +5,7 @@ import { ArrowDownToLine, ArrowUpToLine, Hand, Headphones, HeadphoneOff, Loader2
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
+import { SoundboardButton } from "@/components/chat/soundboard-button";
 
 type MemberLike = { userId: string; user: { id: string; username: string; displayName?: string | null; avatar?: string | null } };
 
@@ -225,6 +226,7 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
             {flags.screenSharing ? <MonitorX className="h-3.5 w-3.5" /> : <MonitorUp className="h-3.5 w-3.5" />} {flags.screenSharing ? "Stop sharing" : "Share screen"}
           </button>
         ) : null}
+        {session.forgeId && selfOnStage ? <SoundboardButton forgeId={session.forgeId} channelId={session.channelId} nameOf={(userId) => (userId === selfId ? "You" : participants.find((entry) => entry.userId === userId)?.name ?? nameOf(userId))} /> : null}
         <button type="button" onClick={leave} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white hover:bg-rose-400">
           <PhoneOff className="h-3.5 w-3.5" /> Leave
         </button>

@@ -43,9 +43,11 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { AutoModTab } from "@/components/chat/automod-tab";
 import { EmojiTab } from "@/components/chat/emoji-tab";
+import { StickersTab } from "@/components/chat/stickers-tab";
+import { SoundsTab } from "@/components/chat/sounds-tab";
 import { WebhooksTab } from "@/components/chat/webhooks-tab";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "webhooks" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "stickers" | "sounds" | "webhooks" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -169,6 +171,8 @@ export function ForgeSettingsPanel({
     if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
     if (can("manageForge")) list.push({ id: "automod", label: "AutoMod" });
     if (can("manageForge")) list.push({ id: "emoji", label: "Emoji" });
+    if (can("manageForge")) list.push({ id: "stickers", label: "Stickers" });
+    if (can("manageForge")) list.push({ id: "sounds", label: "Soundboard" });
     if (can("manageChannels")) list.push({ id: "webhooks", label: "Webhooks" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
@@ -251,6 +255,10 @@ export function ForgeSettingsPanel({
             <AutoModTab forge={forge} setNotice={setNotice} />
           ) : tab === "emoji" ? (
             <EmojiTab forge={forge} setNotice={setNotice} />
+          ) : tab === "stickers" ? (
+            <StickersTab forge={forge} setNotice={setNotice} />
+          ) : tab === "sounds" ? (
+            <SoundsTab forge={forge} setNotice={setNotice} />
           ) : tab === "webhooks" ? (
             <WebhooksTab forge={forge} setNotice={setNotice} />
           ) : tab === "bans" ? (

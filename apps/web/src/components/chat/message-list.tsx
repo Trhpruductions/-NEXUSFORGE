@@ -177,7 +177,7 @@ export function MessageList({
         const meta = authorMeta(message);
         const isSelf = message.authorId === selfId;
         // Polls can't be edited: people may already have voted on the question.
-        const canEdit = isSelf && !message.botId && !message.poll;
+        const canEdit = isSelf && !message.botId && !message.poll && !message.sticker;
         const canDelete = (isSelf || canModerate) && !message.optimistic;
         const isEditing = editingId === message.id;
 
@@ -287,6 +287,12 @@ export function MessageList({
                         </button>
                         <span>Enter to save, Esc to cancel</span>
                       </div>
+                    </div>
+                  ) : message.sticker ? (
+                    <div className="mt-1">
+                      {message.content.trim() ? <RichText content={message.content} context={mentionContext} /> : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={message.sticker.imageUrl} alt={`Sticker: ${message.sticker.name}`} title={message.sticker.name} className="h-40 w-40 object-contain" style={{ display: "block" }} />
                     </div>
                   ) : message.poll ? (
                     <PollCard

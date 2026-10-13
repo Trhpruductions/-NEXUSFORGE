@@ -289,6 +289,9 @@ async function broadcastVoiceOccupancy(channelId: string) {
   }
 }
 
+const SOUNDBOARD_COOLDOWN_MS = 2500;
+const soundboardLastPlayed = new Map<string, number>();
+
 /** Stage channels seen so far (their type never changes). */
 const stageChannels = new Set<string>();
 function broadcastStage(channelId: string) {
@@ -418,6 +421,31 @@ io.on("connection", (socket) => {
   });
 
   // Stage: raise/lower a hand, and moderators bring people up or move them down.
+  // Soundboard: play one of the forge's sounds for everyone in your voice channel.
+  socket.on("soundboard:play", async (payload: { channelId?: string; soundId?: string }) => {
+    if (!payload || typeof payload.channelId !== "string" || typeof payload.soundId !== "string") return;
+    const userId = socket.data.user.id;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    const now = Date.now();
+    if (now - (soundboardLastPlayed.get(userId) ?? 0) < SOUNDBOARD_COOLDOWN_MS) {
+      socket.emit("soundboard:error", { error: "Slow down a little before playing another sound." });
+      return;
+    }
+    const channel = await prisma.channel.findUnique({ where: { id: payload.channelId }, select: { forgeId: true } }).catch(() => null);
+    if (!channel) return;
+    const sound = await prisma.forgeSound.findFirst({ where: { id: payload.soundId, forgeId: channel.forgeId }, select: { id: true, name: true, emoji: true, soundUrl: true, volume: true } });
+    if (!sound) return;
+    const member = await loadMemberContext(userId, channel.forgeId);
+    if (!member || isTimedOut(member)) return;
+    // On a stage, only the people on stage can play sounds.
+    if (stageChannels.has(payload.channelId) && !stageSnapshot(payload.channelId).speakers.includes(userId)) {
+      socket.emit("soundboard:error", { error: "Only people on stage can play sounds." });
+      return;
+    }
+    soundboardLastPlayed.set(userId, now);
+    io.to(`voice:${payload.channelId}`).emit("soundboard:played", { channelId: payload.channelId, userId, ...sound, soundId: sound.id });
+  });
+
   socket.on("stage:raise", (payload: { channelId?: string; raised?: boolean }) => {
     if (!payload || typeof payload.channelId !== "string" || !stageChannels.has(payload.channelId)) return;
     if (!socket.rooms.has(`voice:${payload.channelId}`)) return;

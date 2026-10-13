@@ -23,7 +23,9 @@ function timeoutError(until: Date | null) {
 
 const createMessageSchema = z.object({
   channelId: z.string().uuid(),
-  content: z.string().min(1).max(4000),
+  // May be empty only when sending a sticker.
+  content: z.string().max(4000),
+  stickerId: z.string().uuid().optional(),
   // http(s) only: these render as links, and z.url() alone accepts javascript: URLs.
   attachments: z.array(z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Attachments must be http(s) links")).max(8).optional(),
   replyToId: z.string().uuid().optional(),
@@ -79,6 +81,7 @@ export const messageInclude = {
   startedThread: { select: { id: true, title: true, messageCount: true, lastMessageAt: true, archived: true } },
   // Polls aren't anonymous (like Discord): everyone in the channel sees who picked what.
   poll: { select: { id: true, options: true, allowMultiple: true, endsAt: true, closedAt: true, votes: { select: { optionId: true, userId: true } } } },
+  sticker: { select: { id: true, name: true, imageUrl: true } },
 } as const;
 
 function normalizeBotCommandName(raw: string) {
@@ -232,6 +235,14 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
+  if (!parsed.data.content.trim() && !parsed.data.stickerId) {
+    res.status(400).json({ error: "Message can't be empty" });
+    return;
+  }
+  if (parsed.data.stickerId && (parsed.data.poll || parsed.data.forumTitle)) {
+    res.status(400).json({ error: "A sticker is sent on its own" });
+    return;
+  }
 
   const channel = await prisma.channel.findUnique({
     where: { id: parsed.data.channelId },
@@ -345,6 +356,15 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     }
   }
 
+  // Stickers come from this forge only.
+  if (parsed.data.stickerId) {
+    const sticker = await prisma.forgeSticker.findFirst({ where: { id: parsed.data.stickerId, forgeId: channel.forgeId }, select: { id: true } });
+    if (!sticker) {
+      res.status(404).json({ error: "Sticker not found" });
+      return;
+    }
+  }
+
   let pollOptions: PollOption[] | null = null;
   if (parsed.data.poll) {
     if (parsed.data.forumTitle) {
@@ -372,6 +392,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
       attachments: parsed.data.attachments ?? [],
       replyToId: parsed.data.replyToId,
       threadId: thread?.id,
+      stickerId: parsed.data.stickerId,
       ...(pollOptions && parsed.data.poll
         ? {
             poll: {
@@ -516,7 +537,7 @@ messagesRouter.post("/", messageRateLimit, antiSpam, async (req, res) => {
     messageId: created.id,
     authorId: req.user!.id,
     mentionedUserIds,
-    preview: sanitizedContent.slice(0, 120),
+    preview: (sanitizedContent || (parsed.data.stickerId ? "Sent a sticker" : "")).slice(0, 120),
   };
   // Unread badges for a private channel go only to the people who can see it.
   if (viewerIds) {

@@ -373,6 +373,28 @@ export async function deleteForgeEmoji(accessToken: string, csrfToken: string, f
   await api.delete(`/api/forges/${forgeId}/emojis/${emojiId}`, { headers: authHeaders(accessToken, csrfToken) });
 }
 
+export type ForgeSticker = { id: string; name: string; description: string | null; imageUrl: string; creatorId: string; createdAt: string };
+export type ForgeSound = { id: string; name: string; emoji: string | null; soundUrl: string; volume: number; creatorId: string; createdAt: string };
+
+export async function listForgeStickers(accessToken: string, forgeId: string) {
+  return (await api.get<{ stickers: ForgeSticker[]; max: number }>(`/api/forges/${forgeId}/stickers`, { headers: authHeaders(accessToken) })).data;
+}
+export async function addForgeSticker(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; description?: string; imageUrl: string }) {
+  return (await api.post<{ sticker: ForgeSticker }>(`/api/forges/${forgeId}/stickers`, payload, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+export async function deleteForgeSticker(accessToken: string, csrfToken: string, forgeId: string, stickerId: string) {
+  await api.delete(`/api/forges/${forgeId}/stickers/${stickerId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+export async function listForgeSounds(accessToken: string, forgeId: string) {
+  return (await api.get<{ sounds: ForgeSound[]; max: number }>(`/api/forges/${forgeId}/sounds`, { headers: authHeaders(accessToken) })).data;
+}
+export async function addForgeSound(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; emoji?: string; soundUrl: string; volume: number }) {
+  return (await api.post<{ sound: ForgeSound }>(`/api/forges/${forgeId}/sounds`, payload, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+export async function deleteForgeSound(accessToken: string, csrfToken: string, forgeId: string, soundId: string) {
+  await api.delete(`/api/forges/${forgeId}/sounds/${soundId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export type AutoModRule = {
   id: string;
   forgeId: string;
@@ -505,6 +527,8 @@ export type Message = {
   startedThread?: ThreadSummary | null;
   /** A poll; the message content is its question. */
   poll?: MessagePoll | null;
+  /** A sticker sent as the message. */
+  sticker?: { id: string; name: string; imageUrl: string } | null;
   replyTo?: {
     id: string;
     content: string;
@@ -1918,7 +1942,7 @@ export async function toggleReaction(accessToken: string, csrfToken: string, mes
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[]; poll?: PollDraft },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[]; poll?: PollDraft; stickerId?: string },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),

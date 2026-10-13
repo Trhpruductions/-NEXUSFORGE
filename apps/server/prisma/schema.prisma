@@ -631,6 +631,35 @@ model ForgeEmoji {
   @@unique([forgeId, name])
 }
 
+/// A forge's stickers: larger images sent on their own as a message.
+model ForgeSticker {
+  id          String    @id @default(uuid())
+  forgeId     String
+  name        String
+  description String?   @db.VarChar(100)
+  imageUrl    String
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  messages    Message[]
+
+  @@unique([forgeId, name])
+}
+
+/// A forge's soundboard: short clips anyone in a voice channel can play for the room.
+model ForgeSound {
+  id        String   @id @default(uuid())
+  forgeId   String
+  name      String
+  emoji     String?  @db.VarChar(16)
+  soundUrl  String
+  /// 0.1 to 1.0
+  volume    Float    @default(1)
+  creatorId String
+  createdAt DateTime @default(now())
+
+  @@unique([forgeId, name])
+}
+
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
 /// DM reports go to platform staff. The message is copied at report time so deleting it
 /// doesn't destroy the evidence.
@@ -1050,6 +1079,9 @@ model Message {
   replies      Message[]    @relation("MessageReplies")
   startedThread Thread?     @relation("ThreadStarter")
   poll          Poll?
+  /// A sticker sent as the message (content may be empty).
+  stickerId     String?
+  sticker       ForgeSticker? @relation(fields: [stickerId], references: [id], onDelete: SetNull)
   savedBy       SavedMessage[]
 
   @@index([channelId, botId])

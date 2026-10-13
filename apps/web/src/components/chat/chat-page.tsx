@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, BarChart3, Bookmark, BookmarkCheck, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -52,7 +52,7 @@ import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { ThreadPanel } from "@/components/chat/thread-panel";
 import { ForumView } from "@/components/chat/forum-view";
-import { createThread, listForgeEmojis, listThreads } from "@/lib/api";
+import { createThread, listForgeEmojis, listForgeStickers, listThreads } from "@/lib/api";
 import { CustomEmoji } from "@/components/chat/rich-text";
 import { plainText } from "@/lib/plain-text";
 import { RichText } from "@/components/chat/rich-text";
@@ -310,7 +310,8 @@ function ChatInner() {
   };
 
   const sendMutation = useMutation({
-    mutationFn: (payload: { channelId: string; content: string; optimisticId: string; attachments?: string[]; replyToId?: string; poll?: PollDraft }) => postMessage(accessToken!, csrfToken!, payload),
+    mutationFn: (payload: { channelId: string; content: string; optimisticId: string; attachments?: string[]; replyToId?: string; poll?: PollDraft; stickerId?: string; sticker?: Message["sticker"] }) =>
+      postMessage(accessToken!, csrfToken!, { channelId: payload.channelId, content: payload.content, optimisticId: payload.optimisticId, attachments: payload.attachments, replyToId: payload.replyToId, poll: payload.poll, stickerId: payload.stickerId }),
     onMutate: async (payload) => {
       const key = ["messages", payload.channelId, accessToken];
       await queryClient.cancelQueries({ queryKey: key });
@@ -329,6 +330,7 @@ function ChatInner() {
         replyTo: replyTarget && replyTarget.id === payload.replyToId ? { id: replyTarget.id, content: replyTarget.content, authorId: replyTarget.authorId, botName: replyTarget.botName, author: replyTarget.author ? { id: replyTarget.author.id, username: replyTarget.author.username } : null } : null,
         reactions: [],
         author: user ? { id: user.id, username: user.username, avatar: user.avatar, premium: user.premium } : undefined,
+        sticker: payload.sticker ?? null,
         // Shown (disabled) until the server confirms it.
         poll: payload.poll
           ? { id: payload.optimisticId, options: payload.poll.options.map((text, index) => ({ id: `tmp-${index}`, text })), allowMultiple: payload.poll.allowMultiple, endsAt: new Date(Date.now() + payload.poll.durationHours * 3600_000).toISOString(), closedAt: null, votes: [] }
@@ -612,6 +614,29 @@ function ChatInner() {
   });
   const emojiMap = useMemo(() => Object.fromEntries((emojiQuery.data?.emojis ?? []).map((emoji) => [emoji.name, emoji.imageUrl])), [emojiQuery.data]);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  // This forge's stickers, for the sticker picker.
+  const stickerQuery = useQuery({
+    queryKey: ["forge-stickers", selectedForgeId, accessToken],
+    queryFn: () => listForgeStickers(accessToken!, selectedForgeId!),
+    enabled: Boolean(accessToken && selectedForgeId),
+    staleTime: 60_000,
+  });
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const sendSticker = async (sticker: { id: string; name: string; imageUrl: string }) => {
+    if (!channelId) return;
+    setStickerPickerOpen(false);
+    if (timedOutUntil) {
+      setStatus(`You're timed out until ${timedOutUntil.toLocaleTimeString()}.`);
+      return;
+    }
+    const replyToId = replyTarget?.id;
+    setReplyTarget(null);
+    try {
+      await sendMutation.mutateAsync({ channelId, content: "", optimisticId: `tmp-${crypto.randomUUID()}`, replyToId, stickerId: sticker.id, sticker });
+    } catch (error) {
+      setStatus(getApiErrorMessage(error));
+    }
+  };
   useEffect(() => {
     if (!accessToken || !selectedForgeId) return;
     const socket = getSocket(accessToken);
@@ -1091,6 +1116,26 @@ function ChatInner() {
                     <input ref={fileInput} type="file" multiple className="hidden" onChange={(event) => setPendingFiles((current) => [...current, ...Array.from(event.target.files ?? [])])} />
                     <button type="button" onClick={() => fileInput.current?.click()} className="text-slate-500 hover:text-amber-200" title="Attach files"><Paperclip className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setPollOpen(true)} className="text-slate-500 hover:text-violet-200" title="Create a poll" aria-label="Create a poll"><BarChart3 className="h-4 w-4" /></button>
+                    <div className="relative">
+                      <button type="button" onClick={() => setStickerPickerOpen((value) => !value)} className="text-slate-500 hover:text-amber-200" title="Stickers" aria-label="Stickers" aria-expanded={stickerPickerOpen}><Sticker className="h-4 w-4" /></button>
+                      {stickerPickerOpen ? (
+                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-30 w-72 rounded-xl border border-white/10 bg-[#0d1119] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+                          <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300/80">{forge?.name ?? "This forge"} stickers</p>
+                          {stickerQuery.data?.stickers.length ? (
+                            <div className="grid max-h-64 grid-cols-3 gap-1 overflow-y-auto">
+                              {stickerQuery.data.stickers.map((sticker) => (
+                                <button key={sticker.id} type="button" onClick={() => void sendSticker(sticker)} title={sticker.description || sticker.name} aria-label={`Send sticker ${sticker.name}`} className="rounded-lg p-1 hover:bg-white/10">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={sticker.imageUrl} alt="" className="mx-auto h-16 w-16 object-contain" style={{ display: "block" }} />
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="px-1 py-3 text-xs text-slate-400">No stickers yet. Server managers can add them in server settings, under Stickers.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="relative">
                       <button type="button" onClick={() => setEmojiPickerOpen((value) => !value)} className="text-slate-500 hover:text-amber-200" title="Emoji" aria-expanded={emojiPickerOpen}><Smile className="h-4 w-4" /></button>
                       {emojiPickerOpen ? (

@@ -51,6 +51,32 @@ export function VoiceEngine() {
     };
   }, [sessionChannelId, accessToken]);
 
+  // Soundboard: someone in the room played a sound. Played here (not through the call),
+  // at the sound's volume times your output volume, on your chosen speaker, unless deafened.
+  useEffect(() => {
+    if (!sessionChannelId || !accessToken) return;
+    const socket = getSocket(accessToken);
+    const onPlayed = (payload: { channelId: string; userId: string; name: string; emoji: string | null; soundUrl: string; volume: number }) => {
+      if (payload.channelId !== sessionChannelId) return;
+      useVoiceStore.getState().setLastSound({ userId: payload.userId, name: payload.name, emoji: payload.emoji, at: Date.now() });
+      if (useVoiceStore.getState().flags.deafened) return;
+      const audio = new Audio(payload.soundUrl);
+      audio.volume = Math.max(0, Math.min(1, payload.volume * ((voicePrefsRef.current?.outputVolume ?? 100) / 100)));
+      const sinkId = voicePrefsRef.current?.outputDeviceId;
+      const withSink = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+      const start = () => void audio.play().catch(() => undefined);
+      if (sinkId && withSink.setSinkId) void withSink.setSinkId(sinkId).catch(() => undefined).finally(start);
+      else start();
+    };
+    const onError = (payload: { error: string }) => useVoiceStore.getState().setError(payload.error);
+    socket.on("soundboard:played", onPlayed);
+    socket.on("soundboard:error", onError);
+    return () => {
+      socket.off("soundboard:played", onPlayed);
+      socket.off("soundboard:error", onError);
+    };
+  }, [sessionChannelId, accessToken]);
+
   // Stage channels: who's speaking, who has a hand up, who runs the stage.
   const stageSession = Boolean(session?.stage);
   useEffect(() => {
