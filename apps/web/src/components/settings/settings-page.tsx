@@ -131,7 +131,7 @@ function SettingsInner() {
   const highlightProtection = searchParams?.get("verify") === "1";
   const highlightAge = searchParams?.get("age") === "1";
   const queryClient = useQueryClient();
-  const { accessToken, csrfToken, user, clearSession, fetchMe } = useAuthStore();
+  const { accessToken, csrfToken, user, clearSession, fetchMe, hydrated } = useAuthStore();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
@@ -341,6 +341,18 @@ function SettingsInner() {
   const forge = forgeQuery.data?.forge;
   const isOwner = forge?.ownerId === user?.id;
 
+  if (hydrated && !accessToken) {
+    const back = `/app/settings${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
+    return (
+      <p className="text-sm text-slate-300">
+        You&apos;re signed out.{" "}
+        <Link href={`/login?redirect=${encodeURIComponent(back)}`} className="font-semibold text-amber-200 underline hover:text-white">Sign in</Link> to see your settings.
+      </p>
+    );
+  }
+  if (settingsQuery.isError) {
+    return <p className="text-sm text-rose-300">Settings couldn&apos;t load: {errorText(settingsQuery.error)}. Refresh the page to try again.</p>;
+  }
   if (settingsQuery.isLoading || !privacy) {
     return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading settings...</p>;
   }
