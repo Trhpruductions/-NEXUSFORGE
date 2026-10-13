@@ -1046,7 +1046,13 @@ authRouter.post("/core-plus/activate", requireAuth, async (req, res) => {
   });
 });
 
-authRouter.get("/core-plus/telemetry", requireAuth, async (_req, res) => {
+authRouter.get("/core-plus/telemetry", requireAuth, async (req, res) => {
+  // Platform-wide subscription numbers are business data: staff only.
+  const viewer = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { appRole: true, isAdmin: true } });
+  if (!viewer || !hasAdminAccess(viewer.appRole, viewer.isAdmin)) {
+    res.status(403).json({ error: "Staff only" });
+    return;
+  }
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 

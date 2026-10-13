@@ -364,7 +364,8 @@ export function ForgeChatClient() {
   const corePlusTelemetryQuery = useQuery({
     queryKey: ["core-plus-telemetry", accessToken],
     queryFn: () => getCorePlusTelemetry(accessToken!),
-    enabled: Boolean(accessToken),
+    // Staff only (the server refuses everyone else).
+    enabled: Boolean(accessToken && user?.isAdmin),
     refetchInterval: 15000,
   });
 
@@ -2207,6 +2208,7 @@ export function ForgeChatClient() {
         </div>
       ) : null}
 
+      {user?.isAdmin ? (
       <div className="nexus-panel relative rounded-[14px] border border-amber-500/25 px-4 py-3">
         <div className="pointer-events-none absolute right-2 top-2 h-20 w-20 rounded-[14px] bg-amber-500/15 blur-2xl" />
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2241,6 +2243,7 @@ export function ForgeChatClient() {
         </div>
         <p className="mt-2 text-xs text-slate-400">{tierDistributionLabel}</p>
       </div>
+      ) : null}
 
       <div className={`grid min-h-[84vh] grid-cols-1 gap-2 xl:gap-3 ${isCompactLayout ? "@3xl:grid-cols-[200px_220px_minmax(0,1fr)] @6xl:grid-cols-[200px_220px_minmax(0,1fr)_280px]" : "@3xl:grid-cols-[240px_250px_minmax(0,1fr)] @6xl:grid-cols-[250px_260px_minmax(0,1fr)_320px]"}`}>
       <motion.aside
