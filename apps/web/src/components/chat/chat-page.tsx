@@ -47,7 +47,9 @@ import { PollComposer } from "@/components/chat/poll-composer";
 import { MessageAttachments } from "@/components/chat/message-attachments";
 import { useSavedMessages } from "@/components/chat/use-saved";
 import { MemberList } from "@/components/chat/member-list";
-import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
+import dynamic from "next/dynamic";
+// The server settings panel is large and only opened on demand.
+const ForgeSettingsPanel = dynamic(() => import("@/components/chat/forge-settings-panel").then((mod) => mod.ForgeSettingsPanel), { ssr: false });
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";

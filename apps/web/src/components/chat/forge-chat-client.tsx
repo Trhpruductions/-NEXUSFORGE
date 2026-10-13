@@ -2,7 +2,6 @@
 
 import axios from "axios";
 import Image from "next/image";
-import QRCode from "qrcode";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -64,7 +63,9 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
-import { ForgeSettingsPanel } from "@/components/chat/forge-settings-panel";
+import dynamic from "next/dynamic";
+// The settings panel is large and only opened on demand.
+const ForgeSettingsPanel = dynamic(() => import("@/components/chat/forge-settings-panel").then((mod) => mod.ForgeSettingsPanel), { ssr: false });
 import { MessageList } from "@/components/chat/message-list";
 import { MemberList } from "@/components/chat/member-list";
 import { plainText } from "@/lib/plain-text";
@@ -685,14 +686,18 @@ export function ForgeChatClient() {
       return;
     }
 
-    void QRCode.toDataURL(selectedTaggedInviteUrl, {
-      margin: 1,
-      width: 220,
-      color: {
-        dark: "#e2f3ff",
-        light: "#00000000",
-      },
-    })
+    // The QR library is only loaded when an invite QR is actually shown.
+    void import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(selectedTaggedInviteUrl, {
+          margin: 1,
+          width: 220,
+          color: {
+            dark: "#e2f3ff",
+            light: "#00000000",
+          },
+        }),
+      )
       .then((dataUrl) => setSelectedInviteQrCode(dataUrl))
       .catch(() => setSelectedInviteQrCode(""));
   }, [selectedTaggedInviteUrl]);

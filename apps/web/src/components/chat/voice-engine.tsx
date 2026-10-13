@@ -3,7 +3,9 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMyLimits, getSettings } from "@/lib/api";
-import { ConnectionState, Room, RoomEvent, Track } from "livekit-client";
+// LiveKit is only needed when the server hands out a LiveKit session, so the library is
+// loaded on demand (it used to ship in the app shell bundle for every page).
+import type { Room } from "livekit-client";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
@@ -26,7 +28,9 @@ export function VoiceEngine() {
   // Plan limits: ultra video (1440p60) is a Core+ Plus perk; everyone gets HD.
   const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
   const hdVideo = Boolean(limitsQuery.data?.ultraVideo);
+  const hdVideoRef = useRef(hdVideo);
   useEffect(() => {
+    hdVideoRef.current = hdVideo;
     meshRef.current?.setHdVideo(hdVideo);
   }, [hdVideo]);
   const voicePrefs = settingsQuery.data?.preferences.voice;
@@ -147,7 +151,7 @@ export function VoiceEngine() {
       onError: (message) => useVoiceStore.getState().setError(message),
     });
     meshRef.current = mesh;
-    mesh.setHdVideo(Boolean(limitsQuery.data?.ultraVideo));
+    mesh.setHdVideo(hdVideoRef.current);
     if (session.stage) mesh.setStage(useVoiceStore.getState().stage?.speakers ?? []);
     void mesh.start().then(() => {
       if (meshRef.current === mesh) useVoiceStore.getState().setConnection("connected");
@@ -229,15 +233,23 @@ export function VoiceEngine() {
     const audioHost = audioHostRef.current;
     const socket = getSocket(accessToken);
     const store = useVoiceStore.getState();
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    let cancelled = false;
+    let room: Room | null = null;
+    store.setConnection("connecting");
+    store.setError(null);
+
+    void import("livekit-client").then(({ Room: LiveKitRoom, RoomEvent, Track }) => {
+    if (cancelled) return;
+    room = new LiveKitRoom({ adaptiveStream: true, dynacast: true });
     roomRef.current = room;
+    const liveRoom = room;
 
     const syncParticipants = () =>
-      useVoiceStore.getState().setRemote(Array.from(room.remoteParticipants.values()).map((participant) => ({ userId: participant.identity, name: participant.name, connected: true })));
+      useVoiceStore.getState().setRemote(Array.from(liveRoom.remoteParticipants.values()).map((participant) => ({ userId: participant.identity, name: participant.name, connected: true })));
     const syncAudioTracks = () => {
       if (!audioHost) return;
       audioHost.replaceChildren();
-      room.remoteParticipants.forEach((participant) => {
+      liveRoom.remoteParticipants.forEach((participant) => {
         participant.getTrackPublications().forEach((publication) => {
           if (publication.kind !== Track.Kind.Audio || !publication.track) return;
           const element = publication.track.attach();
@@ -247,51 +259,56 @@ export function VoiceEngine() {
       });
     };
 
-    room.on(RoomEvent.Connected, () => {
+    liveRoom.on(RoomEvent.Connected, () => {
       useVoiceStore.getState().setConnection("connected");
       syncParticipants();
       syncAudioTracks();
     });
-    room.on(RoomEvent.Reconnecting, () => useVoiceStore.getState().setConnection("reconnecting"));
-    room.on(RoomEvent.Reconnected, () => useVoiceStore.getState().setConnection("connected"));
-    room.on(RoomEvent.Disconnected, () => {
+    liveRoom.on(RoomEvent.Reconnecting, () => useVoiceStore.getState().setConnection("reconnecting"));
+    liveRoom.on(RoomEvent.Reconnected, () => useVoiceStore.getState().setConnection("connected"));
+    liveRoom.on(RoomEvent.Disconnected, () => {
       useVoiceStore.getState().setConnection("disconnected");
       useVoiceStore.getState().setRemote([]);
       audioHost?.replaceChildren();
     });
-    room.on(RoomEvent.ParticipantConnected, syncParticipants);
-    room.on(RoomEvent.ParticipantDisconnected, syncParticipants);
-    room.on(RoomEvent.TrackSubscribed, syncAudioTracks);
-    room.on(RoomEvent.TrackUnsubscribed, syncAudioTracks);
-    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+    liveRoom.on(RoomEvent.ParticipantConnected, syncParticipants);
+    liveRoom.on(RoomEvent.ParticipantDisconnected, syncParticipants);
+    liveRoom.on(RoomEvent.TrackSubscribed, syncAudioTracks);
+    liveRoom.on(RoomEvent.TrackUnsubscribed, syncAudioTracks);
+    liveRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       const next: Record<string, number> = {};
-      for (const speaker of speakers) next[speaker.identity === room.localParticipant.identity ? "self" : speaker.identity] = Math.round(speaker.audioLevel * 100);
+      for (const speaker of speakers) next[speaker.identity === liveRoom.localParticipant.identity ? "self" : speaker.identity] = Math.round(speaker.audioLevel * 100);
       useVoiceStore.getState().setLevels(next);
     });
 
-    store.setConnection("connecting");
-    store.setError(null);
     socket.emit("voice:join", session.channelId);
-    room
+    liveRoom
       .connect(session.wsUrl, session.token, { autoSubscribe: true })
-      .then(() => room.localParticipant.setMicrophoneEnabled(!flagsRef.current.muted))
+      .then(() => liveRoom.localParticipant.setMicrophoneEnabled(!flagsRef.current.muted))
       .catch((connectError: unknown) => {
         useVoiceStore.getState().setError(connectError instanceof Error ? connectError.message : "Unable to connect to voice.");
         useVoiceStore.getState().setConnection("disconnected");
       });
+    }).catch(() => {
+      useVoiceStore.getState().setError("Couldn't load voice. Check your connection and try again.");
+      useVoiceStore.getState().setConnection("disconnected");
+    });
 
     return () => {
-      room.removeAllListeners();
-      void room.disconnect();
-      if (roomRef.current === room) roomRef.current = null;
-      socket.emit("voice:leave", session.channelId);
+      cancelled = true;
+      if (room) {
+        room.removeAllListeners();
+        void room.disconnect();
+        if (roomRef.current === room) roomRef.current = null;
+        socket.emit("voice:leave", session.channelId);
+      }
       audioHost?.replaceChildren();
     };
   }, [session, accessToken]);
 
   useEffect(() => {
     const room = roomRef.current;
-    if (!room || room.state !== ConnectionState.Connected) return;
+    if (!room || room.state !== "connected") return;
     void room.localParticipant.setMicrophoneEnabled(!flags.muted);
   }, [flags.muted]);
 
