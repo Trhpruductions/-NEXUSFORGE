@@ -6,9 +6,10 @@ import { comparePassword, hashPassword } from "../lib/password.js";
 import { randomToken, sha256, signAccessToken } from "../lib/jwt.js";
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
-import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
+import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
+import { sendEmail } from "../lib/delivery.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
@@ -789,11 +790,15 @@ authRouter.post("/forgot-password", async (req, res) => {
     return;
   }
 
+  // Same answer whether or not the address has an account, and the reset link only ever
+  // goes to the inbox. (It used to be returned in this response, so knowing someone's
+  // email was enough to take over their account.)
+  const answer = { message: "If that email has an account, we've sent a link to reset the password. It works for 30 minutes." };
   const email = parsed.data.email.toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, username: true, email: true, deletedAt: true } });
 
-  if (!user) {
-    res.status(200).json({ message: "If the email exists, a reset token has been issued" });
+  if (!user || user.deletedAt) {
+    res.status(200).json(answer);
     return;
   }
 
@@ -806,10 +811,22 @@ authRouter.post("/forgot-password", async (req, res) => {
     },
   });
 
-  res.status(200).json({
-    message: "Password reset token generated for integration",
-    token: resetToken,
-  });
+  const link = `${env.APP_WEB_URL.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(resetToken)}`;
+  void sendEmail(
+    user.email,
+    "Reset your Vexora Gaming password",
+    `Hi ${user.username},
+
+Someone (hopefully you) asked to reset your Vexora Gaming password. Open this link within 30 minutes to choose a new one:
+
+${link}
+
+If it wasn't you, you can ignore this email; your password hasn't changed.
+
+Vexora Gaming`,
+  ).catch((error) => console.error("[AUTH] reset email failed", error));
+
+  res.status(200).json(answer);
 });
 
 authRouter.post("/reset-password", async (req, res) => {
@@ -902,6 +919,15 @@ authRouter.post("/core-plus/activate", requireAuth, async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
+  }
+  // With billing connected, Core+ comes from checkout (the Stripe webhook sets the tier).
+  // Only staff may switch it on directly, for testing.
+  if (billingEnforced()) {
+    const actor = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { appRole: true, isAdmin: true } });
+    if (!actor || !hasAdminAccess(actor.appRole, actor.isAdmin)) {
+      res.status(402).json({ error: "Core+ is activated through checkout on the Pricing page.", code: "PAYMENT_REQUIRED" });
+      return;
+    }
   }
 
   const user = await prisma.user.findUnique({

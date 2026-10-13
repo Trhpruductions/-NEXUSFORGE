@@ -127,11 +127,14 @@ function isOriginAllowed(origin?: string) {
     return true;
   }
 
-  if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
-    return /^https:\/\//i.test(origin);
-  }
-
+  // There used to be a fallback here that let ANY https:// site in when only local
+  // origins were configured. With credentialed CORS that lets any website read a signed-in
+  // user's API responses. Public addresses (a domain, a tunnel) go in CLIENT_ORIGIN.
   return false;
+}
+
+if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
+  console.warn("[cors] Only local origins are allowed. To serve the app from a public address, add it to CLIENT_ORIGIN (comma-separated).");
 }
 
 const io = new Server(httpServer, {

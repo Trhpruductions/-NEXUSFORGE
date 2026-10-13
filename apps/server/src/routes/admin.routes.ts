@@ -5,6 +5,7 @@ import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { safeUser } from "../lib/safe-user.js";
 import {
   buildSampleGenerationConflictResponse,
   buildSampleGenerationCooldownResponse,
@@ -1188,7 +1189,7 @@ adminRouter.post("/profile-tools/reputation", async (req, res) => {
     },
   );
 
-  res.json({ user: updatedUser });
+  res.json({ user: safeUser(updatedUser) });
 });
 
 adminRouter.get("/profile-tools/audit", async (req, res) => {
@@ -1615,7 +1616,7 @@ adminRouter.post("/users/:userId/creator-config", async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.issues });
@@ -1656,7 +1657,7 @@ adminRouter.post("/users/:userId/live-status", async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     res.status(400).json({ error: "Failed to update live status" });
   }

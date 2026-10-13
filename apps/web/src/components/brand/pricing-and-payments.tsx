@@ -200,7 +200,7 @@ function formatCountdown(msRemaining: number): string {
 }
 
 export function PricingAndPayments({ checkoutState }: { checkoutState?: string }) {
-  const { accessToken, csrfToken } = useAuthStore();
+  const { accessToken, csrfToken, user } = useAuthStore();
   const [interval, setInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [pendingCheckout, setPendingCheckout] = useState<{ featureCode: PaidFeatureCode; tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" } | null>(null);
   const [countdownNow, setCountdownNow] = useState(Date.now());
@@ -236,12 +236,13 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
   const billingReady = billing?.ready ?? false;
   const missingTierPrices = billing?.missing.tierPrices ?? [];
   const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
+  // Customers get a plain message; the setup details are only for staff.
   const billingStatusMessage = !billingReady
     ? billing
-      ? `Billing is in setup mode. Missing tier prices: ${missingTierPrices.length}; missing add-on prices: ${missingAddOnPrices.length}.`
-      : "Checking billing readiness..."
+      ? "Purchases aren't open yet. Everything is free to use while we finish setting up payments."
+      : "Checking billing..."
     : null;
-  const billingStatusDetail = !billingReady && billing
+  const billingStatusDetail = !billingReady && billing && user?.isAdmin
     ? [
         !billing.configured.stripeSecretKey ? "Missing STRIPE_SECRET_KEY" : null,
         missingTierPrices.length ? `Missing tier IDs: ${missingTierPrices.slice(0, 4).join(", ")}${missingTierPrices.length > 4 ? "..." : ""}` : null,

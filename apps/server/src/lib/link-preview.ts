@@ -218,3 +218,38 @@ export async function getLinkPreview(raw: string): Promise<LinkPreview | null> {
   cache.set(key, { at: Date.now(), value });
   return value;
 }
+
+/**
+ * POST JSON to an outside URL with the same protections as safeFetch (public addresses
+ * only, checked at connect time; http/https on 80/443), no redirects, a time limit and a
+ * capped response. Used for developer webhooks, whose URL any developer can choose.
+ */
+export function safePostJson(raw: string, body: string, headers: Record<string, string>, timeoutMs = 5000): Promise<{ status: number; text: string } | null> {
+  const url = checkUrl(raw);
+  if (!url) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const client = url.protocol === "https:" ? https : http;
+    const request = client.request(
+      url,
+      {
+        method: "POST",
+        lookup: guardedLookup as unknown as typeof dns.lookup,
+        headers: { "User-Agent": "VexoraWebhooks/1.0", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body), ...headers },
+        timeout: timeoutMs,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        response.on("data", (chunk: Buffer) => {
+          size += chunk.length;
+          if (size <= 4096) chunks.push(chunk);
+        });
+        response.on("end", () => resolve({ status: response.statusCode ?? 0, text: Buffer.concat(chunks).toString("utf8").slice(0, 4096) }));
+        response.on("error", () => resolve(null));
+      },
+    );
+    request.on("timeout", () => request.destroy(new Error("Timed out")));
+    request.on("error", () => resolve(null));
+    request.end(body);
+  });
+}

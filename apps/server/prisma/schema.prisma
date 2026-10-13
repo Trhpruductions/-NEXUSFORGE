@@ -1006,6 +1006,7 @@ model ForgeMember {
   roleLinks MemberRole[]
 
   @@unique([userId, forgeId])
+  @@index([forgeId])
 }
 
 model Channel {
@@ -1122,6 +1123,7 @@ model Thread {
   channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
   starterMessage Message?  @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: SetNull)
   messages       Message[]
+  @@index([channelId, lastMessageAt])
 }
 
 model Role {
@@ -1145,6 +1147,7 @@ model MemberRole {
   role          Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([forgeMemberId, roleId])
+  @@index([roleId])
 }
 
 model Friend {
@@ -1160,6 +1163,7 @@ model Friend {
   receiver   User             @relation("FriendReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+  @@index([receiverId])
 }
 
 model DirectMessageThread {
@@ -1182,6 +1186,7 @@ model DirectMessageParticipant {
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([threadId, userId])
+  @@index([userId])
 }
 
 model DirectMessage {

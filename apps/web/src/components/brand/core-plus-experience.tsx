@@ -136,12 +136,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
   const billingReady = billing?.ready ?? false;
   const missingTierPrices = billing?.missing.tierPrices ?? [];
   const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
+  // Customers get a plain message; the setup details are only for staff.
   const billingStatusMessage = !billingReady
     ? billing
-      ? `Billing is currently in setup mode. Missing tier prices: ${missingTierPrices.length}; missing add-on prices: ${missingAddOnPrices.length}.`
-      : "Checking billing readiness..."
+      ? "Purchases aren't open yet. Everything is free to use while we finish setting up payments."
+      : "Checking billing..."
     : null;
-  const billingStatusDetail = !billingReady && billing
+  const billingStatusDetail = !billingReady && billing && user?.isAdmin
     ? [
         !billing.configured.stripeSecretKey ? "Missing STRIPE_SECRET_KEY" : null,
         missingTierPrices.length ? `Missing tier IDs: ${missingTierPrices.slice(0, 4).join(", ")}${missingTierPrices.length > 4 ? "..." : ""}` : null,
@@ -154,7 +155,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
     ? ((activationMutation.error.response?.data as { error?: string } | undefined)?.error ?? activationMutation.error.message)
     : activationMutation.error instanceof Error
       ? activationMutation.error.message
-      : "Checkout session creation failed. Verify Stripe config and retry.";
+      : "Couldn't start checkout. Please try again in a moment.";
   const portalErrorMessage = axios.isAxiosError(portalMutation.error)
     ? ((portalMutation.error.response?.data as { error?: string } | undefined)?.error ?? portalMutation.error.message)
     : portalMutation.error instanceof Error

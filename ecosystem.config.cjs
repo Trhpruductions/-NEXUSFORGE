@@ -28,7 +28,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         NEXT_PUBLIC_API_URL: "http://127.0.0.1:4001",
-        NEXUSFORGE_AGE_GATE_SECRET: "nexusforge-local-age-gate-secret-change-me-2026",
+        // Age-gate signing secret: set VEXORA_AGE_GATE_SECRET in apps/web/.env.local (never commit it).
       },
     },
     {

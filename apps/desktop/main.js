@@ -100,8 +100,10 @@ const defaultPackagedHostedStartUrl = "https://www.nexusforge.app/app";
 const defaultPackagedHostedFallbackUrl = "https://www.nexusforge.app/download.html";
 const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
-const defaultHostedCertBypass = app.isPackaged || /(^|\.)nexusforge\.app$/i.test(new URL(configuredStartUrl || "https://www.nexusforge.app/app").hostname);
-const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", defaultHostedCertBypass);
+// Certificate checks stay ON unless someone deliberately sets
+// NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=true (e.g. testing against a self-signed dev host).
+// Turning them off by default let anyone on the network impersonate the server.
+const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", false);
 if (allowHostedCertBypass) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   app.commandLine.appendSwitch("ignore-certificate-errors");

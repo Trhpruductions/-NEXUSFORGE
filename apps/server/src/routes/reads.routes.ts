@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -29,26 +30,36 @@ async function computeForgeUnreads(userId: string, forgeId: string): Promise<Cha
   });
   const stateByChannel = new Map<string, (typeof states)[number]>(states.map((state) => [state.channelId, state] as const));
 
-  const results = await Promise.all(
-    channelIds.map(async (channelId) => {
-      const state = stateByChannel.get(channelId);
-      const unread = await prisma.message.count({
-        where: {
-          channelId,
-          ...(state ? { createdAt: { gt: state.lastReadAt } } : {}),
-          NOT: { authorId: userId },
-          threadId: null,
-        },
-      });
-      return {
-        channelId,
-        unread,
-        mentions: state?.mentionCount ?? 0,
-        lastReadAt: state?.lastReadAt.toISOString() ?? null,
-      };
-    }),
-  );
-  return results;
+  const counts = await countUnread(userId, channelIds);
+  return channelIds.map((channelId) => {
+    const state = stateByChannel.get(channelId);
+    return {
+      channelId,
+      unread: counts.get(channelId) ?? 0,
+      mentions: state?.mentionCount ?? 0,
+      lastReadAt: state?.lastReadAt.toISOString() ?? null,
+    };
+  });
+}
+
+/**
+ * Unread messages per channel in ONE query (it used to be one count per channel, and
+ * the server rail asked for every channel of every forge on each load). Counts channel
+ * messages (not thread replies) newer than your last read that someone else sent,
+ * bots and webhooks included.
+ */
+async function countUnread(userId: string, channelIds: string[]) {
+  if (!channelIds.length) return new Map<string, number>();
+  const rows: Array<{ channelId: string; unread: bigint }> = await prisma.$queryRaw(Prisma.sql`
+    SELECT m."channelId" AS "channelId", COUNT(*) AS unread
+    FROM "Message" m
+    LEFT JOIN "ChannelReadState" s ON s."channelId" = m."channelId" AND s."userId" = ${userId}
+    WHERE m."channelId" IN (${Prisma.join(channelIds)})
+      AND m."threadId" IS NULL
+      AND m."authorId" IS DISTINCT FROM ${userId}
+      AND (s."lastReadAt" IS NULL OR m."createdAt" > s."lastReadAt")
+    GROUP BY m."channelId"`);
+  return new Map(rows.map((row) => [row.channelId, Number(row.unread)] as const));
 }
 
 /** Per-forge totals for the server rail. */

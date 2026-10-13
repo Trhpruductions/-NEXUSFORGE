@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { safeUser } from "../lib/safe-user.js";
 import { achievementProgress, evaluateAchievements } from "../lib/achievements.js";
 import { hasAdminAccess } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -144,7 +145,7 @@ profilesRouter.post("/activity", requireAuth, async (req, res) => {
           currentActivity: null,
         },
       });
-      res.json(updated);
+      res.json(safeUser(updated));
       return;
     }
 
@@ -159,7 +160,7 @@ profilesRouter.post("/activity", requireAuth, async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     res.status(400).json({ error: "Failed to update activity" });
   }

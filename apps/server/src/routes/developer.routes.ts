@@ -2,6 +2,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { safePostJson } from "../lib/link-preview.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
@@ -423,41 +424,27 @@ developerRouter.post("/webhooks/:webhookId/test", requireCsrf, async (req, res) 
     message: "This is a test payload from Vexora Gaming webhook delivery.",
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
   try {
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-NexusForge-Webhook-Event": "webhook.test",
-        "X-NexusForge-Webhook-Subscription-Id": webhook.id,
-      },
-      body: JSON.stringify(payload),
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    // Guarded like real deliveries: public http(s) addresses only, no redirects.
+    const response = await safePostJson(webhook.url, JSON.stringify(payload), {
+      "X-Vexora-Webhook-Event": "webhook.test",
+      "X-Vexora-Webhook-Subscription-Id": webhook.id,
+    }, 10000);
 
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      res.status(502).json({
-        error: "Webhook delivery failed",
-        status: response.status,
-        statusText: response.statusText,
-        response: responseText.slice(0, 1000),
-      });
+    if (!response) {
+      res.status(502).json({ error: "Webhook delivery failed", details: "The URL couldn't be reached, or points to a private or local address (only public http/https on ports 80 and 443 are allowed)." });
+      return;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      res.status(502).json({ error: "Webhook delivery failed", status: response.status, response: response.text.slice(0, 1000) });
       return;
     }
 
-    res.json({ ok: true, status: response.status, response: responseText.slice(0, 1000) });
+    res.json({ ok: true, status: response.status, response: response.text.slice(0, 1000) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Webhook test delivery failed:", message);
     res.status(502).json({ error: "Webhook test delivery failed", details: message });
-  } finally {
-    clearTimeout(timeoutId);
   }
 });
 

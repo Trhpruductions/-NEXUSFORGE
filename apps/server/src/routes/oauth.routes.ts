@@ -82,6 +82,7 @@ export async function issueClientCredentialsToken(
           | null
         >;
         update: (args: { where: { id: string }; data: { usedAt: Date } }) => Promise<unknown>;
+        updateMany: (args: { where: { id: string; usedAt: null }; data: { usedAt: Date } }) => Promise<{ count: number }>;
       };
       user: {
         findUnique: (args: { where: { id: string }; select: Record<string, boolean> }) => Promise<
@@ -150,10 +151,17 @@ export async function issueClientCredentialsToken(
       } as const;
     }
 
-    await data.db.oAuthAuthorizationCode.update({
-      where: { id: authorizationCode.id },
+    // Claim the code atomically: two requests racing with the same code get one token.
+    const claimed = await data.db.oAuthAuthorizationCode.updateMany({
+      where: { id: authorizationCode.id, usedAt: null },
       data: { usedAt: new Date() },
     });
+    if (claimed.count !== 1) {
+      return {
+        status: 400,
+        body: { error: "invalid_grant", error_description: "Authorization code is invalid or has expired." },
+      } as const;
+    }
 
     const user = authorizationCode.user;
     const accessToken = signAccessToken({
@@ -337,6 +345,15 @@ oauthRouter.get("/authorize", async (req, res) => {
   const user = await getSessionUser(req);
   if (!user) {
     res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  // There's no consent screen yet, and a code here becomes a full session. Until there is
+  // one, an app may only sign in the developer who owns it (enough to test it); otherwise
+  // any registered app could take over whoever opened its link.
+  const clientId = typeof req.query.client_id === "string" ? req.query.client_id : "";
+  const client = clientId ? await prisma.oAuthClient.findUnique({ where: { clientId }, select: { userId: true } }) : null;
+  if (client && client.userId !== user.id) {
+    res.status(403).json({ error: "access_denied", error_description: "This app can't sign in other people yet: Vexora doesn't have an approval screen for third-party apps." });
     return;
   }
 

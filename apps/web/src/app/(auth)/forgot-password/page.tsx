@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const payload = await forgotPassword(values);
-      setResult(payload.token ? `${payload.message} Token: ${payload.token}` : payload.message);
+      setResult(payload.message);
     } catch (error) {
       setServerError(getApiErrorMessage(error));
     }
@@ -47,19 +47,19 @@ export default function ForgotPasswordPage() {
         <>
           <p className="nexus-eyebrow text-amber-200">Recovery Rail</p>
           <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white">
-            Recover access without breaking session trust.
+            Forgot your password?
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Generate a one-time recovery token and return to authenticated command flow with minimal friction.
+            Enter your account email and we&apos;ll send you a link to choose a new password. The link works for 30 minutes.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Recovery Mode</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">Token generation</p>
+              <p className="mt-1 text-sm font-semibold text-amber-200">Emailed link</p>
             </article>
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Security</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">One-time flow</p>
+              <p className="mt-1 text-sm font-semibold text-amber-200">One-time, 30 minutes</p>
             </article>
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Next Step</p>
@@ -69,11 +69,11 @@ export default function ForgotPasswordPage() {
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">Fast recovery</p>
-              <p className="mt-2 text-sm text-slate-400">Reset tokens are issued quickly to get you back into command flow without delay.</p>
+              <p className="mt-2 text-sm text-slate-400">Check your inbox (and spam folder) for an email from Vexora Gaming.</p>
             </div>
-            <div className="glass-cut rounded-[20px] border border-sky-200 bg-sky-50 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-sky-700">Safe return</p>
-              <p className="mt-2 text-sm text-sky-800">Your account recovery keeps your workspace secure while restoring access.</p>
+            <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-sky-300">Signed out everywhere</p>
+              <p className="mt-2 text-sm text-slate-400">Choosing a new password signs your account out on every device.</p>
             </div>
           </div>
         </>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
     >
       <AuthFormCard
         title="Reset Password"
-        subtitle="Generate a one-time reset token for your account"
+        subtitle="We'll email you a link to choose a new password"
         footer={
           <div className="flex items-center justify-end">
             <Link href="/login" className="text-amber-200 hover:text-amber-200">

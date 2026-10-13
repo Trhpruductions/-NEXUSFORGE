@@ -140,10 +140,8 @@ searchRouter.get("/users", async (req, res) => {
   const users = await prisma.user.findMany({
     where: {
       deletedAt: null,
-      OR: [
-        { username: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
-      ],
+      // Usernames only: matching emails let anyone find out whether an address has an account.
+      username: { contains: q, mode: "insensitive" },
     },
     select: {
       id: true,

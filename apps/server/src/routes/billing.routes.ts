@@ -267,7 +267,7 @@ billingRouter.post("/portal/session", requireAuth, async (req, res) => {
 
   const session = await stripeClient.billingPortal.sessions.create({
     customer: activeSubscription.providerCustomerId,
-    return_url: `${env.APP_WEB_URL}/settings`,
+    return_url: `${env.APP_WEB_URL}/app/settings?section=billing`,
   });
 
   res.json({ url: session.url });
@@ -348,6 +348,13 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     return;
   }
 
+  // Stripe can deliver the same event more than once; apply each one only once.
+  const alreadyApplied = await prisma.paymentTransaction.findFirst({ where: { providerEventId: event.id }, select: { id: true } });
+  if (alreadyApplied) {
+    res.status(200).json({ received: true, duplicate: true });
+    return;
+  }
+
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
@@ -366,30 +373,16 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
         const firstItem = lineItems.data[0];
         const unitAmount = firstItem?.amount_total ?? 0;
         const priceId = firstItem?.price?.id ?? null;
+        const subscriptionId = featureCode === "CORE_PLUS" ? session.subscription?.toString() : undefined;
+        // Ask Stripe first, then write everything in one transaction below.
+        const subscription = subscriptionId ? await stripeClient.subscriptions.retrieve(subscriptionId) : null;
 
-        await prisma.paymentTransaction.create({
-          data: {
-            userId,
-            provider: "STRIPE",
-            providerEventId: event.id,
-            providerPaymentId: session.payment_intent?.toString() ?? session.id,
-            amountCents: unitAmount,
-            currency: session.currency ?? "usd",
-            status: "SUCCEEDED",
-            featureCode,
-            tier: featureCode === "CORE_PLUS" ? session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" : null,
-            metadata: {
-              checkoutSessionId: session.id,
-              subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
-              priceId,
-            },
-          },
-        });
-
-        if (featureCode === "CORE_PLUS") {
-          const subscriptionId = session.subscription?.toString();
-          if (subscriptionId) {
-            const subscription = await stripeClient.subscriptions.retrieve(subscriptionId);
+        // The grant and its payment record are saved together: either the purchase is fully
+        // applied and recorded, or nothing is and Stripe's retry applies it cleanly. (The
+        // record used to be written first, so a later failure made every retry hit the
+        // unique event id and the purchase was never applied.)
+        await prisma.$transaction(async (tx) => {
+          if (featureCode === "CORE_PLUS" && subscription && subscriptionId) {
             const period = readSubscriptionPeriod(subscription);
             const subscriptionPriceId = subscription.items.data[0]?.price.id ?? priceId;
             const tier = (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ??
@@ -398,18 +391,17 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
             const interval = (session.metadata?.interval as "MONTHLY" | "YEARLY" | undefined) ??
               (subscriptionPriceId ? resolveIntervalFromPriceId(subscriptionPriceId) : null) ??
               "MONTHLY";
+            const status = subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE";
 
-            await prisma.billingSubscription.upsert({
-              where: {
-                providerSubscriptionId: subscriptionId,
-              },
+            await tx.billingSubscription.upsert({
+              where: { providerSubscriptionId: subscriptionId },
               update: {
                 userId,
                 providerCustomerId: subscription.customer.toString(),
                 providerPriceId: subscriptionPriceId,
                 tier,
                 interval,
-                status: subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE",
+                status,
                 currentPeriodStart: period.start,
                 currentPeriodEnd: period.end,
                 cancelAtPeriodEnd: subscription.cancel_at_period_end,
@@ -422,53 +414,50 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
                 providerPriceId: subscriptionPriceId,
                 tier,
                 interval,
-                status: subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE",
+                status,
                 currentPeriodStart: period.start,
                 currentPeriodEnd: period.end,
                 cancelAtPeriodEnd: subscription.cancel_at_period_end,
               },
             });
 
-            await prisma.user.update({
+            await tx.user.update({
               where: { id: userId },
               data: {
                 premium: true,
                 premiumTier: tier,
                 corePlusActivatedAt: new Date(),
-                corePlusBoostLevel:
-                  tier === "INFINITE"
-                    ? 5
-                    : tier === "ELITE"
-                      ? 3
-                      : tier === "PLUS"
-                        ? 2
-                        : 1,
+                corePlusBoostLevel: tier === "INFINITE" ? 5 : tier === "ELITE" ? 3 : tier === "PLUS" ? 2 : 1,
               },
             });
+          } else if (featureCode !== "CORE_PLUS") {
+            const quantity = Math.max(1, Number(session.metadata?.quantity ?? "1") || 1);
+            await tx.featureEntitlement.upsert({
+              where: { userId_featureCode: { userId, featureCode } },
+              update: { active: true, quantity: { increment: quantity } },
+              create: { userId, featureCode, source: "STRIPE", active: true, quantity },
+            });
           }
-        } else {
-          await prisma.featureEntitlement.upsert({
-            where: {
-              userId_featureCode: {
-                userId,
-                featureCode,
-              },
-            },
-            update: {
-              active: true,
-              quantity: {
-                increment: Number(session.metadata?.quantity ?? "1"),
-              },
-            },
-            create: {
+
+          await tx.paymentTransaction.create({
+            data: {
               userId,
+              provider: "STRIPE",
+              providerEventId: event.id,
+              providerPaymentId: session.payment_intent?.toString() ?? session.id,
+              amountCents: unitAmount,
+              currency: session.currency ?? "usd",
+              status: "SUCCEEDED",
               featureCode,
-              source: "STRIPE",
-              active: true,
-              quantity: Number(session.metadata?.quantity ?? "1"),
+              tier: featureCode === "CORE_PLUS" ? (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE") : null,
+              metadata: {
+                checkoutSessionId: session.id,
+                subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
+                priceId,
+              },
             },
           });
-        }
+        });
       }
     }
 
