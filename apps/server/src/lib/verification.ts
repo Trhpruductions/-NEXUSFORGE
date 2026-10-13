@@ -163,7 +163,8 @@ export function protectionSummary(user: {
     twoFactorChannels: user.twoFactorChannels,
     totpEnabled,
     recoveryCodesLeft: totpEnabled ? user.totpRecoveryHashes?.length ?? 0 : 0,
-    // An authenticator app on its own counts as fully protected; otherwise email + phone + code-based 2FA.
-    complete: user.emailVerified && (totpEnabled || (user.phoneVerified && user.twoFactorEnabled)),
+    // Verified email plus a second step at sign-in (authenticator app, or codes by email/text).
+    // A phone is a welcome extra but not required, since texts aren't available everywhere.
+    complete: user.emailVerified && (totpEnabled || user.twoFactorEnabled),
   };
 }

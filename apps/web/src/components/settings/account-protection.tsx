@@ -120,9 +120,9 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const enable2fa = useMutation({
-    mutationFn: () => setTwoFactor(accessToken!, csrfToken!, { enabled: true, channels: ["EMAIL", "SMS"] }),
+    mutationFn: () => setTwoFactor(accessToken!, csrfToken!, { enabled: true, channels: protection?.phoneVerified ? ["EMAIL", "SMS"] : ["EMAIL"] }),
     onSuccess: async () => {
-      setNotice({ tone: "ok", text: "Two-factor is on. Sign-ins now need a code from your email and phone." });
+      setNotice({ tone: "ok", text: protection?.phoneVerified ? "Two-factor is on. Sign-ins now need a code sent to your email and phone." : "Two-factor is on. Sign-ins now need a code sent to your email." });
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
@@ -159,7 +159,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
           <h2 className="nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">
             <ShieldCheck className={`h-4 w-4 ${protection.complete ? "text-emerald-300" : "text-amber-300"}`} /> Account Protection
           </h2>
-          <p className="text-xs text-slate-400">Verify your email and phone, then turn on two-factor so nobody can take your account.</p>
+          <p className="text-xs text-slate-400">Verify your email, then turn on two-factor so nobody can take your account. Adding a phone is optional.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{protection.complete ? "Protected" : `${steps}/3 complete`}</span>
@@ -290,9 +290,13 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-slate-400">
-                {protection.emailVerified && protection.phoneVerified ? "Both channels are verified. Turn this on to lock down sign-ins." : "Verify your email and phone first, then turn this on."}
+                {!protection.emailVerified
+                  ? "Verify your email first, then turn this on."
+                  : protection.phoneVerified
+                    ? "Sign-ins will need a code sent to your email and phone."
+                    : "Sign-ins will need a code sent to your email. Add a phone later to get codes by text too."}
               </p>
-              <button type="button" className={goldBtn} disabled={!protection.emailVerified || !protection.phoneVerified || enable2fa.isPending} onClick={() => enable2fa.mutate()}>
+              <button type="button" className={goldBtn} disabled={!protection.emailVerified || enable2fa.isPending} onClick={() => enable2fa.mutate()}>
                 {enable2fa.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Turn on two-factor
               </button>
             </div>

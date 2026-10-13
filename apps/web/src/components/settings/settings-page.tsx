@@ -310,7 +310,7 @@ function SettingsInner() {
     mutationFn: () => sendSensitiveChallenge(accessToken!, csrfToken!),
     onSuccess: (result) => {
       setSensitiveSent({ devCode: result.devCode });
-      setNotice({ tone: "ok", text: "Confirmation code sent to your verified email and phone." });
+      setNotice({ tone: "ok", text: "Confirmation code sent to your verified email (and phone, if you added one)." });
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });

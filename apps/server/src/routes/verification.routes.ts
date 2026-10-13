@@ -132,6 +132,9 @@ verificationRouter.post("/phone/confirm", authRateLimit, async (req, res) => {
       data: { phoneNumber: result.target, phoneVerified: true },
       select: userSelect,
     });
+    if (user.twoFactorEnabled && !user.twoFactorChannels.includes("SMS")) {
+      user = await prisma.user.update({ where: { id: user.id }, data: { twoFactorChannels: [...user.twoFactorChannels, "SMS"] }, select: userSelect });
+    }
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
       res.status(409).json({ error: "That phone number is already linked to another account" });
@@ -208,11 +211,17 @@ verificationRouter.put("/two-factor", authRateLimit, async (req, res) => {
   }
 
   if (parsed.data.enabled) {
-    if (!user.emailVerified || !user.phoneVerified) {
-      res.status(400).json({ error: "Verify both your email and phone number before turning on two-factor" });
+    if (!user.emailVerified) {
+      res.status(400).json({ error: "Verify your email before turning on two-factor" });
       return;
     }
-    const channels = parsed.data.channels ?? ["EMAIL", "SMS"];
+    // Codes go only to channels that are actually verified.
+    const requested = parsed.data.channels ?? ["EMAIL", "SMS"];
+    const channels = requested.filter((channel) => (channel === "SMS" ? user.phoneVerified : true));
+    if (!channels.length) {
+      res.status(400).json({ error: "Verify your phone number first, or choose email codes" });
+      return;
+    }
     const updated = await prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true, twoFactorChannels: channels }, select: userSelect });
     void evaluateAchievements(user.id);
     res.json({ ok: true, protection: protectionSummary(updated) });

@@ -275,7 +275,7 @@ export function WelcomeWizard() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-300">You are set</p>
               <h1 className="nf-heading mt-2 text-2xl font-bold text-white">Built for gamers. Connected by community.</h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-                One last thing once you are in: verify your email and phone under Settings so nobody can take your account. The banner at the top of the app will walk you through it.
+                One last thing once you are in: verify your email and turn on two-factor under Settings so nobody can take your account. The banner at the top of the app will walk you through it.
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <button type="button" onClick={() => setStep(2)} className={ghostBtn}>Back</button>

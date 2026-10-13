@@ -923,7 +923,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
           <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-100 md:px-6">
             <Link href="/app/settings?verify=1" className="flex flex-wrap items-center gap-2 hover:text-white">
               <span className="rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950">Secure your account</span>
-              {!protection?.emailVerified ? "Verify your email" : !protection?.phoneVerified ? "Add and verify a phone number" : "Turn on two-factor sign-in"} so nobody can take over your account. Open Settings →
+              {!protection?.emailVerified ? "Verify your email" : "Turn on two-factor sign-in"} so nobody can take over your account. Open Settings →
             </Link>
           </div>
         ) : null}
