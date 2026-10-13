@@ -10,6 +10,7 @@ import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/enti
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
 import { sendEmail } from "../lib/delivery.js";
+import { dispatchPushNotification, pushConfigured } from "../lib/push.js";
 import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
 import { upgradeRequired } from "../lib/plans.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
@@ -901,6 +902,39 @@ authRouter.post("/reset-password", async (req, res) => {
   );
 
   res.status(200).json({ message: "Password reset successful" });
+});
+
+/** Turn push off for one device (the browser's own subscription endpoint). */
+authRouter.delete("/push-subscriptions", requireAuth, async (req, res) => {
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  if (!endpoint) {
+    res.status(400).json({ error: "Missing endpoint" });
+    return;
+  }
+  const removed = await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: req.user!.id } });
+  res.json({ removed: removed.count });
+});
+
+const lastTestPush = new Map<string, number>();
+/** Send a test notification to every device this account has push on. */
+authRouter.post("/push-subscriptions/test", requireAuth, async (req, res) => {
+  if (!pushConfigured()) {
+    res.status(503).json({ error: "Push isn't set up on this server." });
+    return;
+  }
+  const last = lastTestPush.get(req.user!.id) ?? 0;
+  if (Date.now() - last < 10_000) {
+    res.status(429).json({ error: "Wait a few seconds before sending another test." });
+    return;
+  }
+  lastTestPush.set(req.user!.id, Date.now());
+  const devices = await prisma.pushSubscription.count({ where: { userId: req.user!.id } });
+  if (!devices) {
+    res.status(400).json({ error: "Push isn't on for any of your devices yet." });
+    return;
+  }
+  await dispatchPushNotification({ userId: req.user!.id, title: "Vexora Gaming", body: "Push notifications are working on this device.", notificationId: `test-${Date.now()}` });
+  res.json({ sent: devices });
 });
 
 authRouter.post("/push-subscriptions", requireAuth, async (req, res) => {

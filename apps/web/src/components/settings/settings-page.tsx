@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { DiscordLinkCard } from "@/components/settings/discord-link-card";
+import { PushDeviceCard } from "@/components/settings/push-device-card";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -664,6 +665,7 @@ function SettingsInner() {
                 <h2 className={sectionTitle}>Notifications</h2>
                 <Link href="/app/notifications" className={ghostBtn}><Bell className="h-3.5 w-3.5" /> Open inbox</Link>
               </div>
+              <PushDeviceCard />
               <ul className="grid gap-3 md:grid-cols-2">
                 {notificationRows.map((row) => (
                   <li key={row.key} className="flex items-start justify-between gap-3 rounded-lg border border-white/5 bg-[#11151e] px-3 py-2.5">
