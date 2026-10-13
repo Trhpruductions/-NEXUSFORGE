@@ -70,6 +70,8 @@ const activateCorePlusSchema = z.object({
 });
 
 export const REFRESH_COOKIE_NAME = "nf_refresh";
+/** Two tabs refreshing at the same moment both present the same token; that is not theft. */
+const REFRESH_REUSE_GRACE_MS = 30_000;
 
 export const authRouter = Router();
 
@@ -505,6 +507,18 @@ authRouter.post("/refresh", async (req, res) => {
     where: { tokenHash },
     include: { user: true },
   });
+
+  // Reuse detection: every refresh replaces the token, so an old (already replaced) token
+  // turning up again means it was copied. End that whole session on every device. A reuse
+  // within a few seconds is just two tabs refreshing at once, so that only gets a 401.
+  if (session?.revokedAt && Date.now() - session.revokedAt.getTime() > REFRESH_REUSE_GRACE_MS) {
+    const family = session.sessionId ?? session.id;
+    const ended = await prisma.refreshToken.updateMany({
+      where: { userId: session.userId, OR: [{ sessionId: family }, { id: family }], revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (ended.count) console.warn(`[AUTH] Reused refresh token for user ${session.userId}: session ${family} ended (${ended.count} token(s) revoked).`);
+  }
 
   if (!session || session.revokedAt || session.expiresAt < new Date()) {
     res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
