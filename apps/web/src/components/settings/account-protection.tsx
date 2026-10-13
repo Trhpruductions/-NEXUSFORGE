@@ -50,6 +50,8 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
   const [emailSent, setEmailSent] = useState<{ devCode?: string; sentTo?: string } | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
+  const [phonePassword, setPhonePassword] = useState("");
+  const [removing, setRemoving] = useState(false);
   const [phoneSent, setPhoneSent] = useState<{ devCode?: string; sentTo?: string } | null>(null);
   const [offCode, setOffCode] = useState("");
   const [offChallenge, setOffChallenge] = useState<{ devCode?: string } | null>(null);
@@ -88,7 +90,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const sendPhone = useMutation({
-    mutationFn: () => sendPhoneCode(accessToken!, csrfToken!, phone),
+    mutationFn: () => sendPhoneCode(accessToken!, csrfToken!, phone, phonePassword),
     onSuccess: (result) => {
       setPhoneSent({ devCode: result.devCode, sentTo: result.sentTo });
       setNotice({ tone: "ok", text: `Text message sent to ${result.sentTo}.` });
@@ -101,15 +103,18 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
       setPhoneCode("");
       setPhoneSent(null);
       setPhone("");
+      setPhonePassword("");
       setNotice({ tone: "ok", text: "Phone number verified." });
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const dropPhone = useMutation({
-    mutationFn: () => removePhone(accessToken!, csrfToken!),
+    mutationFn: () => removePhone(accessToken!, csrfToken!, phonePassword),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Phone number removed." });
+      setPhonePassword("");
+      setRemoving(false);
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
@@ -217,16 +222,29 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
             <div className="space-y-2">
               <p className="text-xs text-slate-400">{protection.phoneNumber}</p>
               <p className="text-xs text-emerald-200">Text-message codes protect sign-ins and changes.</p>
-              <button type="button" className={`${ghostBtn} text-rose-200`} disabled={dropPhone.isPending} onClick={() => window.confirm("Remove your verified phone number?") && dropPhone.mutate()}>
-                <Trash2 className="h-3.5 w-3.5" /> Remove
-              </button>
+              {removing ? (
+                <div className="space-y-2">
+                  <input className={inputClass} type="password" autoComplete="current-password" aria-label="Current password" placeholder="Current password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} />
+                  <div className="flex gap-2">
+                    <button type="button" className={`${ghostBtn} text-rose-200`} disabled={!phonePassword || dropPhone.isPending} onClick={() => dropPhone.mutate()}>
+                      <Trash2 className="h-3.5 w-3.5" /> Remove number
+                    </button>
+                    <button type="button" className={ghostBtn} onClick={() => { setRemoving(false); setPhonePassword(""); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className={`${ghostBtn} text-rose-200`} onClick={() => setRemoving(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               {!phoneSent ? (
                 <>
                   <input className={inputClass} type="tel" autoComplete="tel" aria-label="Phone number" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
-                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || sendPhone.isPending || delivery?.sms === "unconfigured"} onClick={() => sendPhone.mutate()}>
+                  <input className={inputClass} type="password" autoComplete="current-password" aria-label="Current password" placeholder="Current password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} />
+                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || !phonePassword || sendPhone.isPending || delivery?.sms === "unconfigured"} onClick={() => sendPhone.mutate()}>
                     {sendPhone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />} Text me a code
                   </button>
                 </>

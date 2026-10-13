@@ -150,6 +150,7 @@ function SettingsInner() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [clanTag, setClanTag] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
   const [linked, setLinked] = useState<Record<string, string>>({});
@@ -268,12 +269,14 @@ function SettingsInner() {
       updateAccountSettings(accessToken!, csrfToken!, {
         displayName: displayName !== (account?.displayName ?? "") ? displayName || null : undefined,
         email: email !== account?.email ? email : undefined,
+        password: email !== account?.email ? emailPassword : undefined,
         bio: bio !== (account?.bio ?? "") ? bio || null : undefined,
         clanTag: clanTag !== (account?.clanTag ?? "") ? clanTag || null : undefined,
         code: sensitiveCode || undefined,
       }),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Account updated." });
+      setEmailPassword("");
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
@@ -451,6 +454,12 @@ function SettingsInner() {
               <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Email {account?.emailVerified ? <span className="text-emerald-300">· verified</span> : <span className="text-amber-300">· unverified</span>}</span>
               <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </label>
+            {account && email !== account.email ? (
+              <label className="block text-xs text-slate-300">
+                <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Current password (to change your email)</span>
+                <input className={inputClass} type="password" autoComplete="current-password" value={emailPassword} onChange={(event) => setEmailPassword(event.target.value)} />
+              </label>
+            ) : null}
             <div className="grid grid-cols-[1fr_110px] gap-3">
               <label className="block text-xs text-slate-300">
                 <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Bio</span>

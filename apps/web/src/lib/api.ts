@@ -2919,7 +2919,7 @@ export async function getSettings(accessToken: string) {
   return response.data;
 }
 
-export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null; code?: string }) {
+export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null; code?: string; password?: string }) {
   const response = await api.patch<{ account: SettingsPayload["account"] }>("/api/settings/account", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
@@ -3101,8 +3101,8 @@ export async function confirmEmailCode(accessToken: string, csrfToken: string, c
   return response.data;
 }
 
-export async function sendPhoneCode(accessToken: string, csrfToken: string, phoneNumber: string) {
-  const response = await api.post<SendCodeResult>("/api/verification/phone/send", { phoneNumber }, { headers: authHeaders(accessToken, csrfToken) });
+export async function sendPhoneCode(accessToken: string, csrfToken: string, phoneNumber: string, password: string) {
+  const response = await api.post<SendCodeResult>("/api/verification/phone/send", { phoneNumber, password }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
@@ -3111,8 +3111,8 @@ export async function confirmPhoneCode(accessToken: string, csrfToken: string, c
   return response.data;
 }
 
-export async function removePhone(accessToken: string, csrfToken: string) {
-  const response = await api.delete<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone", { headers: authHeaders(accessToken, csrfToken) });
+export async function removePhone(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.delete<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone", { headers: authHeaders(accessToken, csrfToken), data: { password } });
   return response.data;
 }
 

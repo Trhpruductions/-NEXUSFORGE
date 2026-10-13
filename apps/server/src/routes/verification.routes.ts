@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { deliveryStatus } from "../lib/delivery.js";
-import { issueCode, normalizePhone, protectionSummary, verifyCode } from "../lib/verification.js";
+import { issueCode, maskPhone, normalizePhone, protectionSummary, verifyCode } from "../lib/verification.js";
+import { PASSWORD_REQUIRED, confirmCurrentPassword, sendSecurityAlert } from "../lib/reauth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { authRateLimit } from "../middleware/rate-limit.js";
@@ -95,6 +96,10 @@ verificationRouter.post("/phone/send", authRateLimit, async (req, res) => {
     res.status(400).json({ error: "Enter a valid phone number with country code, e.g. +1 555 123 4567" });
     return;
   }
+  if (!(await confirmCurrentPassword(req.user!.id, req.body?.password))) {
+    res.status(403).json(PASSWORD_REQUIRED);
+    return;
+  }
   const taken = await prisma.user.findFirst({ where: { phoneNumber: phone, id: { not: req.user!.id } }, select: { id: true } });
   if (taken) {
     res.status(409).json({ error: "That phone number is already linked to another account" });
@@ -119,11 +124,24 @@ verificationRouter.post("/phone/confirm", authRateLimit, async (req, res) => {
     res.status(400).json({ error: result.error, attemptsLeft: result.attemptsLeft });
     return;
   }
-  const user = await prisma.user.update({
-    where: { id: req.user!.id },
-    data: { phoneNumber: result.target, phoneVerified: true },
-    select: userSelect,
-  });
+  const before = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true, username: true, phoneNumber: true, phoneVerified: true } });
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { phoneNumber: result.target, phoneVerified: true },
+      select: userSelect,
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      res.status(409).json({ error: "That phone number is already linked to another account" });
+      return;
+    }
+    throw error;
+  }
+  if (before && before.phoneNumber !== result.target) {
+    sendSecurityAlert(before.email, before.username, `The phone number ${maskPhone(result.target)} was added to your account${before.phoneVerified && before.phoneNumber ? `, replacing ${maskPhone(before.phoneNumber)}` : ""}. It can now be used to sign in and reset your password.`);
+  }
   res.json({ ok: true, protection: protectionSummary(user) });
 });
 
@@ -137,11 +155,19 @@ verificationRouter.delete("/phone", authRateLimit, async (req, res) => {
     res.status(400).json({ error: "Turn off two-factor or add email as a channel before removing your phone" });
     return;
   }
+  if (!(await confirmCurrentPassword(user.id, req.body?.password))) {
+    res.status(403).json(PASSWORD_REQUIRED);
+    return;
+  }
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: { phoneNumber: null, phoneVerified: false, twoFactorChannels: user.twoFactorChannels.filter((channel) => channel !== "SMS") },
     select: userSelect,
   });
+  if (user.phoneNumber) {
+    const owner = await prisma.user.findUnique({ where: { id: user.id }, select: { username: true } });
+    sendSecurityAlert(user.email, owner?.username ?? "there", `The phone number ${maskPhone(user.phoneNumber)} was removed from your account.`);
+  }
   res.json({ ok: true, protection: protectionSummary(updated) });
 });
 

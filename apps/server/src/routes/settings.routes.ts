@@ -4,7 +4,8 @@ import { prisma } from "../lib/prisma.js";
 import { hashPassword, comparePassword } from "../lib/password.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { issueCode, verifyCode } from "../lib/verification.js";
+import { issueCode, maskEmail, verifyCode } from "../lib/verification.js";
+import { PASSWORD_REQUIRED, confirmCurrentPassword, sendSecurityAlert } from "../lib/reauth.js";
 import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
 import { sha256 } from "../lib/jwt.js";
 import { HHMM, isValidTimeZone } from "../lib/quiet-hours.js";
@@ -235,13 +236,19 @@ settingsRouter.patch("/account", async (req, res) => {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
-  if (parsed.data.email) {
+  const previous = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true, username: true } });
+  const emailChanging = Boolean(parsed.data.email && previous && parsed.data.email.toLowerCase() !== previous.email);
+  if (emailChanging) {
+    if (!(await confirmCurrentPassword(req.user!.id, req.body?.password))) {
+      res.status(403).json(PASSWORD_REQUIRED);
+      return;
+    }
     const gate = await requireSensitiveCode(req.user!.id, typeof req.body?.code === "string" ? req.body.code : undefined);
     if (!gate.ok) {
       res.status(403).json({ error: gate.error, needsCode: gate.needsCode });
       return;
     }
-    const taken = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase(), id: { not: req.user!.id } }, select: { id: true } });
+    const taken = await prisma.user.findFirst({ where: { email: parsed.data.email!.toLowerCase(), id: { not: req.user!.id } }, select: { id: true } });
     if (taken) {
       res.status(409).json({ error: "That email is already in use" });
       return;
@@ -251,13 +258,18 @@ settingsRouter.patch("/account", async (req, res) => {
     where: { id: req.user!.id },
     data: {
       displayName: parsed.data.displayName === undefined ? undefined : parsed.data.displayName || null,
-      email: parsed.data.email?.toLowerCase(),
-      emailVerified: parsed.data.email ? false : undefined,
+      email: emailChanging ? parsed.data.email!.toLowerCase() : undefined,
+      emailVerified: emailChanging ? false : undefined,
+      // A reset link already emailed to the old address stops working.
+      ...(emailChanging ? { resetToken: null, resetTokenExpires: null } : {}),
       bio: parsed.data.bio === undefined ? undefined : parsed.data.bio || null,
       clanTag: parsed.data.clanTag === undefined ? undefined : parsed.data.clanTag || null,
     },
     select: { id: true, username: true, displayName: true, email: true, emailVerified: true, bio: true, clanTag: true },
   });
+  if (emailChanging && previous) {
+    sendSecurityAlert(previous.email, previous.username, `Your account email was changed from this address to ${maskEmail(user.email)}.`);
+  }
   res.json({ account: user });
 });
 
