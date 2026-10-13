@@ -1,4 +1,6 @@
-import rateLimit from "express-rate-limit";
+import type { Request } from "express";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { verifyAccessToken } from "../lib/jwt.js";
 
 const isLocalLoopback = (ip?: string) => {
   if (!ip) return false;
@@ -7,9 +9,27 @@ const isLocalLoopback = (ip?: string) => {
 
 const shouldBypassRateLimit = (ip?: string) => process.env.NODE_ENV !== "production" && isLocalLoopback(ip);
 
+/** The signed-in user behind a request, if its access token is genuine (checked, not just decoded). */
+function signedInUserId(req: Request): string | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  try {
+    return verifyAccessToken(header.slice(7)).sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Signed-in people are counted per account, so a household or school sharing one internet
+// address doesn't share one budget, and quick browsing (each page load makes ~15 calls) no
+// longer runs out after ~40 pages. Anonymous traffic is still counted per IP address.
 export const globalRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  limit: (req) => (signedInUserId(req) ? 3000 : 600),
+  keyGenerator: (req) => {
+    const userId = signedInUserId(req);
+    return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip ?? "")}`;
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests. Please try again later." },
