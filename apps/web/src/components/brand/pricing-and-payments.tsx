@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCheckoutSession, getBillingPlans, getBillingReadiness, type PaidFeatureCode, type PlanInfo } from "@/lib/api";
+import { PREVIOUS_TIER, perksFor } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
@@ -75,20 +76,6 @@ const tierLogoById = Object.fromEntries(boostTierLogos.map((tier) => [tier.id, t
   (typeof boostTierLogos)[number]
 >;
 
-/** Perk lines for a tier card, straight from the plan catalog the server enforces. */
-function perksFor(plan: PlanInfo | undefined, previous: PlanInfo | undefined) {
-  if (!plan) return [];
-  const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
-  const lines = [
-    `Uploads up to ${mb(plan.uploadBytes)}`,
-    `${plan.messageLength.toLocaleString()}-character messages`,
-    `Be in up to ${plan.maxServers} servers`,
-  ];
-  if (plan.ultraVideo && !previous?.ultraVideo) lines.push("Ultra video: 1440p60 screen share, 1080p camera");
-  if (previous && previous.tier !== "NONE") lines.unshift(`Everything in ${previous.label}`);
-  return lines;
-}
-
 const checkoutPreviewCopy: Record<PaidFeatureCode, { label: string; detail: string }> = {
   CORE_PLUS: {
     label: "Core+ tier upgrade",
@@ -111,8 +98,8 @@ const checkoutPreviewCopy: Record<PaidFeatureCode, { label: string; detail: stri
     detail: "Identity art, badge assets, and premium profile cosmetics are being bundled for payment.",
   },
   ADVANCED_MODERATION_AI: {
-    label: "Advanced Moderation AI",
-    detail: "Behavior intelligence, raid defense, and replay tooling are being provisioned for this forge.",
+    label: "Activity pressure",
+    detail: "A rough activity score with suggested next steps for staff.",
   },
 };
 
@@ -379,7 +366,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               </div>
               <p className="mt-1 text-xs text-amber-300">{tier.yearlySavings}</p>
               <ul className="mt-3 space-y-1.5 text-xs text-slate-400">
-                {perksFor(planByTier[tier.id], planByTier[({ CORE: "NONE", PLUS: "CORE", ELITE: "PLUS", INFINITE: "ELITE" } as Record<string, string>)[tier.id]]).map((perk) => (
+                {perksFor(planByTier[tier.id], planByTier[PREVIOUS_TIER[tier.id]]).map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
               </ul>

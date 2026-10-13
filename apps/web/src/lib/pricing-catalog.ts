@@ -42,7 +42,7 @@ export const PAID_FEATURE_DISPLAY_LABELS: Record<PaidFeatureCode, string> = {
   CREATOR_CAMPAIGN_SLOT: "Creator Campaign Slot",
   EVENT_TICKET_PASS: "Event Ticket Pass",
   TEAM_BRANDING_KIT: "Team Branding Kit",
-  ADVANCED_MODERATION_AI: "Advanced Moderation AI",
+  ADVANCED_MODERATION_AI: "Activity pressure",
 };
 
 export const PAID_FEATURE_PRICE_LABELS: Record<PaidFeatureCode, string> = {

@@ -6,17 +6,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingReadiness } from "@/lib/api";
+import { createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingPlans, getBillingReadiness, type PlanInfo } from "@/lib/api";
+import { PREVIOUS_TIER, megabytes, perksFor } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING, type CorePlusTier } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
-
-const perkRows = [
-  { title: "Forge Priority Routing", detail: "Low-latency queue lane for voice and stream operations." },
-  { title: "Core+ Identity Card", detail: "Animated profile card and premium account presentation." },
-  { title: "Boost Tier Multipliers", detail: "Progressive rewards for weekly activity and events." },
-  { title: "Creator Launch Kit", detail: "Early access to sponsor surfaces and campaign slots." },
-];
 
 const tierCheckoutMeta = {
   CORE: {
@@ -129,6 +123,10 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             : "border-white/10 bg-[#0d1119] text-slate-300";
 
   const selectedPlan = tierCheckoutMeta[selectedTier];
+  const plansQuery = useQuery({ queryKey: ["billing-plans"], queryFn: getBillingPlans, staleTime: 5 * 60_000 });
+  const planByTier = Object.fromEntries((plansQuery.data?.plans ?? []).map((plan) => [plan.tier, plan])) as Record<string, PlanInfo | undefined>;
+  const tierLimits = planByTier[selectedTier];
+  const tierPerks = perksFor(tierLimits, planByTier[PREVIOUS_TIER[selectedTier]]);
   const displayedPrice = billingInterval === "YEARLY" ? selectedPlan.yearly : selectedPlan.monthly;
   const displayedPriceSuffix = billingInterval === "YEARLY" ? "per year" : "per month";
   const activationCta = activationMutation.isPending ? "Securing checkout..." : `Upgrade to ${selectedPlan.label}`;
@@ -220,11 +218,11 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         ) : null}
         <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Core+ Membership Program</p>
         <h1 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white sm:text-5xl">
-          Premium infrastructure for serious gaming communities.
+          More room for the players who need it.
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-slate-400 sm:text-base">
-          Core+ combines visual prestige with operational advantages: queue priority, premium surfaces, and tiered
-          progression mechanics tuned for creator-led ecosystems.
+          Core+ raises your limits: bigger uploads, longer messages, more servers and, from Plus up, ultra-quality
+          video. HD video, profile banners and animated avatars are already free for everyone.
         </p>
 
         <div className="nexus-panel-glass mt-6 rounded-[28px] border border-white/10 bg-[#11151e] p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
@@ -262,16 +260,16 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Queue Gain</p>
-            <p className="mt-1 text-sm font-semibold text-white">+32% priority lane</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Uploads</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? `Up to ${megabytes(tierLimits.uploadBytes)}` : "…"}</p>
           </div>
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Visual Tier</p>
-            <p className="mt-1 text-sm font-semibold text-white">Premium identity skin</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Servers</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? `Up to ${tierLimits.maxServers}` : "…"}</p>
           </div>
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Boost Ladder</p>
-            <p className="mt-1 text-sm font-semibold text-white">Progressive multipliers</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Video</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? (tierLimits.ultraVideo ? "Ultra (1440p60)" : "HD") : "…"}</p>
           </div>
         </div>
 
@@ -293,16 +291,15 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         )}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {perkRows.map((perk, index) => (
+          {tierPerks.map((perk, index) => (
             <motion.div
-              key={perk.title}
+              key={perk}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.12 + index * 0.07, ease: "easeOut" }}
               className="nexus-metric-card nexus-interactive-card rounded-[22px] border border-white/10 bg-[#11151e] p-3"
             >
-              <p className="text-sm font-semibold text-white">{perk.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{perk.detail}</p>
+              <p className="text-sm font-semibold text-white">{perk}</p>
             </motion.div>
           ))}
         </div>

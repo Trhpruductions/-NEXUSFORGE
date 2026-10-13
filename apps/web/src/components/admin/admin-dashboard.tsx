@@ -799,16 +799,16 @@ export function AdminDashboard() {
       <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Advanced Moderation AI</h2>
-            <p className="mt-2 text-sm text-slate-400">Pressure scoring, automation posture, and recommended response playbooks.</p>
+            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Activity pressure</h2>
+            <p className="mt-2 text-sm text-slate-400">A rough score from the last day&apos;s messages, new accounts, pending friend requests and unread alerts, with suggested next steps. It&apos;s a simple formula, not AI.</p>
           </div>
           <div className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em] ${latestJobStatusToneClass}`}>
-            Risk engine
+            Estimate
           </div>
         </div>
         {aiInsightsQuery.isError ? (
           <div className="rounded-xl border border-amber-500/35 bg-amber-950/20 p-4 text-sm text-amber-100">
-            Advanced moderation intelligence is payment-gated. Unlock it from the <Link href="/pricing" className="font-semibold underline">pricing center</Link>.
+            The activity pressure card is part of a paid add-on. Unlock it from the <Link href="/pricing" className="font-semibold underline">pricing center</Link>.
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-3">
@@ -830,14 +830,10 @@ export function AdminDashboard() {
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Risk Level</p>
                   <p className={`mt-2 text-2xl font-semibold ${riskToneClass}`}>{aiInsightsQuery.data?.insights.riskLevel ?? "LOW"}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Incident Likelihood</p>
-                  <p className="mt-2 text-2xl font-semibold text-amber-100">{aiInsightsQuery.data?.insights.incidentLikelihoodPct ?? 0}%</p>
-                </div>
               </div>
             </div>
             <div className="md:col-span-3 rounded-xl border border-white/10 bg-[#0d1119] p-4 text-sm text-slate-300">
-              <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Automation Actions</p>
+              <p className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Suggested actions</p>
               <div className="grid gap-2 md:grid-cols-3">
                 {(aiInsightsQuery.data?.insights.automationActions ?? []).map((action) => (
                   <div key={action} className="rounded-lg border border-white/10 bg-[#0d1119] px-3 py-2">

@@ -1992,8 +1992,8 @@ export function ForgeChatClient() {
             <div className="forge-panel rounded-[14px] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Advanced Moderation AI</p>
-                  <p className="mt-1 text-sm text-slate-300">Provision raid detection and behavior intelligence for the active forge.</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Activity pressure</p>
+                  <p className="mt-1 text-sm text-slate-300">A rough activity score with suggested next steps for staff. A simple formula, not AI.</p>
                 </div>
                 <span className="rounded-[14px] border border-amber-500/35 bg-amber-950/30 px-2 py-0.5 text-xs text-amber-100">
                   {hasAdvancedModerationAI ? "Active" : "Locked"}
