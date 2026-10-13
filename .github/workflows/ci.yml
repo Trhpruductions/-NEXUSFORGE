@@ -1,0 +1,74 @@
+name: CI
+
+# Typecheck, test and build both apps on every push and pull request.
+# Uses a throwaway Postgres; no real secrets are needed.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: vexora
+          POSTGRES_PASSWORD: vexora
+          POSTGRES_DB: vexora_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vexora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://vexora:vexora@localhost:5432/vexora_ci
+      JWT_ACCESS_SECRET: ci-only-access-secret-at-least-32-characters-long
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-at-least-32-characters-long
+      DISCORD_BOT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Prisma client and schema
+        working-directory: apps/server
+        run: npx prisma generate && npx prisma db push
+      - name: Typecheck
+        working-directory: apps/server
+        run: npx tsc --noEmit -p .
+      - name: Unit tests
+        run: npm test -w @nexusforge/server
+      - name: Build
+        run: npm run build -w @nexusforge/server
+
+  web:
+    name: Web (typecheck, lint, build)
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:4001
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        working-directory: apps/web
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        run: npm run lint -w web
+      - name: Build
+        run: npm run build -w web
