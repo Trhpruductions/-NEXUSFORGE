@@ -281,9 +281,9 @@ export default function DeveloperPortalPage() {
             <div className="mt-8 rounded-[24px] border border-white/10 bg-[#0d1119] p-5">
               <p className="text-sm text-white">Developer resources</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                <li>• API keys and webhook configuration are available in the Developer settings.</li>
-                <li>• Slash command creation and permissions management.</li>
-                <li>• Analytics, logs, and bot publishing tools.</li>
+                <li>• Bots with preset commands that server owners can install.</li>
+                <li>• &quot;Sign in with Vexora&quot; (OAuth) for your own apps and sites.</li>
+                <li>• Webhooks that tell your server when your bots are created, installed or used.</li>
               </ul>
             </div>
           </section>

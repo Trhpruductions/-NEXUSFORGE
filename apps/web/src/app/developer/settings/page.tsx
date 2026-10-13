@@ -315,6 +315,9 @@ export default function DeveloperSettingsPage() {
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Your API keys</p>
             <h2 className="mt-4 text-2xl font-semibold text-white">Active credentials</h2>
+            <p className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-100">
+              Heads up: the Vexora API doesn&apos;t accept API keys yet. To let an app act for a user, use &quot;Sign in with Vexora&quot; (OAuth) instead.
+            </p>
             <div className="mt-6 space-y-3">
               {keysQuery.isLoading ? (
                 <p className="text-sm text-slate-400">Loading your API keys...</p>

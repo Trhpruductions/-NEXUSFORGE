@@ -66,57 +66,57 @@ These features are tested end to end with real accounts, and most also with two 
 ## 4. Still open: I can build these next (no input needed)
 
 **High priority (security and correctness)**
-1. **OAuth consent screen**: a proper "Allow this app?" page, so third-party apps can sign in other users safely.
-2. **Discord bot account linking**: the bot currently matches Discord users to Vexora accounts by username, which can be spoofed. Needs a verified link, and the "harvest all" button must check who clicked it.
-3. **Mining and crypto coin races**: harvest, decommission and swap aren't atomic, so double-spending or losing coins is possible under concurrent requests.
-4. **Cosmetics purchase**: coins can be charged without the item being granted if the second step fails.
-5. **Socket hardening**: rate limits on typing, voice signalling and joins; payload size limits; catching a few unhandled database errors.
-6. **Voice state**: `POST /voice/state` lets a member send fake mute/deafen state into rooms they're not in.
-7. **Live stream URL**: accepts `javascript:` links.
-8. **Refresh-token reuse detection**: if a stolen refresh token is used, the whole session should be revoked.
-9. **The MODERATOR app role** grants no staff access anywhere.
+1. ✅ **OAuth consent screen**: a proper "Allow this app?" page, so third-party apps can sign in other users safely.
+2. ✅ **Discord bot account linking**: the bot currently matches Discord users to Vexora accounts by username, which can be spoofed. Needs a verified link, and the "harvest all" button must check who clicked it.
+3. ✅ **Mining and crypto coin races**: harvest, decommission and swap aren't atomic, so double-spending or losing coins is possible under concurrent requests.
+4. ✅ **Cosmetics purchase**: coins can be charged without the item being granted if the second step fails.
+5. ✅ **Socket hardening**: rate limits on typing, voice signalling and joins; payload size limits; catching a few unhandled database errors.
+6. ✅ **Voice state**: `POST /voice/state` lets a member send fake mute/deafen state into rooms they're not in.
+7. ✅ **Live stream URL**: accepts `javascript:` links.
+8. ✅ **Refresh-token reuse detection**: if a stolen refresh token is used, the whole session should be revoked.
+9. ✅ **The MODERATOR app role** grants no staff access anywhere.
 
 **Data and operations**
 
-10. **Cleanup job** for tables that grow forever:
+10. ✅ **Cleanup job** for tables that grow forever:
     - expired codes and tokens
     - old notifications
     - audit logs (the admin audit router exists but isn't mounted)
-11. **Stale "LIVE" creators**: creators stay marked live forever after disconnecting.
-12. **Postgres and uploads backups**: none exist today.
+11. ✅ **Stale "LIVE" creators**: creators stay marked live forever after disconnecting.
+12. ✅ **Postgres and uploads backups**: none exist today.
 13. **Log rotation** for pm2 logs.
-14. **CI**: GitHub Actions never runs typecheck, tests or build. Add it.
+14. ✅ **CI**: GitHub Actions never runs typecheck, tests or build. Add it.
 15. **Error reporting**: crashes only go to logs and Discord.
 
 **Features and polish**
 
-16. **Push notifications**: the settings toggle saves a preference, but nothing ever subscribes the browser.
-17. **DM composer**: no attachments, emoji or stickers (the channel composer has them).
-18. **Blocking and reporting**:
+16. ✅ **Push notifications**: the settings toggle saves a preference, but nothing ever subscribes the browser.
+17. ✅ **DM composer**: no attachments, emoji or stickers (the channel composer has them).
+18. ✅ **Blocking and reporting**:
     - You can't block someone who isn't your friend.
     - You can't report users, profiles, posts or servers (only messages).
-19. **Username change**: the field is disabled.
-20. **Settings page**:
+19. ✅ **Username change**: the field is disabled.
+20. ✅ **Settings page**:
     - Duplicated sections.
     - "View audit logs" sends server owners to the staff console.
     - "Manage roles" links don't open the right panel.
-21. **Old redirects drop `?q=` and `?filter=`**: `/search`, `/notifications` and `/settings` lose their query strings.
-22. **Mobile menu missing on public pages**: landing, pricing and legal pages have no menu on phones.
+21. ✅ **Old redirects drop `?q=` and `?filter=`**: `/search`, `/notifications` and `/settings` lose their query strings.
+22. ✅ **Mobile menu missing on public pages**: landing, pricing and legal pages have no menu on phones.
 23. **Accessibility**: ✅ Done. Pop-ups are labelled dialogs that close with Escape, every chat/search/settings field has a label, and "Skip to main content" works on every page.
 24. **Fake or placeholder content**:
     - ✅ "Advanced Moderation AI" is now "Activity pressure" and says it's a simple formula; the invented percentage is gone.
     - ✅ The Core+ page now lists only real perks (uploads, servers, video).
-    - Payment methods are over-claimed (PayPal and crypto aren't supported).
-    - Beta-page metrics are made up.
-    - "Generate sample data" writes fake data onto real users.
+    - ✅ Payment methods are no longer over-claimed.
+    - ✅ Beta-page metrics removed.
+    - ✅ "Generate sample data" is blocked on the live app.
 25. **Leftover "NexusForge" branding**: push notification title, desktop installer file name, some environment-variable names shown in the UI.
 26. **Dead code**:
     - 17 unused components.
     - `/app/forge-ops`, a 3,400-line duplicate of chat.
     - Unused models (`ProgressiveJackpot`, `ShopItem`).
-    - API keys can be created but are never accepted anywhere.
+    - API keys can be created but are never accepted anywhere. The developer page now says so and points to "Sign in with Vexora"; making keys work is a product/security decision.
 27. **Speed**:
-    - LiveKit, the server settings panel and QR code code load on every page.
+    - ✅ LiveKit, the server settings panel and QR code now load only when used.
     - No code splitting.
     - Some very large files: `api.ts` (3,500 lines), `forge-chat-client.tsx`.
 28. **Scaling**: the server is single-instance only (in-memory presence, voice and rate limits). Fine for now; it needs Redis to run more than one server.
