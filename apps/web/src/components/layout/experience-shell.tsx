@@ -129,7 +129,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
           </div>
         ) : null}
 
-        <div className="[&_.forge-panel]:rounded-2xl [&_.forge-panel]:border-amber-500/15 [&_.forge-panel]:bg-[#0d1119] [&_.forge-frame]:rounded-2xl [&_.forge-frame]:border-amber-500/15 [&_.forge-frame]:bg-[#0d1119] [&_.nexus-panel]:bg-[#0d1119] [&_.nexus-panel-glass]:bg-[#0d1119] [&_.nexus-display-panel]:bg-[#11151e]">{children}</div>
+        <div id="main-content" tabIndex={-1} className="[&_.forge-panel]:rounded-2xl [&_.forge-panel]:border-amber-500/15 [&_.forge-panel]:bg-[#0d1119] [&_.forge-frame]:rounded-2xl [&_.forge-frame]:border-amber-500/15 [&_.forge-frame]:bg-[#0d1119] [&_.nexus-panel]:bg-[#0d1119] [&_.nexus-panel-glass]:bg-[#0d1119] [&_.nexus-display-panel]:bg-[#11151e]">{children}</div>
       </div>
     </div>
   );

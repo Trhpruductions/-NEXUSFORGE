@@ -818,6 +818,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       ) : null}
 
       <main
+        id="main-content"
+        tabIndex={-1}
         className="flex min-w-0 flex-1 flex-col"
         style={(() => {
           const key = Object.keys(sectionHue)

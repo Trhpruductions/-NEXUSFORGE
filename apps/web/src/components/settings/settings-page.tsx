@@ -524,7 +524,7 @@ function SettingsInner() {
             ) : (
               <p className="text-sm text-slate-500">Select a forge to see its roles.</p>
             )}
-            <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}` : "/app/chat"} className={`${goldBtn} mt-3`}>
+            <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=roles` : "/app/chat"} className={`${goldBtn} mt-3`}>
               <Shield className="h-3.5 w-3.5" /> Manage roles
             </Link>
           </div>
@@ -552,7 +552,7 @@ function SettingsInner() {
             <h2 className={`${sectionTitle} mb-3`}>Quick Actions</h2>
             <div className="space-y-2">
               {[
-                { label: "View audit logs", href: "/admin", icon: ScrollText },
+                { label: "View audit logs", href: selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=audit` : "/app/chat", icon: ScrollText },
                 { label: "Server boost", href: "/core-plus", icon: Zap },
                 { label: "Apps & integrations", href: "/developer", icon: Puzzle },
               ].map((action) => (
@@ -895,7 +895,7 @@ function SettingsInner() {
             ) : (
               <p className="text-sm text-slate-500">Select a forge to see its roles.</p>
             )}
-            <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}` : "/app/chat"} className={`${goldBtn} mt-3`}>
+            <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=roles` : "/app/chat"} className={`${goldBtn} mt-3`}>
               <Shield className="h-3.5 w-3.5" /> Manage roles
             </Link>
           </div>
@@ -935,7 +935,7 @@ function SettingsInner() {
                     <p className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-3 text-sm text-slate-500">No banned members.</p>
                   )
                 ) : null}
-                <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}` : "/app/chat"} className={`${goldBtn} mt-3`}><Gavel className="h-3.5 w-3.5" /> Open moderation tools</Link>
+                <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=reports` : "/app/chat"} className={`${goldBtn} mt-3`}><Gavel className="h-3.5 w-3.5" /> Open moderation tools</Link>
               </section>
               <section className="space-y-4">
           <div className={panel}>
@@ -961,7 +961,7 @@ function SettingsInner() {
             <h2 className={`${sectionTitle} mb-3`}>Quick Actions</h2>
             <div className="space-y-2">
               {[
-                { label: "View audit logs", href: "/admin", icon: ScrollText },
+                { label: "View audit logs", href: selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=audit` : "/app/chat", icon: ScrollText },
                 { label: "Server boost", href: "/core-plus", icon: Zap },
                 { label: "Apps & integrations", href: "/developer", icon: Puzzle },
               ].map((action) => (
