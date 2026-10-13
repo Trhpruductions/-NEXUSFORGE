@@ -1,5 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../config/env.js";
+import { brandedEmailHtml, senderAddress } from "./email-template.js";
 
 /**
  * Outbound delivery for verification codes.
@@ -54,7 +55,15 @@ export async function sendEmail(to: string, subject: string, text: string, html?
   }
   if (smtpConfigured()) {
     try {
-      await getTransporter().sendMail({ from: env.MAIL_FROM, to, subject, text, html: html ?? `<pre style="font-family:system-ui;font-size:15px">${text}</pre>` });
+      // Always sent as "Vexora Gaming" in the branded layout, whatever mailbox sends it.
+      await getTransporter().sendMail({
+        from: senderAddress(),
+        ...(env.MAIL_REPLY_TO ? { replyTo: env.MAIL_REPLY_TO } : {}),
+        to,
+        subject,
+        text,
+        html: html ?? brandedEmailHtml(subject, text),
+      });
       return { delivered: true, transport: "smtp" };
     } catch (error) {
       return { delivered: false, transport: "smtp", error: error instanceof Error ? error.message : "SMTP send failed" };
