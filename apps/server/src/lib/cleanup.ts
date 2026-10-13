@@ -23,6 +23,7 @@ export async function runCleanup() {
   const steps: Array<[string, () => Promise<{ count: number }>]> = [
     ["verification codes", () => prisma.verificationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
     ["OAuth codes", () => prisma.oAuthAuthorizationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
+    ["Discord link codes", () => prisma.discordLinkCode.deleteMany({ where: { expiresAt: { lt: new Date() } } })],
     ["session tokens", () => prisma.refreshToken.deleteMany({ where: { OR: [{ expiresAt: { lt: ago(1) } }, { revokedAt: { lt: ago(7) } }] } })],
     ["read notifications", () => prisma.notification.deleteMany({ where: { read: true, createdAt: { lt: ago(90) } } })],
     ["old notifications", () => prisma.notification.deleteMany({ where: { createdAt: { lt: ago(365) } } })],

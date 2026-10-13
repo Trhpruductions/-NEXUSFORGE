@@ -8,6 +8,7 @@ import { prisma } from "../lib/prisma.js";
 import { userCanViewChannel } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { createLinkCode, unlinkDiscord } from "../lib/discord-link.js";
 
 export const meRouter = Router();
 meRouter.use(requireAuth);
@@ -143,6 +144,22 @@ meRouter.delete("/saved/:kind/:messageId", async (req, res) => {
     where: { userId: req.user!.id, ...(kind.data === "CHANNEL" ? { messageId: req.params.messageId } : { dmMessageId: req.params.messageId }) },
   });
   res.json({ saved: false });
+});
+
+// ---------------------------------------------------------------- Discord link
+meRouter.get("/discord", async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { discordUserId: true, discordLinkedAt: true } });
+  res.json({ linked: Boolean(user?.discordUserId), linkedAt: user?.discordLinkedAt ?? null });
+});
+
+/** A one-time code to type into the Vexora bot: /link CODE. */
+meRouter.post("/discord/link-code", async (req, res) => {
+  res.json(await createLinkCode(req.user!.id));
+});
+
+meRouter.delete("/discord", async (req, res) => {
+  await unlinkDiscord(req.user!.id);
+  res.json({ linked: false });
 });
 
 // ---------------------------------------------------------------- notes

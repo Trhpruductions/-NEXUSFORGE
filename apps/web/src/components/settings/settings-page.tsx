@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { DiscordLinkCard } from "@/components/settings/discord-link-card";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -821,6 +822,7 @@ function SettingsInner() {
             <section className={`${panel} space-y-4`}>
               <h2 className={sectionTitle}>Connections</h2>
               <p className="text-xs text-slate-400">Linked accounts show on your profile and let followers find you on other platforms.</p>
+              <DiscordLinkCard />
           <div>
             <p className="mb-2 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"><Link2 className="h-3.5 w-3.5" /> Linked accounts</p>
             <div className="space-y-2">

@@ -17,6 +17,7 @@ import { getLaunchMode, setLaunchModeDesktopOnly } from "./launch-mode.js";
 import { MiningAuthority } from "./mining-authority.js";
 import { EconomyAuthority } from "./economy-authority.js";
 import { prisma } from "./prisma.js";
+import { redeemLinkCode, userForDiscord } from "./discord-link.js";
 
 let discordClient: Client | null = null;
 let readyUsername: string | null = null;
@@ -202,6 +203,12 @@ export function createCommands() {
     new SlashCommandBuilder()
       .setName("balance")
       .setDescription("Check your Vexora Gaming economic standing."),
+    new SlashCommandBuilder()
+      .setName("link")
+      .setDescription("Link this Discord account to your Vexora Gaming account.")
+      .addStringOption((option) =>
+        option.setName("code").setDescription("The code from Vexora Settings > Connections").setRequired(true),
+      ),
   ];
 
   return commands.map((command) => command.toJSON());
@@ -755,9 +762,14 @@ export async function startDiscordBot() {
         if (interaction.customId.startsWith("harvest_all_")) {
           const userId = interaction.customId.replace("harvest_all_", "");
           
-          // Basic security: only wearer can click or we verify the user
-          // For now we trust the customId mapping as it's ephemeral
-          
+          // Only the person the button was made for may press it: whoever clicks must be
+          // the Discord account linked to that Vexora account.
+          const clicker = await userForDiscord(interaction.user.id);
+          if (!clicker || clicker.id !== userId) {
+            await interaction.reply({ content: "That button isn't yours. Use /mining to see your own rigs.", ephemeral: true });
+            return;
+          }
+
           await interaction.deferUpdate();
           const harvested = await MiningAuthority.harvestAll(userId);
           
@@ -898,17 +910,27 @@ export async function startDiscordBot() {
         return;
       }
 
-      if (interaction.commandName === "balance") {
-        const user = await prisma.user.findFirst({
-          where: { socialLinks: { path: ["discord"], equals: interaction.user.id } }
+      if (interaction.commandName === "link") {
+        const code = interaction.options.getString("code", true);
+        const result = await redeemLinkCode(code, interaction.user.id);
+        await interaction.reply({
+          content: result.ok
+            ? `Linked! This Discord account is now connected to **${result.username}** on Vexora Gaming.`
+            : result.reason === "expired"
+              ? "That code has expired. Get a new one in Vexora Settings > Connections."
+              : "That code isn't valid. Get one in Vexora Settings > Connections.",
+          ephemeral: true,
         });
+        return;
+      }
 
-        // Fallback to checking by username or other mapping if socialLinks isn't populated
-        const actualUser = user || await prisma.user.findUnique({ where: { username: interaction.user.username } });
+      if (interaction.commandName === "balance") {
+        // Only an account linked with a one-time code (usernames and profile links can be faked).
+        const actualUser = await userForDiscord(interaction.user.id);
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Your Discord account is not linked to a Vexora Gaming profile. Please link it in the app settings.",
+            content: "Your Discord account isn't linked yet. Get a code in Vexora Settings > Connections, then use /link.",
             ephemeral: true,
           });
           return;
@@ -937,14 +959,11 @@ export async function startDiscordBot() {
       }
 
       if (interaction.commandName === "mining") {
-        const user = await prisma.user.findFirst({
-          where: { socialLinks: { path: ["discord"], equals: interaction.user.id } }
-        });
-        const actualUser = user || await prisma.user.findUnique({ where: { username: interaction.user.username } });
+        const actualUser = await userForDiscord(interaction.user.id);
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Please link your Vexora Gaming account to use mining features.",
+            content: "Your Discord account isn't linked yet. Get a code in Vexora Settings > Connections, then use /link.",
             ephemeral: true,
           });
           return;

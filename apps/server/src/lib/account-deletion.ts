@@ -98,6 +98,7 @@ export async function anonymizeUser(userId: string) {
     prisma.avatarPreset.deleteMany({ where: { userId } }),
     prisma.postLike.deleteMany({ where: { userId } }),
     prisma.savedMessage.deleteMany({ where: { userId } }),
+    prisma.discordLinkCode.deleteMany({ where: { userId } }),
     // Notes they wrote, and other people's notes about an account that no longer exists.
     prisma.userNote.deleteMany({ where: { OR: [{ authorId: userId }, { targetId: userId }] } }),
     // Their own feed posts and comments are profile content, not conversation: removed.
@@ -110,6 +111,8 @@ export async function anonymizeUser(userId: string) {
         email: `deleted+${randomUUID()}@deleted.invalid`,
         password: await hashPassword(randomBytes(32).toString("hex")),
         avatar: null,
+        discordUserId: null,
+        discordLinkedAt: null,
         banner: null,
         bio: null,
         displayName: null,

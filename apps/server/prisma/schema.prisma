@@ -259,6 +259,10 @@ model User {
   deletedAt            DateTime?
   suspensions          AccountSuspension[]
   pollVotes            PollVote[]
+  /// Discord account proven with a one-time /link code (the bot trusts only this).
+  discordUserId        String?        @unique
+  discordLinkedAt      DateTime?
+  discordLinkCodes     DiscordLinkCode[]
   savedMessages        SavedMessage[]
   notesWritten         UserNote[]     @relation("NoteAuthor")
   notesAbout           UserNote[]     @relation("NoteTarget")
@@ -658,6 +662,19 @@ model ForgeSound {
   createdAt DateTime @default(now())
 
   @@unique([forgeId, name])
+}
+
+/// One-time code for linking a Discord account: shown in Vexora settings, typed into the
+/// bot's /link command. Stored hashed; valid for 10 minutes.
+model DiscordLinkCode {
+  codeHash  String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 /// A member reporting a message. Server-channel reports go to that forge's moderators;
