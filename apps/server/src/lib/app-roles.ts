@@ -44,3 +44,11 @@ export function canModifyTarget(actorId: string, targetId: string, actorRole: Ap
 
   return appRoleRank[targetRole] < appRoleRank[actorRole];
 }
+
+/** Platform moderators and up: can work the report queue and support tickets. */
+export function hasModeratorAccess(role: AppRole | null | undefined, isAdmin: boolean): boolean {
+  return hasAdminAccess(role, isAdmin) || role === "MODERATOR";
+}
+
+/** Prisma filter for every staff account that should see the queues. */
+export const moderatorRoleFilter = { OR: [{ isAdmin: true }, { appRole: { in: ["MODERATOR", "ADMIN", "EXEC", "OWNER"] as AppRole[] } }] };

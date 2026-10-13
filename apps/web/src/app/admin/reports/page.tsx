@@ -30,9 +30,10 @@ export default function AdminReportsPage() {
     );
   }
 
-  if (!user.isAdmin) {
+  // Platform moderators work the report queue too.
+  if (!user.isAdmin && user.appRole !== "MODERATOR") {
     return (
-      <ExperienceShell eyebrow="Access Denied" title="Administrators only" subtitle="Only Vexora staff can review reports." metrics={[]} actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
+      <ExperienceShell eyebrow="Access Denied" title="Staff only" subtitle="Only Vexora staff and moderators can review reports." metrics={[]} actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
         <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-400">Report problems from a message’s flag button instead.</div>
       </ExperienceShell>
     );

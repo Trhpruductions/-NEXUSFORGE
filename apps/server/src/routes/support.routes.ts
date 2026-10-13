@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { z } from "zod";
 import type { SupportStatus } from "@prisma/client";
 import { env } from "../config/env.js";
-import { hasAdminAccess } from "../lib/app-roles.js";
+import { hasModeratorAccess, moderatorRoleFilter } from "../lib/app-roles.js";
 import { sendEmail } from "../lib/delivery.js";
 import { createNotification } from "../lib/notifications.js";
 import { prisma } from "../lib/prisma.js";
@@ -23,7 +23,7 @@ const authorSelect = { id: true, username: true, displayName: true, avatar: true
 
 async function isStaff(req: Request) {
   const me = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { isAdmin: true, appRole: true } });
-  return Boolean(me && hasAdminAccess(me.appRole, me.isAdmin));
+  return Boolean(me && hasModeratorAccess(me.appRole, me.isAdmin));
 }
 
 function ticketUrl(id: string) {
@@ -103,7 +103,7 @@ supportRouter.post("/tickets", async (req, res) => {
 
   // Let the staff know. Small team: notify every admin-role account.
   const staff = await prisma.user.findMany({
-    where: { OR: [{ isAdmin: true }, { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } }], NOT: { id: req.user!.id } },
+    where: { ...moderatorRoleFilter, NOT: { id: req.user!.id } },
     select: { id: true },
     take: 50,
   });

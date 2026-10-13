@@ -2,7 +2,7 @@ import { Router, type Request } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
-import { hasAdminAccess } from "../lib/app-roles.js";
+import { hasModeratorAccess, moderatorRoleFilter } from "../lib/app-roles.js";
 import { getIo } from "../lib/realtime.js";
 import { logForgeAction } from "../lib/forge-audit.js";
 import { canModerateMember, hasForgePermission, resolveForgeAccess } from "../lib/forge-permissions.js";
@@ -38,12 +38,12 @@ const handleSchema = z.object({
 
 async function isStaff(req: Request) {
   const me = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { isAdmin: true, appRole: true } });
-  return Boolean(me && hasAdminAccess(me.appRole, me.isAdmin));
+  return Boolean(me && hasModeratorAccess(me.appRole, me.isAdmin));
 }
 
 async function staffIds(excludeId: string) {
   const staff = await prisma.user.findMany({
-    where: { deletedAt: null, OR: [{ isAdmin: true }, { appRole: { in: ["ADMIN", "EXEC", "OWNER"] } }], NOT: { id: excludeId } },
+    where: { deletedAt: null, ...moderatorRoleFilter, NOT: { id: excludeId } },
     select: { id: true },
     take: 50,
   });

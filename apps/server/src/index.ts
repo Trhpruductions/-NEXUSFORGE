@@ -41,6 +41,7 @@ import { webhookExecuteRouter } from "./routes/webhooks.routes.js";
 import { ensureLegalPolicies } from "./lib/legal-policies.js";
 import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
 import { runStartupTask } from "./lib/startup.js";
+import { startCleanup } from "./lib/cleanup.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
@@ -138,6 +139,9 @@ if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
 }
 
 const io = new Server(httpServer, {
+  // Largest legitimate message is a WebRTC offer with video (a few KB). The 1 MB default
+  // let a client push huge payloads through the relay.
+  maxHttpBufferSize: 128 * 1024,
   cors: {
     origin(origin, callback) {
       callback(null, isOriginAllowed(origin));
@@ -244,6 +248,22 @@ function unwatch(creatorId: string, socketId: string) {
   socketWatching.get(socketId)?.delete(creatorId);
 }
 
+const STALE_LIVE_MS = 10 * 60 * 1000;
+async function endStaleLive(userId: string) {
+  try {
+    const ended = await prisma.user.updateMany({
+      where: { id: userId, creatorStatus: "LIVE" },
+      data: { creatorStatus: "OFFLINE", liveViewerCount: 0, liveStartedAt: null },
+    });
+    if (ended.count) {
+      await prisma.streamSession.updateMany({ where: { userId, endedAt: null }, data: { endedAt: new Date() } });
+      io.emit("live:viewers", { creatorId: userId, count: 0 });
+    }
+  } catch (error) {
+    console.error("[live] ending a stale stream failed", error);
+  }
+}
+
 async function publishViewerCount(creatorId: string) {
   const count = streamViewers.get(creatorId)?.size ?? 0;
   try {
@@ -336,7 +356,38 @@ async function setPresence(userId: string, connection: "ONLINE" | "OFFLINE") {
   }
 }
 
+/**
+ * Per-connection rate limits (token buckets). Call signalling gets its own, bigger budget:
+ * connecting to a room sends a burst of ICE candidates per person. Anything over budget is
+ * dropped quietly; a well-behaved app never gets near these numbers.
+ */
+function socketBucket(capacity: number, refillPerSecond: number) {
+  let tokens = capacity;
+  let last = Date.now();
+  return () => {
+    const now = Date.now();
+    tokens = Math.min(capacity, tokens + ((now - last) / 1000) * refillPerSecond);
+    last = now;
+    if (tokens < 1) return false;
+    tokens -= 1;
+    return true;
+  };
+}
+const SIGNAL_MAX_BYTES = 64 * 1024;
+
 io.on("connection", (socket) => {
+  const generalBudget = socketBucket(60, 10);
+  const signalBudget = socketBucket(600, 60);
+  let throttledLogged = false;
+  socket.use(([event], next) => {
+    const allowed = event === "voice:signal" ? signalBudget() : generalBudget();
+    if (allowed) return next();
+    if (!throttledLogged) {
+      throttledLogged = true;
+      console.warn(`[realtime] throttling socket of user ${socket.data.user?.id} (event ${String(event)})`);
+    }
+  });
+
   socket.emit("welcome", { message: "Connected to Vexora Gaming realtime gateway" });
   socket.join(`user:${socket.data.user.id}`);
 
@@ -359,6 +410,11 @@ io.on("connection", (socket) => {
       setTimeout(() => {
         if (!onlineSockets.has(presenceUserId)) void setPresence(presenceUserId, "OFFLINE");
       }, 8000);
+      // Gone for 10 minutes while marked LIVE: end the stream, so the live list doesn't
+      // keep showing people who closed the app without pressing "End stream".
+      setTimeout(() => {
+        if (!onlineSockets.has(presenceUserId)) void endStaleLive(presenceUserId);
+      }, STALE_LIVE_MS).unref();
     } else {
       onlineSockets.set(presenceUserId, remaining);
     }
@@ -411,7 +467,7 @@ io.on("connection", (socket) => {
     const joinedChannel = await prisma.channel.findUnique({ where: { id: channelId }, select: { type: true, forgeId: true } }).catch(() => null);
     if (joinedChannel?.type === "STAGE") {
       stageChannels.add(channelId);
-      const member = await loadMemberContext(socket.data.user.id, joinedChannel.forgeId);
+      const member = await loadMemberContext(socket.data.user.id, joinedChannel.forgeId).catch(() => null);
       const moderator = Boolean(member && (member.access.isOwner || hasForgePermission(member.access, "moderateChat") || hasForgePermission(member.access, "manageChannels")));
       stageJoin(channelId, socket.data.user.id, moderator);
     }
@@ -426,6 +482,13 @@ io.on("connection", (socket) => {
   // Stage: raise/lower a hand, and moderators bring people up or move them down.
   // Soundboard: play one of the forge's sounds for everyone in your voice channel.
   socket.on("soundboard:play", async (payload: { channelId?: string; soundId?: string }) => {
+    try {
+      await playSound(payload);
+    } catch (error) {
+      console.error("[soundboard] play failed", error);
+    }
+  });
+  const playSound = async (payload: { channelId?: string; soundId?: string }) => {
     if (!payload || typeof payload.channelId !== "string" || typeof payload.soundId !== "string") return;
     const userId = socket.data.user.id;
     if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
@@ -447,7 +510,7 @@ io.on("connection", (socket) => {
     }
     soundboardLastPlayed.set(userId, now);
     io.to(`voice:${payload.channelId}`).emit("soundboard:played", { channelId: payload.channelId, userId, ...sound, soundId: sound.id });
-  });
+  };
 
   socket.on("stage:raise", (payload: { channelId?: string; raised?: boolean }) => {
     if (!payload || typeof payload.channelId !== "string" || !stageChannels.has(payload.channelId)) return;
@@ -474,8 +537,11 @@ io.on("connection", (socket) => {
   });
 
   /** In-app stream viewers: real viewer counts for creators watched inside Vexora. */
-  socket.on("stream:watch", (creatorId: string) => {
+  socket.on("stream:watch", async (creatorId: string) => {
     if (typeof creatorId !== "string" || !creatorId) return;
+    // Only count viewers for someone who is actually live (this broadcasts to everyone).
+    const creator = await prisma.user.findUnique({ where: { id: creatorId }, select: { creatorStatus: true } }).catch(() => null);
+    if (creator?.creatorStatus !== "LIVE") return;
     for (const previous of socketWatching.get(socket.id) ?? []) unwatch(previous, socket.id);
     let viewers = streamViewers.get(creatorId);
     if (!viewers) {
@@ -496,6 +562,7 @@ io.on("connection", (socket) => {
   /** WebRTC signaling relay for the built-in voice mode: offers, answers and ICE candidates between two users in a voice channel. */
   socket.on("voice:signal", (payload: { channelId?: string; to?: string; data?: unknown }) => {
     if (!payload || typeof payload.channelId !== "string" || typeof payload.to !== "string" || !payload.data) return;
+    if (JSON.stringify(payload.data).length > SIGNAL_MAX_BYTES) return;
     const channelId = payload.channelId;
     const members = voiceMembers(channelId);
     if (!members.includes(socket.data.user.id) || !members.includes(payload.to)) return;
@@ -578,6 +645,7 @@ void runStartupTask("legal policies", ensureLegalPolicies);
 void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 });
 startEventReminders();
 startDeletionSweeper();
+startCleanup();
 void runStartupTask("achievements catalog", ensureAchievementCatalog);
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {

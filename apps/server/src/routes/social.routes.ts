@@ -390,7 +390,8 @@ const liveSchema = z.object({
   live: z.boolean(),
   platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Vexora"]).optional(),
   title: z.string().trim().max(140).optional(),
-  url: z.string().url().optional(),
+  // http(s) only: z.url() alone accepts javascript: links, and this one is shown to followers.
+  url: z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Use an http(s) link").optional(),
   game: z.string().trim().max(80).optional(),
 });
 

@@ -7,6 +7,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { isTimedOut, userCanViewChannel } from "../lib/channel-access.js";
+import { voiceMembers } from "../lib/voice-occupancy.js";
 
 const tokenSchema = z.object({
   channelId: z.string().uuid(),
@@ -130,6 +131,12 @@ voiceRouter.post("/state", async (req, res) => {
 
   if (!member) {
     res.status(403).json({ error: "Not a member of this Forge" });
+    return;
+  }
+  // Only someone actually in the call can announce their state to it (this used to let
+  // any member push fake state into any room, private ones included).
+  if (!voiceMembers(parsed.data.channelId).includes(req.user!.id)) {
+    res.status(403).json({ error: "You're not in this voice channel" });
     return;
   }
 
