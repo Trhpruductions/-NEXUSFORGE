@@ -1641,7 +1641,8 @@ const adminLiveStatusSchema = z.object({
   creatorStatus: z.enum(["OFFLINE", "LIVE"]),
   livePlatform: z.string().optional(),
   liveStreamTitle: z.string().optional(),
-  liveStreamUrl: z.string().optional(),
+  // Shown to everyone as a link, so only plain web addresses (never javascript: and the like).
+  liveStreamUrl: z.string().trim().max(500).regex(/^https?:\/\/\S+$/i, "Use an http(s) link").optional(),
   liveGameCategory: z.string().optional(),
   liveViewerCount: z.number().int().optional(),
 });

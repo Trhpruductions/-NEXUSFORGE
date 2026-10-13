@@ -39,6 +39,7 @@ import {
   listMyBots,
   sendSensitiveChallenge,
   updateAccountSettings,
+  updateMe,
   updateLinkedAccounts,
   updatePreferences,
   updatePrivacySettings,
@@ -146,6 +147,7 @@ function SettingsInner() {
   });
 
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
   const [clanTag, setClanTag] = useState("");
@@ -169,6 +171,7 @@ function SettingsInner() {
     const data = settingsQuery.data;
     if (!data || seeded) return;
     setDisplayName(data.account.displayName ?? "");
+    setUsername(data.account.username);
     setEmail(data.account.email);
     setBio(data.account.bio ?? "");
     setClanTag(data.account.clanTag ?? "");
@@ -275,6 +278,15 @@ function SettingsInner() {
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
+  const usernameMutation = useMutation({
+    mutationFn: () => updateMe(accessToken!, csrfToken!, { username: username.trim() }),
+    onSuccess: async () => {
+      setNotice({ tone: "ok", text: "Username changed." });
+      await refresh();
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+  const usernameDirty = Boolean(account) && username.trim() !== "" && username.trim() !== account?.username;
   const privacyMutation = useMutation({
     mutationFn: () => updatePrivacySettings(accessToken!, csrfToken!, privacy!),
     onSuccess: async () => {
@@ -409,7 +421,15 @@ function SettingsInner() {
           <div className="space-y-3">
             <label className="block text-xs text-slate-300">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Username</span>
-              <input className={`${inputClass} opacity-70`} value={account?.username ?? ""} disabled />
+              <span className="flex gap-2">
+                <input className={inputClass} value={username} onChange={(event) => setUsername(event.target.value.replace(/[^A-Za-z0-9_]/g, ""))} maxLength={32} autoComplete="username" />
+                {usernameDirty ? (
+                  <button type="button" className={ghostBtn} disabled={usernameMutation.isPending} onClick={() => usernameMutation.mutate()}>
+                    {usernameMutation.isPending ? "Saving…" : "Change"}
+                  </button>
+                ) : null}
+              </span>
+              <span className="mt-1 block text-[11px] text-slate-500">Letters, numbers and _ · can be changed once a day</span>
             </label>
             <label className="block text-xs text-slate-300">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Display name</span>

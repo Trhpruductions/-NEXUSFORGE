@@ -26,6 +26,7 @@ import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-
 import { PostCard } from "@/components/social/post-card";
 import { useAuthStore } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { safeHref } from "@/lib/safe-href";
 
 type Tab = "posts" | "clips" | "streams" | "achievements" | "friends";
 
@@ -339,7 +340,7 @@ function ProfileInner() {
                   <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400"><Radio className="h-3 w-3" /> Live now on {person.livePlatform ?? "stream"}</p>
                   <h3 className="text-lg font-semibold text-white">{person.liveStreamTitle ?? `${displayName} is live`}</h3>
                   <p className="text-sm text-slate-400">{person.liveGameCategory} · {compact(person.liveViewerCount)} watching</p>
-                  {person.liveStreamUrl ? <a href={person.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Watch stream</a> : null}
+                  {safeHref(person.liveStreamUrl) ? <a href={safeHref(person.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className={goldBtn}>Watch stream</a> : null}
                 </div>
               ) : (
                 <div className="space-y-2 text-sm text-slate-400">

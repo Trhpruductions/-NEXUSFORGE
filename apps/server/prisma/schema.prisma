@@ -265,6 +265,7 @@ model User {
   discordLinkCodes     DiscordLinkCode[]
   /// The newest "What's new" update this person has seen (null: anything after sign-up is new).
   lastSeenUpdateAt     DateTime?
+  usernameChangedAt    DateTime?
   savedMessages        SavedMessage[]
   notesWritten         UserNote[]     @relation("NoteAuthor")
   notesAbout           UserNote[]     @relation("NoteTarget")

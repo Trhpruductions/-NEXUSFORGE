@@ -23,6 +23,7 @@ import { missingSignupAcceptances } from "../lib/legal-rules.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
 import { currentSuspension, suspendedResponse } from "../lib/account-suspension.js";
+import { USERNAME_CHANGE_COOLDOWN_MS, usernameProblem, usernameTaken } from "../lib/usernames.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -185,6 +186,11 @@ authRouter.post("/register", async (req, res) => {
 
   const email = parsed.data.email.toLowerCase();
   const username = parsed.data.username.trim();
+  const nameProblem = usernameProblem(username);
+  if (nameProblem) {
+    res.status(400).json({ error: nameProblem });
+    return;
+  }
 
   // Age Verification Logic
   const birthDate = new Date(parsed.data.birthdate);
@@ -202,7 +208,7 @@ authRouter.post("/register", async (req, res) => {
 
   const existing = await prisma.user.findFirst({
     where: {
-      OR: [{ email }, { username }],
+      OR: [{ email }, { username: { equals: username, mode: "insensitive" } }],
     },
   });
 
@@ -712,15 +718,23 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
     }
   }
 
-  if (parsed.data.username) {
-    const taken = await prisma.user.findFirst({
-      where: {
-        username: parsed.data.username.trim(),
-        id: { not: req.user!.id },
-      },
-    });
-
-    if (taken) {
+  // Sending your current name back (forms often do) isn't a rename.
+  const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true, usernameChangedAt: true } });
+  const newUsername = parsed.data.username?.trim();
+  const renaming = Boolean(newUsername && current && newUsername !== current.username);
+  if (renaming && newUsername) {
+    const problem = usernameProblem(newUsername);
+    if (problem) {
+      res.status(400).json({ error: problem });
+      return;
+    }
+    const caseOnly = newUsername.toLowerCase() === current!.username.toLowerCase();
+    const nextAllowed = current!.usernameChangedAt ? current!.usernameChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_MS : 0;
+    if (!caseOnly && nextAllowed > Date.now()) {
+      res.status(429).json({ error: "You can change your username once a day.", retryAt: new Date(nextAllowed).toISOString() });
+      return;
+    }
+    if (await usernameTaken(newUsername, req.user!.id)) {
       res.status(409).json({ error: "Username already in use" });
       return;
     }
@@ -729,7 +743,7 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   const updated = await prisma.user.update({
     where: { id: req.user!.id },
     data: {
-      ...(parsed.data.username ? { username: parsed.data.username.trim() } : {}),
+      ...(renaming ? { username: newUsername, usernameChangedAt: new Date() } : {}),
       ...(parsed.data.avatar !== undefined ? { avatar: parsed.data.avatar } : {}),
       ...(parsed.data.banner !== undefined ? { banner: parsed.data.banner } : {}),
       ...(parsed.data.bio !== undefined ? { bio: parsed.data.bio } : {}),

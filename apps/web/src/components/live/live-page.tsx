@@ -9,6 +9,7 @@ import { getApiErrorMessage, getLiveCreators, getProfileSummary, setLiveStatus, 
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { resolveClipEmbed } from "@/components/media/clip-embed";
+import { safeHref } from "@/lib/safe-href";
 
 const panel = "vx-panel rounded-2xl p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -131,7 +132,7 @@ function LivePageInner() {
                 <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_50%_40%,rgba(244,63,94,0.18),transparent_60%),#0b0e15] text-center">
                   <Radio className="h-8 w-8 text-rose-400" />
                   <p className="text-sm text-slate-300">{watching.livePlatform ?? "This platform"} does not allow embedding here.</p>
-                  {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Open on {watching.livePlatform ?? "platform"} <ExternalLink className="h-3 w-3" /></a> : null}
+                  {safeHref(watching.liveStreamUrl) ? <a href={safeHref(watching.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className={goldBtn}>Open on {watching.livePlatform ?? "platform"} <ExternalLink className="h-3 w-3" /></a> : null}
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-3 border-t border-white/5 p-3">
@@ -140,7 +141,7 @@ function LivePageInner() {
                   <p className="truncate text-sm font-semibold text-white">{watching.liveStreamTitle || `${watching.username} is live`}</p>
                   <p className="truncate text-[11px] text-slate-400">{[watching.displayName || watching.username, watching.liveGameCategory, watching.livePlatform].filter(Boolean).join(" · ")} · <Eye className="inline h-3 w-3" /> {compact(watching.liveViewerCount ?? 0)} watching</p>
                 </div>
-                {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Open <ExternalLink className="h-3 w-3" /></a> : null}
+                {safeHref(watching.liveStreamUrl) ? <a href={safeHref(watching.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Open <ExternalLink className="h-3 w-3" /></a> : null}
                 <button type="button" onClick={() => setWatchingId(null)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-rose-400/50"><X className="h-3 w-3" /> Close</button>
               </div>
             </div>
