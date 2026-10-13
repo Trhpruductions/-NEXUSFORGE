@@ -137,13 +137,14 @@ These features are tested end to end with real accounts, and most also with two 
 
 ## 6. How to connect billing (Stripe)
 
-The code is ready. Once the keys below are in place, checkout, the customer portal, subscriptions and add-ons work, and paid features start being enforced. (Until then, everything stays free.)
+The code is ready. Once the keys below are in place, checkout, the customer portal and subscriptions work, and plan limits start being enforced. (Until then, everyone gets at least the Free plan.)
+
+**What each plan includes:** see the pricing page or `apps/server/src/lib/plans.ts`. Free already includes what Discord charges Nitro for (4,000-character messages, banner, animated avatar, HD video, 50 MB uploads, 200 servers). Paid plans add bigger uploads, more servers and ultra 1440p60 video.
 
 1. Create a Stripe account at stripe.com. Use **Test mode** first.
 2. In Stripe **Products**, create the plans and copy each **price ID** (starts with `price_`):
    - Core+ tiers (recurring): Core, Plus, Elite and Infinite, each with a **monthly** and a **yearly** price. That's 8 prices.
-   - Add-ons (one-time): Forge Boost Pack, Creator Campaign Slot, Event Ticket Pass, Team Branding Kit and Advanced Moderation AI.
-   - Consider leaving out "Advanced Moderation AI" until it's a real feature (see 4.24).
+   - No add-on prices are needed: only Core+ plans are sold. The add-ons did nothing, so they were taken off sale.
 3. In **Developers → API keys**, copy the **Secret key** (`sk_test_...`).
 4. In **Developers → Webhooks**, add an endpoint at `https://<your public API address>/api/billing/webhook`.
    - Select these events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` and `invoice.payment_failed`.
@@ -161,11 +162,6 @@ The code is ready. Once the keys below are in place, checkout, the customer port
    STRIPE_PRICE_ELITE_YEARLY=price_...
    STRIPE_PRICE_INFINITE_MONTHLY=price_...
    STRIPE_PRICE_INFINITE_YEARLY=price_...
-   STRIPE_PRICE_FORGE_BOOST_PACK=price_...
-   STRIPE_PRICE_CREATOR_CAMPAIGN_SLOT=price_...
-   STRIPE_PRICE_EVENT_TICKET_PASS=price_...
-   STRIPE_PRICE_TEAM_BRANDING_KIT=price_...
-   STRIPE_PRICE_ADVANCED_MODERATION_AI=price_...
    ```
 6. Tell me when it's done. I'll restart the server and run a test checkout with Stripe's test card, without needing to see your keys.
 7. Before taking real money:
