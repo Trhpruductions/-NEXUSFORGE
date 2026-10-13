@@ -26,9 +26,9 @@ export default async function PricingPage({
       ]}
       maxWidthClassName="max-w-[1300px]"
     >
-      <main className="mx-auto w-full">
+      <div className="mx-auto w-full">
         <PricingAndPayments checkoutState={resolved.checkout} />
-      </main>
+      </div>
       <PoweredByFooter />
     </ExperienceShell>
   );

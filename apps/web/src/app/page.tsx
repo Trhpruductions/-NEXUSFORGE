@@ -128,7 +128,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="relative">
+      <main id="main-content" className="relative">
         <section className="mx-auto grid max-w-7xl items-center gap-12 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pt-24">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">

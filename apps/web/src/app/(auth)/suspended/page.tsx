@@ -18,7 +18,7 @@ export default function SuspendedPage() {
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-[#05030f] px-4 py-10 text-slate-100">
-      <main className="w-full max-w-lg rounded-2xl border border-rose-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(244,63,94,0.12)] sm:p-8">
+      <main id="main-content" className="w-full max-w-lg rounded-2xl border border-rose-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(244,63,94,0.12)] sm:p-8">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-rose-400/40 bg-rose-500/10 text-rose-200">
           <ShieldAlert className="h-6 w-6" />
         </span>

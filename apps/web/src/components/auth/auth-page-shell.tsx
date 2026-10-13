@@ -39,7 +39,9 @@ export function AuthPageShell({ hero, children }: AuthPageShellProps) {
               <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
             </div>
           </Link>
-          {children}
+          <main id="main-content" className="flex w-full flex-col items-center lg:items-end">
+            {children}
+          </main>
         </div>
       </div>
     </div>

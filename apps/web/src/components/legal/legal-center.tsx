@@ -163,7 +163,7 @@ export function LegalCenter({ slug }: { slug: string | null }) {
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2">{nav}</div>
         </aside>
 
-        <main id="legal-main" className="min-w-0">
+        <main id="main-content" className="min-w-0">
           {!slug ? (
             <section>
               <p className="inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-violet-200">
