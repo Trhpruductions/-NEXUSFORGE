@@ -129,7 +129,9 @@
     "desktop:network:validate:ci": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/validate-desktop-network-modes.ps1 -Mode all -AllowFallback -ReportPath ./apps/desktop/.network-smoke/latest-report.json",
     "desktop:network:validate:ci:strict": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/validate-desktop-network-modes.ps1 -Mode all -ReportPath ./apps/desktop/.network-smoke/latest-report.json",
     "build": "node ./scripts/build-workspace.mjs",
-    "lint": "npm run lint -w web"
+    "lint": "npm run lint -w web",
+    "backup": "node scripts/vexora-backup.mjs",
+    "backup:list": "node scripts/vexora-backup.mjs --list"
   },
   "keywords": [],
   "author": "",
