@@ -1012,6 +1012,19 @@ export async function forgotPassword(payload: { email: string }) {
   return response.data;
 }
 
+export async function forgotPasswordByPhone(phone: string) {
+  return (await api.post<{ message: string }>("/api/auth/forgot-password", { phone })).data;
+}
+
+export async function resetPasswordByPhone(payload: { phone: string; code: string; newPassword: string }) {
+  return (await api.post<{ message: string }>("/api/auth/reset-password/phone", payload)).data;
+}
+
+/** Which ways of reaching people the server can use right now (email, text messages). */
+export async function getDeliveryOptions() {
+  return (await api.get<{ email: boolean; sms: boolean }>("/api/auth/delivery")).data;
+}
+
 export async function verifyEmail(token: string) {
   const response = await api.get<{ message: string }>("/api/auth/verify-email", {
     params: { token },

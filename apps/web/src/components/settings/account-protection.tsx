@@ -168,8 +168,12 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
         <p className={`mb-3 rounded-xl border px-3 py-2 text-xs ${notice.tone === "ok" ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : "border-rose-400/30 bg-rose-500/10 text-rose-100"}`}>{notice.text}</p>
       ) : null}
       {delivery && (delivery.email === "unconfigured" || delivery.sms === "unconfigured") ? (
-        <p className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
-          Delivery is not configured on the server{delivery.email === "unconfigured" ? " for email" : ""}{delivery.sms === "unconfigured" ? " for SMS" : ""}. Codes cannot be sent until SMTP and Twilio credentials are set.
+        <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          {delivery.email === "unconfigured" && delivery.sms === "unconfigured"
+            ? "Vexora can't send emails or texts right now, so codes can't be sent. Please try again later."
+            : delivery.sms === "unconfigured"
+              ? "Text messages aren't switched on for Vexora yet, so phone numbers can't be verified right now. Email codes work as normal."
+              : "Vexora can't send emails right now, so email codes can't be sent. Please try again later."}
         </p>
       ) : null}
 
@@ -222,7 +226,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
               {!phoneSent ? (
                 <>
                   <input className={inputClass} type="tel" autoComplete="tel" aria-label="Phone number" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
-                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || sendPhone.isPending} onClick={() => sendPhone.mutate()}>
+                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || sendPhone.isPending || delivery?.sms === "unconfigured"} onClick={() => sendPhone.mutate()}>
                     {sendPhone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />} Text me a code
                   </button>
                 </>

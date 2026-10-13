@@ -9,14 +9,14 @@ import { requireAuth } from "../middleware/auth.js";
 import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
-import { sendEmail } from "../lib/delivery.js";
+import { deliveryStatus, sendEmail } from "../lib/delivery.js";
 import { dispatchPushNotification, pushConfigured } from "../lib/push.js";
 import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
 import { upgradeRequired } from "../lib/plans.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
-import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
+import { issueCode, verifyCode, maskEmail, maskPhone, normalizePhone } from "../lib/verification.js";
 import { checkSecondFactor } from "../lib/second-factor.js";
 import { currentRequiredPolicies, recordAcceptances } from "../lib/legal-policies.js";
 import { missingSignupAcceptances } from "../lib/legal-rules.js";
@@ -37,13 +37,35 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  /** An email address or a verified phone number. */
+  email: z.string().trim().min(3).max(254),
   password: z.string().min(8).max(72),
 });
 
-const forgotSchema = z.object({
-  email: z.string().email(),
+const forgotSchema = z.union([
+  z.object({ email: z.string().email() }),
+  z.object({ phone: z.string().min(7).max(32) }),
+]);
+
+const phoneResetSchema = z.object({
+  phone: z.string().min(7).max(32),
+  code: z.string().regex(/^\d{6}$/),
+  newPassword: z.string().min(8).max(72),
 });
+
+/** Who is signing in: by email, or by a phone number they've verified (an unverified number never works). */
+async function findLoginUser(identifier: string) {
+  if (identifier.includes("@")) return prisma.user.findUnique({ where: { email: identifier.toLowerCase() } });
+  const phone = normalizePhone(identifier);
+  if (!phone) return null;
+  return prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true } });
+}
+
+/** Which ways of reaching people work right now, so the app only offers those. */
+function deliveryAvailable() {
+  const status = deliveryStatus();
+  return { email: status.email !== "unconfigured", sms: status.sms !== "unconfigured" };
+}
 
 const resetSchema = z.object({
   token: z.string().min(20),
@@ -292,8 +314,7 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const email = parsed.data.email.toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await findLoginUser(parsed.data.email);
 
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -826,6 +847,31 @@ authRouter.post("/forgot-password", async (req, res) => {
   // Same answer whether or not the address has an account, and the reset link only ever
   // goes to the inbox. (It used to be returned in this response, so knowing someone's
   // email was enough to take over their account.)
+  if ("phone" in parsed.data) {
+    if (!deliveryAvailable().sms) {
+      res.status(503).json({ error: "Password reset by text isn't available yet. Use your email instead." });
+      return;
+    }
+    const phone = normalizePhone(parsed.data.phone);
+    if (!phone) {
+      res.status(400).json({ error: "Enter a valid phone number with country code, e.g. +1 555 123 4567" });
+      return;
+    }
+    // Same answer whether or not the number is on an account.
+    const phoneAnswer = { message: "If that number is verified on an account, we've texted it a 6-digit code. It works for 10 minutes." };
+    const owner = await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } });
+    if (owner) {
+      void issueCode({ userId: owner.id, channel: "SMS", purpose: "RESET_PASSWORD", target: phone })
+        .then((result) => {
+          if (!result.ok && !result.retryAfterSeconds) console.error("[AUTH] reset text failed", result.error);
+          if (result.devCode) console.log(`[DEV SMS] reset code for ${maskPhone(phone)}: ${result.devCode}`);
+        })
+        .catch((error) => console.error("[AUTH] reset text failed", error));
+    }
+    res.status(200).json(phoneAnswer);
+    return;
+  }
+
   const answer = { message: "If that email has an account, we've sent a link to reset the password. It works for 30 minutes." };
   const email = parsed.data.email.toLowerCase();
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, username: true, email: true, deletedAt: true } });
@@ -881,10 +927,43 @@ authRouter.post("/reset-password", async (req, res) => {
     return;
   }
 
+  await setNewPassword(user.id, parsed.data.newPassword, req, "reset-password");
+  res.status(200).json({ message: "Password reset successful" });
+});
+
+/** Reset with the code texted to a verified phone. */
+authRouter.post("/reset-password/phone", async (req, res) => {
+  const parsed = phoneResetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter your phone number, the 6-digit code and a new password (8+ characters)." });
+    return;
+  }
+  const phone = normalizePhone(parsed.data.phone);
+  const user = phone ? await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } }) : null;
+  if (!user) {
+    res.status(400).json({ error: "That code is wrong or has expired. Request a new one." });
+    return;
+  }
+  const check = await verifyCode({ userId: user.id, purpose: "RESET_PASSWORD", code: parsed.data.code, channel: "SMS" });
+  if (!check.ok || check.target !== phone) {
+    res.status(400).json({ error: check.ok ? "That code is wrong or has expired. Request a new one." : check.error, attemptsLeft: check.ok ? undefined : check.attemptsLeft });
+    return;
+  }
+  await setNewPassword(user.id, parsed.data.newPassword, req, "reset-password-phone");
+  res.status(200).json({ message: "Password reset successful" });
+});
+
+/** Which ways of reaching people work (the sign-in and reset pages only offer these). */
+authRouter.get("/delivery", (_req, res) => {
+  res.json(deliveryAvailable());
+});
+
+async function setNewPassword(userId: string, newPassword: string, req: Parameters<typeof logSessionRevocation>[0]["req"], flow: string) {
+  const user = { id: userId };
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      password: await hashPassword(parsed.data.newPassword),
+      password: await hashPassword(newPassword),
       resetToken: null,
       resetTokenExpires: null,
     },
@@ -908,15 +987,13 @@ authRouter.post("/reset-password", async (req, res) => {
         reason: "password_reset",
         req,
         metadata: {
-          flow: "reset-password",
+          flow,
           batchInvalidation: true,
         },
       }),
     ),
   );
-
-  res.status(200).json({ message: "Password reset successful" });
-});
+}
 
 /** Turn push off for one device (the browser's own subscription endpoint). */
 authRouter.delete("/push-subscriptions", requireAuth, async (req, res) => {

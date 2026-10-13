@@ -40,6 +40,7 @@ const purposeCopy: Record<VerificationPurpose, { subject: string; intro: string 
   VERIFY_PHONE: { subject: "Verify your Vexora Gaming phone", intro: "Use this code to verify your phone number." },
   LOGIN: { subject: "Your Vexora Gaming sign-in code", intro: "Someone is signing in to your account. If this is you, enter this code." },
   SENSITIVE_CHANGE: { subject: "Confirm a change to your Vexora Gaming account", intro: "Use this code to confirm the change to your account." },
+  RESET_PASSWORD: { subject: "Reset your Vexora Gaming password", intro: "Use this code to reset your password. If it wasn't you, ignore it; your password hasn't changed." },
 };
 
 export type IssueResult = {

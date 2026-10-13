@@ -14,7 +14,11 @@ import { getApiErrorMessage, login, resendTwoFactorLogin, verifyTwoFactorLogin }
 import { useAuthStore } from "@/store/auth-store";
 
 const schema = z.object({
-  email: z.string().email("Use a valid email"),
+  // An email, or a phone number that's been verified on the account.
+  email: z
+    .string()
+    .trim()
+    .refine((value) => (value.includes("@") ? z.string().email().safeParse(value).success : value.replace(/\D/g, "").length >= 7), "Use your email or phone number"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -207,7 +211,7 @@ export default function LoginPage() {
       ) : (
       <AuthFormCard
         title="Sign in"
-        subtitle="Use the email and password on your Vexora Gaming account."
+        subtitle="Use your email (or a phone number you've verified) and your password."
         footer={
           <span>
             New here?{" "}
@@ -225,10 +229,11 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <AuthField
             id="login-email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
+            label="Email or phone number"
+            type="text"
+            inputMode="email"
+            autoComplete="username"
+            placeholder="you@example.com or +1 555 123 4567"
             error={errors.email?.message}
             {...register("email")}
           />
