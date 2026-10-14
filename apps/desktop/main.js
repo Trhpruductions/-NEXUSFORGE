@@ -950,7 +950,8 @@ async function checkForUpdates(trigger = "manual") {
     const forceRequired = hasUpdate && (payloadForceUpdate || forceUpdateByDefault);
     const sameAvailableVersion = hasUpdate && updateRuntime.latestVersion === latestVersion;
 
-    const promptPending = trigger === "startup" && hasUpdate && !forceRequired;
+    // Updates download and install in the background; nobody is asked to download or click "Update now".
+    const promptPending = false;
     updateRuntime = {
       ...updateRuntime,
       checking: false,
@@ -975,9 +976,7 @@ async function checkForUpdates(trigger = "manual") {
     emitUpdateRuntime();
 
     if (hasUpdate && !updateRuntime.downloading && !updateRuntime.downloaded) {
-      if (forceRequired || trigger !== "startup") {
-        void beginBackgroundUpdateDownload(forceRequired);
-      }
+      void beginBackgroundUpdateDownload(forceRequired);
     }
 
     if (
