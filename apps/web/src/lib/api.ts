@@ -3279,6 +3279,24 @@ export async function listUnseenUpdates(accessToken: string) {
 export async function markUpdatesSeen(accessToken: string, csrfToken: string) {
   await api.post("/api/updates/seen", {}, { headers: authHeaders(accessToken, csrfToken) });
 }
+export type ProblemKind = "BUG" | "SIGN_IN" | "BILLING" | "SAFETY" | "OTHER";
+export type ProblemReportRow = {
+  id: string; kind: ProblemKind; message: string; contactEmail: string | null; pageUrl: string | null; userAgent: string | null;
+  status: "OPEN" | "RESOLVED"; createdAt: string; resolvedAt: string | null;
+  user: { id: string; username: string; email: string } | null;
+};
+
+/** "Report a problem" (signed in or out). */
+export async function sendProblemReport(payload: { kind: ProblemKind; message: string; contactEmail?: string; pageUrl?: string; website?: string }) {
+  return (await api.post<{ ok: true; reference?: string }>("/api/problem-reports", payload)).data;
+}
+export async function listProblemReports(accessToken: string, status: "OPEN" | "RESOLVED" | "ALL") {
+  return (await api.get<{ reports: ProblemReportRow[]; open: number }>("/api/problem-reports", { headers: authHeaders(accessToken), params: { status } })).data;
+}
+export async function setProblemReportStatus(accessToken: string, csrfToken: string, id: string, status: "OPEN" | "RESOLVED") {
+  return (await api.patch<{ ok: true }>(`/api/problem-reports/${id}`, { status }, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
 export type ErrorEventRow = { id: string; source: "server" | "web"; message: string; detail: string | null; path: string | null; count: number; firstSeenAt: string; lastSeenAt: string };
 
 export async function listErrorEvents(accessToken: string) {

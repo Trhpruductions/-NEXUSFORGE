@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ReportProblem } from "@/components/home/report-problem";
 import {
   ArrowRight,
   AtSign,
@@ -348,6 +349,21 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Report a problem */}
+        <section id="report" className="mx-auto grid max-w-7xl scroll-mt-24 gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
+          <div className="space-y-3">
+            <p className={eyebrow}>Report a problem</p>
+            <h2 className="nf-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">Something not working?</h2>
+            <p className="text-slate-400">
+              Tell us and the team will take a look. You don&apos;t need to be signed in. For a problem with a person or a message, you can also report it right inside the app.
+            </p>
+            <p className="text-sm text-slate-500">
+              Need a conversation instead? <Link href="/support" className="font-semibold text-amber-200 hover:text-white">Open a support ticket</Link>.
+            </p>
+          </div>
+          <ReportProblem />
+        </section>
+
         {/* FAQ */}
         <section className="mx-auto max-w-3xl px-4 pb-16 sm:px-6 lg:px-8">
           <p className={eyebrow}>Questions</p>
@@ -395,7 +411,7 @@ export default function Home() {
           {[
             ["Product", [["Features", "#features"], ["Pricing", "/pricing"], ["Download", "/download"], ["What's new", "/app/updates"]]],
             ["Build", [["Developers", "/developer"], ["Bots", "/developer/bots"], ["Sign in with Nexus Forge", "/developer/oauth"]]],
-            ["Help", [["Support", "/support"], ["Terms", "/legal/terms"], ["Privacy", "/legal/privacy"], ["All policies", "/legal"]]],
+            ["Help", [["Support", "/support"], ["Report a problem", "#report"], ["Terms", "/legal/terms"], ["Privacy", "/legal/privacy"], ["All policies", "/legal"]]],
           ].map(([title, links]) => (
             <div key={title as string}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{title as string}</p>

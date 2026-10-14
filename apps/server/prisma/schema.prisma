@@ -269,6 +269,7 @@ model User {
   /// Lifetime membership granted by Vexora (not billed). Billing never lowers or removes it.
   lifetimeMember       Boolean   @default(false)
   lifetimeGrantedAt    DateTime?
+  problemReports       ProblemReport[]
   savedMessages        SavedMessage[]
   notesWritten         UserNote[]     @relation("NoteAuthor")
   notesAbout           UserNote[]     @relation("NoteTarget")
@@ -680,6 +681,26 @@ model DiscordLinkCode {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+/// "Report a problem" from the website (signed in or not). Staff work through these at
+/// /admin/problem-reports; contactEmail is only for replying and is never shown publicly.
+model ProblemReport {
+  id           String    @id @default(uuid())
+  /// BUG, SIGN_IN, BILLING, SAFETY or OTHER.
+  kind         String    @db.VarChar(16)
+  message      String    @db.Text
+  contactEmail String?   @db.VarChar(254)
+  pageUrl      String?   @db.VarChar(300)
+  userAgent    String?   @db.VarChar(300)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// OPEN or RESOLVED.
+  status       String    @default("OPEN") @db.VarChar(12)
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  @@index([status, createdAt])
 }
 
 /// A crash or server error, grouped: the same problem bumps `count` instead of adding rows.

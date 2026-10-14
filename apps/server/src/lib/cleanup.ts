@@ -10,6 +10,7 @@
  * - notifications: read ones after 90 days, unread ones after 1 year
  * - admin audit log and activity log: 1 year
  * - error log entries (/admin/errors): 30 days after last seen
+ * - resolved problem reports: 180 days after they were resolved
  */
 import { prisma } from "./prisma.js";
 
@@ -24,6 +25,7 @@ export async function runCleanup() {
   const steps: Array<[string, () => Promise<{ count: number }>]> = [
     ["verification codes", () => prisma.verificationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
     ["OAuth codes", () => prisma.oAuthAuthorizationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
+    ["resolved problem reports", () => prisma.problemReport.deleteMany({ where: { status: "RESOLVED", resolvedAt: { lt: ago(180) } } })],
     ["error log", () => prisma.errorEvent.deleteMany({ where: { lastSeenAt: { lt: ago(30) } } })],
     ["Discord link codes", () => prisma.discordLinkCode.deleteMany({ where: { expiresAt: { lt: new Date() } } })],
     ["session tokens", () => prisma.refreshToken.deleteMany({ where: { OR: [{ expiresAt: { lt: ago(1) } }, { revokedAt: { lt: ago(7) } }] } })],
