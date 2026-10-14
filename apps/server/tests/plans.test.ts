@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 process.env.DATABASE_URL ??= "postgresql://unused:unused@localhost:5432/unused";
 process.env.JWT_ACCESS_SECRET ??= "test-access-secret-at-least-32-characters";
 process.env.JWT_REFRESH_SECRET ??= "test-refresh-secret-at-least-32-characters";
+// Test the "billing not connected" rules even on a machine whose .env has Stripe keys
+// (an existing empty value isn't overwritten when .env is loaded).
+process.env.STRIPE_SECRET_KEY = "";
 const { PLANS, TIER_ORDER, cheapestTierWith, limitsFor, upgradeRequired } = await import("../src/lib/plans.js");
 
 test("each paid tier unlocks at least as much as the one below it", () => {
