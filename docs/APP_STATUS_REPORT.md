@@ -86,7 +86,7 @@ These features are tested end to end with real accounts, and most also with two 
 12. ✅ **Postgres and uploads backups**: none exist today.
 13. **Log rotation** for pm2 logs.
 14. ✅ **CI**: GitHub Actions never runs typecheck, tests or build. Add it.
-15. **Error reporting**: crashes only go to logs and Discord.
+15. ✅ **Error reporting**: browser crashes and server errors are collected at /admin/errors (staff only), grouped with counts. No outside service needed.
 
 **Features and polish**
 
