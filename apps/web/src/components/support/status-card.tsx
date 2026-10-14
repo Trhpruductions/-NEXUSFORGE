@@ -10,7 +10,8 @@ export function StatusCard() {
     queryKey: ["public-health"],
     queryFn: async () => {
       const started = Date.now();
-      const { data } = await api.get<{ status: string }>("/api/health", { timeout: 8000 });
+      // /health/ready also runs a query against the database, so "normal" means the whole stack answers.
+      const { data } = await api.get<{ status: string }>("/api/health/ready", { timeout: 8000 });
       return { ok: data.status === "ok", ms: Date.now() - started, at: new Date() };
     },
     refetchInterval: 60_000,
@@ -39,7 +40,7 @@ export function StatusCard() {
               ? "Asking the server how it's doing."
               : up
                 ? `Website and API responding (${health.data?.ms} ms). Checked ${health.data?.at.toLocaleTimeString()}.`
-                : "The website loaded but the API didn't answer. Chat, sign-in and voice may not work right now. Try again in a few minutes."}
+                : "The website loaded but the server or its database isn't answering properly. Chat, sign-in and voice may not work right now; we're alerted automatically. Try again in a few minutes."}
           </p>
         </div>
       </div>

@@ -70,6 +70,22 @@ module.exports = {
       },
     },
     {
+      // Health watchdog: checks DB, API, web, gateway and the public site every minute,
+      // restarts a stuck piece after 3 failures and reports to Discord #bot-alerts.
+      name: "vexora-watchdog",
+      script: "scripts/vexora-watchdog.mjs",
+      cwd: "./",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      max_restarts: 50,
+      restart_delay: 10000,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+    {
       name: "nexusforge-watchdog-workspace",
       script: "cmd.exe",
       args: [

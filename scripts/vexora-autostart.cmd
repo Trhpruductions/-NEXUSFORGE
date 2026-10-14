@@ -44,7 +44,7 @@ if errorlevel 1 (
 REM Give the pm2 resurrect time to run first.
 timeout /t 60 /nobreak >nul 2>&1
 
-for %%A in (nexusforge-backend-workspace nexusforge-web-workspace vexora-gateway vexora-tunnel) do call :ensure %%A
+for %%A in (nexusforge-backend-workspace nexusforge-web-workspace vexora-gateway vexora-tunnel vexora-watchdog) do call :ensure %%A
 exit /b 0
 
 :ensure
