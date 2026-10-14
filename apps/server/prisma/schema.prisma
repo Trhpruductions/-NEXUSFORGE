@@ -223,6 +223,8 @@ model User {
   socialLinks        Json?          // { discord, x, instagram, kick, youtube, twitch }
   displayName        String?        @db.VarChar(40)
   avatarConfig       Json?          // layered avatar builder state
+  /// The saved avatar (AvatarPreset id) that is the main gaming profile character.
+  mainAvatarPresetId String? @db.VarChar(40)
   loadout            Json?          // equipped cosmetic item ids by slot
   loadoutPresets     Json?          // saved outfit presets [{ id, name, loadout, createdAt }]
   privacySettings    Json?          // { showOnlineStatus, allowFriendRequests, allowDms, showActivity, contentFilter }
@@ -1475,6 +1477,10 @@ model AvatarPreset {
   name      String   @db.VarChar(40)
   tagline   String?  @db.VarChar(60)
   config    Json
+  /// Shown to other members only when true. Private by default.
+  isPublic  Boolean  @default(false)
+  /// Rendered portrait (an uploaded PNG) used on the gallery and on the profile.
+  previewUrl String? @db.VarChar(500)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

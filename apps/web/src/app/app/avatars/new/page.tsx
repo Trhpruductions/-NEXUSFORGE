@@ -15,7 +15,7 @@ export default function NewAvatarPage() {
           <h1 className="nf-heading text-xl font-bold text-white">Build an avatar</h1>
           <p className="text-xs text-slate-400">Every option changes the 3D character you see.</p>
         </div>
-        <Link href="/app/avatar-viewer" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300 hover:text-white">Viewer test page</Link>
+        <Link href="/app/avatars" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300 hover:text-white">Your avatars</Link>
       </div>
       <AvatarBuilder />
     </div>

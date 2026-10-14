@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { avatarDesignSchema, previewUrlSchema } from "../lib/avatar-design.js";
 
 /** Avatar Studio: the layered avatar config on the user plus up to 10 saved presets. */
 export const avatarRouter = Router();
@@ -28,6 +29,8 @@ export const avatarConfigSchema = z.object({
   shoeColor: hex.default("#e6b325"),
   accent: hex.default("#e6b325"),
   background: z.enum(["city", "forge", "void", "arena"]).default("city"),
+  /** The 3D design (body, clothes, hair, accessories). Optional for avatars made before it existed. */
+  design: avatarDesignSchema.optional(),
   /** A full look from the mockups ("base" keeps the layered avatar above). */
   outfit: z.enum(["base", "cyber", "shadow", "knight", "street", "sorceress", "nomad"]).default("base"),
 });
@@ -38,13 +41,15 @@ const presetSchema = z.object({
   name: z.string().trim().min(1).max(40),
   tagline: z.string().trim().max(60).optional(),
   config: avatarConfigSchema,
+  isPublic: z.boolean().optional(),
+  previewUrl: previewUrlSchema.nullable().optional(),
 });
 
 export const MAX_PRESETS = 10;
 
 avatarRouter.get("/", async (req, res) => {
   const [user, presets] = await Promise.all([
-    prisma.user.findUnique({ where: { id: req.user!.id }, select: { avatarConfig: true } }),
+    prisma.user.findUnique({ where: { id: req.user!.id }, select: { avatarConfig: true, mainAvatarPresetId: true } }),
     prisma.avatarPreset.findMany({ where: { userId: req.user!.id }, orderBy: { createdAt: "asc" } }),
   ]);
   const parsed = avatarConfigSchema.safeParse(user?.avatarConfig ?? {});
@@ -52,6 +57,7 @@ avatarRouter.get("/", async (req, res) => {
     config: parsed.success ? parsed.data : avatarConfigSchema.parse({}),
     presets,
     maxPresets: MAX_PRESETS,
+    mainPresetId: user?.mainAvatarPresetId ?? null,
   });
 });
 
@@ -77,7 +83,14 @@ avatarRouter.post("/presets", async (req, res) => {
     return;
   }
   const preset = await prisma.avatarPreset.create({
-    data: { userId: req.user!.id, name: parsed.data.name, tagline: parsed.data.tagline, config: parsed.data.config },
+    data: {
+      userId: req.user!.id,
+      name: parsed.data.name,
+      tagline: parsed.data.tagline,
+      config: parsed.data.config,
+      isPublic: parsed.data.isPublic ?? false,
+      previewUrl: parsed.data.previewUrl ?? null,
+    },
   });
   res.status(201).json({ preset });
   void evaluateAchievements(req.user!.id);
@@ -96,7 +109,13 @@ avatarRouter.patch("/presets/:id", async (req, res) => {
   }
   const preset = await prisma.avatarPreset.update({
     where: { id: existing.id },
-    data: { name: parsed.data.name, tagline: parsed.data.tagline, config: parsed.data.config },
+    data: {
+      name: parsed.data.name,
+      tagline: parsed.data.tagline,
+      config: parsed.data.config,
+      isPublic: parsed.data.isPublic,
+      previewUrl: parsed.data.previewUrl,
+    },
   });
   res.json({ preset });
 });
@@ -108,6 +127,8 @@ avatarRouter.delete("/presets/:id", async (req, res) => {
     return;
   }
   await prisma.avatarPreset.delete({ where: { id: existing.id } });
+  // Deleting the main avatar leaves the profile on the layered avatar.
+  await prisma.user.updateMany({ where: { id: req.user!.id, mainAvatarPresetId: existing.id }, data: { mainAvatarPresetId: null } });
   res.json({ ok: true, presetId: existing.id });
 });
 
@@ -122,6 +143,6 @@ avatarRouter.post("/presets/:id/apply", async (req, res) => {
     res.status(400).json({ error: "Stored preset is invalid" });
     return;
   }
-  await prisma.user.update({ where: { id: req.user!.id }, data: { avatarConfig: parsed.data } });
-  res.json({ config: parsed.data });
+  await prisma.user.update({ where: { id: req.user!.id }, data: { avatarConfig: parsed.data, mainAvatarPresetId: existing.id } });
+  res.json({ config: parsed.data, mainPresetId: existing.id });
 });

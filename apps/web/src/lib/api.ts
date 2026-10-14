@@ -2523,12 +2523,14 @@ export type AvatarConfig = {
   accent: string;
   background: "city" | "forge" | "void" | "arena";
   outfit: "base" | "cyber" | "shadow" | "knight" | "street" | "sorceress" | "nomad";
+  /** The 3D design (see components/avatar3d/design.ts). Normalised by the builder when loaded. */
+  design?: unknown;
 };
 
-export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string };
+export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string; isPublic: boolean; previewUrl?: string | null };
 
 export async function getAvatar(accessToken: string) {
-  const response = await api.get<{ config: AvatarConfig; presets: AvatarPreset[]; maxPresets: number }>("/api/avatar", { headers: authHeaders(accessToken) });
+  const response = await api.get<{ config: AvatarConfig; presets: AvatarPreset[]; maxPresets: number; mainPresetId: string | null }>("/api/avatar", { headers: authHeaders(accessToken) });
   return response.data;
 }
 
@@ -2539,6 +2541,17 @@ export async function saveAvatar(accessToken: string, csrfToken: string, config:
 
 export async function createAvatarPreset(accessToken: string, csrfToken: string, payload: { name: string; tagline?: string; config: AvatarConfig }) {
   const response = await api.post<{ preset: AvatarPreset }>("/api/avatar/presets", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** Renames, changes the privacy setting, or replaces the design of a saved avatar. */
+export async function updateAvatarPreset(
+  accessToken: string,
+  csrfToken: string,
+  presetId: string,
+  payload: { name?: string; tagline?: string; config?: AvatarConfig; isPublic?: boolean; previewUrl?: string | null },
+) {
+  const response = await api.patch<{ preset: AvatarPreset }>(`/api/avatar/presets/${presetId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 

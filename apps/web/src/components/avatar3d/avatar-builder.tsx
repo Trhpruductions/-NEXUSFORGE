@@ -2,7 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
+import { defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { createAvatarPreset, getApiErrorMessage, updateAvatarPreset, type AvatarConfig } from "@/lib/api";
+import { useAuthStore } from "@/store/auth-store";
 import {
   ACCESSORIES,
   BODY_TYPES,
@@ -83,13 +88,56 @@ function Chips<T extends string>({ label, options, value, onPick }: { label: str
   );
 }
 
-export function AvatarBuilder({ initial = DEFAULT_DESIGN }: { initial?: AvatarDesign }) {
+export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initialName = "My avatar" }: { initial?: AvatarDesign; presetId?: string | null; initialName?: string }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const csrfToken = useAuthStore((state) => state.csrfToken);
+  const [name, setName] = useState(initialName);
   const [design, setDesign] = useState<AvatarDesign>(initial);
+  const [savedJson, setSavedJson] = useState<string | null>(presetId ? JSON.stringify(initial) : null);
+  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const dirty = presetId ? savedJson !== JSON.stringify(design) : true;
   const [section, setSection] = useState<Section>("hair");
   const [spin, setSpin] = useState(true);
   const [background, setBackground] = useState<"studio" | "night" | "transparent">("studio");
 
   const update = useCallback((patch: Partial<AvatarDesign>) => setDesign((current) => ({ ...current, ...patch })), []);
+
+  // The stored avatar keeps the legacy fields too (set to their defaults) so older screens still read it.
+  const configToSave = (): AvatarConfig => ({ ...defaultAvatarConfig, design });
+  const finishSave = async (id: string, created: boolean, text: string) => {
+    setSavedJson(JSON.stringify(design));
+    setNotice({ tone: "ok", text });
+    await queryClient.invalidateQueries({ queryKey: ["avatar"] });
+    if (created) router.replace(`/app/avatars/${id}`);
+  };
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!accessToken || !csrfToken) throw new Error("Sign in to save your avatar.");
+      const label = name.trim() || "My avatar";
+      if (presetId) {
+        const updated = await updateAvatarPreset(accessToken, csrfToken, presetId, { name: label, config: configToSave() });
+        return { id: updated.preset.id, created: false };
+      }
+      const created = await createAvatarPreset(accessToken, csrfToken, { name: label, config: configToSave() });
+      return { id: created.preset.id, created: true };
+    },
+    onSuccess: (result) => finishSave(result.id, result.created, "Avatar saved to your account."),
+    onError: (error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }),
+  });
+  const saveCopy = useMutation({
+    mutationFn: async () => {
+      if (!accessToken || !csrfToken) throw new Error("Sign in to save your avatar.");
+      const copy = await createAvatarPreset(accessToken, csrfToken, { name: `${(name.trim() || "My avatar").slice(0, 32)} copy`, config: configToSave() });
+      return { id: copy.preset.id };
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["avatar"] });
+      router.push(`/app/avatars/${result.id}`);
+    },
+    onError: (error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }),
+  });
   const toggleAccessory = (id: (typeof ACCESSORIES)[number]) =>
     setDesign((current) => ({
       ...current,
@@ -97,7 +145,26 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN }: { initial?: AvatarDe
     }));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)_340px]">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-[220px] flex-1 text-xs text-slate-300">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Avatar name</span>
+          <input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} className="w-full rounded-lg border border-white/10 bg-[#11151e] px-3 py-2 text-sm text-white outline-none focus:border-amber-400/60" />
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          {presetId ? (
+            <button type="button" onClick={() => saveCopy.mutate()} disabled={saveCopy.isPending} className={`${chip(false)} disabled:opacity-50`}>Save as new</button>
+          ) : null}
+          <button type="button" onClick={() => save.mutate()} disabled={!dirty || save.isPending} className="rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50">
+            {save.isPending ? "Saving…" : presetId ? "Save changes" : "Save avatar"}
+          </button>
+        </div>
+        <p role="status" aria-live="polite" className={`w-full text-[11px] ${notice?.tone === "error" ? "text-rose-200" : notice ? "text-emerald-200" : "text-slate-400"}`}>
+          {notice ? notice.text : dirty ? "Unsaved changes" : "All changes saved"}
+        </p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)_340px]">
       {/* Categories: a row on phones, a column on desktop. */}
       <nav aria-label="Avatar categories" className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
         {SECTIONS.map((entry) => (
@@ -183,6 +250,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN }: { initial?: AvatarDe
             <p className="text-[11px] leading-relaxed text-slate-500">The finish applies to tops, bottoms and shoes: matte is dull, satin soft, gloss shiny and metallic reflective.</p>
           </>
         ) : null}
+      </div>
       </div>
     </div>
   );
