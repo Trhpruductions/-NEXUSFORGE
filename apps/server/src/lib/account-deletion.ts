@@ -86,7 +86,6 @@ export async function anonymizeUser(userId: string) {
     prisma.refreshToken.deleteMany({ where: { userId } }),
     prisma.verificationCode.deleteMany({ where: { userId } }),
     prisma.pushSubscription.deleteMany({ where: { userId } }),
-    prisma.apiKey.deleteMany({ where: { userId } }),
     prisma.webhookSubscription.deleteMany({ where: { userId } }),
     prisma.oAuthClient.deleteMany({ where: { userId } }),
     // Social graph and personal state.

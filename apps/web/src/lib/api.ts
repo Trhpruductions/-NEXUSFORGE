@@ -281,14 +281,6 @@ export type BotApp = {
   createdAt: string;
 };
 
-export type DeveloperApiKey = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  lastUsedAt?: string | null;
-  createdAt: string;
-};
-
 export type DeveloperOAuthClient = {
   id: string;
   name: string;
@@ -1693,39 +1685,6 @@ export async function updateBotApp(
 
 export async function deleteBotApp(accessToken: string, csrfToken: string, botId: string) {
   const response = await api.delete(`/api/bots/${botId}`, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function listDeveloperApiKeys(accessToken: string) {
-  const response = await api.get<{ keys: DeveloperApiKey[] }>("/api/developer/keys", {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function createDeveloperApiKey(accessToken: string, csrfToken: string, payload: { name: string }) {
-  const response = await api.post<{ apiKey: DeveloperApiKey; secret: string }>("/api/developer/keys", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function updateDeveloperApiKey(
-  accessToken: string,
-  csrfToken: string,
-  keyId: string,
-  payload: { name?: string; enabled?: boolean },
-) {
-  const response = await api.patch<{ apiKey: DeveloperApiKey }>(`/api/developer/keys/${keyId}`, payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function revokeDeveloperApiKey(accessToken: string, csrfToken: string, keyId: string) {
-  const response = await api.delete(`/api/developer/keys/${keyId}`, {
     headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;

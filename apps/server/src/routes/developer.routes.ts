@@ -6,15 +6,6 @@ import { safePostJson } from "../lib/link-preview.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
-const createApiKeySchema = z.object({
-  name: z.string().min(2).max(80),
-});
-
-const updateApiKeySchema = z.object({
-  name: z.string().min(2).max(80).optional(),
-  enabled: z.boolean().optional(),
-});
-
 const createWebhookSchema = z.object({
   url: z.string().url(),
   description: z.string().max(300).optional(),
@@ -43,111 +34,6 @@ const updateOAuthClientSchema = z.object({
 export const developerRouter = Router();
 
 developerRouter.use(requireAuth);
-
-developerRouter.get("/keys", async (req, res) => {
-  const keys = await prisma.apiKey.findMany({
-    where: { userId: req.user!.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.json({ keys });
-});
-
-developerRouter.post("/keys", requireCsrf, async (req, res) => {
-  const parsed = createApiKeySchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
-    return;
-  }
-
-  const secret = randomBytes(32).toString("hex");
-  const secretHash = createHash("sha256").update(secret).digest("hex");
-
-  const apiKey = await prisma.apiKey.create({
-    data: {
-      userId: req.user!.id,
-      name: parsed.data.name,
-      secretHash,
-      enabled: true,
-    },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.status(201).json({ apiKey, secret });
-});
-
-developerRouter.patch("/keys/:keyId", requireCsrf, async (req, res) => {
-  const parsed = updateApiKeySchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
-    return;
-  }
-
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { id: req.params.keyId },
-    select: { id: true, userId: true },
-  });
-
-  if (!apiKey) {
-    res.status(404).json({ error: "API key not found" });
-    return;
-  }
-
-  if (apiKey.userId !== req.user!.id) {
-    res.status(403).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const updated = await prisma.apiKey.update({
-    where: { id: apiKey.id },
-    data: {
-      ...(parsed.data.name ? { name: parsed.data.name } : {}),
-      ...(parsed.data.enabled !== undefined ? { enabled: parsed.data.enabled } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.json({ apiKey: updated });
-});
-
-developerRouter.delete("/keys/:keyId", requireCsrf, async (req, res) => {
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { id: req.params.keyId },
-    select: { id: true, userId: true },
-  });
-
-  if (!apiKey) {
-    res.status(404).json({ error: "API key not found" });
-    return;
-  }
-
-  if (apiKey.userId !== req.user!.id) {
-    res.status(403).json({ error: "Unauthorized" });
-    return;
-  }
-
-  await prisma.apiKey.delete({ where: { id: apiKey.id } });
-  res.status(204).send();
-});
 
 developerRouter.get("/oauth-clients", async (req, res) => {
   const clients = await prisma.oAuthClient.findMany({

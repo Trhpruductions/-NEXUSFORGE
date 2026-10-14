@@ -110,7 +110,7 @@ accountRouter.get("/export", async (req, res) => {
     return;
   }
 
-  const [memberships, friends, follows, sessions, coinAccounts, cosmetics, medals, events, tickets, devices, apiKeys, notifications, notes, saved] = await Promise.all([
+  const [memberships, friends, follows, sessions, coinAccounts, cosmetics, medals, events, tickets, devices, notifications, notes, saved] = await Promise.all([
     prisma.forgeMember.findMany({ where: { userId }, select: { nickname: true, joinedAt: true, forge: { select: { id: true, name: true } }, roleLinks: { select: { role: { select: { name: true } } } } } }),
     prisma.friend.findMany({
       where: { OR: [{ senderId: userId }, { receiverId: userId }] },
@@ -124,7 +124,6 @@ accountRouter.get("/export", async (req, res) => {
     prisma.eventParticipant.findMany({ where: { userId }, select: { status: true, createdAt: true, event: { select: { id: true, title: true, startsAt: true } } } }),
     prisma.supportTicket.findMany({ where: { userId }, select: { number: true, subject: true, category: true, status: true, createdAt: true, messages: { select: { fromStaff: true, body: true, createdAt: true }, orderBy: { createdAt: "asc" } } } }),
     prisma.pushSubscription.findMany({ where: { userId }, select: { deviceName: true, platform: true, createdAt: true } }),
-    prisma.apiKey.findMany({ where: { userId }, select: { name: true, enabled: true, createdAt: true, lastUsedAt: true } }),
     prisma.notification.findMany({ where: { userId }, select: { type: true, title: true, body: true, read: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1000 }),
     // Notes you wrote (not other people's notes about you: those are theirs).
     prisma.userNote.findMany({ where: { authorId: userId }, select: { note: true, updatedAt: true, target: { select: { username: true } } } }),
@@ -156,8 +155,6 @@ accountRouter.get("/export", async (req, res) => {
   writeJson(res, sessions);
   res.write(",\n\"devices\": ");
   writeJson(res, devices);
-  res.write(",\n\"apiKeys\": ");
-  writeJson(res, apiKeys);
   res.write(",\n\"coins\": ");
   writeJson(res, coinAccounts);
   res.write(",\n\"cosmetics\": ");

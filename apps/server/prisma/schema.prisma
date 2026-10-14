@@ -296,7 +296,6 @@ model User {
   miningRigs          MiningRig[]
   botApps            BotApp[]
   botInstallations   ForgeBotInstallation[] @relation("BotInstaller")
-  apiKeys            ApiKey[]
   webhookSubscriptions WebhookSubscription[]
   oAuthClients       OAuthClient[]
   authorizationCodes  OAuthAuthorizationCode[]
@@ -832,20 +831,6 @@ model ForgeAuditEntry {
   forge       Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
 
   @@index([forgeId, createdAt])
-}
-
-model ApiKey {
-  id         String   @id @default(uuid())
-  userId     String
-  name       String
-  secretHash String
-  enabled    Boolean  @default(true)
-  lastUsedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
 }
 
 model WebhookSubscription {

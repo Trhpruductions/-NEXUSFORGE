@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
-import { listBotCatalog, listDeveloperApiKeys, listDeveloperOAuthClients, listMyBots, createBotApp } from "@/lib/api";
+import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 
@@ -21,13 +21,6 @@ export default function DeveloperPortalPage() {
   const myBotsQuery = useQuery({
     queryKey: ["developer-my-bots", accessToken],
     queryFn: () => listMyBots(accessToken!),
-    enabled: isSignedIn,
-    staleTime: 30_000,
-  });
-
-  const apiKeysQuery = useQuery({
-    queryKey: ["developer-api-keys", accessToken],
-    queryFn: () => listDeveloperApiKeys(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
   });
@@ -61,10 +54,9 @@ export default function DeveloperPortalPage() {
   });
 
   const totalApps = myBotsQuery.data?.bots.length ?? 0;
-  const totalApiKeys = apiKeysQuery.data?.keys.length ?? 0;
   const totalOAuthClients = oauthClientsQuery.data?.clients.length ?? 0;
   const totalListings = catalogQuery.data?.bots.length ?? 0;
-  const loading = myBotsQuery.isLoading || catalogQuery.isLoading || apiKeysQuery.isLoading || oauthClientsQuery.isLoading;
+  const loading = myBotsQuery.isLoading || catalogQuery.isLoading || oauthClientsQuery.isLoading;
 
   const copyInviteCode = async (inviteCode: string, botId: string) => {
     try {
@@ -81,12 +73,11 @@ export default function DeveloperPortalPage() {
     <ExperienceShell
       eyebrow="Developer Portal"
       title="Build and manage your Vexora Gaming integrations"
-      subtitle="Create bots, manage API tools, and monitor developer activity from one streamlined portal."
+      subtitle="Create bots, register apps that use “Sign in with Vexora”, and set up webhooks."
       metrics={
         isSignedIn
           ? [
               { label: "Your Applications", value: totalApps.toString(), tone: "amber" },
-              { label: "API keys", value: totalApiKeys.toString(), tone: "cyan" },
               { label: "OAuth clients", value: totalOAuthClients.toString(), tone: "emerald" },
               { label: "Marketplace listings", value: totalListings.toString(), tone: "emerald" },
             ]
