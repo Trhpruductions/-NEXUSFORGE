@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, Paperclip } from "lucide-react";
+import { API_BASE_URL } from "@/lib/config";
 
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|avif)(\?|$)/i;
 const VIDEO_RE = /\.(mp4|webm|mov)(\?|$)/i;
@@ -12,9 +13,11 @@ const VIDEO_RE = /\.(mp4|webm|mov)(\?|$)/i;
  */
 function isOwnUpload(url: string) {
   try {
-    const parsed = new URL(url);
-    const api = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4001");
-    if (parsed.origin === api.origin && parsed.pathname.startsWith("/uploads/")) return true;
+    const parsed = new URL(url, typeof window === "undefined" ? "http://127.0.0.1" : window.location.origin);
+    // Our uploads are served by the API, which answers on this page's own address (through
+    // the public gateway) or on the API's address when running locally.
+    const ownOrigins = new Set([API_BASE_URL, "http://127.0.0.1:4001", typeof window === "undefined" ? "" : window.location.origin].filter(Boolean).map((value) => new URL(value).origin));
+    if (ownOrigins.has(parsed.origin) && parsed.pathname.startsWith("/uploads/")) return true;
     const s3 = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL;
     return Boolean(s3 && url.startsWith(s3));
   } catch {

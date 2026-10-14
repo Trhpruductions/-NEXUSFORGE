@@ -378,7 +378,9 @@ const webhookSchema = z.object({
 });
 
 function webhookUrl(id: string, token: string) {
-  const base = (process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.PORT ?? 4001}`).replace(/\/$/, "");
+  // Webhooks are called from outside, so they need the public address (through the gateway
+  // the API answers on the same address as the app).
+  const base = (process.env.API_PUBLIC_URL || process.env.APP_WEB_URL || `http://127.0.0.1:${process.env.PORT ?? 4001}`).replace(/\/$/, "");
   return `${base}/api/webhooks/${id}/${token}`;
 }
 
