@@ -452,7 +452,7 @@ function SettingsInner() {
             </label>
             <label className="block text-xs text-slate-300">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Email {account?.emailVerified ? <span className="text-emerald-300">· verified</span> : <span className="text-amber-300">· unverified</span>}</span>
-              <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <input id="account-email" className={`${inputClass} scroll-mt-24`} type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </label>
             {account && email !== account.email ? (
               <label className="block text-xs text-slate-300">

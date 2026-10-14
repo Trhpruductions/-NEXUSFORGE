@@ -51,7 +51,7 @@ const server = http.createServer((req, res) => {
   );
   upstream.on("error", () => {
     if (!res.headersSent) res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Vexora is restarting. Try again in a moment.");
+    res.end("Nexus Forge Gaming is restarting. Try again in a moment.");
   });
   req.pipe(upstream);
 });

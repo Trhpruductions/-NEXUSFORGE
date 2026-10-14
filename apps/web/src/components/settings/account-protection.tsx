@@ -200,10 +200,13 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
                 <>
                   <DevCode code={emailSent.devCode} />
                   <div className="flex gap-2">
-                    <input className={inputClass} inputMode="numeric" maxLength={6} placeholder="6-digit code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+                    <input className={inputClass} inputMode="numeric" maxLength={6} aria-label="6-digit email code" placeholder="6-digit code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
                     <button type="button" className={goldBtn} disabled={emailCode.length !== 6 || confirmEmail.isPending} onClick={() => confirmEmail.mutate()}>Verify</button>
                   </div>
                   <button type="button" className="text-[11px] text-slate-400 hover:text-amber-200" disabled={sendEmail.isPending} onClick={() => sendEmail.mutate()}>Resend code</button>
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    Nothing after a minute? Check Spam or Promotions for a message from Nexus Forge Gaming. Wrong address? <a href="#account-email" className="text-slate-300 underline underline-offset-2 hover:text-amber-200">Change it</a> and we&apos;ll send a new code there.
+                  </p>
                 </>
               )}
             </div>
