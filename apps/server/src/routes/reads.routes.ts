@@ -133,6 +133,47 @@ readsRouter.post("/channel/:channelId", async (req, res) => {
   res.json({ channelId: channel.id, lastReadAt: state.lastReadAt.toISOString() });
 });
 
+/** Every channel of these forges the person can see, marked read now with mentions cleared. */
+async function markForgesRead(userId: string, forgeIds: string[]) {
+  const now = new Date();
+  let channels = 0;
+  for (const forgeId of forgeIds) {
+    const hidden = await hiddenChannelIdsForUser(userId, forgeId);
+    const ids = (
+      await prisma.channel.findMany({
+        where: { forgeId, type: { in: ["TEXT", "ANNOUNCEMENT", "FORUM"] }, id: { notIn: hidden } },
+        select: { id: true },
+      })
+    ).map((channel) => channel.id);
+    if (!ids.length) continue;
+    await prisma.$transaction([
+      prisma.channelReadState.updateMany({ where: { userId, channelId: { in: ids } }, data: { lastReadAt: now, mentionCount: 0 } }),
+      prisma.channelReadState.createMany({ data: ids.map((channelId) => ({ userId, channelId, lastReadAt: now, mentionCount: 0 })), skipDuplicates: true }),
+    ]);
+    channels += ids.length;
+  }
+  return channels;
+}
+
+/** "Mark as read" on a server: clears every channel's unread dot and mention badge. */
+readsRouter.post("/forge/:forgeId", async (req, res) => {
+  const membership = await prisma.forgeMember.findUnique({
+    where: { userId_forgeId: { userId: req.user!.id, forgeId: req.params.forgeId } },
+    select: { id: true },
+  });
+  if (!membership) {
+    res.status(403).json({ error: "Not a Forge member" });
+    return;
+  }
+  res.json({ forgeId: req.params.forgeId, channels: await markForgesRead(req.user!.id, [req.params.forgeId]) });
+});
+
+/** Mark every server you're in as read. */
+readsRouter.post("/all", async (req, res) => {
+  const memberships = await prisma.forgeMember.findMany({ where: { userId: req.user!.id }, select: { forgeId: true } });
+  res.json({ forges: memberships.length, channels: await markForgesRead(req.user!.id, memberships.map((entry) => entry.forgeId)) });
+});
+
 /** Called by the message router after a message is stored. Bumps mention counters for mentioned members. */
 export async function recordMentions(channelId: string, mentionedUserIds: string[]): Promise<void> {
   if (!mentionedUserIds.length) return;

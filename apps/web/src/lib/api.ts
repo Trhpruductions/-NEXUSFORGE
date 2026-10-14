@@ -2234,6 +2234,16 @@ export async function getForgeUnreads(accessToken: string, forgeId: string) {
   return response.data;
 }
 
+/** Clear every unread dot and mention badge in one server. */
+export async function markForgeRead(accessToken: string, csrfToken: string, forgeId: string) {
+  return (await api.post<{ forgeId: string; channels: number }>(`/api/reads/forge/${forgeId}`, {}, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
+/** Clear unread dots and mention badges in every server you're in. */
+export async function markAllForgesRead(accessToken: string, csrfToken: string) {
+  return (await api.post<{ forges: number; channels: number }>("/api/reads/all", {}, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
 export async function markChannelRead(accessToken: string, csrfToken: string, channelId: string) {
   const response = await api.post<{ channelId: string; lastReadAt: string }>(`/api/reads/channel/${channelId}`, {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;

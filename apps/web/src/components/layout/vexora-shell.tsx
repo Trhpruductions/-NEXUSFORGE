@@ -37,6 +37,7 @@ import {
   Lock,
   ChevronRight,
   MessagesSquare,
+  CheckCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
@@ -45,7 +46,7 @@ import { QuickSwitcher } from "@/components/layout/quick-switcher";
 import { SavedPanel } from "@/components/chat/saved-panel";
 import { WhatsNewDialog } from "@/components/updates/whats-new-dialog";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
-import { listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { markAllForgesRead, markForgeRead, listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
@@ -429,6 +430,21 @@ export function VexoraShell({ children }: { children: ReactNode }) {
     router.push(`/app/chat?forge=${selectedForgeId}&${param}=${channel.id}`);
   };
 
+  // "Mark as read" for one server, or all of them (like Discord's right-click menu).
+  const markRead = async (forgeId: string | "all") => {
+    if (!accessToken || !csrfToken) return;
+    setForgeMenuOpen(false);
+    try {
+      if (forgeId === "all") await markAllForgesRead(accessToken, csrfToken);
+      else await markForgeRead(accessToken, csrfToken, forgeId);
+    } finally {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["unread-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["forge-unreads"] }),
+      ]);
+    }
+  };
+
   const selectForge = (forgeId: string) => {
     setSelectedForgeId(forgeId);
     setForgeMenuOpen(false);
@@ -549,6 +565,25 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 </button>
               );
             })}
+            {forge ? (
+              <button
+                type="button"
+                onClick={() => void markRead(forge.id)}
+                disabled={!forgeCounts[forge.id]?.unread && !forgeCounts[forge.id]?.mentions}
+                className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-slate-200 hover:bg-white/5 disabled:opacity-40"
+              >
+                <CheckCheck className="h-3.5 w-3.5 text-emerald-300" /> Mark {forge.name} as read
+              </button>
+            ) : null}
+            {forges.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => void markRead("all")}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-slate-200 hover:bg-white/5"
+              >
+                <CheckCheck className="h-3.5 w-3.5 text-emerald-300" /> Mark all servers as read
+              </button>
+            ) : null}
             {forge ? (
               <button
                 type="button"
@@ -751,7 +786,12 @@ export function VexoraShell({ children }: { children: ReactNode }) {
                 key={entry.id}
                 type="button"
                 onClick={() => selectForge(entry.id)}
-                title={entry.name}
+                onContextMenu={(event) => {
+                  if (!counts?.unread && !counts?.mentions) return;
+                  event.preventDefault();
+                  void markRead(entry.id);
+                }}
+                title={counts?.unread || counts?.mentions ? `${entry.name} (right-click to mark as read)` : entry.name}
                 className={cn(
                   "relative flex h-10 w-10 items-center justify-center text-[11px] font-bold text-slate-950 transition-all duration-200",
                   active ? "rounded-[14px]" : "rounded-[20px] opacity-85 hover:rounded-[14px] hover:opacity-100",
