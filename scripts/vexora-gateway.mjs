@@ -33,6 +33,14 @@ function forwardedHeaders(req) {
 }
 
 const server = http.createServer((req, res) => {
+  // One canonical address: www.example.com -> example.com (sign-in cookies and the API's
+  // allowed origin are tied to one address).
+  const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "");
+  if (/^www\./i.test(host)) {
+    res.writeHead(301, { Location: `https://${host.replace(/^www\./i, "")}${req.url ?? "/"}` });
+    res.end();
+    return;
+  }
   const target = targetFor(req.url);
   const upstream = http.request(
     { ...target, method: req.method, path: req.url, headers: forwardedHeaders(req) },

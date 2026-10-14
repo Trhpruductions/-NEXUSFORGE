@@ -38,6 +38,7 @@ import {
   ChevronRight,
   MessagesSquare,
   CheckCheck,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
@@ -65,6 +66,7 @@ const navLinks = [
   { label: "Store", href: "/app/store", icon: ShoppingBag },
   { label: "Settings", href: "/app/settings", icon: Settings },
   { label: "Support", href: "/app/support", icon: LifeBuoy },
+  { label: "Download app", href: "/app/downloads", icon: Download },
 ];
 
 // Everything else lives on the thin icon rail, like the reference.

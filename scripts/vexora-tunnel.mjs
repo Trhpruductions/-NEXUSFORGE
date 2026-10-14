@@ -80,9 +80,9 @@ function announce(url) {
   });
   // Give the tunnel a moment to finish registering before the API restarts.
   setTimeout(() => {
-    // Processes started by pm2 don't always have npm's folder on PATH, so use pm2's full path.
-    const pm2 = process.env.PM2_CMD || (process.env.APPDATA ? `"${path.join(process.env.APPDATA, "npm", "pm2.cmd")}"` : "pm2");
-    execFile(pm2, ["restart", backendApp, "--update-env"], { shell: true, windowsHide: true }, (error) => {
+    // Run pm2's own script with this Node (pm2.cmd misbehaves when started from inside pm2).
+    const pm2Script = process.env.PM2_SCRIPT || path.join(process.env.APPDATA ?? "", "npm", "node_modules", "pm2", "bin", "pm2");
+    execFile(process.execPath, [pm2Script, "restart", backendApp, "--update-env"], { windowsHide: true }, (error) => {
       console.log(error ? `[tunnel] couldn't restart the API: ${error.message}` : "[tunnel] API restarted.");
     });
   }, 3000);

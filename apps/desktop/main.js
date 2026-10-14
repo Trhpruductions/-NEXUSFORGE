@@ -96,8 +96,8 @@ const configuredStartUrl =
   configuredDesktopUrl ||
   (configuredPublicBaseUrl ? `${configuredPublicBaseUrl.replace(/\/+$/, "")}/app` : "") ||
   (effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
-const defaultPackagedHostedStartUrl = "https://www.nexusforge.app/app";
-const defaultPackagedHostedFallbackUrl = "https://www.nexusforge.app/download.html";
+const defaultPackagedHostedStartUrl = "https://nfgcord.com/app";
+const defaultPackagedHostedFallbackUrl = "https://nfgcord.com/download";
 const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
 // Certificate checks stay ON unless someone deliberately sets
@@ -1449,12 +1449,12 @@ function resolveHostedStartTargets() {
     configuredDesktopUrl,
     configuredStartUrl !== startUrl ? configuredStartUrl : null,
     packagedHostedFallbackUrl,
-    "https://www.nexusforge.app/app",
-    "https://www.nexusforge.app",
-    "https://www.nexusforge.app/download.html",
-    "https://nexusforge.app/app",
-    "https://nexusforge.app",
-    "https://nexusforge.app/download.html",
+    "https://nfgcord.com/app",
+    "https://nfgcord.com",
+    "https://nfgcord.com/download",
+    "https://www.nfgcord.com/app",
+    "https://www.nfgcord.com",
+    "https://www.nfgcord.com/download",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
     "https://trhpruductions.github.io/-NEXUSFORGE",
   ];
@@ -1490,9 +1490,9 @@ function resolveHostedStartTargets() {
 function resolveHostedRecoveryTargets() {
   const recoveryTargets = [
     ...resolveHostedStartTargets(),
-    "https://www.nexusforge.app/login?redirect=/app",
-    "https://nexusforge.app/login?redirect=/app",
-    "https://www.nexusforge.app/download.html",
+    "https://nfgcord.com/login?redirect=/app",
+    "https://www.nfgcord.com/login?redirect=/app",
+    "https://nfgcord.com/download",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
   ];
 
@@ -1938,7 +1938,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://www.nexusforge.app/app, or start local services on http://127.0.0.1:3300/app. If the public production host is not yet published, use your available beta or tunnel URL.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://nfgcord.com/app, or start local services on http://127.0.0.1:3300/app. If the public production host is not yet published, use your available beta or tunnel URL.",
       );
     }
     return;

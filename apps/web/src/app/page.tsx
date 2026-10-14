@@ -84,6 +84,7 @@ export default function Home() {
             {[
               ["Workspace", "/app"],
               ["Pricing", "/pricing"],
+              ["Download", "/download"],
               ["Developers", "/developer"],
               ["Support", "/support"],
             ].map(([label, href]) => (
@@ -102,7 +103,8 @@ export default function Home() {
               {[
                 ["Workspace", "/app"],
                 ["Pricing", "/pricing"],
-                ["Developers", "/developer"],
+                ["Download", "/download"],
+              ["Developers", "/developer"],
                 ["Support", "/support"],
                 ["Sign in", "/login"],
               ].map(([label, href]) => (
@@ -153,7 +155,7 @@ export default function Home() {
                 Create your forge <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/app/downloads"
+                href="/download"
                 className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.18em] text-slate-100 backdrop-blur transition hover:border-amber-400/40 hover:bg-white/10"
               >
                 Get the desktop app
@@ -254,6 +256,7 @@ export default function Home() {
           <div className="flex items-center gap-5 uppercase tracking-[0.18em]">
             <Link href="/legal/terms" className="transition hover:text-white">Terms</Link>
             <Link href="/legal/privacy" className="transition hover:text-white">Privacy</Link>
+            <Link href="/download" className="transition hover:text-white">Download</Link>
             <Link href="/support" className="transition hover:text-white">Support</Link>
           </div>
         </div>

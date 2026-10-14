@@ -427,8 +427,9 @@ async function applyCheckoutSession(session: Stripe.Checkout.Session): Promise<"
             },
           });
 
-          await tx.user.update({
-            where: { id: userId },
+          // Lifetime members keep their granted tier; a purchase never changes it.
+          await tx.user.updateMany({
+            where: { id: userId, lifetimeMember: false },
             data: {
               premium: true,
               premiumTier: tier,
@@ -591,8 +592,9 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
           });
 
           if (activeCount === 0) {
-            await prisma.user.update({
-              where: { id: localSub.userId },
+            // Ending a subscription never removes a lifetime membership.
+            await prisma.user.updateMany({
+              where: { id: localSub.userId, lifetimeMember: false },
               data: {
                 premium: false,
                 premiumTier: "NONE",

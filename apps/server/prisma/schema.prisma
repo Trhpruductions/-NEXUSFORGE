@@ -266,6 +266,9 @@ model User {
   /// The newest "What's new" update this person has seen (null: anything after sign-up is new).
   lastSeenUpdateAt     DateTime?
   usernameChangedAt    DateTime?
+  /// Lifetime membership granted by Vexora (not billed). Billing never lowers or removes it.
+  lifetimeMember       Boolean   @default(false)
+  lifetimeGrantedAt    DateTime?
   savedMessages        SavedMessage[]
   notesWritten         UserNote[]     @relation("NoteAuthor")
   notesAbout           UserNote[]     @relation("NoteTarget")
