@@ -23,15 +23,13 @@ export const metadata: Metadata = {
     default: "Nexus Forge Gaming",
     template: "%s | Nexus Forge Gaming",
   },
-  description: "Premium 18+ command network for gaming communities, creators, and power users.",
-  icons: {
-    icon: "/brand/nexusforge-mark.png",
-    apple: "/brand/nexusforge-mark.png",
-  },
+  description: "Servers, voice, video and chat for gamers, creators and esports teams, with more included free. Web and Windows. 18+.",
+  // Icons and the link-preview image come from app/favicon.ico, app/apple-icon.png and
+  // app/opengraph-image.png (made from the logo by scripts/brand-images.cjs).
   openGraph: {
     title: "Nexus Forge Gaming",
-    description: "Premium 18+ command network for gaming communities",
-    images: ["/brand/nexusforge-mark.png"],
+    description: "Servers, voice, video and chat for gamers, with more included free.",
+    siteName: "Nexus Forge Gaming",
   },
 };
 

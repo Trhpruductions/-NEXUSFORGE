@@ -44,7 +44,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
       <header className="sticky top-0 z-40 border-b border-amber-500/15 bg-[#0b0e15]/90 backdrop-blur">
         <div className={cn("mx-auto flex h-14 items-center gap-4 px-4 md:px-6", maxWidthClassName)}>
           <Link href="/app" className="flex items-center gap-2.5">
-            <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={34} height={34} className="h-[34px] w-[34px] rounded-lg border border-amber-500/40 object-cover" />
+            <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={34} height={34} className="h-[34px] w-[34px] rounded-lg border border-amber-500/40 object-cover" />
             <span className="hidden sm:block">
               <span className="nf-heading block text-xs font-semibold uppercase tracking-[0.3em] text-white">Nexus Forge</span>
               <span className="block text-[9px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>

@@ -11,7 +11,7 @@ export function PoweredByFooter() {
           {/* Nexus Forge Gaming logo (the old "powered by" art still showed the NexusForge name) */}
           <div className="relative flex h-24 w-full max-w-[280px] items-center justify-center sm:h-32">
             <Image
-              src="/brand/nexusforge-mark.png"
+              src="/brand/nexusforge-emblem.png"
               alt="Nexus Forge Gaming"
               fill
               loading="lazy"

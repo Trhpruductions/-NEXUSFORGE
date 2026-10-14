@@ -141,7 +141,7 @@ export function LegalCenter({ slug }: { slug: string | null }) {
             {navOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
           <Link href="/legal" className="flex items-center gap-2">
-            <Image src="/brand/nexusforge-mark-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+            <Image src="/brand/nexusforge-emblem-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
             <span className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">Nexus Forge</span>
             <span className="text-sm text-slate-400">Legal Center</span>
           </Link>

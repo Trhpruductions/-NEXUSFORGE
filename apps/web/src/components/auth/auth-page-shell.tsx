@@ -17,27 +17,16 @@ export function AuthPageShell({ hero, children }: AuthPageShellProps) {
 
       <div className="relative z-10 mx-auto my-auto grid w-full max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <section className="hidden space-y-10 lg:block">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(46,164,255,0.35)]">
-              <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={36} height={36} className="h-9 w-9 rounded-lg object-cover" />
-            </div>
-            <div>
-              <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Nexus Forge</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
-            </div>
+          <Link href="/" className="inline-block" aria-label="Nexus Forge Gaming home">
+            {/* The artwork has its own dark backdrop; "lighten" lets it melt into the page. */}
+            <Image src="/brand/nexusforge-logo-600.png" alt="Nexus Forge Gaming" width={600} height={400} priority className="h-auto w-72 mix-blend-lighten" />
           </Link>
           {hero}
         </section>
 
         <div className="relative flex w-full flex-col items-center gap-6 lg:items-end">
-          <Link href="/" className="flex items-center gap-3 lg:hidden">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(46,164,255,0.35)]">
-              <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-            </div>
-            <div>
-              <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Nexus Forge</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
-            </div>
+          <Link href="/" className="lg:hidden" aria-label="Nexus Forge Gaming home">
+            <Image src="/brand/nexusforge-logo-600.png" alt="Nexus Forge Gaming" width={600} height={400} priority className="h-auto w-48 mix-blend-lighten" />
           </Link>
           <main id="main-content" className="flex w-full flex-col items-center lg:items-end">
             {children}

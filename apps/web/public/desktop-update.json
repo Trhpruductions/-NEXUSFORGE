@@ -1,16 +1,16 @@
 {
-  "version": "1.0.12",
+  "version": "1.0.13",
   "notes": [
-    "Opens Vexora at https://nfgcord.com",
-    "Download and updates now come straight from nfgcord.com",
-    "Everything new in the app: Bots tab, mark as read, error reporting and more"
+    "We're now Nexus Forge Gaming: new name, new logo, electric-blue look",
+    "Opens Nexus Forge at https://nfgcord.com",
+    "Downloads and updates come straight from nfgcord.com"
   ],
-  "downloadUrl": "https://nfgcord.com/downloads/Vexora-Gaming-Setup-1.0.12.exe",
+  "downloadUrl": "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-1.0.13.exe",
   "downloadUrls": [
-    "https://nfgcord.com/downloads/Vexora-Gaming-Setup-1.0.12.exe",
-    "https://nfgcord.com/downloads/Vexora-Gaming-Setup-Latest.exe"
+    "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-1.0.13.exe",
+    "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-Latest.exe"
   ],
   "downloadFolderUrl": "https://nfgcord.com/download",
-  "sha256": "2d58fec833b9dd7c6bbee65aaeacaae8a6aee70a67bdf7d514928d4734650e0e",
+  "sha256": "2347ca642419d6625b7f46019ace6c1cd07ae4d20f74abbe2cf282f3a5d0e559",
   "forceUpdate": false
 }

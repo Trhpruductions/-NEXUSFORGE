@@ -6,12 +6,12 @@ import { AgeGateClient } from "./age-gate-client";
 export default function AgeGatePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#070a10] text-white">
-      <Image src="/brand/nexusforge-main-logo.png" alt="" fill priority className="object-cover opacity-20" />
+      <Image src="/brand/nexusforge-logo-full.png" alt="" fill priority className="object-cover opacity-20" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(46,164,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,16,0.55),#070a10_70%)]" />
 
       <main id="main-content" className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 py-10 sm:px-6">
         <Link href="/" className="mb-6 flex items-center gap-3">
-          <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={48} height={48} className="h-12 w-12" />
+          <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={48} height={48} className="h-12 w-12" />
           <span className="nf-heading text-lg font-bold uppercase tracking-[0.28em] text-amber-300">Nexus Forge Gaming</span>
         </Link>
 

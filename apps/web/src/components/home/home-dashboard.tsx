@@ -150,13 +150,13 @@ export function HomeDashboard() {
           ) : (
             <>
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(245,184,61,0.24),transparent_55%),radial-gradient(circle_at_8%_80%,rgba(167,139,250,0.32),transparent_45%),radial-gradient(circle_at_92%_70%,rgba(34,211,238,0.24),transparent_45%),radial-gradient(circle_at_60%_110%,rgba(244,114,182,0.22),transparent_50%),linear-gradient(160deg,#0f1420,#070a10_60%,#140a1a)]" />
-              <Image src="/brand/nexusforge-main-logo.png" alt="" fill sizes="1200px" className="object-cover object-[50%_35%] opacity-[0.22] mix-blend-screen" />
+              <Image src="/brand/nexusforge-logo-full.png" alt="" fill sizes="1200px" className="object-cover object-[50%_35%] opacity-[0.22] mix-blend-screen" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0d1119] via-[#0d1119]/40 to-transparent" />
             </>
           )}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(46,164,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(46,164,255,0.06)_1px,transparent_1px)] bg-[size:36px_36px] opacity-40" />
           <div className="relative flex min-h-[220px] flex-col items-center justify-center px-6 py-10 text-center">
-            <Image src="/brand/nexusforge-mark-256.png" alt="" width={72} height={72} className="mb-3 h-[72px] w-[72px] rounded-2xl border border-amber-500/40 object-cover shadow-[0_0_30px_rgba(46,164,255,0.35)]" />
+            <Image src="/brand/nexusforge-emblem-256.png" alt="" width={72} height={72} className="mb-3 h-[72px] w-[72px] rounded-2xl border border-amber-500/40 object-cover shadow-[0_0_30px_rgba(46,164,255,0.35)]" />
             <h1 className="nf-heading bg-gradient-to-r from-amber-200 via-white to-cyan-200 bg-clip-text text-3xl font-black uppercase tracking-[0.2em] text-transparent sm:text-4xl">Nexus Forge Gaming</h1>
             <p className="mt-2 bg-gradient-to-r from-amber-300 via-pink-300 to-violet-300 bg-clip-text text-[11px] font-semibold uppercase tracking-[0.32em] text-transparent">Built for gamers. Connected by community.</p>
             {forge ? (
@@ -214,7 +214,7 @@ export function HomeDashboard() {
               )}
             </div>
             <div className="hidden h-36 w-52 items-center justify-center rounded-2xl border border-emerald-400/30 bg-[radial-gradient(circle,rgba(52,211,153,0.3),rgba(167,139,250,0.15)_45%,transparent_72%)] md:flex">
-              <Image src="/brand/nexusforge-mark-256.png" alt="" width={96} height={96} className="h-24 w-24 rounded-2xl object-cover opacity-90" />
+              <Image src="/brand/nexusforge-emblem-256.png" alt="" width={96} height={96} className="h-24 w-24 rounded-2xl object-cover opacity-90" />
             </div>
           </div>
         </section>
@@ -369,7 +369,7 @@ export function HomeDashboard() {
       <footer className="relative col-span-full mt-1 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0d1119]/85 px-4 py-2.5">
         <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-violet-500/70 via-amber-400/80 to-cyan-400/70" />
         <div className="flex items-center gap-3">
-          <Image src="/brand/nexusforge-mark-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-cover" />
+          <Image src="/brand/nexusforge-emblem-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg object-cover" />
           <span className="nf-heading text-[12px] font-bold uppercase tracking-[0.28em] text-amber-300">Nexus Forge Gaming</span>
           <span className="hidden text-[10px] font-semibold uppercase tracking-[0.28em] text-slate-500 sm:inline">Built for gamers. Connected by community.</span>
         </div>

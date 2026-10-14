@@ -87,7 +87,7 @@ function AppPreview() {
         </div>
         <div className="grid h-[300px] grid-cols-[44px_120px_1fr] sm:h-[340px] sm:grid-cols-[52px_150px_1fr]">
           <div className="flex flex-col items-center gap-2 border-r border-white/5 bg-[#080b12] py-3">
-            <Image src="/brand/nexusforge-mark-256.png" alt="" width={30} height={30} className="h-7 w-7 rounded-lg sm:h-8 sm:w-8" />
+            <Image src="/brand/nexusforge-emblem-256.png" alt="" width={30} height={30} className="h-7 w-7 rounded-lg sm:h-8 sm:w-8" />
             <span className="h-px w-6 bg-white/10" />
             {servers.map((gradient, index) => (
               <span key={gradient} className={`relative h-7 w-7 rounded-[12px] bg-gradient-to-br sm:h-8 sm:w-8 ${gradient} ${index === 0 ? "ring-2 ring-amber-300/70 ring-offset-2 ring-offset-[#080b12]" : "opacity-80"}`}>
@@ -151,7 +151,7 @@ export default function Home() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(46,164,255,0.35)]">
-              <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={32} height={32} className="h-7 w-7 rounded-lg object-cover" />
+              <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={32} height={32} className="h-7 w-7 rounded-lg object-cover" />
             </div>
             <div className="hidden sm:block">
               <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Nexus Forge</p>
@@ -193,6 +193,8 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:pb-24 lg:pt-20">
           <div className="space-y-7">
+            {/* The artwork has its own dark backdrop; "lighten" lets it melt into the page. */}
+            <Image src="/brand/nexusforge-logo-600.png" alt="Nexus Forge Gaming" width={600} height={400} priority className="-mb-2 -ml-3 h-auto w-60 mix-blend-lighten sm:w-72" />
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-200">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(46,164,255,0.9)]" />
               Now in open beta
@@ -385,7 +387,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Image src="/brand/nexusforge-mark-256.png" alt="" width={24} height={24} className="h-6 w-6 rounded object-cover" />
+              <Image src="/brand/nexusforge-emblem-256.png" alt="" width={24} height={24} className="h-6 w-6 rounded object-cover" />
               <span className="nf-heading font-semibold uppercase tracking-[0.24em] text-white">Nexus Forge Gaming</span>
             </div>
             <p className="text-xs leading-relaxed text-slate-500">Built for gamers. Connected by community. For ages 18+.</p>

@@ -7,7 +7,7 @@ export default function Loading() {
         <div className={styles.logoWrap}>
           <div className={styles.halo} aria-hidden='true' />
           <img
-            src='/brand/nexusforge-mark.png'
+            src='/brand/nexusforge-emblem.png'
             alt='Nexus Forge Gaming'
             width={88}
             height={88}

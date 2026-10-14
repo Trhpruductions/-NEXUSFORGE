@@ -61,7 +61,7 @@ export function DownloadsPage() {
               )}
             </div>
             <div className="hidden h-40 w-40 items-center justify-center rounded-2xl border border-amber-500/30 bg-[radial-gradient(circle,rgba(46,164,255,0.3),transparent_70%)] md:flex">
-              <Image src="/brand/nexusforge-mark-256.png" alt="" width={112} height={112} className="h-28 w-28 rounded-2xl object-cover" />
+              <Image src="/brand/nexusforge-emblem-256.png" alt="" width={112} height={112} className="h-28 w-28 rounded-2xl object-cover" />
             </div>
           </div>
         </section>

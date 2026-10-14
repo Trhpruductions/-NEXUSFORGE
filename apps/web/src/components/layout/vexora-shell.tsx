@@ -776,7 +776,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
-          <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge" width={40} height={40} className="h-10 w-10 object-cover" />
+          <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge" width={40} height={40} className="h-10 w-10 object-cover" />
         </Link>
         <span className="mb-1 h-px w-8 bg-gradient-to-r from-violet-400/40 via-amber-400/50 to-cyan-400/40" />
         <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto no-scrollbar">
