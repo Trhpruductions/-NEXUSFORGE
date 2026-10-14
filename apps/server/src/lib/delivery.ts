@@ -25,11 +25,18 @@ function twilioConfigured() {
 
 function getTransporter(): Transporter {
   if (!transporter) {
+    // Pooled: the SMTP connection (TLS handshake + login, 1-3 s on Gmail) is reused between
+    // sends instead of being rebuilt for every code, so sign-up and resend answer faster.
     transporter = nodemailer.createTransport({
+      pool: true,
+      maxConnections: 2,
+      maxMessages: 100,
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
       auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+      connectionTimeout: 15_000,
+      socketTimeout: 30_000,
     });
   }
   return transporter;

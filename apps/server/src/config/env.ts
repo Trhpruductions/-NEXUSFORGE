@@ -103,7 +103,7 @@ const envSchema = z.object({
   SMTP_SECURE: z.string().default("false").transform((value) => value.toLowerCase() === "true"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("Nexus Forge Gaming <no-reply@vexoragaming.com>"),
+  MAIL_FROM: z.string().default("Nexus Forge Gaming <no-reply@nfgcord.com>"),
   /** The sender name every email shows. */
   MAIL_FROM_NAME: z.string().trim().min(1).default("Nexus Forge Gaming"),
   /** Where replies go (e.g. a support mailbox). Optional. */

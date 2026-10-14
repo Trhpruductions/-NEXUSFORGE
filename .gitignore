@@ -59,3 +59,6 @@ var/uploads/
 apps/web/public/downloads/*.exe
 
 brand-inbox/
+
+# Local beta run logs
+.beta-logs/
