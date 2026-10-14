@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
-import { PoweredByFooter } from "@/components/layout/powered-by-footer";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+  description: "Nexus Forge Gaming is free, with more included than other apps give away. Core+ plans from $3.99 a month add bigger uploads, more servers and ultra-quality video.",
+};
 
 export default async function PricingPage({
   searchParams,
@@ -29,7 +34,6 @@ export default async function PricingPage({
       <div className="mx-auto w-full">
         <PricingAndPayments checkoutState={resolved.checkout} />
       </div>
-      <PoweredByFooter />
     </ExperienceShell>
   );
 }

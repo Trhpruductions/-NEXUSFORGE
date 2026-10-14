@@ -8,6 +8,7 @@ import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
+import { DeveloperIntro } from "@/components/developer/developer-intro";
 
 export default function DeveloperPortalPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
@@ -98,6 +99,7 @@ export default function DeveloperPortalPage() {
       }
       maxWidthClassName="max-w-5xl"
     >
+      <DeveloperIntro />
       {!isSignedIn ? (
         <GuestAuthCallout
           title="Developer tools require a Nexus Forge Gaming account."
@@ -235,12 +237,12 @@ export default function DeveloperPortalPage() {
 
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Marketplace preview</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Live integration listings</h2>
+            <h2 className="mt-4 text-2xl font-semibold text-white">Public bots</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">Browse public bot apps and discover how other developers publish their work.</p>
 
             <div className="mt-6 space-y-3">
               {loading ? (
-                <p className="text-sm text-slate-400">Loading marketplace preview...</p>
+                <p className="text-sm text-slate-400">Loading public bots...</p>
               ) : catalogQuery.data?.bots.length ? (
                 catalogQuery.data.bots.slice(0, 5).map((bot) => (
                   <div key={bot.id} className="rounded-[24px] border border-white/10 bg-[#0d1119] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
@@ -265,7 +267,7 @@ export default function DeveloperPortalPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-400">No marketplace listings are available right now.</p>
+                <p className="text-sm text-slate-400">No public bots yet. Create one above and make it public.</p>
               )}
             </div>
 

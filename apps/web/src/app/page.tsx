@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ReportProblem } from "@/components/home/report-problem";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
 import {
   ArrowRight,
   AtSign,
@@ -11,7 +13,6 @@ import {
   Hash,
   KeyRound,
   Layers,
-  Menu,
   MessagesSquare,
   Mic,
   Mic2,
@@ -25,14 +26,6 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-
-const navLinks: Array<[string, string]> = [
-  ["Features", "#features"],
-  ["Pricing", "/pricing"],
-  ["Download", "/download"],
-  ["Developers", "/developer"],
-  ["Support", "/support"],
-];
 
 /** Only things that exist in the app today. */
 const features = [
@@ -148,47 +141,7 @@ export default function Home() {
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(46,164,255,0.16),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(139,92,246,0.12),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(10,86,176,0.14),transparent_40%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_55%,transparent_100%)]" />
 
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-[#040812]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/30 bg-slate-950/80 shadow-[0_0_24px_rgba(46,164,255,0.35)]">
-              <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={32} height={32} className="h-7 w-7 rounded-lg object-cover" />
-            </div>
-            <div className="hidden sm:block">
-              <p className="nf-heading text-sm font-semibold uppercase tracking-[0.32em] text-white">Nexus Forge</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.36em] text-amber-300">Gaming</p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-7 md:flex" aria-label="Main">
-            {navLinks.map(([label, href]) => (
-              <Link key={label} href={href} className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 transition-colors hover:text-white">
-                {label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-2 md:ml-0">
-            <Link href="/login" className="hidden rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200 transition hover:border-amber-400/50 hover:text-white sm:inline-flex">
-              Sign in
-            </Link>
-            <Link href="/register" className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_55%,#0b6fe0)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-950 shadow-[0_10px_30px_rgba(46,164,255,0.35)] transition hover:-translate-y-px sm:px-5">
-              Join free <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-            {/* Phones: the links in a drop-down (no JavaScript needed). */}
-            <details className="relative md:hidden">
-              <summary className="flex cursor-pointer list-none items-center rounded-lg p-2 text-slate-300 hover:bg-white/5 [&::-webkit-details-marker]:hidden" aria-label="Menu">
-                <Menu className="h-5 w-5" />
-              </summary>
-              <div className="absolute right-0 z-50 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d1119] p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
-                {[...navLinks, ["Sign in", "/login"] as [string, string]].map(([label, href]) => (
-                  <Link key={label} href={href} className="block rounded-lg px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">{label}</Link>
-                ))}
-              </div>
-            </details>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main id="main-content" className="relative">
         {/* Hero */}
@@ -399,34 +352,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-white/5">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 text-sm sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Image src="/brand/nexusforge-emblem-256.png" alt="" width={24} height={24} className="h-6 w-6 rounded object-cover" />
-              <span className="nf-heading font-semibold uppercase tracking-[0.24em] text-white">Nexus Forge Gaming</span>
-            </div>
-            <p className="text-xs leading-relaxed text-slate-500">Built for gamers. Connected by community. For ages 18+.</p>
-          </div>
-          {[
-            ["Product", [["Features", "#features"], ["Pricing", "/pricing"], ["Download", "/download"], ["What's new", "/app/updates"]]],
-            ["Build", [["Developers", "/developer"], ["Bots", "/developer/bots"], ["Sign in with Nexus Forge", "/developer/oauth"]]],
-            ["Help", [["Support", "/support"], ["Report a problem", "#report"], ["Terms", "/legal/terms"], ["Privacy", "/legal/privacy"], ["All policies", "/legal"]]],
-          ].map(([title, links]) => (
-            <div key={title as string}>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{title as string}</p>
-              <ul className="mt-3 space-y-2">
-                {(links as Array<[string, string]>).map(([label, href]) => (
-                  <li key={label}>
-                    <Link href={href} className="text-slate-400 transition hover:text-white">{label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <p className="border-t border-white/5 py-5 text-center text-xs text-slate-600">© 2026 Nexus Forge Gaming</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

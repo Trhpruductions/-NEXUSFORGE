@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Check, ChevronDown, FileText, History, Link2, Loader2, Menu, Printer, Scale, Search, X } from "lucide-react";
+import { Check, ChevronDown, FileText, History, Link2, Loader2, Menu, Printer, Scale, Search, X } from "lucide-react";
 import { getLegalPolicy, listLegalPolicies } from "@/lib/legal-api";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
 import { LegalMarkdown, parseLegal } from "@/components/legal/legal-markdown";
 
 /** Effective dates are calendar dates (stored as UTC midnight), so show them in UTC: the same day everywhere. */
@@ -135,22 +136,15 @@ export function LegalCenter({ slug }: { slug: string | null }) {
         <div className="absolute -right-32 top-1/3 h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-[120px]" />
       </div>
 
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl print:hidden">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <button type="button" onClick={() => setNavOpen((open) => !open)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" aria-expanded={navOpen} aria-controls="legal-nav-mobile" aria-label="Legal menu">
-            {navOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-          <Link href="/legal" className="flex items-center gap-2">
-            <Image src="/brand/nexusforge-emblem-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-            <span className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">Nexus Forge</span>
-            <span className="text-sm text-slate-400">Legal Center</span>
-          </Link>
-          <Link href="/app" className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 transition hover:border-violet-400/50 hover:text-white">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to app
-          </Link>
-        </div>
-        <span aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 to-cyan-400/60" />
-      </header>
+      <div className="print:hidden">
+        <SiteHeader />
+      </div>
+      <div className="relative z-20 flex items-center gap-3 border-b border-white/[0.06] bg-[#0b0e17]/85 px-4 py-2 lg:hidden print:hidden">
+        <button type="button" onClick={() => setNavOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200" aria-expanded={navOpen} aria-controls="legal-nav-mobile">
+          {navOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />} Policies
+        </button>
+        <span className="text-xs text-slate-400">Legal Center</span>
+      </div>
 
       {navOpen ? (
         <div id="legal-nav-mobile" className="relative z-20 border-b border-white/[0.06] bg-[#0b0e17] px-4 py-4 lg:hidden print:hidden">
@@ -264,6 +258,9 @@ export function LegalCenter({ slug }: { slug: string | null }) {
             </article>
           )}
         </main>
+      </div>
+      <div className="print:hidden">
+        <SiteFooter />
       </div>
     </div>
   );

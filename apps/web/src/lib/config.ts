@@ -1,5 +1,5 @@
 const configuredApiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-const localApiBase = "http://127.0.0.1:4000";
+const localApiBase = "http://127.0.0.1:4001";
 
 function resolveBrowserApiBase(): string {
   if (typeof window === "undefined") {

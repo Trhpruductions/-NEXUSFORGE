@@ -810,9 +810,6 @@ export type LaunchModeState = {
 import { handleSuspended, isSuspensionInfo } from "./suspension";
 import { isUpgradePrompt, usePaywallStore } from "@/store/paywall-store";
 
-const LOCAL_API_BASE_URL = "http://127.0.0.1:4000";
-const LOCAL_API_FALLBACK_URL = "http://127.0.0.1:4001";
-
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -827,7 +824,6 @@ api.interceptors.request.use((config) => {
 });
 
 interface RetriableRequestConfig extends AxiosRequestConfig {
-  __retriedOnFallbackPort?: boolean;
   __retriedAfterRefresh?: boolean;
 }
 
@@ -874,19 +870,6 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const config = error.config as RetriableRequestConfig | undefined;
-
-    if (
-      axios.isAxiosError(error) &&
-      !error.response &&
-      config?.baseURL === LOCAL_API_BASE_URL &&
-      !config.__retriedOnFallbackPort
-    ) {
-      return api.request({
-        ...(config as RetriableRequestConfig),
-        __retriedOnFallbackPort: true,
-        baseURL: LOCAL_API_FALLBACK_URL,
-      } as RetriableRequestConfig);
-    }
 
     // Needs a higher plan: show the upgrade prompt (the caller still gets the error).
     if (axios.isAxiosError(error) && error.response?.status === 402) {
