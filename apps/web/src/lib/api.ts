@@ -2522,6 +2522,7 @@ export type AvatarConfig = {
   shoeColor: string;
   accent: string;
   background: "city" | "forge" | "void" | "arena";
+  outfit: "base" | "cyber" | "shadow" | "knight" | "street" | "sorceress" | "nomad";
 };
 
 export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string };

@@ -4,6 +4,7 @@ import type * as THREE from "three";
 import { useEffect, useRef } from "react";
 import type { AvatarConfig } from "@/lib/api";
 import type { EquippedCosmetic } from "@/components/avatar/cosmetic-layers";
+import { buildCharacter, LOOKS } from "@/components/avatar/characters-3d";
 
 /**
  * A live 3D version of the avatar, built from three.js primitives (no outside model files).
@@ -79,6 +80,11 @@ function headShell(T: Lib, material: THREE.Material, thetaLength: number) {
 }
 
 function buildRig(T: Lib, config: AvatarConfig, equipped: EquippedCosmetic[]): Rig {
+  // A mockup look is its own model; the layered builder below handles "base".
+  if (config.outfit && config.outfit !== "base") {
+    const look = buildCharacter(T, config.outfit, { skin: config.skin });
+    return { group: look.group, body: look.body, head: look.head, armL: look.armL, armR: look.armR };
+  }
   const s = SIZES[config.body] ?? SIZES.athletic;
   const skin = material(T, config.skin, { roughness: 0.55 });
   const hairMat = material(T, config.hairColor, { roughness: 0.5 });
@@ -415,8 +421,9 @@ export function Avatar3D({ config, equipped = NO_GEAR, emote = null, flipped = f
         }
         rig = buildRig(T, live.current.config, live.current.equipped);
         scene.add(rig.group);
-        floorMat.color.set(live.current.config.accent);
-        rim.color.set(live.current.config.accent);
+        const accent = live.current.config.outfit && live.current.config.outfit !== "base" ? LOOKS[live.current.config.outfit].accent : live.current.config.accent;
+        floorMat.color.set(accent);
+        rim.color.set(accent);
       };
       rebuild();
       rebuildRef.current = rebuild;

@@ -28,6 +28,8 @@ export const avatarConfigSchema = z.object({
   shoeColor: hex.default("#e6b325"),
   accent: hex.default("#e6b325"),
   background: z.enum(["city", "forge", "void", "arena"]).default("city"),
+  /** A full look from the mockups ("base" keeps the layered avatar above). */
+  outfit: z.enum(["base", "cyber", "shadow", "knight", "street", "sorceress", "nomad"]).default("base"),
 });
 
 export type AvatarConfig = z.infer<typeof avatarConfigSchema>;

@@ -29,6 +29,7 @@ export const defaultAvatarConfig: AvatarConfig = {
   shoeColor: "#2ea4ff",
   accent: "#2ea4ff",
   background: "city",
+  outfit: "base",
 };
 
 const backgrounds: Record<AvatarConfig["background"], { from: string; to: string; glow: string }> = {

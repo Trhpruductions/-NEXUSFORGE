@@ -52,6 +52,7 @@ function randomConfig(): AvatarConfig {
     shoeColor: pick(outfitColors),
     accent: pick(["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]),
     background: pick(["city", "forge", "void", "arena"] as const),
+    outfit: "base",
   };
 }
 

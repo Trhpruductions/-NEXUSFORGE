@@ -10,14 +10,22 @@ import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { Avatar3D, canUseWebGL } from "@/components/avatar/avatar-3d";
+import { LOOK_IDS, LOOKS } from "@/components/avatar/characters-3d";
 import { useAuthStore } from "@/store/auth-store";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
-type Category = "body" | "head" | "hair" | "face" | "eyes" | "shirts" | "pants" | "shoes" | "accessories" | "background";
+type Category = "look" | "body" | "head" | "hair" | "face" | "eyes" | "shirts" | "pants" | "shoes" | "accessories" | "background";
 type Tab = "studio" | "collection" | "animations";
 
 // Category column from the design reference (Avatar Studio panel).
+/** The Looks picker: Base (the layered avatar) and the six mockup looks. */
+const LOOK_CHOICES: Array<{ id: AvatarConfig["outfit"]; label: string; tier?: string }> = [
+  { id: "base", label: "Base" },
+  ...LOOK_IDS.map((id) => ({ id, label: LOOKS[id].label, tier: LOOKS[id].tier })),
+];
+
 const categories: Array<{ id: Category; label: string; icon: typeof User }> = [
+  { id: "look", label: "Looks", icon: Sparkles },
   { id: "body", label: "Body", icon: User },
   { id: "head", label: "Head", icon: CircleUser },
   { id: "hair", label: "Hair", icon: Scissors },
@@ -81,6 +89,7 @@ function randomConfig(): AvatarConfig {
     shoeColor: pick(outfitColors),
     accent,
     background: pick(backgrounds),
+    outfit: "base",
   };
 }
 
@@ -352,7 +361,7 @@ export function AvatarStudio() {
               {threeD ? (
                 <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg border border-white/10 bg-[#0d1119]/90 p-1" role="group" aria-label="Avatar view">
                   {([true, false] as const).map((is3d) => (
-                    <button key={is3d ? "3d" : "flat"} type="button" aria-pressed={view3d === is3d} onClick={() => setView3d(is3d)} className={`rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${view3d === is3d ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                    <button key={is3d ? "3d" : "flat"} type="button" aria-pressed={view3d === is3d} disabled={!is3d && config.outfit !== "base"} title={!is3d && config.outfit !== "base" ? "Looks are only drawn in 3D" : undefined} onClick={() => setView3d(is3d)} className={`rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${view3d === is3d ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
                       {is3d ? "3D" : "Flat"}
                     </button>
                   ))}
@@ -360,7 +369,7 @@ export function AvatarStudio() {
               ) : null}
               {avatarQuery.isLoading ? (
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
-              ) : threeD && view3d ? (
+              ) : threeD && (view3d || config.outfit !== "base") ? (
                 <Avatar3D
                   config={config}
                   equipped={equippedGear}
@@ -396,6 +405,31 @@ export function AvatarStudio() {
 
           {/* Controls */}
           <div className={`${panel} space-y-5`}>
+            {config.outfit !== "base" && category !== "look" && category !== "background" ? (
+              <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">This look wears its own outfit and colours. Choose Base under Looks to change the body, clothes and colours.</p>
+            ) : null}
+
+            {category === "look" ? (
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Looks from the mockups</p>
+                <p className="mb-3 text-[11px] leading-relaxed text-slate-500">A look is a complete outfit with its own colours. Base keeps the layered avatar you build with the other tabs.</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {LOOK_CHOICES.map((choice) => (
+                    <button key={choice.id} type="button" aria-pressed={config.outfit === choice.id} onClick={() => update({ outfit: choice.id })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-left transition ${config.outfit === choice.id ? "border-amber-400 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 hover:border-white/30"}`}>
+                      {choice.id === "base" ? (
+                        <div className="flex h-28 items-center justify-center bg-[radial-gradient(circle_at_50%_40%,rgba(46,164,255,0.2),transparent_65%)]"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300">Layered</span></div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/avatar-looks/${choice.id}-thumb.png`} alt="" className="h-28 w-full object-cover object-top" />
+                      )}
+                      <p className="px-2 pt-1.5 text-[10px] font-semibold uppercase leading-tight tracking-[0.08em] text-white">{choice.label}</p>
+                      <p className="px-2 pb-1.5 text-[9px] uppercase tracking-[0.14em] text-slate-500">{choice.tier ?? "Your custom build"}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {category === "body" ? (
               <>
                 <div>
