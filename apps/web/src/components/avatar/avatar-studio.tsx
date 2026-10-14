@@ -9,6 +9,7 @@ import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getAvatar, g
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { Avatar3D, canUseWebGL } from "@/components/avatar/avatar-3d";
 import { useAuthStore } from "@/store/auth-store";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
@@ -181,6 +182,12 @@ export function AvatarStudio() {
   const [flipped, setFlipped] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [playing, setPlaying] = useState<CosmeticItem | null>(null);
+  // The live 3D view needs WebGL; the flat view is the fallback and can be picked by hand.
+  const [threeD, setThreeD] = useState(false);
+  const [view3d, setView3d] = useState(true);
+  useEffect(() => {
+    setThreeD(canUseWebGL());
+  }, []);
 
   const avatarQuery = useQuery({
     queryKey: ["avatar", accessToken],
@@ -342,8 +349,27 @@ export function AvatarStudio() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(46,164,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(46,164,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
             <div className="relative flex min-h-[380px] items-center justify-center p-4 lg:min-h-[480px]">
+              {threeD ? (
+                <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg border border-white/10 bg-[#0d1119]/90 p-1" role="group" aria-label="Avatar view">
+                  {([true, false] as const).map((is3d) => (
+                    <button key={is3d ? "3d" : "flat"} type="button" aria-pressed={view3d === is3d} onClick={() => setView3d(is3d)} className={`rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${view3d === is3d ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                      {is3d ? "3D" : "Flat"}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {avatarQuery.isLoading ? (
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
+              ) : threeD && view3d ? (
+                <Avatar3D
+                  config={config}
+                  equipped={equippedGear}
+                  emote={playing?.key ?? null}
+                  flipped={flipped}
+                  zoomed={zoomed}
+                  onUnavailable={() => setThreeD(false)}
+                  className="h-[380px] w-full max-w-[460px] lg:h-[460px]"
+                />
               ) : (
                 <div className="transition-transform duration-300" style={{ transform: `${flipped ? "scaleX(-1)" : ""} ${zoomed ? "scale(1.35) translateY(12%)" : ""}` }}>
                   <div className={playing ? emoteAnimation(playing.key) : undefined}>
