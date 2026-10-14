@@ -92,12 +92,14 @@ function Swatches({ colors, value, onPick }: { colors: string[]; value: string; 
           type="button"
           onClick={() => onPick(color)}
           title={color}
+          aria-label={`Colour ${color}`}
+          aria-pressed={value.toLowerCase() === color.toLowerCase()}
           style={{ backgroundColor: color }}
           className={`h-7 w-7 rounded-full border-2 transition ${value.toLowerCase() === color.toLowerCase() ? "border-amber-300 scale-110" : "border-white/10 hover:border-white/40"}`}
         />
       ))}
       <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-white/20" title="Custom color">
-        <input type="color" value={value} onChange={(event) => onPick(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+        <input type="color" aria-label="Custom colour" value={value} onChange={(event) => onPick(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
         <span className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">+</span>
       </label>
     </div>
@@ -112,6 +114,7 @@ function Options<T extends string>({ options, value, onPick, render }: { options
           key={option}
           type="button"
           onClick={() => onPick(option)}
+          aria-pressed={value === option}
           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold capitalize transition ${value === option ? "border-amber-400 bg-amber-500/10 text-amber-100" : "border-white/10 bg-[#11151e] text-slate-300 hover:border-white/30"}`}
         >
           {render ? render(option) : option}
@@ -148,6 +151,7 @@ function ThumbOptions<T extends string>({
           type="button"
           onClick={() => onPick(option)}
           title={label ? label(option) : option}
+          aria-pressed={value === option}
           className={`overflow-hidden rounded-lg border bg-[#11151e] transition ${value === option ? "border-amber-400 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 hover:border-white/30"}`}
         >
           <div className="flex h-14 items-start justify-center overflow-hidden">
@@ -234,6 +238,11 @@ export function AvatarStudio() {
     setHistory((stack) => [...stack, config]);
     setConfig(next);
   };
+  /** Puts back the look that's saved on the account. Undo can still bring the edits back. */
+  const discard = () => {
+    if (!saved) return;
+    update(saved);
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => saveAvatar(accessToken!, csrfToken!, config),
@@ -283,17 +292,17 @@ export function AvatarStudio() {
           <h1 className="nf-heading text-xl font-bold text-white">Avatar Studio</h1>
           <p className="text-xs text-slate-400">Create. Customize. Be you.</p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-white/5 bg-[#0d1119] p-1">
+        <div className="no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-xl border border-white/5 bg-[#0d1119] p-1">
           {([
             { id: "studio", label: "Studio" },
             { id: "collection", label: "Collection" },
           ] as Array<{ id: Tab; label: string }>).map((entry) => (
-            <button key={entry.id} type="button" onClick={() => setTab(entry.id)} className={`rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === entry.id ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+            <button key={entry.id} type="button" onClick={() => setTab(entry.id)} aria-pressed={tab === entry.id} className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === entry.id ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
               {entry.label}
             </button>
           ))}
-          <Link href="/app/wardrobe" className="rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">Wardrobe</Link>
-          <button type="button" onClick={() => setTab("animations")} className={`rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === "animations" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+          <Link href="/app/wardrobe" className="shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">Wardrobe</Link>
+          <button type="button" onClick={() => setTab("animations")} aria-pressed={tab === "animations"} className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === "animations" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
             Animations
           </button>
         </div>
@@ -307,7 +316,7 @@ export function AvatarStudio() {
       ) : null}
 
       {tab === "studio" ? (
-        <div className="grid gap-4 lg:grid-cols-[124px_minmax(0,1fr)_340px]">
+        <div className="grid gap-4 lg:grid-cols-[148px_minmax(0,1fr)_340px]">
           {/* Category column */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible">
             {categories.map((entry) => (
@@ -315,7 +324,8 @@ export function AvatarStudio() {
                 key={entry.id}
                 type="button"
                 onClick={() => setCategory(entry.id)}
-                className={`flex min-w-[110px] items-center gap-2 rounded-xl border px-2 py-1.5 text-left text-[9.5px] font-semibold uppercase tracking-[0.08em] transition ${
+                aria-pressed={category === entry.id}
+                className={`flex min-w-[118px] items-center gap-2 whitespace-nowrap rounded-xl border px-2 py-1.5 text-left text-[9.5px] font-semibold uppercase tracking-[0.08em] transition ${
                   category === entry.id ? "border-amber-400 bg-amber-500/10 text-amber-100" : "border-white/5 bg-[#0d1119] text-slate-400 hover:border-white/20 hover:text-white"
                 }`}
               >
@@ -331,7 +341,7 @@ export function AvatarStudio() {
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(46,164,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(46,164,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
-            <div className="relative flex min-h-[480px] items-center justify-center p-4">
+            <div className="relative flex min-h-[380px] items-center justify-center p-4 lg:min-h-[480px]">
               {avatarQuery.isLoading ? (
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
               ) : (
@@ -342,10 +352,19 @@ export function AvatarStudio() {
                 </div>
               )}
             </div>
-            <div className="relative flex flex-wrap items-center justify-center gap-2 border-t border-white/5 p-3">
-              <button type="button" onClick={() => setFlipped((value) => !value)} className={ghostBtn} title="Rotate"><RotateCcw className="h-3.5 w-3.5" /> Rotate</button>
-              <button type="button" onClick={() => setZoomed((value) => !value)} className={`${ghostBtn} ${zoomed ? "border-amber-400/60 text-amber-200" : ""}`} title="Zoom"><ZoomIn className="h-3.5 w-3.5" /> Zoom</button>
-              <button type="button" onClick={redo} disabled={!future.length} className={ghostBtn} title="Redo"><Redo2 className="h-3.5 w-3.5" /> Redo</button>
+            <div className="relative flex flex-wrap items-center justify-between gap-3 border-t border-white/5 p-3">
+              <div role="status" aria-live="polite" className="flex items-center gap-2 text-[11px] text-slate-300">
+                <span className={`h-2 w-2 rounded-full ${dirty ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]" : "bg-emerald-400"}`} />
+                {dirty ? "Unsaved changes" : "All changes saved"}
+                {dirty ? (
+                  <button type="button" onClick={discard} className="ml-1 text-amber-300 underline underline-offset-2 hover:text-amber-200">Discard</button>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button type="button" onClick={() => setFlipped((value) => !value)} className={ghostBtn} title="Rotate"><RotateCcw className="h-3.5 w-3.5" /> Rotate</button>
+                <button type="button" onClick={() => setZoomed((value) => !value)} aria-pressed={zoomed} className={`${ghostBtn} ${zoomed ? "border-amber-400/60 text-amber-200" : ""}`} title="Zoom"><ZoomIn className="h-3.5 w-3.5" /> Zoom</button>
+                <button type="button" onClick={redo} disabled={!future.length} className={ghostBtn} title="Redo"><Redo2 className="h-3.5 w-3.5" /> Redo</button>
+              </div>
             </div>
           </div>
 
@@ -524,6 +543,18 @@ export function AvatarStudio() {
               </button>
               <button type="button" onClick={() => setPresetDialog(true)} disabled={presets.length >= maxPresets} className="col-span-2 text-center text-[11px] uppercase tracking-[0.16em] text-amber-300 hover:text-amber-200 disabled:opacity-50">Save as new preset</button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "studio" && dirty ? (
+        <div role="region" aria-label="Unsaved avatar changes" className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/40 bg-[#0d1119]/95 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.5)] backdrop-blur lg:hidden">
+          <p className="text-xs font-semibold text-amber-100">Unsaved changes</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={discard} className={ghostBtn}>Discard</button>
+            <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className={goldBtn}>
+              {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+            </button>
           </div>
         </div>
       ) : null}
