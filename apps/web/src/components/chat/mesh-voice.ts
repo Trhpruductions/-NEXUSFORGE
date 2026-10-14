@@ -34,6 +34,9 @@ export type MeshPeer = {
   /** What the peer last told us about their mic and headphones. */
   remoteMuted: boolean;
   remoteDeafened: boolean;
+  /** A camera or screen change that waits until the connection is stable enough to offer it. */
+  pendingRenegotiation: boolean;
+  pendingIceRestart: boolean;
 };
 
 export type MeshVoiceOptions = {
@@ -305,17 +308,22 @@ export class MeshVoice {
     if (notify) this.options.onScreenShareEnded?.();
   }
 
-  private async renegotiate(userId: string, iceRestart = false, attempt = 0) {
+  private async renegotiate(userId: string, iceRestart = false) {
     const peer = this.peers.get(userId);
     if (!peer || this.closed) return;
     if (peer.connection.signalingState !== "stable") {
-      // Mid-negotiation (e.g. answering their change): try again shortly instead of
-      // dropping ours, or a camera/screen change could silently never reach them.
-      if (attempt < 20) this.later(() => void this.renegotiate(userId, iceRestart, attempt + 1), 250);
+      // Mid-negotiation (e.g. answering their change): keep the change and send it once the
+      // connection is stable again (see onsignalingstatechange). A timed retry gave up after a
+      // few seconds, and then a camera or screen change silently never reached the other side.
+      peer.pendingRenegotiation = true;
+      peer.pendingIceRestart = peer.pendingIceRestart || iceRestart;
       return;
     }
+    peer.pendingRenegotiation = false;
+    const restart = iceRestart || peer.pendingIceRestart;
+    peer.pendingIceRestart = false;
     try {
-      const offer = await peer.connection.createOffer({ iceRestart });
+      const offer = await peer.connection.createOffer({ iceRestart: restart });
       await peer.connection.setLocalDescription(offer);
       this.signal(userId, { type: "offer", sdp: offer.sdp ?? "" });
     } catch (error) {
@@ -526,7 +534,7 @@ export class MeshVoice {
     this.applySink(audio);
     document.body.appendChild(audio);
 
-    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, camera: null, videoStreams: new Map(), screenId: null, cameraId: null, labelled: false, state: connection.connectionState, remoteMuted: false, remoteDeafened: false };
+    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, camera: null, videoStreams: new Map(), screenId: null, cameraId: null, labelled: false, state: connection.connectionState, remoteMuted: false, remoteDeafened: false, pendingRenegotiation: false, pendingIceRestart: false };
     this.peers.set(userId, peer);
 
     this.local?.getTracks().forEach((track) => connection.addTrack(track, this.local!));
@@ -580,6 +588,10 @@ export class MeshVoice {
       void audio.play().catch(() => undefined);
       this.watchLevel(userId, peer.stream);
       this.emitPeers();
+    };
+    // A change that arrived mid-negotiation is offered as soon as the connection is stable again.
+    connection.onsignalingstatechange = () => {
+      if (connection.signalingState === "stable" && peer.pendingRenegotiation) void this.renegotiate(userId);
     };
     connection.onconnectionstatechange = () => {
       peer.state = connection.connectionState;

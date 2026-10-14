@@ -2,6 +2,7 @@ import { Router } from "express";
 import { AccessToken } from "livekit-server-sdk";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { buildIceServers } from "../lib/ice-servers.js";
 import { getIo } from "../lib/realtime.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -71,7 +72,13 @@ voiceRouter.post("/token", async (req, res) => {
 
   if (!livekitConfigured) {
     // Built-in voice: peers connect directly over WebRTC, signaled through the realtime gateway.
-    res.json({ mode: "mesh" as const, token: "", wsUrl: "", roomName, iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] });
+    res.json({
+      mode: "mesh" as const,
+      token: "",
+      wsUrl: "",
+      roomName,
+      iceServers: buildIceServers(req.user!.id, { turnUrls: env.TURN_URLS, turnSharedSecret: env.TURN_SHARED_SECRET, turnCredentialTtlSeconds: env.TURN_CREDENTIAL_TTL_SECONDS }),
+    });
     return;
   }
 

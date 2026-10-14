@@ -81,6 +81,10 @@ const envSchema = z.object({
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
   LIVEKIT_WS_URL: z.string().optional(),
+  // Built-in voice (mesh) relays through TURN when these are set; public STUN alone fails behind strict NATs.
+  TURN_URLS: z.string().optional(),
+  TURN_SHARED_SECRET: z.string().optional(),
+  TURN_CREDENTIAL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   S3_REGION: z.string().default("auto"),
   S3_BUCKET_NAME: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
