@@ -77,6 +77,9 @@ function reportTitleFor(kind: ReportKind, tags: string[]) {
   if (tags.includes("ops")) {
     return "Operations Digest";
   }
+  if (tags.includes("pulse")) {
+    return "Daily beta pulse";
+  }
   if (tags.includes("probe") && tags.includes("status")) {
     return "Status Probe";
   }
@@ -363,7 +366,9 @@ async function postReport(kind: ReportKind, content: string) {
   if (kind === "social") {
     channelId = getRoutedAppChannelId("feedback") || channelId;
   } else if (kind === "status") {
-    if (
+    if (parsed.tags.includes("health") || parsed.tags.includes("pulse")) {
+      channelId = getRoutedAppChannelId("health") || channelId;
+    } else if (
       parsed.tags.includes("ops") ||
       parsed.tags.includes("heartbeat") ||
       lowerDetail.includes("launchmode") ||
@@ -474,6 +479,11 @@ export async function reportDiscordAlert(message: string) {
 
 export async function reportDiscordError(message: string) {
   await postReportSafe("errors", `[error] ${message}`);
+}
+
+/** Routine health news (daily pulse, recoveries): goes to #app-health, not #bot-alerts. */
+export async function reportDiscordHealth(message: string) {
+  await postReportSafe("status", `[health] ${message}`);
 }
 
 export async function reportDiscordSocial(message: string) {

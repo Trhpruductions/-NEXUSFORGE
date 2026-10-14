@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { VexoraShell } from "@/components/layout/vexora-shell";
+import { AppShell } from "@/components/layout/vexora-shell";
 
 export const metadata: Metadata = {
   title: "Nexus Forge Gaming Workspace",
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function AppSegmentLayout({ children }: { children: ReactNode }) {
-  return <VexoraShell>{children}</VexoraShell>;
+  return <AppShell>{children}</AppShell>;
 }

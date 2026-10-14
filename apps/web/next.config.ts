@@ -40,6 +40,13 @@ const nextConfig = (phase: string): NextConfig => ({
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Old tester links from the first beta round.
+  async redirects() {
+    return [
+      { source: "/beta/checklist", destination: "/beta", permanent: true },
+      { source: "/beta/feedback", destination: "/support#report", permanent: true },
+    ];
+  },
   // Uploaded files use relative /uploads/... links; serve them from the API.
   async rewrites() {
     return [{ source: "/uploads/:path*", destination: `http://127.0.0.1:${process.env.API_PORT || 4001}/uploads/:path*` }];

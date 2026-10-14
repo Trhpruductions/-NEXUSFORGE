@@ -119,7 +119,7 @@ function initials(name: string) {
   );
 }
 
-export function VexoraShell({ children }: { children: ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/app";
   const router = useRouter();
   const queryClient = useQueryClient();

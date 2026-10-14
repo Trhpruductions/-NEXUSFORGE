@@ -48,6 +48,7 @@ import { runStartupTask } from "./lib/startup.js";
 import { startCleanup } from "./lib/cleanup.js";
 import { warmUpEmailDelivery } from "./lib/delivery.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
+import { startDailyPulse } from "./lib/daily-pulse.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
@@ -654,6 +655,7 @@ void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 
 startEventReminders();
 startDeletionSweeper();
 startCleanup();
+startDailyPulse();
 void runStartupTask("achievements catalog", ensureAchievementCatalog);
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {

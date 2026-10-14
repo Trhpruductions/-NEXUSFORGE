@@ -31,6 +31,7 @@ export const footerColumns: Array<{ title: string; links: Array<{ label: string;
     title: "Company",
     links: [
       { label: "About TRH Development", href: "/about" },
+      { label: "Beta program", href: "/beta" },
       { label: "Support", href: "/support" },
       { label: "Report a problem", href: "/support#report" },
       { label: "Status", href: "/support#status" },

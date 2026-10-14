@@ -34,6 +34,12 @@ const HEAL_COOLDOWN_MS = 15 * 60_000;
 const REMIND_EVERY_MS = 60 * 60_000;
 const HEARTBEAT_EVERY_MS = 60 * 60_000;
 const PUBLIC_HOST = process.env.PUBLIC_HOST || "nfgcord.com";
+const API_PORT = Number(process.env.API_PORT || 4001);
+const WEB_PORT = Number(process.env.WEB_PORT || 3300);
+const GATEWAY_PORT = Number(process.env.GATEWAY_PORT || 3400);
+const DB_PORT = String(process.env.DB_PORT || 5433);
+/** --dry-run: log what would be restarted or posted instead of doing it (for testing the logic). */
+const DRY_RUN = process.argv.includes("--dry-run");
 const PGBIN = process.env.PGBIN || "C:\\Program Files\\PostgreSQL\\17\\bin";
 const PGDATA = process.env.PGDATA || "D:\\NexusForgeDB\\data";
 const PGLOG = process.env.PGLOG || "D:\\NexusForgeDB\\postgres.log";
@@ -104,6 +110,10 @@ function run(file, args, options = {}) {
 }
 
 async function pm2(...args) {
+  if (DRY_RUN) {
+    log(`[dry-run] would run: pm2 ${args.join(" ")}`);
+    return true;
+  }
   if (!fs.existsSync(pm2Script)) {
     log(`pm2 not found at ${pm2Script}; cannot run pm2 ${args.join(" ")}`);
     return false;
@@ -168,6 +178,10 @@ async function discordChannelId(env, name) {
 }
 
 async function discordPost(kind, title, description, color) {
+  if (DRY_RUN) {
+    log(`[dry-run] would post to #${kind}: ${title} - ${description.replace(/\n/g, " ")}`);
+    return;
+  }
   const env = readEnv();
   if (!env.DISCORD_BOT_TOKEN || String(env.DISCORD_REPORT_ENABLED ?? "true").toLowerCase() === "false") return;
   const name = kind === "alerts" ? env.DISCORD_REPORT_CHANNEL_ALERTS || "bot-alerts" : env.DISCORD_REPORT_CHANNEL_STATUS || "bot-status";
@@ -200,12 +214,16 @@ const BLUE = 0x1e8bff;
 // ---------------------------------------------------------------------------
 
 async function postgresReady() {
-  const result = await run(path.join(PGBIN, "pg_isready.exe"), ["-h", "127.0.0.1", "-p", "5433", "-q"]);
+  const result = await run(path.join(PGBIN, "pg_isready.exe"), ["-h", "127.0.0.1", "-p", DB_PORT, "-q"]);
   if (!result.ok) throw new Error(result.out || `pg_isready exit ${result.code}`);
   return "accepting connections";
 }
 
 async function startPostgres() {
+  if (DRY_RUN) {
+    log("[dry-run] would run pg_ctl start");
+    return "would start Postgres";
+  }
   // Same command as scripts/vexora-autostart.cmd. Detached with no pipes: postgres keeps any
   // inherited handles open, which would otherwise hang this call.
   const child = spawn(
@@ -229,9 +247,9 @@ async function startPostgres() {
 const checks = [
   { key: "db", label: "Database (Postgres on 5433)", probe: postgresReady, heal: startPostgres },
   // /health/ready also runs a query, so an API that is up but has lost its database counts as down.
-  { key: "api", label: "API (port 4001)", probe: () => expectOk("http://127.0.0.1:4001/api/health/ready", { timeout: 10_000 }), heal: () => restartApp("nexusforge-backend-workspace"), needs: ["db"] },
-  { key: "web", label: "Web app (port 3300)", probe: () => expectOk("http://127.0.0.1:3300/login", { timeout: 15_000 }), heal: () => restartApp("nexusforge-web-workspace") },
-  { key: "gateway", label: "Gateway (port 3400)", probe: () => expectOk("http://127.0.0.1:3400/api/health"), heal: () => restartApp("vexora-gateway"), needs: ["api"] },
+  { key: "api", label: `API (port ${API_PORT})`, probe: () => expectOk(`http://127.0.0.1:${API_PORT}/api/health/ready`, { timeout: 10_000 }), heal: () => restartApp("nexusforge-backend-workspace"), needs: ["db"] },
+  { key: "web", label: `Web app (port ${WEB_PORT})`, probe: () => expectOk(`http://127.0.0.1:${WEB_PORT}/login`, { timeout: 15_000 }), heal: () => restartApp("nexusforge-web-workspace") },
+  { key: "gateway", label: `Gateway (port ${GATEWAY_PORT})`, probe: () => expectOk(`http://127.0.0.1:${GATEWAY_PORT}/api/health`), heal: () => restartApp("vexora-gateway"), needs: ["api"] },
   {
     key: "public",
     label: `Public site (https://${PUBLIC_HOST})`,
