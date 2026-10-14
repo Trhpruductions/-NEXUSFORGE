@@ -16,6 +16,7 @@ const THREE_DIR = path.resolve(PROJECT, "node_modules/three");
 const MODEL_SRC = path.resolve(PROJECT, "apps/web/src/components/avatar3d/base-model.ts");
 const OUT_DIR = process.argv[2];
 const FILE = process.argv[3] || "base-athletic.glb";
+const BODY = process.argv[4] || "athletic";
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PORT = 5299;
 const CDP_PORT = 9400 + Math.floor(Math.random() * 300);
@@ -73,7 +74,7 @@ server.listen(PORT, "127.0.0.1", async () => {
   const evaluate = async (expr) => (await send("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true })).result?.result?.value;
   await send("Page.enable"); await send("Runtime.enable");
   const started = Date.now();
-  await send("Page.navigate", { url: `http://127.0.0.1:${PORT}/?name=${encodeURIComponent(FILE)}` });
+  await send("Page.navigate", { url: `http://127.0.0.1:${PORT}/?name=${encodeURIComponent(FILE)}&body=${BODY}` });
   let done = false;
   while (!done && Date.now() - started < 120000) { await sleep(500); done = Boolean(await evaluate("window.__done === true")); }
   const error = await evaluate("window.__error || null");

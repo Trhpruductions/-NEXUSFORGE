@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-import { buildBaseModel } from "./base-model.js";
+import { buildAvatarModel, type BodySize } from "./base-model.js";
 
-// Exports the base character to a binary glTF (GLB). Query: ?name=base-athletic.glb
-const name = new URLSearchParams(location.search).get("name") || "base-athletic.glb";
-const model = buildBaseModel(THREE);
+// Exports one body size of the character to a binary glTF (GLB). Query: ?name=base-athletic.glb&body=athletic
+// Every option is exported (onlyVisible: false) so the viewer can switch parts on and off at runtime.
+const params = new URLSearchParams(location.search);
+const name = params.get("name") || "base-athletic.glb";
+const body = (params.get("body") || "athletic") as BodySize;
+const model = buildAvatarModel(THREE, body);
 const exporter = new GLTFExporter();
 const finish = (payload: string) =>
   fetch(`/save?name=${encodeURIComponent(name)}`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: payload }).then(() => {
@@ -22,5 +25,5 @@ exporter.parse(
     (window as unknown as { __error: string }).__error = String(error);
     (window as unknown as { __done: boolean }).__done = true;
   },
-  { binary: true, onlyVisible: true },
+  { binary: true, onlyVisible: false },
 );

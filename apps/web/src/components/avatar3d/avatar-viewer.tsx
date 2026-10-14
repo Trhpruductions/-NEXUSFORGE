@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { applyDesign, DEFAULT_DESIGN, modelUrlFor, type AvatarDesign } from "@/components/avatar3d/design";
 
 /**
  * Real-time 3D viewer for a Nexus Forge avatar model (a GLB file).
@@ -21,8 +22,20 @@ const BACKGROUNDS: Record<ViewerBackground, string | null> = {
   transparent: null,
 };
 
-function Model({ url, autoRotate, onReady }: { url: string; autoRotate: boolean; onReady: () => void }) {
+function Model({ url, design, autoRotate, onReady }: { url: string; design: AvatarDesign; autoRotate: boolean; onReady: () => void }) {
   const gltf = useLoader(GLTFLoader, url) as GLTF;
+  // Each viewer gets its own copy of the materials, so two avatars on one page never share colours.
+  const figure = useMemo(() => {
+    const copy = gltf.scene.clone(true);
+    copy.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (mesh.isMesh) mesh.material = Array.isArray(mesh.material) ? mesh.material.map((m) => m.clone()) : mesh.material.clone();
+    });
+    return copy;
+  }, [gltf]);
+  useEffect(() => {
+    applyDesign(figure as unknown as Parameters<typeof applyDesign>[0], design);
+  }, [figure, design]);
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
@@ -76,7 +89,7 @@ function Model({ url, autoRotate, onReady }: { url: string; autoRotate: boolean;
 
   // Shadows on every part of the figure.
   useEffect(() => {
-    gltf.scene.traverse((node) => {
+    figure.traverse((node) => {
       const mesh = node as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
@@ -84,12 +97,12 @@ function Model({ url, autoRotate, onReady }: { url: string; autoRotate: boolean;
       }
     });
     onReady();
-  }, [gltf, onReady]);
+  }, [figure, onReady]);
 
-  return <primitive object={gltf.scene} />;
+  return <primitive object={figure} />;
 }
 
-function Stage({ url, autoRotate, background, onReady }: { url: string; autoRotate: boolean; background: ViewerBackground; onReady: () => void }) {
+function Stage({ url, design, autoRotate, background, onReady }: { url: string; design: AvatarDesign; autoRotate: boolean; background: ViewerBackground; onReady: () => void }) {
   const color = BACKGROUNDS[background];
   return (
     <>
@@ -116,7 +129,7 @@ function Stage({ url, autoRotate, background, onReady }: { url: string; autoRota
         <meshBasicMaterial color="#2ea4ff" toneMapped={false} />
       </mesh>
       <Suspense fallback={null}>
-        <Model url={url} autoRotate={autoRotate} onReady={onReady} />
+        <Model url={url} design={design} autoRotate={autoRotate} onReady={onReady} />
       </Suspense>
     </>
   );
@@ -143,16 +156,19 @@ class ViewerErrorBoundary extends Component<{ children: ReactNode; onError: () =
 }
 
 export function AvatarViewer({
-  modelUrl = "/avatar-models/base-athletic.glb",
+  design = DEFAULT_DESIGN,
+  modelUrl,
   autoRotate = true,
   background = "studio",
   className = "",
 }: {
+  design?: AvatarDesign;
   modelUrl?: string;
   autoRotate?: boolean;
   background?: ViewerBackground;
   className?: string;
 }) {
+  const url = modelUrl ?? modelUrlFor(design.body);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const onReady = useMemo(() => () => setReady(true), []);
@@ -170,7 +186,7 @@ export function AvatarViewer({
           role="img"
           style={{ touchAction: "none" }}
         >
-          <Stage url={modelUrl} autoRotate={autoRotate} background={background} onReady={onReady} />
+          <Stage url={url} design={design} autoRotate={autoRotate} background={background} onReady={onReady} />
         </Canvas>
       </ViewerErrorBoundary>
       {!ready && !failed ? (
