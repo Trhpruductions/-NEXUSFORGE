@@ -46,6 +46,7 @@ import { ensureLegalPolicies } from "./lib/legal-policies.js";
 import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
 import { runStartupTask } from "./lib/startup.js";
 import { startCleanup } from "./lib/cleanup.js";
+import { warmUpEmailDelivery } from "./lib/delivery.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
@@ -679,7 +680,8 @@ httpServer.listen(env.PORT, () => {
   
   // Engage Industrial Engines
   JackpotEngine.start();
-  
+  void warmUpEmailDelivery();
+
   void startDiscordBot().catch((error) => {
     console.error("[discord] Failed to start bot:", error);
     const message = error instanceof Error ? error.message : String(error);

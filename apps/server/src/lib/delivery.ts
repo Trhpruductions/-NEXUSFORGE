@@ -42,6 +42,21 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
+/**
+ * Opens and checks the SMTP connection once at boot (sends nothing), so the first sign-up
+ * doesn't pay the connection cost and a broken mailbox login shows up in the log right away.
+ */
+export async function warmUpEmailDelivery(): Promise<void> {
+  if (!smtpConfigured()) return;
+  const started = Date.now();
+  try {
+    await getTransporter().verify();
+    console.log(`[mail] SMTP ready (${env.SMTP_HOST}, ${Date.now() - started} ms)`);
+  } catch (error) {
+    console.error(`[mail] SMTP check failed, verification emails will not go out: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export function deliveryStatus() {
   return {
     email: smtpConfigured() ? "smtp" : env.NODE_ENV === "production" ? "unconfigured" : "console",
