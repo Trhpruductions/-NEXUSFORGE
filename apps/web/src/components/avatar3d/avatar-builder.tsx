@@ -211,7 +211,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
     }
   };
   /** Uploads a portrait of the saved look and stores it on the avatar, for the gallery and profile. */
-  const useAsPicture = async () => {
+  const saveAsPicture = async () => {
     if (!presetId) {
       setRenderNote("Save the avatar first, then use it as your profile picture.");
       return;
@@ -324,7 +324,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
                 <a href={pngFile.url} download={pngFile.name} className={chip(true)}>Save PNG</a>
               </>
             ) : null}
-            <button type="button" onClick={() => void useAsPicture()} disabled={pictureBusy || !presetId} className={`${chip(false)} disabled:opacity-40`}>
+            <button type="button" onClick={() => void saveAsPicture()} disabled={pictureBusy || !presetId} className={`${chip(false)} disabled:opacity-40`}>
               {pictureBusy ? "Working…" : "Use as profile picture"}
             </button>
             {renderNote ? <p role="status" aria-live="polite" className="text-[11px] text-slate-300">{renderNote}</p> : null}

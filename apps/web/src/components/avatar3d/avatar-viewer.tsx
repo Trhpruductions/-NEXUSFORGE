@@ -87,6 +87,8 @@ function Model({ url, design, pose, figureRef, autoRotate, onReady }: { url: str
   useEffect(() => {
     const pmrem = new THREE.PMREMGenerator(gl);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    // Three.js scenes are mutable by design; react-three-fiber's own examples assign scene.environment this way.
+    // eslint-disable-next-line react-hooks/immutability
     scene.environment = env;
     return () => {
       scene.environment = null;
@@ -183,6 +185,7 @@ function CaptureBridge({ bridge, figureRef, poseRef }: { bridge: { current: Capt
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+  /* eslint-disable react-hooks/immutability -- the capture handle is an imperative ref the page hands in, by design */
   useEffect(() => {
     bridge.current = (options) => {
       const previous = {
@@ -220,6 +223,7 @@ function CaptureBridge({ bridge, figureRef, poseRef }: { bridge: { current: Capt
       bridge.current = null;
     };
   }, [bridge, camera, figureRef, gl, poseRef, scene]);
+  /* eslint-enable react-hooks/immutability */
   return null;
 }
 
@@ -261,11 +265,14 @@ export function AvatarViewer({
   className?: string;
 }) {
   const url = modelUrl ?? modelUrlFor(design.body);
-  const fallbackBridge = useRef<{ current: CaptureFn | null }>({ current: null });
-  const bridge = captureRef ?? fallbackBridge.current;
+  // Used only when the page does not pass its own capture handle; state keeps it stable without touching refs in render.
+  const [localBridge] = useState<{ current: CaptureFn | null }>(() => ({ current: null }));
+  const bridge = captureRef ?? localBridge;
   const figureRef = useRef<THREE.Object3D | null>(null);
   const poseRef = useRef<ViewerPose>(pose);
-  poseRef.current = pose;
+  useEffect(() => {
+    poseRef.current = pose;
+  }, [pose]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const onReady = useMemo(() => () => setReady(true), []);

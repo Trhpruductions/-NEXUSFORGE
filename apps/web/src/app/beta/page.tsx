@@ -90,7 +90,7 @@ export default function BetaPage() {
 
       <section aria-labelledby="checklist-heading" className="mt-8">
         <h2 id="checklist-heading" className="nf-heading inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-white"><CheckSquare className="h-4 w-4 text-amber-300" /> What to try</h2>
-        <p className="mt-1 text-sm text-slate-400">You don't have to do all of it. Even one broken step reported well is a big help.</p>
+        <p className="mt-1 text-sm text-slate-400">You don&apos;t have to do all of it. Even one broken step reported well is a big help.</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {checklist.map((group) => (
             <article key={group.title} className="rounded-2xl border border-white/5 bg-[#0d1119] p-4">

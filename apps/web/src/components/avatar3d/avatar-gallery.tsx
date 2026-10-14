@@ -36,14 +36,6 @@ function AvatarCard({ preset, isMain, onChanged, onError }: { preset: AvatarPres
   const [confirmDelete, setConfirmDelete] = useState(false);
   const design = normaliseDesign((preset.config as { design?: unknown }).design);
 
-  const run = async (action: () => Promise<unknown>) => {
-    try {
-      await action();
-      onChanged();
-    } catch (error) {
-      onError(getApiErrorMessage(error));
-    }
-  };
   const rename = useMutation({
     mutationFn: () => updateAvatarPreset(accessToken!, csrfToken!, preset.id, { name: name.trim() || preset.name }),
     onSuccess: () => {
