@@ -41,22 +41,40 @@ function setEnv(values) {
   fs.writeFileSync(envPath, text);
 }
 
-let announced = null;
-const child = spawn(exe, ["tunnel", "--no-autoupdate", "--url", gateway], { windowsHide: true });
+// Named tunnel (your own domain, fixed address):
+//   node scripts/vexora-tunnel.mjs --config <cloudflared config.yml> --public-url https://example.com
+// Without those, a free quick tunnel with a random trycloudflare.com address.
+const arg = (name) => {
+  const i = process.argv.indexOf(name);
+  return i > 0 ? process.argv[i + 1] : undefined;
+};
+const namedConfig = arg("--config");
+const fixedUrl = arg("--public-url")?.replace(/\/+$/, "");
+if (namedConfig && !fixedUrl) {
+  console.error("[tunnel] --config needs --public-url too");
+  process.exit(1);
+}
 
-const onOutput = (chunk) => {
-  const text = chunk.toString();
-  process.stdout.write(text);
-  const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
-  if (!match || match[0] === announced) return;
-  announced = match[0];
+let announced = null;
+/** Make the API use this public address (only restarts it when the address actually changed). */
+function announce(url) {
+  if (url === announced) return;
+  announced = url;
   fs.mkdirSync(path.dirname(urlFile), { recursive: true });
-  fs.writeFileSync(urlFile, `${announced}\n`);
+  fs.writeFileSync(urlFile, `${url}
+`);
   const previous = readEnv("API_PUBLIC_URL") || "http://127.0.0.1:4001";
-  setEnv({ APP_WEB_URL: announced, API_PUBLIC_URL: announced });
-  console.log(`\n[tunnel] Vexora is public at ${announced}\n[tunnel] restarting the API so links and sign-in use it...`);
+  if (previous === url && readEnv("APP_WEB_URL") === url) {
+    console.log(`
+[tunnel] Vexora is public at ${url}`);
+    return;
+  }
+  setEnv({ APP_WEB_URL: url, API_PUBLIC_URL: url });
+  console.log(`
+[tunnel] Vexora is public at ${url}
+[tunnel] restarting the API so links and sign-in use it...`);
   // Files uploaded under the old address keep working at the new one.
-  execFile(process.execPath, [path.join(root, "scripts/rehome-urls.mjs"), previous, announced], { windowsHide: true }, (error, stdout) => {
+  execFile(process.execPath, [path.join(root, "scripts/rehome-urls.mjs"), previous, url], { windowsHide: true }, (error, stdout) => {
     process.stdout.write(stdout || "");
     if (error) console.log(`[tunnel] couldn't update old upload links: ${error.message}`);
   });
@@ -68,6 +86,21 @@ const onOutput = (chunk) => {
       console.log(error ? `[tunnel] couldn't restart the API: ${error.message}` : "[tunnel] API restarted.");
     });
   }, 3000);
+}
+
+const child = namedConfig
+  ? spawn(exe, ["tunnel", "--no-autoupdate", "--config", namedConfig, "run"], { windowsHide: true })
+  : spawn(exe, ["tunnel", "--no-autoupdate", "--url", gateway], { windowsHide: true });
+
+const onOutput = (chunk) => {
+  const text = chunk.toString();
+  process.stdout.write(text);
+  if (namedConfig) {
+    if (/Registered tunnel connection/i.test(text)) announce(fixedUrl);
+    return;
+  }
+  const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+  if (match) announce(match[0]);
 };
 child.stdout.on("data", onOutput);
 child.stderr.on("data", onOutput);
