@@ -22,7 +22,9 @@ REM dump.pm2 and other bots stopped coming back).
 setlocal
 cd /d "%~dp0.."
 
-set "PATH=%APPDATA%\npm;C:\Program Files\nodejs;%PATH%"
+REM pm2 lives in the user's npm folder. At logon %APPDATA% is not always set in this script's environment,
+REM so the profile path comes first; without it "pm2" is not found and the public site stays down.
+set "PATH=%USERPROFILE%\AppData\Roaming\npm;%APPDATA%\npm;C:\Program Files\nodejs;%PATH%"
 set "PGBIN=C:\Program Files\PostgreSQL\17\bin"
 set "PGDATA=D:\NexusForgeDB\data"
 set "LOG=D:\NexusForgeDB\autostart.log"
