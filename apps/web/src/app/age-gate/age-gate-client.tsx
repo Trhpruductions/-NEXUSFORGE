@@ -100,7 +100,7 @@ export function AgeGateClient() {
   if (denied) {
     return (
       <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4">
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100"><ShieldAlert className="h-4 w-4" /> You must be 18 or older to use Vexora Gaming.</p>
+        <p className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100"><ShieldAlert className="h-4 w-4" /> You must be 18 or older to use Nexus Forge Gaming.</p>
         <p className="mt-2 text-xs text-rose-200/80">This account cannot sign in. If you entered the wrong date of birth, contact support with proof of age.</p>
       </div>
     );
@@ -121,7 +121,7 @@ export function AgeGateClient() {
         {error ? <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{error}</p> : null}
         {alreadyConfirmed ? (
           <button type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300" onClick={() => router.replace(nextTarget)}>
-            Continue to Vexora
+            Continue to Nexus Forge
           </button>
         ) : (
           <BirthdateForm busy={attest.isPending} submitLabel="Confirm and enter" onSubmit={(birthdate) => attest.mutate(birthdate)} />

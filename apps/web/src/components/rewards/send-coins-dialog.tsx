@@ -102,7 +102,7 @@ export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" 
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-md overflow-clip rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#f8df8a,#e6b325,transparent)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#9fd8ff,#2ea4ff,transparent)]" />
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
           <h2 id={titleId} className="nf-heading inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-white">
             <Coins className="h-4 w-4 text-amber-300" /> Send coins
@@ -121,7 +121,7 @@ export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" 
         ) : step === "confirm" ? (
           <div className="space-y-4 px-5 py-5">
             <p className="text-sm text-slate-300">
-              Send <span className="font-semibold text-white">{amountNumber.toLocaleString()} Vexora Coins</span> to <span className="font-semibold text-amber-200">@{recipient.trim().replace(/^@/, "")}</span>?
+              Send <span className="font-semibold text-white">{amountNumber.toLocaleString()} Nexus Forge Coins</span> to <span className="font-semibold text-amber-200">@{recipient.trim().replace(/^@/, "")}</span>?
             </p>
             {note.trim() ? <p className="rounded-lg border border-white/5 bg-[#11151e] px-3 py-2 text-xs italic text-slate-400">&ldquo;{note.trim()}&rdquo;</p> : null}
             <p className="text-xs text-slate-500">Transfers can&apos;t be undone. Your balance after: {(Number(balance) - amountNumber).toLocaleString()}.</p>

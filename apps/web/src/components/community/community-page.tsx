@@ -90,7 +90,7 @@ export function CommunityPage() {
                 const isOwner = forge.ownerId === user?.id;
                 const active = forge.id === selectedForgeId;
                 return (
-                  <div key={forge.id} className={cn("overflow-hidden rounded-2xl border bg-[#0d1119] transition hover:border-amber-400/50", active ? "border-amber-400/50 shadow-[0_0_24px_rgba(230,179,37,0.15)]" : "border-amber-500/15")}>
+                  <div key={forge.id} className={cn("overflow-hidden rounded-2xl border bg-[#0d1119] transition hover:border-amber-400/50", active ? "border-amber-400/50 shadow-[0_0_24px_rgba(46,164,255,0.15)]" : "border-amber-500/15")}>
                     <div className="relative h-24">
                       {forge.banner ? (
                         // eslint-disable-next-line @next/next/no-img-element

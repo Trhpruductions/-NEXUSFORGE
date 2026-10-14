@@ -128,7 +128,7 @@ router.post("/transfer", requireAuth, requireCsrf, economyRateLimit, async (req,
     void createNotification({
       userId: result.recipient.id,
       type: "SYSTEM",
-      title: "You received Vexora Coins",
+      title: "You received Nexus Forge Coins",
       body: `@${result.sender.username} sent you ${result.amount.toLocaleString("en-US")} coins${result.note ? `: "${result.note}"` : "."}`,
       data: { kind: "coin-transfer", fromUserId: result.sender.id, amount: result.amount.toString() },
     }).catch(() => undefined);
@@ -144,7 +144,7 @@ router.post("/transfer", requireAuth, requireCsrf, economyRateLimit, async (req,
       return;
     }
     if (error instanceof InsufficientBalanceError) {
-      res.status(402).json({ error: "Not enough Vexora Coins.", code: "INSUFFICIENT" });
+      res.status(402).json({ error: "Not enough Nexus Forge Coins.", code: "INSUFFICIENT" });
       return;
     }
     console.error("[ECONOMY_TRANSFER_ERROR]", { userId: req.user!.id, error });

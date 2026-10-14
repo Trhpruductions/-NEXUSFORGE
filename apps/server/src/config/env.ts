@@ -103,9 +103,9 @@ const envSchema = z.object({
   SMTP_SECURE: z.string().default("false").transform((value) => value.toLowerCase() === "true"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("Vexora Gaming <no-reply@vexoragaming.com>"),
+  MAIL_FROM: z.string().default("Nexus Forge Gaming <no-reply@vexoragaming.com>"),
   /** The sender name every email shows. */
-  MAIL_FROM_NAME: z.string().trim().min(1).default("Vexora Gaming"),
+  MAIL_FROM_NAME: z.string().trim().min(1).default("Nexus Forge Gaming"),
   /** Where replies go (e.g. a support mailbox). Optional. */
   MAIL_REPLY_TO: z.string().email().optional(),
   // SMS delivery (Twilio). When unset in development, codes are logged to the server console.

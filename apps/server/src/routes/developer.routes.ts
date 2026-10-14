@@ -307,14 +307,14 @@ developerRouter.post("/webhooks/:webhookId/test", requireCsrf, async (req, res) 
     event: "webhook.test",
     timestamp: new Date().toISOString(),
     subscriptionId: webhook.id,
-    message: "This is a test payload from Vexora Gaming webhook delivery.",
+    message: "This is a test payload from Nexus Forge Gaming webhook delivery.",
   };
 
   try {
     // Guarded like real deliveries: public http(s) addresses only, no redirects.
     const response = await safePostJson(webhook.url, JSON.stringify(payload), {
-      "X-Vexora-Webhook-Event": "webhook.test",
-      "X-Vexora-Webhook-Subscription-Id": webhook.id,
+      "X-Nexus Forge-Webhook-Event": "webhook.test",
+      "X-Nexus Forge-Webhook-Subscription-Id": webhook.id,
     }, 10000);
 
     if (!response) {

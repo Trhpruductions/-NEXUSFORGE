@@ -5,10 +5,10 @@
  */
 
 export const legalPolicyCatalog = [
-  { slug: "terms", title: "Terms of Service", summary: "The agreement between you and Vexora Gaming for using the app and its services.", sortOrder: 1, requiredAtSignup: true },
+  { slug: "terms", title: "Terms of Service", summary: "The agreement between you and Nexus Forge Gaming for using the app and its services.", sortOrder: 1, requiredAtSignup: true },
   { slug: "privacy", title: "Privacy Policy", summary: "What information we collect, why, and the choices you have.", sortOrder: 2, requiredAtSignup: true },
-  { slug: "eula", title: "End User License Agreement", summary: "Terms for installing and running the Vexora desktop and mobile apps.", sortOrder: 3, requiredAtSignup: false },
-  { slug: "acceptable-use", title: "Acceptable Use Policy", summary: "What you may and may not do on Vexora Gaming.", sortOrder: 4, requiredAtSignup: false },
+  { slug: "eula", title: "End User License Agreement", summary: "Terms for installing and running the Nexus Forge desktop and mobile apps.", sortOrder: 3, requiredAtSignup: false },
+  { slug: "acceptable-use", title: "Acceptable Use Policy", summary: "What you may and may not do on Nexus Forge Gaming.", sortOrder: 4, requiredAtSignup: false },
   { slug: "community-rules", title: "Community Rules", summary: "How to treat other players in forges, chat, voice and events.", sortOrder: 5, requiredAtSignup: false },
   { slug: "refunds", title: "Refund Policy", summary: "Purchases, subscriptions, cancellations and refunds.", sortOrder: 6, requiredAtSignup: false },
   { slug: "cookies", title: "Cookie Policy", summary: "Cookies and similar storage the app uses.", sortOrder: 7, requiredAtSignup: false },
@@ -18,9 +18,9 @@ export const legalPolicyCatalog = [
 ] as const;
 
 export const termsSeedSummary =
-  "Initial Terms of Service, adapted to Vexora Gaming (name, and section 6 describes forges, voice, events and integrations instead of Rust/GTA servers). Fill in every [placeholder] (operator, contact, website, effective date, jurisdiction) and have the liability, indemnity, dispute and payment sections reviewed before publishing.";
+  "Initial Terms of Service, adapted to Nexus Forge Gaming (name, and section 6 describes forges, voice, events and integrations instead of Rust/GTA servers). Fill in every [placeholder] (operator, contact, website, effective date, jurisdiction) and have the liability, indemnity, dispute and payment sections reviewed before publishing.";
 
-export const termsSeedContent = `# Vexora Gaming Terms of Service
+export const termsSeedContent = `# Nexus Forge Gaming Terms of Service
 
 **Effective Date:** [Launch Date]
 **Last Updated:** October 11, 2026
@@ -30,9 +30,9 @@ export const termsSeedContent = `# Vexora Gaming Terms of Service
 
 ## 1. Introduction and Acceptance
 
-Welcome to Vexora Gaming ("Vexora," "we," "us," or "our").
+Welcome to Nexus Forge Gaming ("Nexus Forge," "we," "us," or "our").
 
-These Terms of Service ("Terms") govern your access to and use of the Vexora Gaming application, website, Discord integrations, gaming servers, software, digital features, community services, and any other products or services we make available (collectively, the "Services").
+These Terms of Service ("Terms") govern your access to and use of the Nexus Forge Gaming application, website, Discord integrations, gaming servers, software, digital features, community services, and any other products or services we make available (collectively, the "Services").
 
 By creating an account, accessing the application, connecting a third-party account, joining a supported gaming server, purchasing a product, or otherwise using the Services, you acknowledge that you have read and understood these Terms and agree to be bound by them where legally enforceable.
 
@@ -131,7 +131,7 @@ We may investigate reasonably substantiated reports of prohibited conduct and ta
 
 ## 6. Gaming Services and Server Rules
 
-Vexora provides community servers ("forges"), text, voice and video channels, events and tournaments, and integrations with games and other platforms.
+Nexus Forge provides community servers ("forges"), text, voice and video channels, events and tournaments, and integrations with games and other platforms.
 
 Each forge, event or gaming service may have additional rules governing gameplay, cheating, exploits, roleplay conduct, player interactions, and server access.
 
@@ -178,7 +178,7 @@ We may remove or restrict User Content when reasonably necessary to enforce our 
 
 ## 9. Intellectual Property
 
-The Services may contain software, source code, branding, graphics, logos, designs, text, documentation, interfaces, and other materials owned by or licensed to the relevant Vexora operator.
+The Services may contain software, source code, branding, graphics, logos, designs, text, documentation, interfaces, and other materials owned by or licensed to the relevant Nexus Forge operator.
 
 Except for the limited license expressly granted in these Terms, no ownership rights are transferred to you.
 
@@ -186,7 +186,7 @@ You must not claim ownership of our proprietary materials or commercially exploi
 
 Any separately commissioned software, graphics, development work, or other deliverables will be governed by the applicable written agreement.
 
-Third-party names, logos, games, and trademarks belong to their respective owners. Their appearance in the Services does not imply endorsement or ownership by Vexora.
+Third-party names, logos, games, and trademarks belong to their respective owners. Their appearance in the Services does not imply endorsement or ownership by Nexus Forge.
 
 ## 10. Third-Party Services
 
@@ -366,14 +366,14 @@ Please include sufficient information to identify the relevant service and the n
 export const privacySeedSummary =
   "Initial Privacy Policy, written from what the app actually collects and does today (accounts, profiles, messages, sessions with partial IPs, hashed-IP server logs, ID checks deleted after review, peer-to-peer voice, Gmail email, push, Discord error alerts, 14-day account deletion and data export). Fill in every [placeholder] (operator, privacy contact, hosting location, providers, retention periods, legal bases) and have it reviewed before publishing. Update it whenever the app starts collecting something new.";
 
-export const privacySeedContent = `# Vexora Gaming Privacy Policy
+export const privacySeedContent = `# Nexus Forge Gaming Privacy Policy
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 11, 2026
 **Operated By:** [Legal Operator Name]
 **Privacy Contact:** [Privacy Contact Email]
 
-This Privacy Policy explains what information Vexora Gaming ("Vexora," "we," "us," or "our") collects when you use our app, website and related services (the "Services"), how we use it, who can see it, and the choices you have. It should be read together with our [Terms of Service](/legal/terms).
+This Privacy Policy explains what information Nexus Forge Gaming ("Nexus Forge," "we," "us," or "our") collects when you use our app, website and related services (the "Services"), how we use it, who can see it, and the choices you have. It should be read together with our [Terms of Service](/legal/terms).
 
 We do not sell your personal information, and we do not show third-party advertising or use advertising trackers.
 
@@ -403,7 +403,7 @@ The content you create and the actions you take in the Services, including:
 
 ### 1.4 Age verification
 
-Signing up requires you to confirm your date of birth. You may also choose to verify your age with a government ID (and, optionally, a selfie) to unlock age-verified features. These images are reviewed by authorized Vexora staff and are **deleted as soon as the review is completed**, whether it is approved or rejected. We keep a record of the outcome, the type of document and the date of birth you declared. If you delete your account while a submission is still waiting for review, the images are deleted with it.
+Signing up requires you to confirm your date of birth. You may also choose to verify your age with a government ID (and, optionally, a selfie) to unlock age-verified features. These images are reviewed by authorized Nexus Forge staff and are **deleted as soon as the review is completed**, whether it is approved or rejected. We keep a record of the outcome, the type of document and the date of birth you declared. If you delete your account while a submission is still waiting for review, the images are deleted with it.
 
 ### 1.5 Support requests, reports and appeals
 
@@ -429,7 +429,7 @@ While you are signed in we record whether you are online and when you were last 
 
 ### 2.4 Notifications
 
-We keep the notifications we send you so they appear in your inbox. If you turn on push notifications, your browser gives us a push address for your device; we use it only to deliver Vexora notifications, and you can turn it off at any time.
+We keep the notifications we send you so they appear in your inbox. If you turn on push notifications, your browser gives us a push address for your device; we use it only to deliver Nexus Forge notifications, and you can turn it off at any time.
 
 ### 2.5 Link previews
 
@@ -446,7 +446,7 @@ We use a small number of cookies and browser storage that are needed for the Ser
 ## 3. Information From Other Sources
 
 - **Other users.** Other people may share information about you, for example by mentioning you, adding you to a group conversation, or reporting content.
-- **Connected services.** If you connect a third-party account or use a Vexora integration (for example, with Discord), we receive the information that service shares with us, according to its own settings and policies.
+- **Connected services.** If you connect a third-party account or use a Nexus Forge integration (for example, with Discord), we receive the information that service shares with us, according to its own settings and policies.
 
 ## 4. How We Use Information
 
@@ -456,32 +456,32 @@ We use information to:
 - Keep you and others safe: verify age, prevent fraud, spam and abuse, review reports, enforce our Terms and rules, and investigate security incidents.
 - Protect your account: detect sign-ins from new devices, send sign-in and verification codes, and support two-factor authentication.
 - Communicate with you: send verification, security, account and support emails, and the in-app and push notifications you choose to receive.
-- Operate and improve the Services: troubleshoot problems, understand how features are used (in aggregate, within Vexora), and plan capacity.
+- Operate and improve the Services: troubleshoot problems, understand how features are used (in aggregate, within Nexus Forge), and plan capacity.
 - Meet legal obligations and respond to lawful requests.
 
 [Legal Bases Statement for Users in the EEA, UK or Other Jurisdictions That Require One]
 
 ## 5. Who Can See Your Information
 
-- **Anyone signed in to Vexora** can see your username, display name, avatar, profile, and your position on leaderboards.
+- **Anyone signed in to Nexus Forge** can see your username, display name, avatar, profile, and your position on leaderboards.
 - **Members of a forge** can see the messages, reactions and files you post in channels they can access, your nickname and roles there, and your online status (unless you hide it).
 - **People in a direct message** can see the messages and files sent in that conversation.
 - **Files you upload** are stored with hard-to-guess addresses; anyone who has the link to a file can open it, so be careful where you share links.
 - **Forge moderators and owners** can see reports about messages in their forge (including who sent the report), their forge's audit log, and can take moderation actions under our rules. The person you report is never told who reported them.
-- **Authorized Vexora staff** can access information when needed to provide support, review ID submissions and reports (including reported direct messages), investigate abuse, and keep the Services secure.
+- **Authorized Nexus Forge staff** can access information when needed to provide support, review ID submissions and reports (including reported direct messages), investigate abuse, and keep the Services secure.
 
 ## 6. Voice and Video
 
-Voice and video calls currently connect participants **directly to each other** (peer-to-peer). Your audio and video are not recorded by Vexora and do not pass through our servers. Because the connection is direct, **the other people in a call can see your device's IP address**. To set up these connections, your device contacts connection-helper (STUN) servers operated by Google, which can see your IP address. If we move voice to a relay or media server in the future, we will update this policy.
+Voice and video calls currently connect participants **directly to each other** (peer-to-peer). Your audio and video are not recorded by Nexus Forge and do not pass through our servers. Because the connection is direct, **the other people in a call can see your device's IP address**. To set up these connections, your device contacts connection-helper (STUN) servers operated by Google, which can see your IP address. If we move voice to a relay or media server in the future, we will update this policy.
 
 ## 7. How We Share Information
 
 We share information only as described in this policy:
 
-- **Service providers** that process information on our behalf to run the Services, including: [Hosting Provider and Location]; Google (email delivery and voice connection setup); browser and operating-system push services (to deliver push notifications you turn on); Discord (for Vexora's Discord integration and to alert our team about technical errors); [SMS Provider], if SMS codes are enabled; and [Payment Processor], if payments are enabled. They may use the information only to provide their service to us.
+- **Service providers** that process information on our behalf to run the Services, including: [Hosting Provider and Location]; Google (email delivery and voice connection setup); browser and operating-system push services (to deliver push notifications you turn on); Discord (for Nexus Forge's Discord integration and to alert our team about technical errors); [SMS Provider], if SMS codes are enabled; and [Payment Processor], if payments are enabled. They may use the information only to provide their service to us.
 - **Other users**, as described in section 5, according to the features you use and your settings.
-- **Legal and safety reasons**, when we believe in good faith it is required by law or a valid legal process, or necessary to prevent harm, fraud or abuse, or to protect the rights and safety of users, Vexora or others.
-- **Business changes**, if Vexora is involved in a merger, acquisition or sale of assets, subject to this policy.
+- **Legal and safety reasons**, when we believe in good faith it is required by law or a valid legal process, or necessary to prevent harm, fraud or abuse, or to protect the rights and safety of users, Nexus Forge or others.
+- **Business changes**, if Nexus Forge is involved in a merger, acquisition or sale of assets, subject to this policy.
 - **With your consent** or at your direction.
 
 We do not sell personal information and do not share it for cross-context behavioral advertising.
@@ -525,11 +525,11 @@ We protect information with measures that include hashed passwords, encrypted au
 
 ## 12. Age Requirement
 
-Vexora Gaming is for people aged 18 and older. We do not knowingly collect information from anyone under 18. If we learn that an account belongs to someone under 18, we will close it. If you believe a minor is using Vexora, please contact us.
+Nexus Forge Gaming is for people aged 18 and older. We do not knowingly collect information from anyone under 18. If we learn that an account belongs to someone under 18, we will close it. If you believe a minor is using Nexus Forge, please contact us.
 
 ## 13. International Transfers
 
-Vexora is operated from [Hosting Provider and Location], and our service providers may process information in other countries. Where the law requires it, we use appropriate safeguards for these transfers.
+Nexus Forge is operated from [Hosting Provider and Location], and our service providers may process information in other countries. Where the law requires it, we use appropriate safeguards for these transfers.
 
 ## 14. Changes to This Policy
 

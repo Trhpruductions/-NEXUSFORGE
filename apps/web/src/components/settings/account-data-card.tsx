@@ -79,7 +79,7 @@ export function AccountDataCard() {
           <Download className="h-3.5 w-3.5" /> Your data
         </p>
         <p className="mb-3 text-xs text-slate-400">
-          Download a copy of everything Vexora holds for your account: profile, settings, servers, friends, messages, DMs, posts, coins, events and support tickets. Passwords and security tokens are never included.
+          Download a copy of everything Nexus Forge holds for your account: profile, settings, servers, friends, messages, DMs, posts, coins, events and support tickets. Passwords and security tokens are never included.
         </p>
         <button type="button" className={ghostBtn} disabled={exportMutation.isPending} onClick={() => exportMutation.mutate()}>
           {exportMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download my data

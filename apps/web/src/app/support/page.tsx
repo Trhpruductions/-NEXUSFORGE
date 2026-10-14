@@ -5,21 +5,21 @@ import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export const metadata: Metadata = {
   title: "Support",
-  description: "Get help with your Vexora Gaming account, forges and the desktop app.",
+  description: "Get help with your Nexus Forge Gaming account, forges and the desktop app.",
 };
 
 const topics = [
   { icon: ShieldCheck, title: "Account & security", body: "Verify your email and phone, turn on two-factor sign-in, or recover a locked account.", href: "/app/settings?verify=1", cta: "Open account protection" },
   { icon: Users, title: "Forges & invites", body: "Create a forge, manage roles and channels, or fix an invite link that stopped working.", href: "/app/server", cta: "Go to Community" },
   { icon: MessageSquare, title: "Chat & voice", body: "Messages not sending, voice rooms not connecting, or notifications you did not expect.", href: "/app/chat", cta: "Open chat" },
-  { icon: Wrench, title: "Desktop app", body: "Install or update Vexora Gaming for Windows, or run the recovery mode from the launcher.", href: "/app/downloads", cta: "Downloads" },
+  { icon: Wrench, title: "Desktop app", body: "Install or update Nexus Forge Gaming for Windows, or run the recovery mode from the launcher.", href: "/app/downloads", cta: "Downloads" },
 ];
 
 export default function SupportPage() {
   return (
     <ExperienceShell
       eyebrow="Need help?"
-      title="Vexora Gaming support"
+      title="Nexus Forge Gaming support"
       subtitle="Pick a topic, or open a ticket and a real person will get back to you."
       actions={[{ label: "Open a ticket", href: "/app/support?new=1", tone: "primary" }]}
     >

@@ -95,7 +95,7 @@ ageVerificationRouter.post("/attest", authRateLimit, async (req, res) => {
     });
     // Sign the account out everywhere: minors may not use the platform.
     await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
-    res.status(403).json({ error: `You must be at least ${MIN_AGE} to use Vexora Gaming.`, underage: true });
+    res.status(403).json({ error: `You must be at least ${MIN_AGE} to use Nexus Forge Gaming.`, underage: true });
     return;
   }
 
@@ -131,7 +131,7 @@ ageVerificationRouter.post("/submit", authRateLimit, async (req, res) => {
     return;
   }
   if (!isAdult(declared)) {
-    res.status(403).json({ error: `You must be at least ${MIN_AGE} to use Vexora Gaming.`, underage: true });
+    res.status(403).json({ error: `You must be at least ${MIN_AGE} to use Nexus Forge Gaming.`, underage: true });
     return;
   }
 

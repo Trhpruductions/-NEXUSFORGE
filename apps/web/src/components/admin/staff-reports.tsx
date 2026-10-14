@@ -22,7 +22,7 @@ const reasonLabels: Record<string, string> = {
 const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 transition hover:border-violet-400/50 disabled:opacity-40";
 const danger = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/50 bg-rose-950/40 px-3 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/50 disabled:opacity-40";
 
-/** Platform-wide report queue for Vexora staff: every DM report, plus channel reports. */
+/** Platform-wide report queue for Nexus Forge staff: every DM report, plus channel reports. */
 export function StaffReports() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();

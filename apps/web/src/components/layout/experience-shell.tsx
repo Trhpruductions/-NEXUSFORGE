@@ -38,15 +38,15 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
 
   return (
     <div className="min-h-dvh bg-[#070a10] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(230,179,37,0.14),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(212,160,23,0.1),transparent_30%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(46,164,255,0.14),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(30,139,255,0.1),transparent_30%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_50%,transparent_100%)]" />
 
       <header className="sticky top-0 z-40 border-b border-amber-500/15 bg-[#0b0e15]/90 backdrop-blur">
         <div className={cn("mx-auto flex h-14 items-center gap-4 px-4 md:px-6", maxWidthClassName)}>
           <Link href="/app" className="flex items-center gap-2.5">
-            <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora Gaming" width={34} height={34} className="h-[34px] w-[34px] rounded-lg border border-amber-500/40 object-cover" />
+            <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge Gaming" width={34} height={34} className="h-[34px] w-[34px] rounded-lg border border-amber-500/40 object-cover" />
             <span className="hidden sm:block">
-              <span className="nf-heading block text-xs font-semibold uppercase tracking-[0.3em] text-white">Vexora</span>
+              <span className="nf-heading block text-xs font-semibold uppercase tracking-[0.3em] text-white">Nexus Forge</span>
               <span className="block text-[9px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
             </span>
           </Link>
@@ -61,7 +61,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
                     prefetch={false}
                     className={cn(
                       "rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition",
-                      active ? "bg-amber-500/10 text-amber-100 shadow-[inset_0_0_0_1px_rgba(230,179,37,0.3)]" : "text-slate-400 hover:bg-white/5 hover:text-white",
+                      active ? "bg-amber-500/10 text-amber-100 shadow-[inset_0_0_0_1px_rgba(46,164,255,0.3)]" : "text-slate-400 hover:bg-white/5 hover:text-white",
                     )}
                   >
                     {action.label}
@@ -110,11 +110,11 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
 
       <div className={cn("relative mx-auto space-y-4 px-4 py-5 md:px-6", maxWidthClassName)}>
         <section className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119] p-5 md:p-6">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_20%,rgba(230,179,37,0.18),transparent_45%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_20%,rgba(46,164,255,0.18),transparent_45%)]" />
           <div className="relative flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
               <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(230,179,37,0.9)]" /> {eyebrow}
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(46,164,255,0.9)]" /> {eyebrow}
               </p>
               <h1 className="nf-heading mt-2 text-2xl font-bold text-white md:text-3xl">{title}</h1>
               {subtitle ? <p className="mt-1 max-w-2xl text-sm text-slate-400">{subtitle}</p> : null}

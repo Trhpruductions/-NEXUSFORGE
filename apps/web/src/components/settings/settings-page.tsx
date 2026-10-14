@@ -86,7 +86,7 @@ const notificationRows: Array<{ key: NotificationToggleKey; label: string; hint:
   { key: "liveAlerts", label: "Live alerts", hint: "Creators you follow go live." },
   { key: "system", label: "System", hint: "Account, security and review updates." },
   { key: "sounds", label: "Notification sounds", hint: "Play a sound for new notifications." },
-  { key: "push", label: "Push notifications", hint: "Deliver to this device even when Vexora is closed." },
+  { key: "push", label: "Push notifications", hint: "Deliver to this device even when Nexus Forge is closed." },
 ];
 
 const panel = "vx-panel rounded-2xl p-4";
@@ -735,7 +735,7 @@ function SettingsInner() {
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Accent</p>
                 <div className="flex flex-wrap gap-2">
                   {([
-                    { key: "gold", label: "Vexora Gold", color: "#e6b325" },
+                    { key: "gold", label: "Nexus Forge Blue", color: "#2ea4ff" },
                     { key: "ember", label: "Ember", color: "#ff7a2f" },
                     { key: "ice", label: "Ice", color: "#37c6ff" },
                     { key: "violet", label: "Violet", color: "#a466ff" },

@@ -4,7 +4,7 @@ import { LegalCenter } from "@/components/legal/legal-center";
 
 export const metadata: Metadata = {
   title: "Legal Center",
-  description: "Vexora Gaming's terms, policies and agreements, with their effective dates and history.",
+  description: "Nexus Forge Gaming's terms, policies and agreements, with their effective dates and history.",
 };
 
 export default function LegalIndexPage() {

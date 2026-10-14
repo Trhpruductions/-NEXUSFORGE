@@ -17,7 +17,7 @@ const titles: Record<string, string> = {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  return { title: titles[slug] ?? "Legal Center", description: "Part of the Vexora Gaming Legal Center." };
+  return { title: titles[slug] ?? "Legal Center", description: "Part of the Nexus Forge Gaming Legal Center." };
 }
 
 export default async function LegalDocumentPage({ params }: { params: Promise<{ slug: string }> }) {

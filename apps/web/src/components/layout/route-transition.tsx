@@ -25,7 +25,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
   // real path on the server, and the text must match when the page hydrates.
   const [routeAnnouncement, setRouteAnnouncement] = useState("");
   useEffect(() => {
-    setRouteAnnouncement(pathname ? `Navigated to ${pathname}` : "Navigated to Vexora Gaming");
+    setRouteAnnouncement(pathname ? `Navigated to ${pathname}` : "Navigated to Nexus Forge Gaming");
   }, [pathname]);
 
   useEffect(() => {

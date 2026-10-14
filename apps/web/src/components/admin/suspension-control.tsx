@@ -21,7 +21,7 @@ function formatDate(value: string) {
 }
 
 /**
- * Staff tool: suspend an account across all of Vexora (signs them out everywhere and blocks
+ * Staff tool: suspend an account across all of Nexus Forge (signs them out everywhere and blocks
  * sign-in until it ends), or lift a suspension. The person is emailed either way.
  */
 export function SuspensionControl({ userId, username, suspension, onChange }: { userId: string; username: string; suspension: SuspensionInfo | null; onChange?: (next: SuspensionInfo | null) => void }) {
@@ -95,7 +95,7 @@ export function SuspensionControl({ userId, username, suspension, onChange }: { 
       }}
     >
       <p className="text-xs text-slate-300">
-        Suspend <strong className="text-white">{username}</strong> from all of Vexora. They&apos;re signed out everywhere, can&apos;t sign in until it ends, and get an email with the reason.
+        Suspend <strong className="text-white">{username}</strong> from all of Nexus Forge. They&apos;re signed out everywhere, can&apos;t sign in until it ends, and get an email with the reason.
       </p>
       <label className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
         Reason (shown to them)

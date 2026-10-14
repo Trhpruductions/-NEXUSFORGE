@@ -113,10 +113,10 @@ export function PushDeviceCard() {
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-300">
         {state === "checking" ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</span> : null}
         {state === "unsupported" ? <span>This browser can&apos;t receive push notifications.</span> : null}
-        {state === "blocked" ? <span>Notifications are blocked for Vexora in this browser. Allow them in the browser&apos;s site settings, then come back.</span> : null}
+        {state === "blocked" ? <span>Notifications are blocked for Nexus Forge in this browser. Allow them in the browser&apos;s site settings, then come back.</span> : null}
         {state === "off" ? (
           <>
-            <span>Get notified even when Vexora is closed.</span>
+            <span>Get notified even when Nexus Forge is closed.</span>
             <button type="button" onClick={() => void turnOn()} disabled={busy} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-400 disabled:opacity-50">
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />} Turn on push
             </button>

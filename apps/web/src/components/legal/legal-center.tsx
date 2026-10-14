@@ -141,8 +141,8 @@ export function LegalCenter({ slug }: { slug: string | null }) {
             {navOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
           <Link href="/legal" className="flex items-center gap-2">
-            <Image src="/brand/vexora-mark-gold-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-            <span className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">Vexora</span>
+            <Image src="/brand/nexusforge-mark-256.png" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+            <span className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">Nexus Forge</span>
             <span className="text-sm text-slate-400">Legal Center</span>
           </Link>
           <Link href="/app" className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 transition hover:border-violet-400/50 hover:text-white">
@@ -170,7 +170,7 @@ export function LegalCenter({ slug }: { slug: string | null }) {
                 <Scale className="h-3.5 w-3.5" /> Legal Center
               </p>
               <h1 className="nf-heading mt-4 text-3xl font-bold text-white sm:text-4xl">Policies and agreements</h1>
-              <p className="mt-3 max-w-2xl text-slate-400">The terms that apply when you use Vexora Gaming. Each document shows the version in effect and when it changed.</p>
+              <p className="mt-3 max-w-2xl text-slate-400">The terms that apply when you use Nexus Forge Gaming. Each document shows the version in effect and when it changed.</p>
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {policies.map((policy) => (
                   <Link key={policy.slug} href={`/legal/${policy.slug}`} className="group rounded-2xl border border-white/[0.07] bg-[#0d1119]/85 p-4 transition hover:-translate-y-0.5 hover:border-violet-400/40">

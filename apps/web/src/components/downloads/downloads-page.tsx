@@ -31,16 +31,16 @@ export function DownloadsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="nf-heading text-xl font-bold text-white">Downloads</h1>
-        <p className="text-xs text-slate-400">Vexora Gaming for Windows. Faster voice, native notifications, and rich presence.</p>
+        <p className="text-xs text-slate-400">Nexus Forge Gaming for Windows. Faster voice, native notifications, and rich presence.</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] p-6">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_30%,rgba(230,179,37,0.25),transparent_50%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_30%,rgba(46,164,255,0.25),transparent_50%)]" />
           <div className="relative grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300"><Monitor className="h-3.5 w-3.5" /> Desktop app</p>
-              <h2 className="nf-heading mt-2 text-2xl font-bold text-white">Vexora Gaming Desktop</h2>
+              <h2 className="nf-heading mt-2 text-2xl font-bold text-white">Nexus Forge Gaming Desktop</h2>
               {manifestQuery.isLoading ? (
                 <p className="mt-2 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Checking latest version...</p>
               ) : manifest ? (
@@ -60,8 +60,8 @@ export function DownloadsPage() {
                 <p className="mt-2 text-sm text-rose-200">The release manifest could not be loaded. Try again shortly.</p>
               )}
             </div>
-            <div className="hidden h-40 w-40 items-center justify-center rounded-2xl border border-amber-500/30 bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_70%)] md:flex">
-              <Image src="/brand/vexora-mark-gold-256.png" alt="" width={112} height={112} className="h-28 w-28 rounded-2xl object-cover" />
+            <div className="hidden h-40 w-40 items-center justify-center rounded-2xl border border-amber-500/30 bg-[radial-gradient(circle,rgba(46,164,255,0.3),transparent_70%)] md:flex">
+              <Image src="/brand/nexusforge-mark-256.png" alt="" width={112} height={112} className="h-28 w-28 rounded-2xl object-cover" />
             </div>
           </div>
         </section>

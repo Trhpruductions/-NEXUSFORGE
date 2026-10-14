@@ -41,13 +41,13 @@ const hairLabels: Record<AvatarConfig["hair"], string> = { spiky: "Spiky", fade:
 const accessoryLabels: Record<AvatarConfig["accessory"], string> = { none: "None", shades: "Shades", headset: "Headset", mask: "Mask", bandana: "Bandana" };
 
 const hairStyles: AvatarConfig["hair"][] = ["spiky", "fade", "curls", "long", "bun", "buzz", "mohawk", "none"];
-const hairColors = ["#22d3ee", "#e6b325", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a", "#7c2d12", "#fde68a"];
+const hairColors = ["#22d3ee", "#2ea4ff", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a", "#7c2d12", "#9fd8ff"];
 const skinTones = ["#f5d0b0", "#e8b894", "#d9a577", "#c48a5a", "#a66a3f", "#7a4a2b", "#5b3520", "#3f2417"];
 const eyeStyles: AvatarConfig["eyes"][] = ["sharp", "round", "calm", "visor"];
-const eyeColors = ["#38bdf8", "#22c55e", "#a855f7", "#e6b325", "#ef4444", "#f8fafc", "#1e293b"];
+const eyeColors = ["#38bdf8", "#22c55e", "#a855f7", "#2ea4ff", "#ef4444", "#f8fafc", "#1e293b"];
 const faces: AvatarConfig["face"][] = ["focused", "neutral", "smirk", "grin"];
 const accessories: AvatarConfig["accessory"][] = ["none", "shades", "headset", "mask", "bandana"];
-const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#3f3f46", "#4c1d95", "#e6b325", "#e2e8f0", "#0f766e", "#9a3412"];
+const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#3f3f46", "#4c1d95", "#2ea4ff", "#e2e8f0", "#0f766e", "#9a3412"];
 const backgrounds: AvatarConfig["background"][] = ["city", "forge", "void", "arena"];
 
 const panel = "vx-panel rounded-2xl p-4";
@@ -64,7 +64,7 @@ function pick<T>(list: readonly T[]): T {
 }
 
 function randomConfig(): AvatarConfig {
-  const accent = pick(["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]);
+  const accent = pick(["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]);
   return {
     body: pick(["slim", "athletic", "broad"] as const),
     skin: pick(skinTones),
@@ -148,7 +148,7 @@ function ThumbOptions<T extends string>({
           type="button"
           onClick={() => onPick(option)}
           title={label ? label(option) : option}
-          className={`overflow-hidden rounded-lg border bg-[#11151e] transition ${value === option ? "border-amber-400 shadow-[0_0_14px_rgba(230,179,37,0.35)]" : "border-white/10 hover:border-white/30"}`}
+          className={`overflow-hidden rounded-lg border bg-[#11151e] transition ${value === option ? "border-amber-400 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 hover:border-white/30"}`}
         >
           <div className="flex h-14 items-start justify-center overflow-hidden">
             <AvatarRenderer config={{ ...config, ...patch(option) }} size={64} showBackground={false} className={offset} />
@@ -329,8 +329,8 @@ export function AvatarStudio() {
 
           {/* Preview */}
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(230,179,37,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(230,179,37,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(46,164,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(46,164,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
             <div className="relative flex min-h-[480px] items-center justify-center p-4">
               {avatarQuery.isLoading ? (
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
@@ -357,7 +357,7 @@ export function AvatarStudio() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Build</p>
                   <div className="grid grid-cols-3 gap-2">
                     {(["slim", "athletic", "broad"] as const).map((body) => (
-                      <button key={body} type="button" onClick={() => update({ body })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-[10px] font-semibold uppercase tracking-[0.1em] ${config.body === body ? "border-amber-400 text-amber-100 shadow-[0_0_14px_rgba(230,179,37,0.35)]" : "border-white/10 text-slate-300"}`}>
+                      <button key={body} type="button" onClick={() => update({ body })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-[10px] font-semibold uppercase tracking-[0.1em] ${config.body === body ? "border-amber-400 text-amber-100 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 text-slate-300"}`}>
                         <div className="flex h-20 items-start justify-center overflow-hidden"><AvatarRenderer config={{ ...config, body }} size={56} showBackground={false} className="-mt-1" /></div>
                         <p className="pb-1">{body}</p>
                       </button>
@@ -418,7 +418,7 @@ export function AvatarStudio() {
                 </div>
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Accent color</p>
-                  <Swatches colors={["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
+                  <Swatches colors={["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
                 </div>
               </>
             ) : null}
@@ -484,7 +484,7 @@ export function AvatarStudio() {
                 </div>
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Accent color</p>
-                  <Swatches colors={["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
+                  <Swatches colors={["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
                 </div>
               </>
             ) : null}
@@ -504,7 +504,7 @@ export function AvatarStudio() {
               <div className="grid grid-cols-2 gap-2">
                 {presets.slice(0, 6).map((preset) => (
                   <button key={preset.id} type="button" onClick={() => applyMutation.mutate(preset.id)} className="overflow-hidden rounded-lg border border-white/5 bg-[#11151e] text-left transition hover:border-amber-400/50" title={`Apply ${preset.name}`}>
-                    <div className="flex h-20 items-start justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(230,179,37,0.15),transparent_60%)]"><AvatarRenderer config={preset.config} size={80} showBackground={false} className="-mt-1" /></div>
+                    <div className="flex h-20 items-start justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(46,164,255,0.15),transparent_60%)]"><AvatarRenderer config={preset.config} size={80} showBackground={false} className="-mt-1" /></div>
                     <div className="px-2 py-1.5">
                       <p className="truncate text-[11px] font-semibold text-white">{preset.name}</p>
                       <p className="truncate text-[10px] text-amber-200/70">{preset.tagline || new Date(preset.createdAt).toLocaleDateString()}</p>
@@ -559,7 +559,7 @@ export function AvatarStudio() {
       {tab === "animations" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
             <div className="relative flex min-h-[420px] items-center justify-center p-4">
               <div className={playing ? emoteAnimation(playing.key) : undefined}>
                 <AvatarRenderer config={config} size={260} equipped={equippedGear} />

@@ -14,7 +14,7 @@ const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 const currencyMeta: Record<string, { label: string; hint: string }> = {
-  NC: { label: "Vexora Coins", hint: "Spend in the Store" },
+  NC: { label: "Nexus Forge Coins", hint: "Spend in the Store" },
   FS: { label: "Forge Shards", hint: "Crafting and boosts" },
   AC: { label: "Aether Crystals", hint: "Premium drops" },
   FR: { label: "Reputation", hint: "Counts toward Points" },
@@ -37,7 +37,7 @@ export function RewardsPage() {
   const claimMutation = useMutation({
     mutationFn: () => claimDailyReward(accessToken!, csrfToken!),
     onSuccess: async (result) => {
-      setClaimNotice(`+${Number(result.amount).toLocaleString()} Vexora Coins. Day ${result.streak} streak.`);
+      setClaimNotice(`+${Number(result.amount).toLocaleString()} Nexus Forge Coins. Day ${result.streak} streak.`);
       await queryClient.invalidateQueries({ queryKey: ["daily-reward"] });
       await queryClient.invalidateQueries({ queryKey: ["economy"] });
     },
@@ -68,14 +68,14 @@ export function RewardsPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
           <section className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_30%,rgba(230,179,37,0.25),transparent_50%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_30%,rgba(46,164,255,0.25),transparent_50%)]" />
             <div className="relative">
               <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300"><Coins className="h-3.5 w-3.5" /> Wallet</p>
               {accountsQuery.isLoading ? (
                 <p className="mt-2 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading balances...</p>
               ) : (
                 <>
-                  <p className="nf-heading mt-2 text-4xl font-bold text-white">{fmt(coins?.balance ?? 0)} <span className="text-base text-amber-300">Vexora Coins</span></p>
+                  <p className="nf-heading mt-2 text-4xl font-bold text-white">{fmt(coins?.balance ?? 0)} <span className="text-base text-amber-300">Nexus Forge Coins</span></p>
                   <p className="text-xs text-slate-400">Lifetime earned: {fmt(coins?.lifetimeEarnings ?? 0)}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link href="/app/store" className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300"><ShoppingBag className="h-3.5 w-3.5" /> Spend in Store</Link>
@@ -97,7 +97,7 @@ export function RewardsPage() {
               <h2 className={sectionTitle}>Daily reward</h2>
               {daily ? (
                 <p className="text-xs text-slate-400">
-                  {daily.claimedToday ? `Claimed today. Next reward unlocks ${new Date(daily.nextResetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : `Claim ${Number(daily.nextAmount).toLocaleString()} Vexora Coins today.`}
+                  {daily.claimedToday ? `Claimed today. Next reward unlocks ${new Date(daily.nextResetAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : `Claim ${Number(daily.nextAmount).toLocaleString()} Nexus Forge Coins today.`}
                   {daily.streak ? <span className="ml-2 inline-flex items-center gap-1 text-amber-300"><Flame className="h-3 w-3" /> {daily.streak} day streak</span> : null}
                 </p>
               ) : (

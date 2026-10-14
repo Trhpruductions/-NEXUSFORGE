@@ -18,13 +18,13 @@ export const PASSWORD_REQUIRED = { error: "Enter your current password to make t
 export function sendSecurityAlert(to: string, username: string, what: string) {
   void sendEmail(
     to,
-    "A change was made to your Vexora Gaming account",
+    "A change was made to your Nexus Forge Gaming account",
     `Hi ${username},
 
 ${what}
 
 If this was you, there's nothing to do. If it wasn't, reset your password right away and check Settings → Account protection.
 
-Vexora Gaming`,
+Nexus Forge Gaming`,
   ).catch((error) => console.error("[SECURITY] alert email failed", error));
 }

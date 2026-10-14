@@ -16,5 +16,5 @@ test("names @mentions can't reach are refused", () => {
 });
 
 test("reserved names are refused, in any case", () => {
-  for (const name of ["admin", "Vexora", "EVERYONE", "here", "vexora_staff", "Support"]) assert.equal(usernameProblem(name), "That username is reserved.", name);
+  for (const name of ["admin", "NexusForge", "EVERYONE", "here", "vexora_staff", "Support"]) assert.equal(usernameProblem(name), "That username is reserved.", name);
 });

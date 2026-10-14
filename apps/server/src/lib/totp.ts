@@ -75,7 +75,7 @@ export function verifyTotp(secret: string, code: string, lastUsedStep: number | 
 }
 
 export function otpauthUrl(secret: string, accountName: string) {
-  const issuer = "Vexora Gaming";
+  const issuer = "Nexus Forge Gaming";
   return `otpauth://totp/${encodeURIComponent(`${issuer}:${accountName}`)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
 }
 

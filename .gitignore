@@ -57,3 +57,5 @@ var/uploads/
 
 # Desktop installers are build output (rebuild with npm run package:win in apps/desktop)
 apps/web/public/downloads/*.exe
+
+brand-inbox/

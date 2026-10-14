@@ -893,16 +893,16 @@ authRouter.post("/forgot-password", async (req, res) => {
   const link = `${env.APP_WEB_URL.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(resetToken)}`;
   void sendEmail(
     user.email,
-    "Reset your Vexora Gaming password",
+    "Reset your Nexus Forge Gaming password",
     `Hi ${user.username},
 
-Someone (hopefully you) asked to reset your Vexora Gaming password. Open this link within 30 minutes to choose a new one:
+Someone (hopefully you) asked to reset your Nexus Forge Gaming password. Open this link within 30 minutes to choose a new one:
 
 ${link}
 
 If it wasn't you, you can ignore this email; your password hasn't changed.
 
-Vexora Gaming`,
+Nexus Forge Gaming`,
   ).catch((error) => console.error("[AUTH] reset email failed", error));
 
   res.status(200).json(answer);
@@ -1024,7 +1024,7 @@ authRouter.post("/push-subscriptions/test", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Push isn't on for any of your devices yet." });
     return;
   }
-  await dispatchPushNotification({ userId: req.user!.id, title: "Vexora Gaming", body: "Push notifications are working on this device.", notificationId: `test-${Date.now()}` });
+  await dispatchPushNotification({ userId: req.user!.id, title: "Nexus Forge Gaming", body: "Push notifications are working on this device.", notificationId: `test-${Date.now()}` });
   res.json({ sent: devices });
 });
 

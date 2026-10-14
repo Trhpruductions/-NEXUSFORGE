@@ -393,7 +393,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.emit("welcome", { message: "Connected to Vexora Gaming realtime gateway" });
+  socket.emit("welcome", { message: "Connected to Nexus Forge Gaming realtime gateway" });
   socket.join(`user:${socket.data.user.id}`);
 
   const presenceUserId: string = socket.data.user.id;
@@ -541,7 +541,7 @@ io.on("connection", (socket) => {
     });
   });
 
-  /** In-app stream viewers: real viewer counts for creators watched inside Vexora. */
+  /** In-app stream viewers: real viewer counts for creators watched inside Nexus Forge. */
   socket.on("stream:watch", async (creatorId: string) => {
     if (typeof creatorId !== "string" || !creatorId) return;
     // Only count viewers for someone who is actually live (this broadcasts to everyone).
@@ -656,24 +656,24 @@ void runStartupTask("achievements catalog", ensureAchievementCatalog);
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
     console.error(
-      `Vexora Gaming API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
+      `Nexus Forge Gaming API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
     );
     process.exit(1);
     return;
   }
 
   if (error.code === "EACCES") {
-    console.error(`Vexora Gaming API failed to start: insufficient permissions to bind port ${env.PORT}.`);
+    console.error(`Nexus Forge Gaming API failed to start: insufficient permissions to bind port ${env.PORT}.`);
     process.exit(1);
     return;
   }
 
-  console.error("Vexora Gaming API failed to start due to an unexpected server error.", error);
+  console.error("Nexus Forge Gaming API failed to start due to an unexpected server error.", error);
   process.exit(1);
 });
 
 httpServer.listen(env.PORT, () => {
-  console.log(`Vexora Gaming API running on http://localhost:${env.PORT}`);
+  console.log(`Nexus Forge Gaming API running on http://localhost:${env.PORT}`);
   
   // Engage Industrial Engines
   JackpotEngine.start();

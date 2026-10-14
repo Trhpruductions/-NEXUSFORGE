@@ -1,5 +1,5 @@
 /**
- * "What's new": release notes from Vexora staff. Everyone sees a published update once,
+ * "What's new": release notes from Nexus Forge staff. Everyone sees a published update once,
  * as a popup (people online when it's published get it straight away).
  */
 import { Router, type Request, type Response } from "express";

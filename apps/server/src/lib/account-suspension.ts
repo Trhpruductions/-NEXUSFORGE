@@ -1,5 +1,5 @@
 /**
- * Platform-level account suspensions, applied by Vexora staff (not forge moderators).
+ * Platform-level account suspensions, applied by Nexus Forge staff (not forge moderators).
  *
  * Each suspension is a row in AccountSuspension (kept as history for appeals). A
  * suspended account can't sign in, refresh its session, call the API or open a live
@@ -82,11 +82,11 @@ export async function suspendAccount(input: { actorId: string; userId: string; r
     /* realtime not running (tests) */
   }
 
-  const ends = until ? `It ends on ${until.toUTCString()}.` : "It lasts until Vexora staff lift it.";
+  const ends = until ? `It ends on ${until.toUTCString()}.` : "It lasts until Nexus Forge staff lift it.";
   void sendEmail(
     user.email,
-    "Your Vexora Gaming account has been suspended",
-    `Hi ${user.username},\n\nVexora staff have suspended your account.\n\nReason: ${input.reason}\n\n${ends}\n\nWhile it is suspended you can't sign in or use the app. If you think this was a mistake, you can appeal: the Appeals Policy in the Legal Center explains how.\n\nVexora Gaming`,
+    "Your Nexus Forge Gaming account has been suspended",
+    `Hi ${user.username},\n\nVexora staff have suspended your account.\n\nReason: ${input.reason}\n\n${ends}\n\nWhile it is suspended you can't sign in or use the app. If you think this was a mistake, you can appeal: the Appeals Policy in the Legal Center explains how.\n\nNexus Forge Gaming`,
   ).catch((error) => console.error("[SUSPENSION] email failed", error));
 
   return entry;
@@ -105,8 +105,8 @@ export async function liftSuspension(input: { actorId: string; userId: string; n
   if (user) {
     void sendEmail(
       user.email,
-      "Your Vexora Gaming account is no longer suspended",
-      `Hi ${user.username},\n\nThe suspension on your Vexora account has been lifted, and you can sign in again.\n\nVexora Gaming`,
+      "Your Nexus Forge Gaming account is no longer suspended",
+      `Hi ${user.username},\n\nThe suspension on your Nexus Forge account has been lifted, and you can sign in again.\n\nNexus Forge Gaming`,
     ).catch((error) => console.error("[SUSPENSION] email failed", error));
   }
   return true;

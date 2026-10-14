@@ -78,7 +78,7 @@ function NewTicketForm({ onCreated }: { onCreated: (id: string) => void }) {
     >
       <div>
         <h2 className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">Open a ticket</h2>
-        <p className="mt-1 text-xs text-slate-400">A real person on the Vexora team reads every ticket. You&apos;ll get a notification and an email when we reply.</p>
+        <p className="mt-1 text-xs text-slate-400">A real person on the Nexus Forge team reads every ticket. You&apos;ll get a notification and an email when we reply.</p>
       </div>
       <label className="block">
         <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Topic</span>
@@ -159,7 +159,7 @@ function TicketThread({ ticketId }: { ticketId: string }) {
         {ticket.messages.map((message) => (
           <li key={message.id} className={`rounded-xl border px-3.5 py-2.5 ${message.fromStaff ? "border-amber-400/25 bg-amber-500/5" : "border-white/5 bg-[#11151e]"}`}>
             <p className="mb-1 flex items-center gap-2 text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-200">{message.fromStaff ? "Vexora Support" : `@${message.author.username}`}</span>
+              <span className="font-semibold text-slate-200">{message.fromStaff ? "Nexus Forge Support" : `@${message.author.username}`}</span>
               {message.fromStaff ? <span className="inline-flex items-center gap-1 text-amber-300"><ShieldCheck className="h-3 w-3" /> Staff{staff ? ` · @${message.author.username}` : ""}</span> : null}
               <span>· {when(message.createdAt)}</span>
             </p>
@@ -235,7 +235,7 @@ function SupportDesk() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading inline-flex items-center gap-2 text-xl font-bold text-white"><LifeBuoy className="h-5 w-5 text-amber-300" /> Support</h1>
-          <p className="text-xs text-slate-400">{staff ? "Answer player tickets and track your own." : "Get help from the Vexora team. Replies arrive here and by email."}</p>
+          <p className="text-xs text-slate-400">{staff ? "Answer player tickets and track your own." : "Get help from the Nexus Forge team. Replies arrive here and by email."}</p>
         </div>
         <button type="button" onClick={() => open(null)} className={goldBtn}><Plus className="h-3.5 w-3.5" /> New ticket</button>
       </div>

@@ -72,8 +72,8 @@ export default function DeveloperPortalPage() {
   return (
     <ExperienceShell
       eyebrow="Developer Portal"
-      title="Build and manage your Vexora Gaming integrations"
-      subtitle="Create bots, register apps that use “Sign in with Vexora”, and set up webhooks."
+      title="Build and manage your Nexus Forge Gaming integrations"
+      subtitle="Create bots, register apps that use “Sign in with Nexus Forge”, and set up webhooks."
       metrics={
         isSignedIn
           ? [
@@ -100,7 +100,7 @@ export default function DeveloperPortalPage() {
     >
       {!isSignedIn ? (
         <GuestAuthCallout
-          title="Developer tools require a Vexora Gaming account."
+          title="Developer tools require a Nexus Forge Gaming account."
           description="Sign in to access bot creation, API key management, slash commands, and integration analytics."
           loginHref="/login?redirect=/developer"
           registerHref="/register?redirect=/developer"
@@ -161,7 +161,7 @@ export default function DeveloperPortalPage() {
                     <input
                       value={botName}
                       onChange={(event) => setBotName(event.target.value)}
-                      placeholder="e.g. Vexora Gaming Helper"
+                      placeholder="e.g. Nexus Forge Gaming Helper"
                         className="w-full rounded-[20px] border border-white/10 bg-[#0d1119] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300"
                     />
                   </label>
@@ -273,7 +273,7 @@ export default function DeveloperPortalPage() {
               <p className="text-sm text-white">Developer resources</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-400">
                 <li>• Bots with preset commands that server owners can install.</li>
-                <li>• &quot;Sign in with Vexora&quot; (OAuth) for your own apps and sites.</li>
+                <li>• &quot;Sign in with Nexus Forge&quot; (OAuth) for your own apps and sites.</li>
                 <li>• Webhooks that tell your server when your bots are created, installed or used.</li>
               </ul>
             </div>

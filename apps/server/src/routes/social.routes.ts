@@ -393,7 +393,7 @@ socialRouter.put("/status", async (req, res) => {
 
 const liveSchema = z.object({
   live: z.boolean(),
-  platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Vexora"]).optional(),
+  platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Nexus Forge"]).optional(),
   title: z.string().trim().max(140).optional(),
   // http(s) only: z.url() alone accepts javascript: links, and this one is shown to followers.
   url: z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Use an http(s) link").optional(),
@@ -420,7 +420,7 @@ socialRouter.put("/live", async (req, res) => {
       ? {
           isCreator: true,
           creatorStatus: "LIVE",
-          livePlatform: parsed.data.platform ?? "Vexora",
+          livePlatform: parsed.data.platform ?? "Nexus Forge",
           liveStreamTitle: parsed.data.title || null,
           liveStreamUrl: parsed.data.url || null,
           liveGameCategory: parsed.data.game || null,
@@ -438,12 +438,12 @@ socialRouter.put("/live", async (req, res) => {
   void (async () => {
     if (parsed.data.live && before?.creatorStatus !== "LIVE") {
       await prisma.streamSession.create({
-        data: { userId: user.id, platform: user.livePlatform ?? "Vexora", title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl },
+        data: { userId: user.id, platform: user.livePlatform ?? "Nexus Forge", title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl },
       });
     } else if (parsed.data.live) {
       await prisma.streamSession.updateMany({
         where: { userId: user.id, endedAt: null },
-        data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Vexora" },
+        data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Nexus Forge" },
       });
     } else {
       await prisma.streamSession.updateMany({ where: { userId: user.id, endedAt: null }, data: { endedAt: new Date() } });
@@ -461,7 +461,7 @@ socialRouter.put("/live", async (req, res) => {
             userId: entry.followerId,
             type: "LIVE",
             title: `${name} is live`,
-            body: user.liveStreamTitle ? `${user.liveStreamTitle}${user.liveGameCategory ? ` · ${user.liveGameCategory}` : ""}` : `Streaming now on ${user.livePlatform ?? "Vexora"}`,
+            body: user.liveStreamTitle ? `${user.liveStreamTitle}${user.liveGameCategory ? ` · ${user.liveGameCategory}` : ""}` : `Streaming now on ${user.livePlatform ?? "Nexus Forge"}`,
             data: { creatorId: user.id, url: user.liveStreamUrl },
           }).catch(() => undefined),
         ),

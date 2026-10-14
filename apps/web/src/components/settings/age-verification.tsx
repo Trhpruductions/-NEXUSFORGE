@@ -161,7 +161,7 @@ export function AgeVerificationCard({ highlight = false }: { highlight?: boolean
       setSelfieFile(null);
       if (documentInput.current) documentInput.current.value = "";
       if (selfieInput.current) selfieInput.current.value = "";
-      setNotice({ tone: "ok", text: "Your ID was submitted. A Vexora reviewer will check it and you will get a notification with the result." });
+      setNotice({ tone: "ok", text: "Your ID was submitted. A Nexus Forge reviewer will check it and you will get a notification with the result." });
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
@@ -189,13 +189,13 @@ export function AgeVerificationCard({ highlight = false }: { highlight?: boolean
   const needsAttention = summary.level === "NONE";
 
   return (
-    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && needsAttention ? "border-amber-400/60 shadow-[0_0_30px_rgba(230,179,37,0.2)]" : "border-amber-500/15"}`}>
+    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && needsAttention ? "border-amber-400/60 shadow-[0_0_30px_rgba(46,164,255,0.2)]" : "border-amber-500/15"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">
             <IdCard className={`h-4 w-4 ${summary.level === "VERIFIED" ? "text-emerald-300" : "text-amber-300"}`} /> Age Verification
           </h2>
-          <p className="text-xs text-slate-400">Vexora Gaming is 18+. Declare your date of birth to play, and verify with a government ID to unlock prize tournaments and the Verified badge.</p>
+          <p className="text-xs text-slate-400">Nexus Forge Gaming is 18+. Declare your date of birth to play, and verify with a government ID to unlock prize tournaments and the Verified badge.</p>
         </div>
         <LevelPill level={summary.level} />
       </div>

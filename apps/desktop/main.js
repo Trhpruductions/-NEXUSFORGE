@@ -250,7 +250,7 @@ try {
   fs.mkdirSync(stableCacheDir, { recursive: true });
   fs.mkdirSync(stableCodeCacheDir, { recursive: true });
 } catch (error) {
-  console.warn("[Vexora Gaming Desktop] Unable to initialize stable cache directories:", error);
+  console.warn("[Nexus Forge Gaming Desktop] Unable to initialize stable cache directories:", error);
 }
 
 app.commandLine.appendSwitch("disk-cache-dir", stableCacheDir);
@@ -315,7 +315,7 @@ function readPersistedUpdateState() {
       latestVersion: typeof parsed.latestVersion === "string" ? parsed.latestVersion : null,
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to read update state:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to read update state:", error);
   }
 }
 
@@ -341,7 +341,7 @@ function readDesktopPreferences() {
           : desktopPreferences.startMinimized,
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to read desktop preferences:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to read desktop preferences:", error);
   }
 }
 
@@ -350,7 +350,7 @@ function persistDesktopPreferences() {
     fs.mkdirSync(path.dirname(desktopPreferencesPath), { recursive: true });
     fs.writeFileSync(desktopPreferencesPath, JSON.stringify(desktopPreferences, null, 2), "utf8");
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to persist desktop preferences:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to persist desktop preferences:", error);
   }
 }
 
@@ -372,7 +372,7 @@ function applyLaunchOnStartupPreference() {
       });
     }
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to apply launch-on-startup preference:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to apply launch-on-startup preference:", error);
   }
 }
 
@@ -456,11 +456,11 @@ function createAppTray() {
 
   try {
     appTray = new Tray(appIconPath);
-    appTray.setToolTip("Vexora Gaming Desktop");
+    appTray.setToolTip("Nexus Forge Gaming Desktop");
     appTray.setContextMenu(
       Menu.buildFromTemplate([
         {
-          label: "Open Vexora Gaming",
+          label: "Open Nexus Forge Gaming",
           click: () => {
             showMainWindow();
           },
@@ -491,7 +491,7 @@ function createAppTray() {
       }
     });
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to create tray icon:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to create tray icon:", error);
   }
 }
 
@@ -511,7 +511,7 @@ function persistUpdateState() {
       "utf8",
     );
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to persist update state:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to persist update state:", error);
   }
 }
 
@@ -591,7 +591,7 @@ async function showChangelogWindow() {
   const changelogWindow = new BrowserWindow({
     width: 760,
     height: 560,
-    title: "Vexora Gaming - What's New",
+    title: "Nexus Forge Gaming - What's New",
     autoHideMenuBar: true,
     backgroundColor: "#020617",
     icon: appIconPath,
@@ -618,7 +618,7 @@ async function showChangelogWindow() {
   .close-btn{border:0;border-radius:11px;padding:10px 14px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#1b1207;font-weight:700;cursor:pointer}
   .close-btn:hover{filter:saturate(1.07)}
   </style></head>
-  <body><main class="panel"><p class="eyebrow">Vexora Gaming Desktop Update</p><h1>What is New</h1>
+  <body><main class="panel"><p class="eyebrow">Nexus Forge Gaming Desktop Update</p><h1>What is New</h1>
   <div class="meta"><p class="subtitle">Review the latest desktop improvements before you continue.</p><span class="version-chip">Version ${String(updateRuntime.latestVersion || app.getVersion())}</span></div>
   <ul>${list}</ul><div class="footer"><button class="close-btn" onclick="window.close()">Close</button></div></main></body></html>`;
   await changelogWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
@@ -632,7 +632,7 @@ async function showUpdateReadyDialog() {
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
     title: "Desktop Update Ready",
-    message: `Vexora Gaming Desktop update is ready to install (v${updateRuntime.latestVersion || "latest"}).`,
+    message: `Nexus Forge Gaming Desktop update is ready to install (v${updateRuntime.latestVersion || "latest"}).`,
     detail: "Restart now to apply this update, or continue using the current session and install later.",
     buttons: ["Restart To Install", "Install Later"],
     defaultId: 0,
@@ -646,7 +646,7 @@ async function showUpdateReadyDialog() {
 
 function normalizeUpdateFilename(latestVersion, sourceUrl) {
   const parsedPath = sourceUrl ? path.basename(new URL(sourceUrl).pathname) : "";
-  const filename = parsedPath && parsedPath.toLowerCase().endsWith(".exe") ? parsedPath : `Vexora Gaming Desktop Setup ${latestVersion}.exe`;
+  const filename = parsedPath && parsedPath.toLowerCase().endsWith(".exe") ? parsedPath : `Nexus Forge Gaming Desktop Setup ${latestVersion}.exe`;
   return filename.replace(/[^a-zA-Z0-9._\- ()]/g, "_");
 }
 
@@ -888,7 +888,7 @@ async function showUpdateAvailableDialog() {
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
     title: "Desktop Update Available",
-    message: `A Vexora Gaming Desktop update is available (v${updateRuntime.latestVersion || "latest"}).`,
+    message: `A Nexus Forge Gaming Desktop update is available (v${updateRuntime.latestVersion || "latest"}).`,
     detail: "Choose how to proceed. You can review changes, start the background download, or postpone this reminder.",
     buttons: ["Start Background Download", "Remind Me Later", "View What Is New"],
     defaultId: 0,
@@ -1088,7 +1088,7 @@ async function revealMainWindow() {
   startupRevealTimer = setTimeout(() => {
     markStartupTiming("handoff-reveal-fire", "from-splash-to-main");
     updateStartupRuntime({
-      stage: "Opening Vexora Gaming Desktop",
+      stage: "Opening Nexus Forge Gaming Desktop",
       detail: "The workspace is ready. Bringing the app forward.",
       progress: 100,
       accent: "ready",
@@ -1150,7 +1150,7 @@ function getDiscoveredWorkspaceCandidates() {
     discovered.push(path.resolve(seed, "..", ".."));
   }
 
-  // Last-resort scan on the current drive for likely Vexora Gaming workspace folders.
+  // Last-resort scan on the current drive for likely Nexus Forge Gaming workspace folders.
   const driveRoot = path.parse(cwdWorkspace).root || "";
   if (driveRoot && fs.existsSync(driveRoot)) {
     try {
@@ -1619,19 +1619,19 @@ function loadFallbackPage(message) {
   }
 
   if (!fs.existsSync(fallbackPath)) {
-    console.warn("[Vexora Gaming Desktop] Fallback file missing:", fallbackPath);
+    console.warn("[Nexus Forge Gaming Desktop] Fallback file missing:", fallbackPath);
     return;
   }
 
   try {
     void targetWindow.loadFile(fallbackPath).catch((error) => {
       if (!isDestroyedWindowError(error)) {
-        console.warn("[Vexora Gaming Desktop] Unable to load fallback page:", error);
+        console.warn("[Nexus Forge Gaming Desktop] Unable to load fallback page:", error);
       }
     });
   } catch (error) {
     if (!isDestroyedWindowError(error)) {
-      console.warn("[Vexora Gaming Desktop] Fallback load aborted because window was destroyed:", error);
+      console.warn("[Nexus Forge Gaming Desktop] Fallback load aborted because window was destroyed:", error);
     }
     return;
   }
@@ -1676,7 +1676,7 @@ async function startLocalStack(reason) {
   const apiAlreadyRunning = existingPorts.port4000Open || existingPorts.port4001Open;
   const apiConflict = existingPorts.port4000Open === false && existingPorts.port4000Bound && !existingPorts.port4001Open;
   if (apiConflict) {
-    const message = "Local API port 4000 is occupied by a non-Vexora Gaming process and cannot be used. Close the conflicting process or disable the port 4000 listener and retry.";
+    const message = "Local API port 4000 is occupied by a non-Nexus Forge Gaming process and cannot be used. Close the conflicting process or disable the port 4000 listener and retry.";
     updateLocalStackStatus({
       attempted: true,
       started: false,
@@ -1714,7 +1714,7 @@ async function startLocalStack(reason) {
   try {
     fs.mkdirSync(path.dirname(localStackLogPath), { recursive: true });
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to create log directory:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to create log directory:", error);
   }
 
   const logStream = fs.createWriteStream(localStackLogPath, { flags: "a" });
@@ -1870,7 +1870,7 @@ async function ensureAppReachable(trigger) {
   if (!isLocalStartTarget) {
     updateStartupRuntime({
       stage: "Connecting hosted workspace",
-      detail: "Opening the remote Vexora Gaming experience.",
+      detail: "Opening the remote Nexus Forge Gaming experience.",
       progress: 78,
       accent: "opening",
     });
@@ -1946,7 +1946,7 @@ async function ensureAppReachable(trigger) {
 
   updateStartupRuntime({
     stage: "Opening app",
-    detail: "Connecting the desktop shell to Vexora Gaming.",
+    detail: "Connecting the desktop shell to Nexus Forge Gaming.",
     progress: 78,
     accent: "opening",
   });
@@ -1992,7 +1992,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Local services are not available. Start the web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.",
+        "Local services are not available. Start the web and API servers on http://127.0.0.1:3300 and reopen Nexus Forge Gaming Desktop.",
       );
       return;
     }
@@ -2041,7 +2041,7 @@ async function ensureAppReachable(trigger) {
         loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
       }
     } else {
-      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.");
+      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3300 and reopen Nexus Forge Gaming Desktop.");
     }
   } finally {
     bootRecoveryInFlight = false;
@@ -2068,7 +2068,7 @@ function resetDevQuotaDatabase() {
         fs.rmSync(artifactPath, { force: true });
       }
     } catch (error) {
-      console.warn(`[Vexora Gaming Desktop] Unable to remove ${artifact}:`, error);
+      console.warn(`[Nexus Forge Gaming Desktop] Unable to remove ${artifact}:`, error);
     }
   }
 }
@@ -2083,7 +2083,7 @@ function resetIsolatedDevSession() {
     fs.mkdirSync(isolatedSessionPath, { recursive: true });
     app.setPath("sessionData", isolatedSessionPath);
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to reset isolated dev session:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to reset isolated dev session:", error);
   }
 }
 
@@ -2144,7 +2144,7 @@ async function prepareDevSessionStorage() {
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to clear dev session storage:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to clear dev session storage:", error);
     updateStartupRuntime({
       stage: "Preparing secure session",
       detail: "Storage reset warning detected. Continuing launch.",
@@ -2170,7 +2170,7 @@ if (isLocalStartTarget) {
     fs.mkdirSync(isolatedSessionPath, { recursive: true });
     app.setPath("sessionData", isolatedSessionPath);
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to set isolated dev session path:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to set isolated dev session path:", error);
   }
 }
 
@@ -2220,7 +2220,7 @@ function createWindow() {
     show: false,
     icon: appIconPath,
     backgroundColor: "#020617",
-    title: "Vexora Gaming Desktop",
+    title: "Nexus Forge Gaming Desktop",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -2319,7 +2319,7 @@ function stopSpawnedLocalStack() {
     }
     appendLocalStackHistory("Spawned local stack process terminated at app shutdown.");
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to stop local stack process:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to stop local stack process:", error);
   }
 }
 
@@ -2350,7 +2350,7 @@ app.whenReady().then(async () => {
   );
   updateStartupRuntime({
     stage: "Booting desktop shell",
-    detail: "Starting Vexora Gaming Desktop.",
+    detail: "Starting Nexus Forge Gaming Desktop.",
     progress: 4,
     accent: "warmup",
   });
@@ -2378,7 +2378,7 @@ app.whenReady().then(async () => {
   } else {
     updateStartupRuntime({
       stage: "Connecting hosted workspace",
-      detail: "Opening the remote Vexora Gaming experience.",
+      detail: "Opening the remote Nexus Forge Gaming experience.",
       progress: 32,
       accent: "opening",
     });
@@ -2457,7 +2457,7 @@ app.whenReady().then(async () => {
 
     const resolvedPath = path.resolve(normalizedCandidate);
     if (!isWorkspaceRoot(resolvedPath)) {
-      return { success: false, reason: "Provided path is not a valid Vexora Gaming workspace root." };
+      return { success: false, reason: "Provided path is not a valid Nexus Forge Gaming workspace root." };
     }
 
     updateLocalStackStatus({

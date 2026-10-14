@@ -240,7 +240,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
               />
             </div>
-            <p className="mt-3 text-xs text-slate-500">Do not close the page. Vexora Gaming is securing your checkout session and handing off to billing.</p>
+            <p className="mt-3 text-xs text-slate-500">Do not close the page. Nexus Forge Gaming is securing your checkout session and handing off to billing.</p>
           </div>
         </motion.div>
       ) : null}
@@ -282,7 +282,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Founder Window</p>
-            <p className="mt-2 text-lg font-semibold text-white">Early pricing is intentionally aggressive while Vexora Gaming scales up.</p>
+            <p className="mt-2 text-lg font-semibold text-white">Early pricing is intentionally aggressive while Nexus Forge Gaming scales up.</p>
             <p className="mt-1 text-sm text-slate-400">
               Lock in a lower annual rate now and keep it as long as the subscription stays active.
             </p>
@@ -327,7 +327,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <div className="mt-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
               <Image
                 src="/brand/boost-pack-icon.png"
-                alt="Vexora Gaming boost pack icon"
+                alt="Nexus Forge Gaming boost pack icon"
                 width={1200}
                 height={1200}
                 className="h-auto w-full object-cover"
@@ -344,7 +344,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
-              className={`nexus-interactive-card rounded-[28px] border bg-[#11151e] p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(251,191,36,0.12)]" : "border-white/10"}`}
+              className={`nexus-interactive-card rounded-[28px] border bg-[#11151e] p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(99,192,255,0.12)]" : "border-white/10"}`}
             >
               <div className="mb-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
                 <Image
@@ -373,7 +373,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               <Button
                 onClick={() => handleCheckout({ featureCode: "CORE_PLUS", tier: tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE" })}
                 disabled={checkoutMutation.isPending || !billingReady}
-                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] text-white shadow-[0_16px_30px_rgba(245,158,11,0.16)]" : "border-white/10 bg-[#11151e] text-white"}`}
+                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(99,192,255,0.96)_45%,rgba(30,139,255,0.96))] text-white shadow-[0_16px_30px_rgba(30,139,255,0.16)]" : "border-white/10 bg-[#11151e] text-white"}`}
               >
                 {checkoutMutation.isPending ? "Opening..." : tier.cta}
               </Button>
@@ -439,7 +439,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
       >
         <p className="text-[11px] uppercase tracking-[0.24em] text-amber-300">How payments work</p>
         <ul className="mt-3 grid gap-2 text-xs text-slate-300 md:grid-cols-2">
-          <li>• Card payments are handled by Stripe on its own secure checkout page. Vexora never sees your card number.</li>
+          <li>• Card payments are handled by Stripe on its own secure checkout page. Nexus Forge never sees your card number.</li>
           <li>• Your plan starts as soon as the payment goes through.</li>
           <li>• Change or cancel any time from <Link href="/app/settings?section=billing" className="text-amber-200 underline underline-offset-2">Settings → Billing</Link>. Cancelling keeps your plan until the end of the period you paid for.</li>
           <li>• If you cancel at checkout, nothing is charged and nothing changes.</li>

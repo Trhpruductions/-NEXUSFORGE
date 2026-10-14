@@ -310,7 +310,7 @@ export async function issueAuthorizationCode(
 export const oauthRouter = Router();
 
 /**
- * Step 1 of "Sign in with Vexora": never issues anything by itself. It sends the browser to
+ * Step 1 of "Sign in with Nexus Forge": never issues anything by itself. It sends the browser to
  * the approval page in the app, which shows the app's name and what it gets. (It used to
  * hand out a code straight away, even from just the sign-in cookie, so any registered app
  * could take over whoever opened its link.)

@@ -9,12 +9,12 @@ import { prisma } from "./prisma.js";
 
 export type DeviceContext = { userAgent: string | null; deviceLabel: string; ipPrefix: string | null };
 
-/** "Chrome on Windows", "Vexora Desktop on Windows", "Safari on iPhone" ... */
+/** "Chrome on Windows", "Nexus Forge Desktop on Windows", "Safari on iPhone" ... */
 export function describeDevice(userAgent: string | null | undefined): string {
   const ua = userAgent ?? "";
   if (!ua) return "Unknown device";
-  const app = /Vexora Gaming Desktop|Electron\//i.test(ua)
-    ? "Vexora Desktop"
+  const app = /Nexus Forge Gaming Desktop|Electron\//i.test(ua)
+    ? "Nexus Forge Desktop"
     : /Edg\//.test(ua)
       ? "Edge"
       : /OPR\/|Opera/.test(ua)
@@ -88,11 +88,11 @@ export async function alertIfNewDevice(user: { id: string; email: string; userna
     }),
     sendEmail(
       user.email,
-      "New sign-in to your Vexora Gaming account",
+      "New sign-in to your Nexus Forge Gaming account",
       [
         `Hi ${user.username},`,
         "",
-        "Your Vexora Gaming account was just signed in to from a device we haven't seen before:",
+        "Your Nexus Forge Gaming account was just signed in to from a device we haven't seen before:",
         "",
         `  Device: ${ctx.deviceLabel}`,
         `  Time:   ${when}`,

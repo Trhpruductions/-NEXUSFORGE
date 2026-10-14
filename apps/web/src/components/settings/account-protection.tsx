@@ -153,7 +153,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
   const steps = [protection.emailVerified, protection.phoneVerified, protection.twoFactorEnabled].filter(Boolean).length;
 
   return (
-    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && !protection.complete ? "border-amber-400/60 shadow-[0_0_30px_rgba(230,179,37,0.2)]" : "border-amber-500/15"}`}>
+    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && !protection.complete ? "border-amber-400/60 shadow-[0_0_30px_rgba(46,164,255,0.2)]" : "border-amber-500/15"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">
@@ -175,10 +175,10 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
       {delivery && (delivery.email === "unconfigured" || delivery.sms === "unconfigured") ? (
         <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
           {delivery.email === "unconfigured" && delivery.sms === "unconfigured"
-            ? "Vexora can't send emails or texts right now, so codes can't be sent. Please try again later."
+            ? "Nexus Forge can't send emails or texts right now, so codes can't be sent. Please try again later."
             : delivery.sms === "unconfigured"
-              ? "Text messages aren't switched on for Vexora yet, so phone numbers can't be verified right now. Email codes work as normal."
-              : "Vexora can't send emails right now, so email codes can't be sent. Please try again later."}
+              ? "Text messages aren't switched on for Nexus Forge yet, so phone numbers can't be verified right now. Email codes work as normal."
+              : "Nexus Forge can't send emails right now, so email codes can't be sent. Please try again later."}
         </p>
       ) : null}
 

@@ -19,7 +19,7 @@ export default function AdminUpdatesPage() {
 
   if (!user) {
     return (
-      <ExperienceShell eyebrow="Safety" title="Sign in to write updates" subtitle="Only Vexora staff can publish updates." metrics={[]} maxWidthClassName="max-w-6xl">
+      <ExperienceShell eyebrow="Safety" title="Sign in to write updates" subtitle="Only Nexus Forge staff can publish updates." metrics={[]} maxWidthClassName="max-w-6xl">
         <GuestAuthCallout
           title="Sign in with an administrator account."
           description="Publishing updates is restricted to staff."
@@ -32,14 +32,14 @@ export default function AdminUpdatesPage() {
 
   if (!user.isAdmin) {
     return (
-      <ExperienceShell eyebrow="Access Denied" title="Staff only" subtitle="Only Vexora staff can publish updates." metrics={[]} actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
+      <ExperienceShell eyebrow="Access Denied" title="Staff only" subtitle="Only Nexus Forge staff can publish updates." metrics={[]} actions={[{ label: "Return to App", href: "/app", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
         <div className="nexus-display-panel rounded-[24px] p-5 text-sm text-slate-400">See the latest updates on the What&apos;s new page instead.</div>
       </ExperienceShell>
     );
   }
 
   return (
-    <ExperienceShell eyebrow="Announcements" title="What's new" subtitle="Write release notes. Publishing pops them up for everyone using Vexora." metrics={[]} actions={[{ label: "Admin", href: "/admin", tone: "ghost" }, { label: "View page", href: "/app/updates", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
+    <ExperienceShell eyebrow="Announcements" title="What's new" subtitle="Write release notes. Publishing pops them up for everyone using Nexus Forge." metrics={[]} actions={[{ label: "Admin", href: "/admin", tone: "ghost" }, { label: "View page", href: "/app/updates", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
       <UpdatesAdmin />
     </ExperienceShell>
   );

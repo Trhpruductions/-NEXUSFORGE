@@ -10,7 +10,7 @@ function DeviceIcon({ label }: { label: string }) {
   const cls = "h-4 w-4";
   if (/iPhone|Android/.test(label)) return <Smartphone className={cls} />;
   if (/iPad/.test(label)) return <Tablet className={cls} />;
-  if (/Vexora Desktop/.test(label)) return <Monitor className={cls} />;
+  if (/Nexus Forge Desktop/.test(label)) return <Monitor className={cls} />;
   return <Laptop className={cls} />;
 }
 

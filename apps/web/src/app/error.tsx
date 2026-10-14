@@ -13,8 +13,8 @@ export default function RouteError({ error, reset }: { error: Error & { digest?:
   }, [error]);
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-[#05030f] px-4 py-10 text-slate-100">
-      <main id="main-content" className="w-full max-w-md rounded-2xl border border-amber-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(245,158,11,0.1)] sm:p-8">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#040812] px-4 py-10 text-slate-100">
+      <main id="main-content" className="w-full max-w-md rounded-2xl border border-amber-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(30,139,255,0.1)] sm:p-8">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/10 text-amber-200">
           <TriangleAlert className="h-6 w-6" />
         </span>

@@ -1,7 +1,7 @@
 /**
- * Linking a Discord account to a Vexora account, proven both ways:
- * 1. In Vexora settings you get a one-time code (only you can see it, you're signed in).
- * 2. You type `/link <code>` to the Vexora bot in Discord (only you can do that as you).
+ * Linking a Discord account to a Nexus Forge account, proven both ways:
+ * 1. In Nexus Forge settings you get a one-time code (only you can see it, you're signed in).
+ * 2. You type `/link <code>` to the Nexus Forge bot in Discord (only you can do that as you).
  * The bot then trusts `User.discordUserId` and nothing else: not usernames and not the
  * free-text "Discord" handle on profiles, which anyone can type.
  */
@@ -41,14 +41,14 @@ export async function redeemLinkCode(code: string, discordUserId: string): Promi
     if (!row || row.user.deletedAt) return { ok: false as const, reason: "invalid" as const };
     await tx.discordLinkCode.delete({ where: { codeHash: row.codeHash } });
     if (row.expiresAt.getTime() < Date.now()) return { ok: false as const, reason: "expired" as const };
-    // One Discord account maps to one Vexora account: move it if it was linked elsewhere.
+    // One Discord account maps to one Nexus Forge account: move it if it was linked elsewhere.
     await tx.user.updateMany({ where: { discordUserId, NOT: { id: row.userId } }, data: { discordUserId: null, discordLinkedAt: null } });
     await tx.user.update({ where: { id: row.userId }, data: { discordUserId, discordLinkedAt: new Date() } });
     return { ok: true as const, username: row.user.username };
   });
 }
 
-/** The Vexora account this Discord user proved they own, or null. */
+/** The Nexus Forge account this Discord user proved they own, or null. */
 export async function userForDiscord(discordUserId: string) {
   return prisma.user.findFirst({ where: { discordUserId, deletedAt: null } });
 }

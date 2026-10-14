@@ -10,7 +10,7 @@ type LinkStatus = { linked: boolean; linkedAt: string | null };
 
 /**
  * Settings > Connections > Discord. Linking is proven both ways: you get a one-time code
- * here and type /link CODE to the Vexora bot in Discord. The bot only trusts this link.
+ * here and type /link CODE to the Nexus Forge bot in Discord. The bot only trusts this link.
  */
 export function DiscordLinkCard() {
   const { accessToken, csrfToken } = useAuthStore();
@@ -64,7 +64,7 @@ export function DiscordLinkCard() {
         </div>
       ) : code && minutesLeft > 0 ? (
         <div className="mt-2 space-y-2 text-sm text-slate-300">
-          <p>In the Vexora Discord server, type:</p>
+          <p>In the Nexus Forge Discord server, type:</p>
           <div className="flex items-center gap-2">
             <code className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 font-mono text-base tracking-[0.2em] text-white">/link {code.code}</code>
             <button
@@ -80,7 +80,7 @@ export function DiscordLinkCard() {
         </div>
       ) : (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-300">
-          <span>Use the Vexora bot&apos;s /balance and /mining with your account.</span>
+          <span>Use the Nexus Forge bot&apos;s /balance and /mining with your account.</span>
           <button type="button" onClick={() => getCode.mutate()} disabled={getCode.isPending || !accessToken} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-400 disabled:opacity-50">
             {getCode.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Link Discord
           </button>

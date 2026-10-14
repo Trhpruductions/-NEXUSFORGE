@@ -21,7 +21,7 @@ const reasons: Array<{ value: ReportReason; label: string; hint: string }> = [
   { value: "OTHER", label: "Something else", hint: "Tell us what's wrong below" },
 ];
 
-/** "Report message" dialog. Server-channel reports go to that server's moderators; DMs to Vexora staff. */
+/** "Report message" dialog. Server-channel reports go to that server's moderators; DMs to Nexus Forge staff. */
 export function ReportDialog({ target, onClose }: { target: ReportTarget | null; onClose: () => void }) {
   const { accessToken, csrfToken } = useAuthStore();
   const [reason, setReason] = useState<ReportReason | null>(null);
@@ -58,7 +58,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget | null;
           <div>
             <h2 id="report-title" className="flex items-center gap-2 text-sm font-semibold"><Flag className="h-4 w-4 text-rose-300" /> Report message</h2>
             <p className="text-[11px] text-slate-400">
-              {target.kind === "CHANNEL" ? "This server's moderators will review it." : "Vexora staff will review it."} The person you report won&apos;t see who reported them.
+              {target.kind === "CHANNEL" ? "This server's moderators will review it." : "Nexus Forge staff will review it."} The person you report won&apos;t see who reported them.
             </p>
           </div>
           <button type="button" onClick={onClose} title="Close" className="rounded-lg p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>

@@ -216,7 +216,7 @@ function ProfileInner() {
         <div className="relative px-5 pb-5">
           <div className="-mt-12 flex flex-wrap items-end gap-4">
             <div
-              className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(230,179,37,0.3)] ${person.profileEmote ? "cursor-pointer" : ""} ${emotePlaying && person.profileEmote ? emoteClass(person.profileEmote.key) : ""}`}
+              className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(46,164,255,0.3)] ${person.profileEmote ? "cursor-pointer" : ""} ${emotePlaying && person.profileEmote ? emoteClass(person.profileEmote.key) : ""}`}
               title={person.profileEmote ? `Play ${person.profileEmote.name}` : undefined}
               onClick={() => {
                 if (!person.profileEmote) return;
@@ -402,7 +402,7 @@ function ProfileInner() {
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[...achievements].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)).map((entry) => (
-                    <div key={entry.key} className={`flex items-center gap-3 rounded-xl border p-3 ${entry.unlocked ? "border-amber-400/40 bg-[#11151e] shadow-[0_0_18px_rgba(230,179,37,0.12)]" : "border-white/5 bg-[#11151e] opacity-60"}`}>
+                    <div key={entry.key} className={`flex items-center gap-3 rounded-xl border p-3 ${entry.unlocked ? "border-amber-400/40 bg-[#11151e] shadow-[0_0_18px_rgba(46,164,255,0.12)]" : "border-white/5 bg-[#11151e] opacity-60"}`}>
                       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-xl ${entry.unlocked ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 bg-slate-900 grayscale"}`}>{entry.icon || <Award className="h-5 w-5 text-amber-300" />}</span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-white">{entry.name}</p>

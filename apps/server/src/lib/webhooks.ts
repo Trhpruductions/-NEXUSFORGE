@@ -35,9 +35,9 @@ export async function dispatchDeveloperWebhookEvent(
       subscription.url,
       body,
       {
-        "X-Vexora-Webhook-Event": eventName,
-        "X-Vexora-Webhook-Subscription-Id": subscription.id,
-        "X-Vexora-Webhook-Delivered-At": new Date().toISOString(),
+        "X-Nexus Forge-Webhook-Event": eventName,
+        "X-Nexus Forge-Webhook-Subscription-Id": subscription.id,
+        "X-Nexus Forge-Webhook-Delivered-At": new Date().toISOString(),
       },
       WEBHOOK_TIMEOUT_MS,
     );

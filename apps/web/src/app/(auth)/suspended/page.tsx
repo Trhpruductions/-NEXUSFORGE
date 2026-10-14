@@ -9,7 +9,7 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
 }
 
-/** Shown when Vexora staff have suspended the account that was signed in. */
+/** Shown when Nexus Forge staff have suspended the account that was signed in. */
 export default function SuspendedPage() {
   const [info, setInfo] = useState<SuspensionInfo | null>(null);
   useEffect(() => {
@@ -17,14 +17,14 @@ export default function SuspendedPage() {
   }, []);
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-[#05030f] px-4 py-10 text-slate-100">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-[#040812] px-4 py-10 text-slate-100">
       <main id="main-content" className="w-full max-w-lg rounded-2xl border border-rose-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(244,63,94,0.12)] sm:p-8">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-rose-400/40 bg-rose-500/10 text-rose-200">
           <ShieldAlert className="h-6 w-6" />
         </span>
         <h1 className="nf-heading mt-4 text-2xl font-bold text-white">Your account is suspended</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Vexora staff have suspended this account, so you can&apos;t sign in or use the app while it lasts. We&apos;ve also sent the details to the email address on the account.
+          Nexus Forge staff have suspended this account, so you can&apos;t sign in or use the app while it lasts. We&apos;ve also sent the details to the email address on the account.
         </p>
 
         {info ? (
@@ -35,7 +35,7 @@ export default function SuspendedPage() {
             </div>
             <div>
               <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Ends</dt>
-              <dd className="mt-1 text-slate-100">{info.until ? formatDate(info.until) : "When Vexora staff lift it"}</dd>
+              <dd className="mt-1 text-slate-100">{info.until ? formatDate(info.until) : "When Nexus Forge staff lift it"}</dd>
             </div>
           </dl>
         ) : null}

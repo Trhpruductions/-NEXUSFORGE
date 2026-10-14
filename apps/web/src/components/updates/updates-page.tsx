@@ -23,7 +23,7 @@ export function UpdatesPage() {
     <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300"><Megaphone className="h-3.5 w-3.5" /> Vexora Gaming</p>
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300"><Megaphone className="h-3.5 w-3.5" /> Nexus Forge Gaming</p>
           <h1 className="nf-heading mt-1 text-2xl font-bold text-white">What&apos;s new</h1>
           <p className="text-sm text-slate-400">New features and fixes, newest first.</p>
         </div>

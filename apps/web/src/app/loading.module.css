@@ -4,7 +4,7 @@
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 16% 22%, rgba(251, 191, 36, 0.18), transparent 28%),
+    radial-gradient(circle at 16% 22%, rgba(99,192,255, 0.18), transparent 28%),
     radial-gradient(circle at 82% 18%, rgba(125, 211, 252, 0.16), transparent 26%),
     linear-gradient(155deg, #f7f2ea 0%, #ece7dd 100%);
   z-index: 9999;
@@ -40,7 +40,7 @@
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.22), transparent 72%);
+  background: radial-gradient(circle, rgba(99,192,255, 0.22), transparent 72%);
   animation: pulse 1.8s ease-in-out infinite;
 }
 
@@ -118,7 +118,7 @@
   height: 100%;
   border-radius: inherit;
   transform-origin: left;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  background: linear-gradient(90deg, #1e8bff, #63c0ff);
   animation: progressFlow 1.45s ease-in-out infinite;
 }
 

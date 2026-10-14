@@ -1,5 +1,5 @@
 /**
- * Every Vexora email goes out as "Vexora Gaming" in one branded layout, whatever mailbox
+ * Every Nexus Forge email goes out as "Nexus Forge Gaming" in one branded layout, whatever mailbox
  * actually sends it. The text version is kept as-is for mail apps that prefer plain text.
  */
 import { env } from "../config/env.js";
@@ -28,7 +28,7 @@ export function brandedEmailHtml(subject: string, text: string) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#11151e;border:1px solid #262b38;border-radius:14px">
         <tr><td style="padding:20px 24px;border-bottom:1px solid #262b38">
-          <span style="font-size:18px;font-weight:800;letter-spacing:2px;color:#fbbf24">VEXORA</span>
+          <span style="font-size:18px;font-weight:800;letter-spacing:2px;color:#63c0ff">NEXUS FORGE</span>
           <span style="font-size:11px;font-weight:700;letter-spacing:3px;color:#a78bfa;margin-left:6px">GAMING</span>
         </td></tr>
         <tr><td style="padding:24px;font-size:15px;color:#e2e8f0">
@@ -36,7 +36,7 @@ export function brandedEmailHtml(subject: string, text: string) {
           ${textToHtml(text)}
         </td></tr>
         <tr><td style="padding:16px 24px;border-top:1px solid #262b38;font-size:12px;color:#64748b;line-height:1.5">
-          You're getting this because you have a Vexora Gaming account. This is an automated message.<br>
+          You're getting this because you have a Nexus Forge Gaming account. This is an automated message.<br>
           <a href="${site}" style="color:#94a3b8">${escapeHtml(site.replace(/^https?:\/\//, ""))}</a>
         </td></tr>
       </table>
@@ -46,7 +46,7 @@ export function brandedEmailHtml(subject: string, text: string) {
 }
 
 /**
- * The sender. The display name is always the app's (MAIL_FROM_NAME, default "Vexora
+ * The sender. The display name is always the app's (MAIL_FROM_NAME, default "Nexus Forge
  * Gaming"); the address comes from MAIL_FROM. Note Gmail only sends from the signed-in
  * account (or its verified aliases), so the address is only the app's own when the SMTP
  * account belongs to the app.

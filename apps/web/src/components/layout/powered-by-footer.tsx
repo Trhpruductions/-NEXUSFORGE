@@ -8,11 +8,11 @@ export function PoweredByFooter() {
     <footer className="border-t border-slate-700/70 bg-slate-900/80 py-8 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-8">
         <div className="flex flex-col items-center gap-6">
-          {/* Vexora Gaming logo (the old "powered by" art still showed the NexusForge name) */}
+          {/* Nexus Forge Gaming logo (the old "powered by" art still showed the NexusForge name) */}
           <div className="relative flex h-24 w-full max-w-[280px] items-center justify-center sm:h-32">
             <Image
-              src="/brand/vexora-logo.png"
-              alt="Vexora Gaming"
+              src="/brand/nexusforge-mark.png"
+              alt="Nexus Forge Gaming"
               fill
               loading="lazy"
               className="object-contain"
@@ -22,7 +22,7 @@ export function PoweredByFooter() {
 
           {/* Footer Links and Attribution */}
           <div className="flex flex-col items-center gap-4 text-center text-xs text-slate-400 sm:flex-row sm:justify-center sm:gap-6">
-            <p>Vexora Gaming © 2026. Built for community.</p>
+            <p>Nexus Forge Gaming © 2026. Built for community.</p>
             <span className="hidden sm:inline">•</span>
             <p className="text-slate-400">Powered by <span className="font-semibold text-slate-100">TRH Development</span></p>
           </div>

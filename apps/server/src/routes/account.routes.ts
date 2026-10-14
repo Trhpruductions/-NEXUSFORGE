@@ -138,7 +138,7 @@ accountRouter.get("/export", async (req, res) => {
   res.write("{\n\"about\": ");
   writeJson(res, {
     exportedAt: new Date().toISOString(),
-    note: "Everything Vexora Gaming holds for your account. Passwords, session tokens and secrets are never included.",
+    note: "Everything Nexus Forge Gaming holds for your account. Passwords, session tokens and secrets are never included.",
   });
   res.write(",\n\"account\": ");
   writeJson(res, account);

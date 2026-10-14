@@ -9,7 +9,7 @@ export const USERNAME_CHANGE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const RESERVED = new Set([
   "admin", "administrator", "moderator", "mod", "staff", "support", "help", "system", "official",
   "vexora", "vexoragaming", "vexora_gaming", "vexorastaff", "vexora_staff", "vexorasupport", "vexora_support",
-  "nexusforge", "everyone", "here", "root", "null", "undefined", "owner", "security", "billing",
+  "nexusforge", "nexus_forge", "nexusforgegaming", "nexusforge_gaming", "nexusforgestaff", "nexusforge_staff", "nfgcord", "everyone", "here", "root", "null", "undefined", "owner", "security", "billing",
 ]);
 
 /** A problem with a proposed username, in plain words, or null if it's fine to use. */

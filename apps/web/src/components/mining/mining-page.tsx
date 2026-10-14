@@ -71,7 +71,7 @@ export function MiningPage() {
     mutationFn: async () => (await api.post<{ totalHarvested?: string; harvested?: string }>("/api/mining/harvest-all", {}, headers)).data,
     onSuccess: async (result) => {
       const amount = result.totalHarvested ?? result.harvested;
-      setNotice({ tone: "ok", text: amount ? `Harvested ${fmt(amount)} Vexora Coins.` : "Harvest complete." });
+      setNotice({ tone: "ok", text: amount ? `Harvested ${fmt(amount)} Nexus Forge Coins.` : "Harvest complete." });
       await invalidate();
     },
     onError: (error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }),
@@ -99,7 +99,7 @@ export function MiningPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading text-xl font-bold text-white">Mining</h1>
-          <p className="text-xs text-slate-400">Rigs earn Vexora Coins every hour. Harvest to move them into your wallet.</p>
+          <p className="text-xs text-slate-400">Rigs earn Nexus Forge Coins every hour. Harvest to move them into your wallet.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-100"><Coins className="h-4 w-4 text-amber-300" /> {fmt(coins)}</span>

@@ -896,7 +896,7 @@ api.interceptors.response.use(
       }
     }
 
-    // Suspended by Vexora staff (sign-in or any request): leave the app and explain why.
+    // Suspended by Nexus Forge staff (sign-in or any request): leave the app and explain why.
     if (axios.isAxiosError(error) && error.response?.status === 403) {
       const suspended = (error.response.data as { suspended?: unknown } | undefined)?.suspended;
       if (isSuspensionInfo(suspended)) handleSuspended(suspended);
@@ -2218,7 +2218,7 @@ export async function getUserMedals(accessToken: string, userId: string) {
 }
 
 // ===========================================================================
-// Vexora workspace: unreads, home, events, social, cosmetics, avatar, discover, settings
+// Nexus Forge workspace: unreads, home, events, social, cosmetics, avatar, discover, settings
 // ===========================================================================
 
 export type ChannelUnread = { channelId: string; unread: number; mentions: number; lastReadAt: string | null };
@@ -2900,7 +2900,7 @@ export async function searchForges(accessToken: string, q: string) {
   return response.data;
 }
 
-export async function setLiveStatus(accessToken: string, csrfToken: string, payload: { live: boolean; platform?: "Twitch" | "Kick" | "YouTube" | "TikTok" | "Vexora"; title?: string; url?: string; game?: string }) {
+export async function setLiveStatus(accessToken: string, csrfToken: string, payload: { live: boolean; platform?: "Twitch" | "Kick" | "YouTube" | "TikTok" | "Nexus Forge"; title?: string; url?: string; game?: string }) {
   const response = await api.put<{ live: { creatorStatus: "LIVE" | "OFFLINE"; livePlatform?: string | null; liveStreamTitle?: string | null; liveStreamUrl?: string | null; liveGameCategory?: string | null; liveStartedAt?: string | null } }>("/api/social/live", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }

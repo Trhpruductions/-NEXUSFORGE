@@ -184,7 +184,7 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
           <div className="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Preparing Core+ checkout</p>
             <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-white">{selectedPlan.label}</h3>
-            <p className="mt-2 text-sm text-slate-400">Vexora Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
+            <p className="mt-2 text-sm text-slate-400">Nexus Forge Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
@@ -347,7 +347,7 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
           <Button
             onClick={() => activationMutation.mutate()}
             disabled={!accessToken || !csrfToken || activationMutation.isPending || !billingReady}
-            className="h-10 rounded-full border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] px-4 text-sm text-white shadow-[0_16px_30px_rgba(245,158,11,0.26)]"
+            className="h-10 rounded-full border-amber-300 bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(99,192,255,0.96)_45%,rgba(30,139,255,0.96))] px-4 text-sm text-white shadow-[0_16px_30px_rgba(30,139,255,0.26)]"
           >
             {activationCta}
           </Button>

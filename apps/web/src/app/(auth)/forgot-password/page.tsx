@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">Fast recovery</p>
-              <p className="mt-2 text-sm text-slate-400">Check your inbox (and spam folder) for an email from Vexora Gaming{smsAvailable ? ", or your texts" : ""}.</p>
+              <p className="mt-2 text-sm text-slate-400">Check your inbox (and spam folder) for an email from Nexus Forge Gaming{smsAvailable ? ", or your texts" : ""}.</p>
             </div>
             <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] text-sky-300">Signed out everywhere</p>

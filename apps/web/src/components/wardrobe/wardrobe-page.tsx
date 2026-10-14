@@ -38,7 +38,7 @@ const rarityMeta: Record<CosmeticRarity, { label: string; tone: string; glow: st
   COMMON: { label: "Common", tone: "text-slate-300 border-slate-500/40 bg-slate-500/10", glow: "rgba(148,163,184,0.25)", border: "rgba(148,163,184,0.35)" },
   RARE: { label: "Rare", tone: "text-sky-300 border-sky-400/40 bg-sky-500/10", glow: "rgba(56,189,248,0.3)", border: "rgba(56,189,248,0.45)" },
   EPIC: { label: "Epic", tone: "text-fuchsia-300 border-fuchsia-400/40 bg-fuchsia-500/10", glow: "rgba(217,70,239,0.3)", border: "rgba(217,70,239,0.45)" },
-  LEGENDARY: { label: "Legendary", tone: "text-amber-300 border-amber-400/50 bg-amber-500/10", glow: "rgba(230,179,37,0.35)", border: "rgba(230,179,37,0.55)" },
+  LEGENDARY: { label: "Legendary", tone: "text-amber-300 border-amber-400/50 bg-amber-500/10", glow: "rgba(46,164,255,0.35)", border: "rgba(46,164,255,0.55)" },
   MYTHIC: { label: "Mythic", tone: "text-rose-300 border-rose-400/50 bg-rose-500/10", glow: "rgba(244,63,94,0.35)", border: "rgba(244,63,94,0.55)" },
 };
 
@@ -137,11 +137,11 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading text-xl font-bold text-white">{mode === "store" ? "Store" : "Wardrobe & Inventory"}</h1>
-          <p className="text-xs text-slate-400">{mode === "store" ? "Outfits, cosmetics and emotes. Spend Vexora Coins." : "Outfits. Cosmetics. Collectibles."}</p>
+          <p className="text-xs text-slate-400">{mode === "store" ? "Outfits, cosmetics and emotes. Spend Nexus Forge Coins." : "Outfits. Cosmetics. Collectibles."}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-100">
-            <Coins className="h-4 w-4 text-amber-300" /> {coins.toLocaleString()} <span className="text-[10px] uppercase tracking-[0.16em] text-amber-300/80">Vexora Coins</span>
+            <Coins className="h-4 w-4 text-amber-300" /> {coins.toLocaleString()} <span className="text-[10px] uppercase tracking-[0.16em] text-amber-300/80">Nexus Forge Coins</span>
           </span>
           <Link href={mode === "store" ? "/app/wardrobe" : "/app/store"} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">
             {mode === "store" ? <><Shirt className="h-3.5 w-3.5" /> Wardrobe</> : <><ShoppingBag className="h-3.5 w-3.5" /> Store</>}
@@ -228,7 +228,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
         <aside className="space-y-4">
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-3`}>Current Loadout</h2>
-            <div className="mb-3 flex items-end justify-center overflow-hidden rounded-xl border border-white/5 bg-[radial-gradient(circle_at_50%_30%,rgba(230,179,37,0.12),transparent_65%)]">
+            <div className="mb-3 flex items-end justify-center overflow-hidden rounded-xl border border-white/5 bg-[radial-gradient(circle_at_50%_30%,rgba(46,164,255,0.12),transparent_65%)]">
               <AvatarRenderer
                 config={avatarQuery.data?.config ?? defaultAvatarConfig}
                 size={150}
@@ -292,7 +292,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           ) : null}
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-2`}>Earn coins</h2>
-            <p className="text-sm text-slate-400">Vexora Coins come from mining rigs, jackpots and community rewards.</p>
+            <p className="text-sm text-slate-400">Nexus Forge Coins come from mining rigs, jackpots and community rewards.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/app/mining" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mining</Link>
               <Link href="/app/rewards" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Rewards</Link>

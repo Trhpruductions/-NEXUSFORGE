@@ -16,7 +16,7 @@ const REASONS = [
   "Something else",
 ];
 
-/** Block / unblock anyone, and report a person to Vexora staff (as a support ticket). */
+/** Block / unblock anyone, and report a person to Nexus Forge staff (as a support ticket). */
 export function UserSafetyActions({ userId, username, blockedByMe }: { userId: string; username: string; blockedByMe: boolean }) {
   const { accessToken, csrfToken } = useAuthStore();
   const queryClient = useQueryClient();
@@ -53,7 +53,7 @@ export function UserSafetyActions({ userId, username, blockedByMe }: { userId: s
     onSuccess: (ticket) => {
       setReporting(false);
       setDetails("");
-      setDone(`Thanks. Vexora staff will review it (ticket #${ticket.number}).`);
+      setDone(`Thanks. Nexus Forge staff will review it (ticket #${ticket.number}).`);
     },
   });
 

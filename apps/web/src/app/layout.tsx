@@ -20,18 +20,18 @@ const metadataBase = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "Vexora Gaming",
-    template: "%s | Vexora Gaming",
+    default: "Nexus Forge Gaming",
+    template: "%s | Nexus Forge Gaming",
   },
   description: "Premium 18+ command network for gaming communities, creators, and power users.",
   icons: {
-    icon: "/brand/vexora-logo.png",
-    apple: "/brand/vexora-logo.png",
+    icon: "/brand/nexusforge-mark.png",
+    apple: "/brand/nexusforge-mark.png",
   },
   openGraph: {
-    title: "Vexora Gaming",
+    title: "Nexus Forge Gaming",
     description: "Premium 18+ command network for gaming communities",
-    images: ["/brand/vexora-logo.png"],
+    images: ["/brand/nexusforge-mark.png"],
   },
 };
 

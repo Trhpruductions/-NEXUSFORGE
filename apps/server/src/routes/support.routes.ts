@@ -183,7 +183,7 @@ supportRouter.post("/tickets/:id/messages", async (req, res) => {
     void sendEmail(
       ticket.user.email,
       `Re: [#${ticket.number}] ${ticket.subject}`,
-      `Hi ${ticket.user.username},\n\nThe Vexora Gaming team replied to your support ticket:\n\n${parsed.data.body}\n\nReply or view the ticket here: ${ticketUrl(ticket.id)}\n`,
+      `Hi ${ticket.user.username},\n\nThe Nexus Forge Gaming team replied to your support ticket:\n\n${parsed.data.body}\n\nReply or view the ticket here: ${ticketUrl(ticket.id)}\n`,
     ).catch(() => undefined);
   }
 

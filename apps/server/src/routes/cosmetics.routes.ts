@@ -8,7 +8,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { cosmeticPurchaseReference } from "../lib/economy-references.js";
 
-/** Wardrobe: cosmetic catalog, purchases with Vexora Coins (NC), owned inventory, and the equipped loadout. */
+/** Wardrobe: cosmetic catalog, purchases with Nexus Forge Coins (NC), owned inventory, and the equipped loadout. */
 export const cosmeticsRouter = Router();
 
 cosmeticsRouter.use(requireAuth);
@@ -184,7 +184,7 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
     });
   } catch (error) {
     if (error instanceof InsufficientBalanceError) {
-      res.status(402).json({ error: "Not enough Vexora Coins" });
+      res.status(402).json({ error: "Not enough Nexus Forge Coins" });
       return;
     }
     if ((error as { code?: string })?.code === "P2002") {

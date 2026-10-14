@@ -151,7 +151,7 @@ export default function DeveloperSettingsPage() {
     <ExperienceShell
       eyebrow="Settings"
       title="Developer settings"
-      subtitle="Register apps that use “Sign in with Vexora” and manage their secrets."
+      subtitle="Register apps that use “Sign in with Nexus Forge” and manage their secrets."
       metrics={isSignedIn ? [{ label: "OAuth apps", value: String(oauthClientsQuery.data?.clients.length ?? 0), tone: "amber" }] : []}
       actions={[]}
       maxWidthClassName="max-w-5xl"

@@ -110,7 +110,7 @@ export default function LeaderboardsPage() {
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-2 text-xs font-semibold capitalize transition ${
                     activeTab === tab
-                      ? "rounded-[20px] bg-amber-500 text-slate-950 shadow-[0_10px_24px_rgba(245,158,11,0.18)]"
+                      ? "rounded-[20px] bg-amber-500 text-slate-950 shadow-[0_10px_24px_rgba(30,139,255,0.18)]"
                       : "text-slate-500 hover:text-white"
                   }`}
                 >

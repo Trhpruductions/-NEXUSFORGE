@@ -36,11 +36,11 @@ export function maskPhone(phone: string) {
 }
 
 const purposeCopy: Record<VerificationPurpose, { subject: string; intro: string }> = {
-  VERIFY_EMAIL: { subject: "Verify your Vexora Gaming email", intro: "Use this code to verify your email address." },
-  VERIFY_PHONE: { subject: "Verify your Vexora Gaming phone", intro: "Use this code to verify your phone number." },
-  LOGIN: { subject: "Your Vexora Gaming sign-in code", intro: "Someone is signing in to your account. If this is you, enter this code." },
-  SENSITIVE_CHANGE: { subject: "Confirm a change to your Vexora Gaming account", intro: "Use this code to confirm the change to your account." },
-  RESET_PASSWORD: { subject: "Reset your Vexora Gaming password", intro: "Use this code to reset your password. If it wasn't you, ignore it; your password hasn't changed." },
+  VERIFY_EMAIL: { subject: "Verify your Nexus Forge Gaming email", intro: "Use this code to verify your email address." },
+  VERIFY_PHONE: { subject: "Verify your Nexus Forge Gaming phone", intro: "Use this code to verify your phone number." },
+  LOGIN: { subject: "Your Nexus Forge Gaming sign-in code", intro: "Someone is signing in to your account. If this is you, enter this code." },
+  SENSITIVE_CHANGE: { subject: "Confirm a change to your Nexus Forge Gaming account", intro: "Use this code to confirm the change to your account." },
+  RESET_PASSWORD: { subject: "Reset your Nexus Forge Gaming password", intro: "Use this code to reset your password. If it wasn't you, ignore it; your password hasn't changed." },
 };
 
 export type IssueResult = {
@@ -87,11 +87,11 @@ export async function issueCode(params: {
   ]);
 
   const copy = purposeCopy[params.purpose];
-  const body = `${copy.intro}\n\nYour Vexora Gaming code: ${code}\n\nIt expires in 10 minutes. Never share this code with anyone; Vexora staff will never ask for it.`;
+  const body = `${copy.intro}\n\nYour Nexus Forge Gaming code: ${code}\n\nIt expires in 10 minutes. Never share this code with anyone; Nexus Forge staff will never ask for it.`;
   const delivery =
     params.channel === "EMAIL"
       ? await sendEmail(params.target, copy.subject, body)
-      : await sendSms(params.target, `Vexora Gaming code: ${code}. Expires in 10 min. Never share it.`);
+      : await sendSms(params.target, `Nexus Forge Gaming code: ${code}. Expires in 10 min. Never share it.`);
 
   if (!delivery.delivered) {
     return { ok: false, delivery, error: delivery.error };

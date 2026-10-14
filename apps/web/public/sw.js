@@ -1,4 +1,4 @@
-// Vexora Gaming service worker: shows push notifications and opens the right page on tap.
+// Nexus Forge Gaming service worker: shows push notifications and opens the right page on tap.
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -15,10 +15,10 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || "Vexora Gaming", {
+    self.registration.showNotification(payload.title || "Nexus Forge Gaming", {
       body: payload.body || "You have a new notification.",
-      icon: "/brand/vexora-mark-256.png",
-      badge: "/brand/vexora-mark-256.png",
+      icon: "/brand/nexusforge-mark-256.png",
+      badge: "/brand/nexusforge-mark-256.png",
       tag: payload.notificationId || undefined,
       data: { url: payload.url || "/app/notifications" },
     }),
@@ -30,7 +30,7 @@ self.addEventListener("notificationclick", (event) => {
   const url = (event.notification.data && event.notification.data.url) || "/app/notifications";
   event.waitUntil(
     (async () => {
-      // Reuse an open Vexora tab if there is one; otherwise open a new one.
+      // Reuse an open Nexus Forge tab if there is one; otherwise open a new one.
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
         if ("focus" in client) {

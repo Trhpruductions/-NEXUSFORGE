@@ -55,7 +55,7 @@ export async function sendEmail(to: string, subject: string, text: string, html?
   }
   if (smtpConfigured()) {
     try {
-      // Always sent as "Vexora Gaming" in the branded layout, whatever mailbox sends it.
+      // Always sent as "Nexus Forge Gaming" in the branded layout, whatever mailbox sends it.
       await getTransporter().sendMail({
         from: senderAddress(),
         ...(env.MAIL_REPLY_TO ? { replyTo: env.MAIL_REPLY_TO } : {}),

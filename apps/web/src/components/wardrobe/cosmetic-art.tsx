@@ -8,7 +8,7 @@ import type { CosmeticItem } from "@/lib/api";
  */
 export function CosmeticArt({ item, size = 120, className }: { item: CosmeticItem; size?: number; className?: string }) {
   const base = item.color ?? "#1e293b";
-  const accent = item.metadata?.accent ?? "#e6b325";
+  const accent = item.metadata?.accent ?? "#2ea4ff";
   const key = item.key ?? "";
   const id = `art-${key || item.id}`;
 
@@ -92,7 +92,7 @@ function shapeFor(item: CosmeticItem, id: string, accent: string, base: string) 
           <>
             <path d="M28 82 L24 40 L44 60 L60 30 L76 60 L96 40 L92 82 Z" />
             <rect x="28" y="82" width="64" height="10" rx="2" />
-            <g fill={accent === "#e6b325" ? "#ef4444" : accent} stroke="none"><circle cx="60" cy="72" r="4" /><circle cx="40" cy="74" r="3" /><circle cx="80" cy="74" r="3" /></g>
+            <g fill={accent === "#2ea4ff" ? "#ef4444" : accent} stroke="none"><circle cx="60" cy="72" r="4" /><circle cx="40" cy="74" r="3" /><circle cx="80" cy="74" r="3" /></g>
           </>
         );
       }

@@ -47,7 +47,7 @@ export async function scheduleDeletion(userId: string) {
   await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
   void sendEmail(
     user.email,
-    "Your Vexora Gaming account is scheduled for deletion",
+    "Your Nexus Forge Gaming account is scheduled for deletion",
     [
       `Hi ${user.username},`,
       "",
@@ -162,8 +162,8 @@ export async function anonymizeUser(userId: string) {
 
   void sendEmail(
     existing.email,
-    "Your Vexora Gaming account has been deleted",
-    `Hi ${existing.username},\n\nAs you asked, your Vexora Gaming account has now been deleted. Messages you sent in servers and DMs remain, shown as from a deleted user.\n`,
+    "Your Nexus Forge Gaming account has been deleted",
+    `Hi ${existing.username},\n\nAs you asked, your Nexus Forge Gaming account has now been deleted. Messages you sent in servers and DMs remain, shown as from a deleted user.\n`,
   ).catch(() => undefined);
   console.log(`[ACCOUNT] user ${userId} anonymised`);
 }

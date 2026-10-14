@@ -97,7 +97,7 @@ export function UpdatesAdmin() {
             {save.isPending ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}{editing ? "Save" : "Save draft"}
           </button>
           {editing && !editing.publishedAt ? (
-            <button type="button" disabled={publish.isPending} onClick={() => { if (window.confirm("Publish this update? It pops up for everyone using Vexora.")) publish.mutate(editing.id); }} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-2 text-xs font-bold text-white hover:bg-violet-400 disabled:opacity-40">
+            <button type="button" disabled={publish.isPending} onClick={() => { if (window.confirm("Publish this update? It pops up for everyone using Nexus Forge.")) publish.mutate(editing.id); }} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-2 text-xs font-bold text-white hover:bg-violet-400 disabled:opacity-40">
               <Send className="h-3.5 w-3.5" /> Publish to everyone
             </button>
           ) : null}

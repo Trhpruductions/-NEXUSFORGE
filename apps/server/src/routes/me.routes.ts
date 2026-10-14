@@ -152,7 +152,7 @@ meRouter.get("/discord", async (req, res) => {
   res.json({ linked: Boolean(user?.discordUserId), linkedAt: user?.discordLinkedAt ?? null });
 });
 
-/** A one-time code to type into the Vexora bot: /link CODE. */
+/** A one-time code to type into the Nexus Forge bot: /link CODE. */
 meRouter.post("/discord/link-code", async (req, res) => {
   res.json(await createLinkCode(req.user!.id));
 });

@@ -14,7 +14,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   try {
     const payload = verifyAccessToken(token);
-    // Suspended by Vexora staff: an access token issued earlier stops working right away.
+    // Suspended by Nexus Forge staff: an access token issued earlier stops working right away.
     const suspension = cachedSuspension(payload.sub);
     if (suspension) {
       res.status(403).json(suspendedResponse(suspension));

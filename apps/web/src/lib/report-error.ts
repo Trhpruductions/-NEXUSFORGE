@@ -13,7 +13,7 @@ function isNoise(message: string, stack?: string) {
 }
 
 /**
- * Tell Vexora staff about a crash in this browser (shown at /admin/errors). Each problem is
+ * Tell Nexus Forge staff about a crash in this browser (shown at /admin/errors). Each problem is
  * sent once per page load, at most ten in total, and only the page path goes with it, never
  * the query string. Never throws.
  */

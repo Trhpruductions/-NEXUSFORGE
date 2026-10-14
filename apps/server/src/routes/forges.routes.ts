@@ -1563,7 +1563,7 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
     return;
   }
 
-  const starterBotName = "Vexora Gaming Ops Bot";
+  const starterBotName = "Nexus Forge Gaming Ops Bot";
   const starterCommandName = "ops-pulse";
 
   let bot = await prisma.botApp.findFirst({

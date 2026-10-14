@@ -26,15 +26,15 @@ export const defaultAvatarConfig: AvatarConfig = {
   accessory: "none",
   topColor: "#111318",
   bottomColor: "#1f2937",
-  shoeColor: "#e6b325",
-  accent: "#e6b325",
+  shoeColor: "#2ea4ff",
+  accent: "#2ea4ff",
   background: "city",
 };
 
 const backgrounds: Record<AvatarConfig["background"], { from: string; to: string; glow: string }> = {
   city: { from: "#0b1220", to: "#1a2a44", glow: "#22d3ee" },
-  forge: { from: "#1a1206", to: "#3a2608", glow: "#e6b325" },
-  void: { from: "#05030f", to: "#1b0b2e", glow: "#a855f7" },
+  forge: { from: "#1a1206", to: "#3a2608", glow: "#2ea4ff" },
+  void: { from: "#040812", to: "#1b0b2e", glow: "#a855f7" },
   arena: { from: "#0a1410", to: "#123324", glow: "#22c55e" },
 };
 

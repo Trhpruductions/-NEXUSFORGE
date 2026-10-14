@@ -5,16 +5,16 @@
  */
 
 export const cookiesSeedSummary =
-  "Initial Cookie Policy listing the three cookies the server sets (nf_refresh, nf_csrf, nexusforge_age18) and the browser storage the web app uses. Vexora uses no advertising or analytics cookies and self-hosts its fonts. Fill in the [placeholders] and update this list whenever a cookie or tracker is added.";
+  "Initial Cookie Policy listing the three cookies the server sets (nf_refresh, nf_csrf, nexusforge_age18) and the browser storage the web app uses. Nexus Forge uses no advertising or analytics cookies and self-hosts its fonts. Fill in the [placeholders] and update this list whenever a cookie or tracker is added.";
 
-export const cookiesSeedContent = `# Vexora Gaming Cookie Policy
+export const cookiesSeedContent = `# Nexus Forge Gaming Cookie Policy
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 12, 2026
 **Operated By:** [Legal Operator Name]
 **Contact:** [Privacy Contact Email]
 
-This policy explains the cookies and similar browser storage Vexora Gaming ("Vexora," "we," "us") uses on our website and web app. It should be read with our [Privacy Policy](/legal/privacy).
+This policy explains the cookies and similar browser storage Nexus Forge Gaming ("Nexus Forge," "we," "us") uses on our website and web app. It should be read with our [Privacy Policy](/legal/privacy).
 
 **In short:** we only use storage that the app needs to work and stay secure, and to remember your own preferences. We do not use advertising cookies, analytics or tracking cookies, or social media trackers, and we do not let third parties set cookies through our app.
 
@@ -65,16 +65,16 @@ Questions about this policy: [Privacy Contact Email].
 `;
 
 export const acceptableUseSeedSummary =
-  "Initial Acceptable Use Policy: what may not be done with Vexora's services, accounts, bots, webhooks and the API (security abuse, spam and automation, fraud and coin abuse, illegal content, evading enforcement). Fill in the [placeholders] and review before publishing.";
+  "Initial Acceptable Use Policy: what may not be done with Nexus Forge's services, accounts, bots, webhooks and the API (security abuse, spam and automation, fraud and coin abuse, illegal content, evading enforcement). Fill in the [placeholders] and review before publishing.";
 
-export const acceptableUseSeedContent = `# Vexora Gaming Acceptable Use Policy
+export const acceptableUseSeedContent = `# Nexus Forge Gaming Acceptable Use Policy
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 12, 2026
 **Operated By:** [Legal Operator Name]
 **Contact:** [Official Support Email]
 
-This Acceptable Use Policy is part of our [Terms of Service](/legal/terms). It covers what you may not do with Vexora Gaming's app, website, API, bots and other services (the "Services"). How to treat other people is covered in our [Community Rules](/legal/community-rules). If you break this policy we may take the actions described in our [Moderation Policy](/legal/moderation).
+This Acceptable Use Policy is part of our [Terms of Service](/legal/terms). It covers what you may not do with Nexus Forge Gaming's app, website, API, bots and other services (the "Services"). How to treat other people is covered in our [Community Rules](/legal/community-rules). If you break this policy we may take the actions described in our [Moderation Policy](/legal/moderation).
 
 ## 1. Illegal and harmful content
 
@@ -107,7 +107,7 @@ Do not:
 
 ## 4. Bots, webhooks and the API
 
-If you build on Vexora:
+If you build on Nexus Forge:
 
 - Only use the access and permissions a user or forge has actually given your bot, and only for the features you describe.
 - Keep bot tokens and webhook URLs secret. Anyone with a webhook URL can post to that channel; delete and recreate the webhook if it leaks.
@@ -117,7 +117,7 @@ If you build on Vexora:
 
 ## 5. Coins, rewards and digital items
 
-Vexora coins and digital items have no cash value and can't be withdrawn. Do not:
+Nexus Forge coins and digital items have no cash value and can't be withdrawn. Do not:
 
 - Sell, buy or trade coins, items or accounts for real money or for anything outside the Services.
 - Use bugs, scripts, multiple accounts or other unfair methods to earn coins, rewards, jackpot entries or items. Report bugs to us instead.
@@ -127,7 +127,7 @@ We may remove coins or items gained by breaking these rules.
 
 ## 6. Impersonation and deception
 
-Do not pretend to be another person, a Vexora staff member, or a company or organisation, and don't mislead people about where content comes from. Parody and fan accounts must be clearly labelled.
+Do not pretend to be another person, a Nexus Forge staff member, or a company or organisation, and don't mislead people about where content comes from. Parody and fan accounts must be clearly labelled.
 
 ## 7. Evading enforcement
 
@@ -141,12 +141,12 @@ To report something that breaks this policy, use **Report** on the message, or c
 export const communityRulesSeedSummary =
   "Initial Community Rules: plain-language rules for forges, chat, DMs, voice, stages, events and the feed (respect, no harassment or hate, 18+ platform, sensitive content, privacy, cheating), plus how forge-level rules work alongside them. Review before publishing.";
 
-export const communityRulesSeedContent = `# Vexora Gaming Community Rules
+export const communityRulesSeedContent = `# Nexus Forge Gaming Community Rules
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 12, 2026
 
-Vexora Gaming is a place to find people to play with, build communities and hang out. These rules apply everywhere on Vexora: forges (community servers), channels, threads and forum posts, direct and group messages, voice and stage channels, video and screen sharing, events, profiles and the feed. They sit alongside our [Terms of Service](/legal/terms) and [Acceptable Use Policy](/legal/acceptable-use).
+Nexus Forge Gaming is a place to find people to play with, build communities and hang out. These rules apply everywhere on Nexus Forge: forges (community servers), channels, threads and forum posts, direct and group messages, voice and stage channels, video and screen sharing, events, profiles and the feed. They sit alongside our [Terms of Service](/legal/terms) and [Acceptable Use Policy](/legal/acceptable-use).
 
 ## 1. Respect other people
 
@@ -155,9 +155,9 @@ Vexora Gaming is a place to find people to play with, build communities and hang
 - **No threats or glorifying violence.** Don't threaten violence, or encourage or celebrate violent attacks or self-harm.
 - **Trash talk is fine; abuse isn't.** Competitive banter about a match is part of gaming. Insults that target who someone is, or that keep going after they've asked you to stop, are not.
 
-## 2. Vexora is for adults
+## 2. Nexus Forge is for adults
 
-- You must be 18 or older to use Vexora.
+- You must be 18 or older to use Nexus Forge.
 - Never share sexual content involving anyone under 18, or that sexualises minors, even if it's drawn, generated or described as fictional.
 - Don't try to meet up with, groom or sexually approach anyone you believe may be under 18. Report it instead.
 
@@ -181,7 +181,7 @@ Vexora Gaming is a place to find people to play with, build communities and hang
 
 ## 6. Be honest about who you are
 
-Don't impersonate other people, creators, forge staff or Vexora staff. Don't use your profile, status or display name to break these rules.
+Don't impersonate other people, creators, forge staff or Nexus Forge staff. Don't use your profile, status or display name to break these rules.
 
 ## 7. Self-harm
 
@@ -193,32 +193,32 @@ Forge owners and moderators can set extra rules for their forge, such as topic r
 
 ## 9. Reporting and enforcement
 
-Use **Report** on any message, or block someone to stop them contacting you. Reports about forge channels go to that forge's moderators; reports about direct messages go to Vexora staff. How decisions are made, and what happens next, is explained in our [Moderation Policy](/legal/moderation), and you can challenge a decision under our [Appeals Policy](/legal/appeals).
+Use **Report** on any message, or block someone to stop them contacting you. Reports about forge channels go to that forge's moderators; reports about direct messages go to Nexus Forge staff. How decisions are made, and what happens next, is explained in our [Moderation Policy](/legal/moderation), and you can challenge a decision under our [Appeals Policy](/legal/appeals).
 `;
 
 export const moderationSeedSummary =
   "Initial Moderation Policy describing how moderation actually works today: reports (8 reasons, saved snapshot, 20/hour limit), forge moderators (delete, timeout, kick, ban, slowmode, AutoMod, audit log, rank checks) and platform staff (DM reports, ID review). Fill in the [placeholders].";
 
-export const moderationSeedContent = `# Vexora Gaming Moderation Policy
+export const moderationSeedContent = `# Nexus Forge Gaming Moderation Policy
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 12, 2026
 **Operated By:** [Legal Operator Name]
 **Contact:** [Official Support Email]
 
-This policy explains how content and behaviour are moderated on Vexora Gaming, who makes decisions, and what actions can be taken. It applies to our [Community Rules](/legal/community-rules) and [Acceptable Use Policy](/legal/acceptable-use).
+This policy explains how content and behaviour are moderated on Nexus Forge Gaming, who makes decisions, and what actions can be taken. It applies to our [Community Rules](/legal/community-rules) and [Acceptable Use Policy](/legal/acceptable-use).
 
 ## 1. Two layers of moderation
 
-**Forge moderation.** Each forge (community server) is run by its owner and the members they give moderation permissions to. They enforce our rules and their own forge rules inside their forge. Forge moderators are volunteers and are not Vexora staff.
+**Forge moderation.** Each forge (community server) is run by its owner and the members they give moderation permissions to. They enforce our rules and their own forge rules inside their forge. Forge moderators are volunteers and are not Nexus Forge staff.
 
-**Platform moderation.** Vexora staff handle reports about direct messages, problems that affect the whole platform, serious harm, and forges that are set up to break our rules. Staff can review any report.
+**Platform moderation.** Nexus Forge staff handle reports about direct messages, problems that affect the whole platform, serious harm, and forges that are set up to break our rules. Staff can review any report.
 
 ## 2. Reporting
 
 - Use **Report** on a message and choose a reason: spam, harassment, hate, sexual content, violence, self-harm, scam, or other. You can add details.
 - When you report a message, we save a copy of it (and its attachments) so it can still be reviewed if it is later edited or deleted.
-- Reports about forge channels go to that forge's moderators. Reports about direct messages go to Vexora staff.
+- Reports about forge channels go to that forge's moderators. Reports about direct messages go to Nexus Forge staff.
 - The person you report isn't told who reported them.
 - To prevent abuse, each account can send up to [20] reports per hour. Knowingly false or abusive reports break our rules.
 - You can also contact support from the app about a person, a forge, or anything a message report doesn't cover.
@@ -237,9 +237,9 @@ Inside their own forge, members with the right permissions can:
 
 Moderators can only act on members ranked below them, and the forge owner can't be moderated by their own forge. Moderation actions are recorded in the forge's audit log, which the forge's managers can see.
 
-## 4. What Vexora staff can do
+## 4. What Nexus Forge staff can do
 
-Depending on what happened, Vexora staff may:
+Depending on what happened, Nexus Forge staff may:
 
 - Remove content anywhere on the platform.
 - Resolve or dismiss reports and record why.
@@ -258,11 +258,11 @@ We may use automated tools, such as rate limits, spam detection and forge AutoMo
 
 ## 6. Telling you about decisions
 
-When Vexora staff take action against your account or content, we will tell you what we did and why, unless that would risk someone's safety, interfere with an investigation, or break the law. Forge moderators decide for themselves whether to explain their decisions.
+When Nexus Forge staff take action against your account or content, we will tell you what we did and why, unless that would risk someone's safety, interfere with an investigation, or break the law. Forge moderators decide for themselves whether to explain their decisions.
 
 ## 7. Appeals
 
-You can ask us to review a decision made by Vexora staff. See our [Appeals Policy](/legal/appeals).
+You can ask us to review a decision made by Nexus Forge staff. See our [Appeals Policy](/legal/appeals).
 
 ## 8. Staff conduct
 
@@ -270,9 +270,9 @@ Staff only look at private information, such as reported direct messages, when t
 `;
 
 export const appealsSeedSummary =
-  "Initial Appeals Policy: how to appeal Vexora staff decisions through a support ticket, what to include, one appeal per decision, review by a different staff member where possible, and that forge-level bans go to the forge owner first. Fill in the [placeholders] (appeal window, response time) and review before publishing.";
+  "Initial Appeals Policy: how to appeal Nexus Forge staff decisions through a support ticket, what to include, one appeal per decision, review by a different staff member where possible, and that forge-level bans go to the forge owner first. Fill in the [placeholders] (appeal window, response time) and review before publishing.";
 
-export const appealsSeedContent = `# Vexora Gaming Appeals Policy
+export const appealsSeedContent = `# Nexus Forge Gaming Appeals Policy
 
 **Effective Date:** [Effective Date]
 **Last Updated:** October 12, 2026
@@ -283,7 +283,7 @@ If you think a moderation decision was wrong, you can ask for it to be reviewed.
 
 ## 1. What you can appeal
 
-You can appeal decisions made by **Vexora staff**, including:
+You can appeal decisions made by **Nexus Forge staff**, including:
 
 - Removal of your content.
 - Restrictions on your account or features.
@@ -294,7 +294,7 @@ You can appeal decisions made by **Vexora staff**, including:
 
 ## 2. Decisions made by forge moderators
 
-Each forge's moderators enforce rules in their own forge. If you were timed out, kicked or banned from a forge, or your message was deleted there, contact that forge's owner or moderators first. Vexora staff don't reverse forge decisions just because you disagree with them. We will step in if a forge moderator broke our rules, for example by harassing you or abusing their permissions. Report that to support.
+Each forge's moderators enforce rules in their own forge. If you were timed out, kicked or banned from a forge, or your message was deleted there, contact that forge's owner or moderators first. Nexus Forge staff don't reverse forge decisions just because you disagree with them. We will step in if a forge moderator broke our rules, for example by harassing you or abusing their permissions. Report that to support.
 
 ## 3. How to appeal
 

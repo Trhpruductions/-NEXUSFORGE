@@ -97,7 +97,7 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-300"><Radio className="h-4 w-4" /></span>
           <div>
             <p className="nf-heading text-sm font-bold text-white">{session.channelName}</p>
-            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{stageMode ? "Vexora stage · " : "Vexora voice · "}{session.mode === "mesh" ? "peer to peer" : "LiveKit"}</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{stageMode ? "Nexus Forge stage · " : "Nexus Forge voice · "}{session.mode === "mesh" ? "peer to peer" : "LiveKit"}</p>
           </div>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${tone}`}>

@@ -264,7 +264,7 @@ export function EventsPage() {
                   return (
                     <li key={event.id} className={`rounded-xl border p-3 transition ${activeEventId === event.id ? "border-amber-400/60 bg-amber-500/5" : "border-white/5 bg-[#11151e]"}`}>
                       <div className="flex gap-3">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_70%)] text-amber-300">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-[radial-gradient(circle,rgba(46,164,255,0.3),transparent_70%)] text-amber-300">
                           {event.type === "TOURNAMENT" ? <Trophy className="h-6 w-6" /> : <Calendar className="h-6 w-6" />}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -313,7 +313,7 @@ export function EventsPage() {
       {/* Right column */}
       <aside className="space-y-4">
         <div className={`${panel} relative overflow-hidden`}>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(230,179,37,0.25),transparent_50%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(46,164,255,0.25),transparent_50%)]" />
           <div className="relative">
             <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-rose-400">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {liveTournament ? "Live tournament" : "Next tournament"}

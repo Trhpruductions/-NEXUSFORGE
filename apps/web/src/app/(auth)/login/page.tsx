@@ -119,12 +119,12 @@ export default function LoginPage() {
       hero={
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(230,179,37,0.9)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(46,164,255,0.9)]" />
             Welcome back
           </div>
           <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
             Drop back into
-            <span className="block bg-[linear-gradient(120deg,#f8df8a,#e6b325_45%,#b0820f)] bg-clip-text text-transparent">
+            <span className="block bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_45%,#0b6fe0)] bg-clip-text text-transparent">
               the squad.
             </span>
           </h2>
@@ -150,7 +150,7 @@ export default function LoginPage() {
             challenge.method === "totp"
               ? useRecovery
                 ? "Enter one of the recovery codes you saved when you set up your authenticator app. Each works once."
-                : "Open your authenticator app and enter the 6-digit code for Vexora Gaming."
+                : "Open your authenticator app and enter the 6-digit code for Nexus Forge Gaming."
               : `We sent a 6-digit sign-in code. ${challenge.channels.join(" and ")}.`
           }
           eyebrow="Two-factor sign-in"

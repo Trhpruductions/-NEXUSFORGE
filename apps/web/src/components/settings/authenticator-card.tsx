@@ -80,7 +80,7 @@ export function AuthenticatorCard({ protection }: { protection: ProtectionStatus
     onError: (err) => setError(getApiErrorMessage(err)),
   });
 
-  const codesText = recoveryCodes ? `Vexora Gaming recovery codes\nEach code works once.\n\n${recoveryCodes.join("\n")}\n` : "";
+  const codesText = recoveryCodes ? `Nexus Forge Gaming recovery codes\nEach code works once.\n\n${recoveryCodes.join("\n")}\n` : "";
   const copyCodes = async () => {
     try {
       await navigator.clipboard.writeText(codesText);
@@ -170,7 +170,7 @@ export function AuthenticatorCard({ protection }: { protection: ProtectionStatus
           <div className="flex flex-wrap items-start gap-4">
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="QR code to add Vexora Gaming to your authenticator app" width={160} height={160} className="rounded-lg bg-white p-1" />
+              <img src={qr} alt="QR code to add Nexus Forge Gaming to your authenticator app" width={160} height={160} className="rounded-lg bg-white p-1" />
             ) : (
               <span className="flex h-40 w-40 items-center justify-center rounded-lg border border-white/10 text-xs text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /></span>
             )}

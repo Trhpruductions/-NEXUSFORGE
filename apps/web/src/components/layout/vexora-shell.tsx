@@ -538,7 +538,7 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             <img src={forge.icon} alt="" className="h-9 w-9 rounded-lg object-cover" />
           ) : (
             <span className="flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold text-slate-950 shadow-[0_4px_14px_rgba(0,0,0,0.35)]" style={{ background: tileGradient(hueFor(forge?.id ?? "vexora")) }}>
-              {initials(forge?.name ?? "Vexora")}
+              {initials(forge?.name ?? "Nexus Forge")}
             </span>
           )}
           <span className="min-w-0 flex-1">
@@ -775,8 +775,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
       <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
-        <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(230,179,37,0.25)]" title="Vexora Gaming">
-          <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora" width={40} height={40} className="h-10 w-10 object-cover" />
+        <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
+          <Image src="/brand/nexusforge-mark-256.png" alt="Nexus Forge" width={40} height={40} className="h-10 w-10 object-cover" />
         </Link>
         <span className="mb-1 h-px w-8 bg-gradient-to-r from-violet-400/40 via-amber-400/50 to-cyan-400/40" />
         <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto no-scrollbar">
@@ -891,8 +891,8 @@ export function VexoraShell({ children }: { children: ReactNode }) {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search Vexora Gaming..."
-              aria-label="Search Vexora Gaming"
+              placeholder="Search Nexus Forge Gaming..."
+              aria-label="Search Nexus Forge Gaming"
               className="h-9 w-full rounded-full border border-white/10 bg-[#11151e]/80 pl-9 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 transition focus:border-violet-400/60 focus:shadow-[0_0_0_3px_rgba(167,139,250,0.15)]"
             />
             {search ? (

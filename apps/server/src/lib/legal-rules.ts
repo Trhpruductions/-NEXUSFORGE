@@ -54,7 +54,7 @@ export function findPlaceholders(content: string): string[] {
 }
 
 export function defaultConsentText(title: string, version: number) {
-  return `I have read and agree to the Vexora Gaming ${title} (version ${version}).`;
+  return `I have read and agree to the Nexus Forge Gaming ${title} (version ${version}).`;
 }
 
 export type CurrentRequired = { policyId: string; slug: string; title: string; versionId: string; version: number; requiresConsent: boolean; consentText: string };

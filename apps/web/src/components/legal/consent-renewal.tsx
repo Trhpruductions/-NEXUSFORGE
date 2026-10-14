@@ -47,7 +47,7 @@ export function ConsentRenewal() {
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-200"><Scale className="h-5 w-5" /></span>
             <div>
               <h2 id="consent-title" className="text-base font-semibold text-white">We&apos;ve updated our policies</h2>
-              <p className="text-sm text-slate-400">Please review and accept to keep using Vexora Gaming.</p>
+              <p className="text-sm text-slate-400">Please review and accept to keep using Nexus Forge Gaming.</p>
             </div>
           </div>
           <div className="space-y-2.5">

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 
-const reportTemplate = `# Vexora Gaming Beta Report
+const reportTemplate = `# Nexus Forge Gaming Beta Report
 
 - Date/Time:
 - Tester Name:

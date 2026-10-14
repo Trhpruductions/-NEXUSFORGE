@@ -8,7 +8,7 @@ const { brandedEmailHtml, senderAddress } = await import("../src/lib/email-templ
 
 test("emails are branded, escaped and have clickable links", () => {
   const html = brandedEmailHtml("Reset <your> password", "Hi <b>Sam</b>,\n\nOpen https://vexora.example/reset?token=abc&x=1 to continue.");
-  assert.match(html, /VEXORA/);
+  assert.match(html, /NEXUS FORGE/);
   assert.ok(html.includes("Reset &lt;your&gt; password"), "subject escaped");
   assert.ok(html.includes("Hi &lt;b&gt;Sam&lt;/b&gt;"), "body escaped, no HTML injection");
   assert.match(html, /<a href="https:\/\/vexora\.example\/reset\?token=abc&amp;x=1"/);
@@ -16,6 +16,6 @@ test("emails are branded, escaped and have clickable links", () => {
 
 test("the sender name is always the app's", () => {
   const from = senderAddress();
-  assert.equal(from.name, "Vexora Gaming");
+  assert.equal(from.name, "Nexus Forge Gaming");
   assert.ok(from.address.includes("@"));
 });
