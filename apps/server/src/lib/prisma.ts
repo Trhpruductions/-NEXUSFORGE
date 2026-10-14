@@ -16,12 +16,15 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL must be set for Prisma runtime.");
 }
 
-// Industrial connection pool configuration
+// One page load can run several queries at once (the home summary runs six in parallel),
+// each on its own connection, so a burst of people opening the app needs headroom: 40 of
+// Postgres's 100 connections, and up to 15 s waiting for a free one before a request fails
+// (20 and 5 s timed out under a modest load test).
 const pool = new pg.Pool({
   connectionString: databaseUrl,
-  max: 20, // Prisma 7 stability: limited pool size to prevent exhaustion
+  max: Number(process.env.DB_POOL_MAX || 40),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 15000,
   // Keep idle connections alive through NAT/firewall timeouts.
   keepAlive: true,
 });
