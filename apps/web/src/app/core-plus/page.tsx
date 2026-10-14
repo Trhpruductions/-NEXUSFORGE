@@ -4,7 +4,7 @@ import { ExperienceShell } from "@/components/layout/experience-shell";
 export default async function CorePlusPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ checkout?: string }>;
+  searchParams?: Promise<{ checkout?: string; session_id?: string }>;
 }) {
   const resolved = (await searchParams) ?? {};
 
@@ -24,7 +24,7 @@ export default async function CorePlusPage({
       ]}
       maxWidthClassName="max-w-[1300px]"
     >
-      <CorePlusExperience checkoutState={resolved.checkout} />
+      <CorePlusExperience checkoutState={resolved.checkout} checkoutSessionId={resolved.session_id} />
     </ExperienceShell>
   );
 }

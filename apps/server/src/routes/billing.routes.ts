@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type Stripe from "stripe";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -250,7 +251,8 @@ billingRouter.post("/checkout/session", requireAuth, async (req, res) => {
     mode,
     customer: customerId ?? undefined,
     line_items: [{ price: priceId, quantity }],
-    success_url: `${env.APP_WEB_URL}/core-plus?checkout=success`,
+    // Stripe fills in {CHECKOUT_SESSION_ID}; the page sends it to /checkout/confirm.
+    success_url: `${env.APP_WEB_URL}/core-plus?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${env.APP_WEB_URL}/pricing?checkout=cancelled`,
     metadata: {
       userId: user.id,
@@ -350,6 +352,159 @@ billingRouter.post("/features/event-ticket-pass/consume", requireAuth, requirePa
   res.status(200).json({ ok: true, consumed: consumption.consumed, remaining: consumption.remaining });
 });
 
+/**
+ * Applies a paid checkout exactly once. Both the webhook and the "you're back from Stripe"
+ * confirm call use this, keyed by the checkout session, so whichever arrives first applies
+ * it and the other is a no-op. (Without a public address Stripe's webhook can't reach this
+ * server, so the confirm call is what switches the plan on.)
+ */
+async function applyCheckoutSession(session: Stripe.Checkout.Session): Promise<"applied" | "duplicate" | "not-paid"> {
+  if (!stripeClient) throw new Error("Stripe is not configured");
+  if (session.status !== "complete" || session.payment_status === "unpaid") return "not-paid";
+  const recordKey = `checkout:${session.id}`;
+  if (await prisma.paymentTransaction.findFirst({ where: { providerEventId: recordKey }, select: { id: true } })) return "duplicate";
+  try {
+    const userId = session.metadata?.userId;
+    const featureCode = session.metadata?.featureCode as
+      | "CORE_PLUS"
+      | "FORGE_BOOST_PACK"
+      | "CREATOR_CAMPAIGN_SLOT"
+      | "EVENT_TICKET_PASS"
+      | "TEAM_BRANDING_KIT"
+      | "ADVANCED_MODERATION_AI"
+      | undefined;
+
+    if (userId && featureCode) {
+      const lineItems = await stripeClient.checkout.sessions.listLineItems(session.id, { limit: 1 });
+      const firstItem = lineItems.data[0];
+      const unitAmount = firstItem?.amount_total ?? 0;
+      const priceId = firstItem?.price?.id ?? null;
+      const subscriptionId = featureCode === "CORE_PLUS" ? session.subscription?.toString() : undefined;
+      // Ask Stripe first, then write everything in one transaction below.
+      const subscription = subscriptionId ? await stripeClient.subscriptions.retrieve(subscriptionId) : null;
+
+      // The grant and its payment record are saved together: either the purchase is fully
+      // applied and recorded, or nothing is and Stripe's retry applies it cleanly. (The
+      // record used to be written first, so a later failure made every retry hit the
+      // unique event id and the purchase was never applied.)
+      await prisma.$transaction(async (tx) => {
+        if (featureCode === "CORE_PLUS" && subscription && subscriptionId) {
+          const period = readSubscriptionPeriod(subscription);
+          const subscriptionPriceId = subscription.items.data[0]?.price.id ?? priceId;
+          const tier = (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ??
+            (subscriptionPriceId ? resolveTierFromPriceId(subscriptionPriceId) : null) ??
+            "PLUS";
+          const interval = (session.metadata?.interval as "MONTHLY" | "YEARLY" | undefined) ??
+            (subscriptionPriceId ? resolveIntervalFromPriceId(subscriptionPriceId) : null) ??
+            "MONTHLY";
+          const status = subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE";
+
+          await tx.billingSubscription.upsert({
+            where: { providerSubscriptionId: subscriptionId },
+            update: {
+              userId,
+              providerCustomerId: subscription.customer.toString(),
+              providerPriceId: subscriptionPriceId,
+              tier,
+              interval,
+              status,
+              currentPeriodStart: period.start,
+              currentPeriodEnd: period.end,
+              cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            },
+            create: {
+              userId,
+              provider: "STRIPE",
+              providerCustomerId: subscription.customer.toString(),
+              providerSubscriptionId: subscriptionId,
+              providerPriceId: subscriptionPriceId,
+              tier,
+              interval,
+              status,
+              currentPeriodStart: period.start,
+              currentPeriodEnd: period.end,
+              cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            },
+          });
+
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              premium: true,
+              premiumTier: tier,
+              corePlusActivatedAt: new Date(),
+              corePlusBoostLevel: tier === "INFINITE" ? 5 : tier === "ELITE" ? 3 : tier === "PLUS" ? 2 : 1,
+            },
+          });
+        } else if (featureCode !== "CORE_PLUS") {
+          const quantity = Math.max(1, Number(session.metadata?.quantity ?? "1") || 1);
+          await tx.featureEntitlement.upsert({
+            where: { userId_featureCode: { userId, featureCode } },
+            update: { active: true, quantity: { increment: quantity } },
+            create: { userId, featureCode, source: "STRIPE", active: true, quantity },
+          });
+        }
+
+        await tx.paymentTransaction.create({
+          data: {
+            userId,
+            provider: "STRIPE",
+            providerEventId: recordKey,
+            providerPaymentId: session.payment_intent?.toString() ?? session.id,
+            amountCents: unitAmount,
+            currency: session.currency ?? "usd",
+            status: "SUCCEEDED",
+            featureCode,
+            tier: featureCode === "CORE_PLUS" ? (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE") : null,
+            metadata: {
+              checkoutSessionId: session.id,
+              subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
+              priceId,
+            },
+          },
+        });
+      });
+    }
+  } catch (error) {
+    // Two deliveries at the same moment: the other one recorded it.
+    if ((error as { code?: string }).code === "P2002") return "duplicate";
+    throw error;
+  }
+  return "applied";
+}
+
+/** Back from Stripe: ask Stripe about this checkout and switch the plan on if it's paid. */
+billingRouter.post("/checkout/confirm", requireAuth, async (req, res) => {
+  if (!stripeClient) {
+    res.status(503).json({ error: "Billing provider unavailable. Configure STRIPE_SECRET_KEY." });
+    return;
+  }
+  const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : "";
+  if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+    res.status(400).json({ error: "Missing or invalid checkout session" });
+    return;
+  }
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripeClient.checkout.sessions.retrieve(sessionId);
+  } catch {
+    res.status(404).json({ error: "Checkout not found" });
+    return;
+  }
+  // Only the person who paid can confirm their own checkout.
+  if (session.metadata?.userId !== req.user!.id) {
+    res.status(404).json({ error: "Checkout not found" });
+    return;
+  }
+  const result = await applyCheckoutSession(session);
+  if (result === "not-paid") {
+    res.status(409).json({ error: "This checkout isn't paid yet. If you just paid, wait a moment and refresh." });
+    return;
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { premium: true, premiumTier: true } });
+  res.json({ ok: true, result, premium: user?.premium ?? false, premiumTier: user?.premiumTier ?? "NONE" });
+});
+
 export async function billingWebhookHandler(req: Request, res: Response): Promise<void> {
   if (!stripeClient || !env.STRIPE_WEBHOOK_SECRET) {
     res.status(503).json({ error: "Webhook unavailable. Configure Stripe webhook secret." });
@@ -379,108 +534,7 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
 
   try {
     if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const userId = session.metadata?.userId;
-      const featureCode = session.metadata?.featureCode as
-        | "CORE_PLUS"
-        | "FORGE_BOOST_PACK"
-        | "CREATOR_CAMPAIGN_SLOT"
-        | "EVENT_TICKET_PASS"
-        | "TEAM_BRANDING_KIT"
-        | "ADVANCED_MODERATION_AI"
-        | undefined;
-
-      if (userId && featureCode) {
-        const lineItems = await stripeClient.checkout.sessions.listLineItems(session.id, { limit: 1 });
-        const firstItem = lineItems.data[0];
-        const unitAmount = firstItem?.amount_total ?? 0;
-        const priceId = firstItem?.price?.id ?? null;
-        const subscriptionId = featureCode === "CORE_PLUS" ? session.subscription?.toString() : undefined;
-        // Ask Stripe first, then write everything in one transaction below.
-        const subscription = subscriptionId ? await stripeClient.subscriptions.retrieve(subscriptionId) : null;
-
-        // The grant and its payment record are saved together: either the purchase is fully
-        // applied and recorded, or nothing is and Stripe's retry applies it cleanly. (The
-        // record used to be written first, so a later failure made every retry hit the
-        // unique event id and the purchase was never applied.)
-        await prisma.$transaction(async (tx) => {
-          if (featureCode === "CORE_PLUS" && subscription && subscriptionId) {
-            const period = readSubscriptionPeriod(subscription);
-            const subscriptionPriceId = subscription.items.data[0]?.price.id ?? priceId;
-            const tier = (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ??
-              (subscriptionPriceId ? resolveTierFromPriceId(subscriptionPriceId) : null) ??
-              "PLUS";
-            const interval = (session.metadata?.interval as "MONTHLY" | "YEARLY" | undefined) ??
-              (subscriptionPriceId ? resolveIntervalFromPriceId(subscriptionPriceId) : null) ??
-              "MONTHLY";
-            const status = subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE";
-
-            await tx.billingSubscription.upsert({
-              where: { providerSubscriptionId: subscriptionId },
-              update: {
-                userId,
-                providerCustomerId: subscription.customer.toString(),
-                providerPriceId: subscriptionPriceId,
-                tier,
-                interval,
-                status,
-                currentPeriodStart: period.start,
-                currentPeriodEnd: period.end,
-                cancelAtPeriodEnd: subscription.cancel_at_period_end,
-              },
-              create: {
-                userId,
-                provider: "STRIPE",
-                providerCustomerId: subscription.customer.toString(),
-                providerSubscriptionId: subscriptionId,
-                providerPriceId: subscriptionPriceId,
-                tier,
-                interval,
-                status,
-                currentPeriodStart: period.start,
-                currentPeriodEnd: period.end,
-                cancelAtPeriodEnd: subscription.cancel_at_period_end,
-              },
-            });
-
-            await tx.user.update({
-              where: { id: userId },
-              data: {
-                premium: true,
-                premiumTier: tier,
-                corePlusActivatedAt: new Date(),
-                corePlusBoostLevel: tier === "INFINITE" ? 5 : tier === "ELITE" ? 3 : tier === "PLUS" ? 2 : 1,
-              },
-            });
-          } else if (featureCode !== "CORE_PLUS") {
-            const quantity = Math.max(1, Number(session.metadata?.quantity ?? "1") || 1);
-            await tx.featureEntitlement.upsert({
-              where: { userId_featureCode: { userId, featureCode } },
-              update: { active: true, quantity: { increment: quantity } },
-              create: { userId, featureCode, source: "STRIPE", active: true, quantity },
-            });
-          }
-
-          await tx.paymentTransaction.create({
-            data: {
-              userId,
-              provider: "STRIPE",
-              providerEventId: event.id,
-              providerPaymentId: session.payment_intent?.toString() ?? session.id,
-              amountCents: unitAmount,
-              currency: session.currency ?? "usd",
-              status: "SUCCEEDED",
-              featureCode,
-              tier: featureCode === "CORE_PLUS" ? (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE") : null,
-              metadata: {
-                checkoutSessionId: session.id,
-                subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
-                priceId,
-              },
-            },
-          });
-        });
-      }
+      await applyCheckoutSession(event.data.object);
     }
 
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {

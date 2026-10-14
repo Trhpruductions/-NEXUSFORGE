@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingPlans, getBillingReadiness, type PlanInfo } from "@/lib/api";
+import { confirmCheckout, createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingPlans, getBillingReadiness, type PlanInfo } from "@/lib/api";
 import { PREVIOUS_TIER, megabytes, perksFor } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING, type CorePlusTier } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
@@ -67,9 +67,22 @@ const portalAssurances = [
   "Cancel without losing historical billing visibility",
 ];
 
-export function CorePlusExperience({ checkoutState }: { checkoutState?: string }) {
+export function CorePlusExperience({ checkoutState, checkoutSessionId }: { checkoutState?: string; checkoutSessionId?: string }) {
   const queryClient = useQueryClient();
-  const { accessToken, csrfToken, user } = useAuthStore();
+  const { accessToken, csrfToken, user, fetchMe } = useAuthStore();
+  // Back from Stripe: confirm the payment with the server (works without Stripe's webhook).
+  const confirmQuery = useQuery({
+    queryKey: ["checkout-confirm", checkoutSessionId, accessToken],
+    queryFn: async () => {
+      const result = await confirmCheckout(accessToken!, csrfToken!, checkoutSessionId!);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["billing-entitlements"] }), fetchMe()]);
+      return result;
+    },
+    enabled: checkoutState === "success" && Boolean(checkoutSessionId && accessToken && csrfToken),
+    retry: 2,
+    retryDelay: 2500,
+    staleTime: Infinity,
+  });
   const [selectedTier, setSelectedTier] = useState<CorePlusTier>("PLUS");
   const [billingInterval, setBillingInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
@@ -208,7 +221,11 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
         {checkoutState === "success" ? (
           <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
-            Checkout completed. Billing sync is now updating your Core+ access.
+            {confirmQuery.isSuccess
+              ? `Payment confirmed. You're on ${confirmQuery.data.premiumTier === "NONE" ? "Core+" : confirmQuery.data.premiumTier.charAt(0) + confirmQuery.data.premiumTier.slice(1).toLowerCase()} now. Thank you!`
+              : confirmQuery.isError
+                ? "We couldn't confirm the payment yet. If you were charged, refresh this page in a minute; your plan switches on as soon as Stripe confirms."
+                : "Payment received. Switching your plan on…"}
           </div>
         ) : null}
         {checkoutState === "cancelled" ? (

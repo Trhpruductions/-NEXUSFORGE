@@ -131,7 +131,8 @@
     "build": "node ./scripts/build-workspace.mjs",
     "lint": "npm run lint -w web",
     "backup": "node scripts/vexora-backup.mjs",
-    "backup:list": "node scripts/vexora-backup.mjs --list"
+    "backup:list": "node scripts/vexora-backup.mjs --list",
+    "stripe:setup": "node scripts/stripe-setup.mjs"
   },
   "keywords": [],
   "author": "",

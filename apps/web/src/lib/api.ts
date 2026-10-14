@@ -1067,6 +1067,17 @@ export async function createCheckoutSession(
   return response.data;
 }
 
+/** Back from Stripe checkout: the server asks Stripe and switches the plan on if it's paid. */
+export async function confirmCheckout(accessToken: string, csrfToken: string, sessionId: string) {
+  return (
+    await api.post<{ ok: true; result: "applied" | "duplicate"; premium: boolean; premiumTier: string }>(
+      "/api/billing/checkout/confirm",
+      { sessionId },
+      { headers: authHeaders(accessToken, csrfToken) },
+    )
+  ).data;
+}
+
 export async function createPortalSession(accessToken: string, csrfToken: string) {
   const response = await api.post<{ url: string }>(
     "/api/billing/portal/session",
