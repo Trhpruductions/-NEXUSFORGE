@@ -20,16 +20,19 @@ function signedInUserId(req: Request): string | null {
   }
 }
 
+/** Count per signed-in account, or per IP address for anyone else. */
+export function accountOrIpKey(req: Request) {
+  const userId = signedInUserId(req);
+  return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip ?? "")}`;
+}
+
 // Signed-in people are counted per account, so a household or school sharing one internet
 // address doesn't share one budget, and quick browsing (each page load makes ~15 calls) no
 // longer runs out after ~40 pages. Anonymous traffic is still counted per IP address.
 export const globalRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: (req) => (signedInUserId(req) ? 3000 : 600),
-  keyGenerator: (req) => {
-    const userId = signedInUserId(req);
-    return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip ?? "")}`;
-  },
+  keyGenerator: accountOrIpKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests. Please try again later." },
@@ -62,11 +65,25 @@ export const authRateLimit = rateLimit({
   skip: (req) => shouldBypassRateLimit(req.ip) || !CREDENTIAL_AUTH_PATHS.has(req.path),
 });
 
-export const messageRateLimit = rateLimit({
+// 45 messages a minute per account (people on one shared connection no longer share it),
+// plus a looser per-address cap so one person can't flood from many accounts at once.
+const messagePerAccount = rateLimit({
   windowMs: 60 * 1000,
-  max: 45,
+  limit: 45,
+  keyGenerator: accountOrIpKey,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Message rate limit exceeded." },
+  message: { error: "You're sending messages too fast. Wait a moment." },
   skip: (req) => shouldBypassRateLimit(req.ip),
 });
+
+const messagePerAddress = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: false,
+  legacyHeaders: false,
+  message: { error: "Too many messages from this network. Wait a moment." },
+  skip: (req) => shouldBypassRateLimit(req.ip),
+});
+
+export const messageRateLimit = [messagePerAddress, messagePerAccount];
