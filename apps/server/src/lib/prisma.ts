@@ -25,6 +25,9 @@ const pool = new pg.Pool({
   max: Number(process.env.DB_POOL_MAX || 40),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 15000,
+  // A query sent on a socket that the OS has quietly dropped never gets an answer. Failing it after 20 s
+  // discards that connection, instead of holding a pool slot until every other request times out.
+  query_timeout: 20000,
   // Keep idle connections alive through NAT/firewall timeouts.
   keepAlive: true,
 });
