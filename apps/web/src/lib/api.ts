@@ -1047,28 +1047,6 @@ export async function updateMe(
   return response.data;
 }
 
-export async function savePushSubscription(
-  accessToken: string,
-  csrfToken: string,
-  payload: { endpoint: string; p256dh: string; auth: string; deviceName?: string; platform?: string },
-) {
-  const response = await api.post<{ subscription: unknown }>("/api/auth/push-subscriptions", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function activateCorePlus(
-  accessToken: string,
-  csrfToken: string,
-  payload?: { tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" },
-) {
-  const response = await api.post<{ user: User }>("/api/auth/core-plus/activate", payload ?? {}, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
 export async function createCheckoutSession(
   accessToken: string,
   csrfToken: string,
@@ -1109,57 +1087,6 @@ export async function getBillingEntitlements(accessToken: string) {
 
 export async function getBillingReadiness() {
   const response = await api.get<{ billing: BillingReadiness }>("/api/billing/status");
-  return response.data;
-}
-
-export async function consumeCreatorCampaignSlot(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/creator-campaign-slot/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeAdvancedModerationAI(accessToken: string, csrfToken: string) {
-  const response = await api.post<{ ok: true; message: string }>(
-    "/api/billing/features/advanced-moderation-ai/consume",
-    {},
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeForgeBoostPack(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/forge-boost-pack/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeEventTicketPass(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/event-ticket-pass/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function getCorePlusTelemetry(accessToken: string) {
-  const response = await api.get<{ telemetry: CorePlusTelemetry }>("/api/auth/core-plus/telemetry", {
-    headers: authHeaders(accessToken),
-  });
   return response.data;
 }
 
@@ -1212,24 +1139,6 @@ export async function joinForge(accessToken: string, csrfToken: string, inviteCo
       headers: authHeaders(accessToken, csrfToken),
     },
   );
-  return response.data;
-}
-
-export async function joinForgeFromSource(
-  accessToken: string,
-  csrfToken: string,
-  payload: { inviteCode: string; source?: string },
-) {
-  const response = await api.post<{ forgeId: string; inviteCode: string }>("/api/forges/join", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function getForgeInviteAvailability(inviteCode: string, currentForgeId?: string) {
-  const response = await api.get<ForgeInviteAvailability>(`/api/forges/availability/${encodeURIComponent(inviteCode)}`, {
-    params: currentForgeId ? { currentForgeId } : {},
-  });
   return response.data;
 }
 
@@ -1600,36 +1509,6 @@ export async function transferForgeOwnership(accessToken: string, csrfToken: str
   return response.data;
 }
 
-export async function getForgeInviteAnalytics(accessToken: string, forgeId: string) {
-  const response = await api.get<{ analytics: ForgeInviteAnalytics }>(`/api/forges/${forgeId}/invite-analytics`, {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getForgeOnboardingHealth(accessToken: string, forgeId: string) {
-  const response = await api.get<{ health: ForgeOnboardingHealth }>(`/api/forges/${forgeId}/onboarding-health`, {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function runForgeOnboardingAction(
-  accessToken: string,
-  csrfToken: string,
-  forgeId: string,
-  action: ForgeOnboardingAction,
-) {
-  const response = await api.post<{ ok: boolean; action: ForgeOnboardingAction; message: string }>(
-    `/api/forges/${forgeId}/onboarding-actions`,
-    { action },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
 export async function listMyBots(accessToken: string) {
   const response = await api.get<{ bots: BotApp[] }>("/api/bots/my", {
     headers: authHeaders(accessToken),
@@ -1879,21 +1758,6 @@ export async function updateBotCommand(
   return response.data;
 }
 
-export async function executeBotCommand(
-  accessToken: string,
-  csrfToken: string,
-  payload: { forgeId: string; name: string },
-) {
-  const response = await api.post<{ ok: true; output: { command: string; botName: string; intents: string[]; response: string } }>(
-    "/api/bots/commands/execute",
-    payload,
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
 export async function getMessages(accessToken: string, channelId: string, cursor?: string | null) {
   const response = await api.get<{ messages: Message[]; nextCursor: string | null }>(`/api/messages/${channelId}`, {
     headers: authHeaders(accessToken),
@@ -2117,18 +1981,6 @@ export async function getLiveCreators(accessToken: string, csrfToken: string) {
   return response.data;
 }
 
-export async function updateActivity(accessToken: string, csrfToken: string, data: {
-  activityType: "GAME" | "MUSIC" | "STREAMING" | "SOCIAL" | "CLEAR";
-  activityStatus?: string;
-  activityMetadata?: any;
-  showActivity?: boolean;
-}) {
-  const response = await api.post("/api/profiles/activity", data, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
 export async function adminAdjustReputation(
   accessToken: string,
   csrfToken: string,
@@ -2330,60 +2182,6 @@ export type LeaderboardEntry = {
   createdAt: string;
 };
 
-export async function searchProfiles(accessToken: string, query: string, limit = 20, offset = 0) {
-  const response = await api.get<{
-    users: Array<{
-      id: string;
-      username: string;
-      avatar?: string | null;
-      clanTag?: string | null;
-      premium: boolean;
-      premiumTier: string;
-      reputation: number;
-      createdAt: string;
-    }>;
-    total: number;
-    limit: number;
-    offset: number;
-  }>("/api/profiles/users/search", {
-    params: { q: query, limit, offset },
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getUserGroups(accessToken: string) {
-  const response = await api.get<{
-    groups: Array<{
-      tag: string;
-      name: string;
-      description: string;
-      totalUsers: number;
-      onlineUsers: number;
-      premiumUsers: number;
-      avgReputation: number;
-      sampleUsers: Array<{
-        id: string;
-        username: string;
-        avatar?: string | null;
-        status: User["status"];
-        premiumTier?: User["premiumTier"];
-        reputation: number;
-      }>;
-    }>;
-  }>("/api/profiles/users/groups", {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getPublicProfile(accessToken: string, userId: string) {
-  const response = await api.get<PublicProfile>(`/api/profiles/users/${userId}`, {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
 export async function getLeaderboard(accessToken: string, type: "reputation" | "streaks" | "medals", limit = 20, offset = 0) {
   const response = await api.get<{
     leaderboard: LeaderboardEntry[];
@@ -2398,19 +2196,6 @@ export async function getLeaderboard(accessToken: string, type: "reputation" | "
   return response.data;
 }
 
-export async function getUserActivity(accessToken: string, userId: string, limit = 20, offset = 0) {
-  const response = await api.get<{
-    activities: UserActivity[];
-    total: number;
-    limit: number;
-    offset: number;
-  }>(`/api/profiles/users/${userId}/activity`, {
-    params: { limit, offset },
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
 export async function getUserMedals(accessToken: string, userId: string) {
   const response = await api.get<{
     medals: Medal[];
@@ -2418,20 +2203,6 @@ export async function getUserMedals(accessToken: string, userId: string) {
   }>(`/api/profiles/users/${userId}/medals`, {
     headers: authHeaders(accessToken),
   });
-  return response.data;
-}
-
-export async function grantMedal(accessToken: string, csrfToken: string, userId: string, medalKey: string) {
-  const response = await api.post<{
-    message: string;
-    medal: Medal;
-  }>(
-    `/api/profiles/users/${userId}/medals/${medalKey}`,
-    {},
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
   return response.data;
 }
 

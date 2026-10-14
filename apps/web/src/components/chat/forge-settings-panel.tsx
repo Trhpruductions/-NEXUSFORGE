@@ -7,6 +7,7 @@ import axios from "axios";
 import { X, Hash, Volume2, Megaphone, Radio, Plus, Trash2, Pencil, Check, ShieldAlert, Ban, LogOut, Loader2, ArrowUp, ArrowDown, Lock, Copy, Folder, Clock, Crown, MessagesSquare } from "lucide-react";
 import {
   banForgeUser,
+  updateForgeInviteCode,
   createForgeChannel,
   createForgeInvite,
   getForgeAuditLog,
@@ -45,9 +46,10 @@ import { AutoModTab } from "@/components/chat/automod-tab";
 import { EmojiTab } from "@/components/chat/emoji-tab";
 import { StickersTab } from "@/components/chat/stickers-tab";
 import { SoundsTab } from "@/components/chat/sounds-tab";
+import { BotsTab } from "@/components/chat/bots-tab";
 import { WebhooksTab } from "@/components/chat/webhooks-tab";
 
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "stickers" | "sounds" | "webhooks" | "bans" | "audit" | "danger";
+type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "stickers" | "sounds" | "webhooks" | "bots" | "bans" | "audit" | "danger";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -174,6 +176,7 @@ export function ForgeSettingsPanel({
     if (can("manageForge")) list.push({ id: "stickers", label: "Stickers" });
     if (can("manageForge")) list.push({ id: "sounds", label: "Soundboard" });
     if (can("manageChannels")) list.push({ id: "webhooks", label: "Webhooks" });
+    if (access?.isOwner) list.push({ id: "bots", label: "Bots" });
     if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
     if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
     list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
@@ -248,7 +251,7 @@ export function ForgeSettingsPanel({
           ) : tab === "members" ? (
             <MembersTab forge={forge} access={access} selfId={user?.id ?? ""} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "invites" ? (
-            <InvitesTab forge={forge} setNotice={setNotice} />
+            <InvitesTab forge={forge} isOwner={access.isOwner} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "reports" ? (
             <ReportsTab forgeId={forgeId} setNotice={setNotice} />
           ) : tab === "automod" ? (
@@ -261,6 +264,8 @@ export function ForgeSettingsPanel({
             <SoundsTab forge={forge} setNotice={setNotice} />
           ) : tab === "webhooks" ? (
             <WebhooksTab forge={forge} setNotice={setNotice} />
+          ) : tab === "bots" ? (
+            <BotsTab forge={forge} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "bans" ? (
             <BansTab forgeId={forgeId} setNotice={setNotice} invalidate={invalidateForge} />
           ) : tab === "audit" ? (
@@ -1349,9 +1354,19 @@ function timeLeft(iso: string | null) {
   return `expires in ${Math.round(hours / 24)}d`;
 }
 
-function InvitesTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: NoticeSetter }) {
+function InvitesTab({ forge, isOwner, setNotice, invalidate }: { forge: ForgeDetail; isOwner: boolean; setNotice: NoticeSetter; invalidate: () => Promise<void> }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useTokens();
+  const [customCode, setCustomCode] = useState<string | null>(null);
+  const customMutation = useMutation({
+    mutationFn: (code: string) => updateForgeInviteCode(accessToken, csrfToken, forge.id, code),
+    onSuccess: async () => {
+      setCustomCode(null);
+      await invalidate();
+      setNotice({ tone: "ok", text: "Permanent link changed. The old one no longer works." });
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
   const [maxAgeSeconds, setMaxAgeSeconds] = useState(604800);
   const [maxUses, setMaxUses] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1399,7 +1414,30 @@ function InvitesTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: Notic
           <button type="button" className={ghostBtn} onClick={() => copy("permanent", forge.inviteCode)}>
             {copiedId === "permanent" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copiedId === "permanent" ? "Copied" : "Copy"}
           </button>
+          {isOwner && customCode === null ? (
+            <button type="button" className={ghostBtn} onClick={() => setCustomCode(forge.inviteCode)}>
+              <Pencil className="h-3.5 w-3.5" /> Change
+            </button>
+          ) : null}
         </div>
+        {isOwner && customCode !== null ? (
+          <div className="mt-2 space-y-2">
+            <div className="flex gap-2">
+              <input
+                className={inputClass}
+                aria-label="Custom invite link"
+                value={customCode}
+                maxLength={32}
+                onChange={(event) => setCustomCode(event.target.value.replace(/[^a-zA-Z0-9-]/g, "").toLowerCase())}
+              />
+              <button type="button" className={ghostBtn} disabled={customCode.length < 3 || customCode === forge.inviteCode || customMutation.isPending} onClick={() => customMutation.mutate(customCode)}>
+                {customMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save
+              </button>
+              <button type="button" className={ghostBtn} onClick={() => setCustomCode(null)}>Cancel</button>
+            </div>
+            <p className="text-[11px] text-slate-500">3-32 letters, numbers or hyphens, like my-clan. The current link stops working when you change it.</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">

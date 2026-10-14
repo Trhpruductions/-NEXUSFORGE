@@ -118,7 +118,7 @@ export function CommunityPage() {
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => open(forge)} className={goldBtn}>Open <ArrowRight className="h-3.5 w-3.5" /></button>
                         <button type="button" onClick={() => open(forge, "/app/chat")} className={ghostBtn} title="Chat"><MessageSquare className="h-3.5 w-3.5" /></button>
-                        <button type="button" onClick={() => open(forge, "/app/forge-ops")} className={ghostBtn} title="Forge ops"><Settings2 className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => { setSelectedForgeId(forge.id); router.push(`/app/chat?forge=${forge.id}&manage=overview`); }} className={ghostBtn} title="Server settings" aria-label="Server settings"><Settings2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                   </div>

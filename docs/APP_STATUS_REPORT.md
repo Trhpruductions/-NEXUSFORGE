@@ -83,8 +83,8 @@ These features are tested end to end with real accounts, and most also with two 
     - old notifications
     - audit logs (the admin audit router exists but isn't mounted)
 11. ✅ **Stale "LIVE" creators**: creators stay marked live forever after disconnecting.
-12. ✅ **Postgres and uploads backups**: none exist today.
-13. **Log rotation** for pm2 logs.
+12. ✅ **Postgres and uploads backups**: `npm run backup`, run daily at 4 AM by the Windows task "Vexora Gaming daily backup" (keeps 14; log in D:NexusForgeDBackupsackup-task.log).
+13. ✅ **Log rotation**: pm2-logrotate installed (20 MB per file, 10 kept, compressed, daily).
 14. ✅ **CI**: GitHub Actions never runs typecheck, tests or build. Add it.
 15. ✅ **Error reporting**: browser crashes and server errors are collected at /admin/errors (staff only), grouped with counts. No outside service needed.
 
@@ -112,9 +112,9 @@ These features are tested end to end with real accounts, and most also with two 
 25. **Leftover "NexusForge" branding**: push notification title, desktop installer file name, some environment-variable names shown in the UI.
 26. **Dead code**:
     - 17 unused components.
-    - `/app/forge-ops`, a 3,400-line duplicate of chat.
+    - ✅ `/app/forge-ops` removed; its bot management and custom invite link moved into Server settings (Bots tab, Invites tab).
     - Unused models (`ProgressiveJackpot`, `ShopItem`).
-    - API keys can be created but are never accepted anywhere. The developer page now says so and points to "Sign in with Vexora"; making keys work is a product/security decision.
+    - ✅ API keys removed (nothing accepted them); apps use "Sign in with Vexora".
 27. **Speed**:
     - ✅ LiveKit, the server settings panel and QR code now load only when used.
     - No code splitting.

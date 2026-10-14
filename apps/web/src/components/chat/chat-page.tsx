@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, Wrench, X } from "lucide-react";
+import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, X } from "lucide-react";
 import axios from "axios";
 import {
   createDmThread,
@@ -789,7 +789,6 @@ function ChatInner() {
         {mode === "channel" ? <button type="button" onClick={() => setPinsOpen((open) => !open)} className={cn(iconBtn, pinsOpen && "text-amber-200")} title="Pinned messages"><Pin className="h-4 w-4" /></button> : null}
         <button type="button" onClick={() => setMembersOpen((open) => !open)} className={cn(iconBtn, membersOpen && "text-amber-200")} title="Members"><Users className="h-4 w-4" /></button>
         {selectedForgeId ? <button type="button" onClick={() => setSettingsOpen(true)} className={iconBtn} title="Forge settings"><Settings2 className="h-4 w-4" /></button> : null}
-        <Link href={selectedForgeId ? `/app/forge-ops?forge=${selectedForgeId}` : "/app/forge-ops"} className={iconBtn} title="Forge ops: bots, invites, campaigns"><Wrench className="h-4 w-4" /></Link>
       </div>
     </header>
   );
@@ -801,7 +800,7 @@ function ChatInner() {
     // screens (phones, where the header and banner wrap) the panel grew past the bottom and hid the composer.
     <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
       {selectedForgeId ? (
-        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
+        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "bots" || requestedManage === "webhooks" || requestedManage === "overview" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
       <PollComposer open={pollOpen} onClose={() => setPollOpen(false)} onSubmit={sendPoll} busy={sendMutation.isPending} />
