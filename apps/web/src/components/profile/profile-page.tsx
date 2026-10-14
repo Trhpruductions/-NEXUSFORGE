@@ -281,7 +281,7 @@ function ProfileInner() {
               { label: "Points", value: person.points },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl border border-white/5 bg-[#11151e] px-3 py-2 text-center">
-                <p className="nf-heading text-lg font-bold text-white">{compact(stat.value)}</p>
+                <p className="text-lg font-semibold tabular-nums text-white">{compact(stat.value)}</p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{stat.label}</p>
               </div>
             ))}
@@ -481,7 +481,7 @@ function ProfileInner() {
                 {unlockedAchievements.slice(0, 8).map((entry) => (
                   <div key={entry.key} className="flex flex-col items-center gap-1 rounded-lg border border-amber-400/30 bg-[#11151e] px-1 py-2 text-center" title={entry.description}>
                     <span className="text-xl">{entry.icon}</span>
-                    <span className="w-full truncate text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-300">{entry.name}</span>
+                    <span className="w-full break-words text-[9px] font-semibold uppercase leading-tight tracking-[0.08em] text-slate-300">{entry.name}</span>
                   </div>
                 ))}
               </div>

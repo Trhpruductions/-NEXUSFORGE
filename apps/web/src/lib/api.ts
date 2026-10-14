@@ -1430,7 +1430,7 @@ export async function cancelAccountDeletion(accessToken: string, csrfToken: stri
 export async function downloadAccountData(accessToken: string) {
   const response = await api.get<Blob>("/api/account/export", { headers: authHeaders(accessToken), responseType: "blob" });
   const disposition = String(response.headers["content-disposition"] ?? "");
-  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "vexora-data.json";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "nexus-forge-data.json";
   return { blob: response.data, filename };
 }
 

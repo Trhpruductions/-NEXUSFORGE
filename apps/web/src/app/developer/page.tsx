@@ -103,7 +103,7 @@ export default function DeveloperPortalPage() {
       {!isSignedIn ? (
         <GuestAuthCallout
           title="Developer tools require a Nexus Forge Gaming account."
-          description="Sign in to access bot creation, API key management, slash commands, and integration analytics."
+          description="Sign in to create bots, set up slash commands, register apps for Sign in with Nexus Forge, and manage webhooks."
           loginHref="/login?redirect=/developer"
           registerHref="/register?redirect=/developer"
         />

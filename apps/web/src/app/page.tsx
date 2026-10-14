@@ -256,7 +256,7 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
-              <p className="border-t border-white/5 px-4 py-2 text-[11px] text-slate-500">Discord limits as published for its free tier in 2026. Discord is a trademark of Discord Inc.; Nexus Forge isn&apos;t affiliated with it.</p>
+              <p className="border-t border-white/5 px-4 py-2 text-[11px] text-slate-500">Discord figures are its free-tier limits as we understand them; they change, so check discord.com. Discord is a trademark of Discord Inc.; Nexus Forge isn&apos;t affiliated with it.</p>
             </div>
           </div>
         </section>

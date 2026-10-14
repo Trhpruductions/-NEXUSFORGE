@@ -31,7 +31,7 @@ export function DownloadsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="nf-heading text-xl font-bold text-white">Downloads</h1>
-        <p className="text-xs text-slate-400">Nexus Forge Gaming for Windows. Faster voice, native notifications, and rich presence.</p>
+        <p className="text-xs text-slate-400">Nexus Forge Gaming for Windows: its own window, a taskbar icon and automatic updates.</p>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -45,15 +45,12 @@ export function DownloadsPage() {
                 <p className="mt-2 flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Checking latest version...</p>
               ) : manifest ? (
                 <>
-                  <p className="mt-2 text-sm text-slate-300">Version {manifest.version} for Windows 10 and 11. Installs in under a minute and updates itself.</p>
+                  <p className="mt-2 text-sm text-slate-300">Version {manifest.version} for Windows 10 and 11. Installs in a few clicks and updates itself.</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <a href={manifest.downloadUrl} className={goldBtn}><Download className="h-4 w-4" /> Download for Windows</a>
-                    {manifest.downloadUrls?.slice(1, 3).map((mirror, index) => (
-                      <a key={mirror} href={mirror} className="inline-flex items-center rounded-lg border border-white/10 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mirror {index + 1}</a>
-                    ))}
                   </div>
                   {manifest.sha256 ? (
-                    <p className="mt-3 inline-flex items-start gap-1.5 text-[11px] text-slate-500"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /> SHA-256 <span className="break-all font-mono text-slate-400">{manifest.sha256}</span></p>
+                    <p className="mt-3 inline-flex items-start gap-1.5 text-[11px] text-slate-500"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" /> <span className="whitespace-nowrap">SHA-256</span> <span className="break-all font-mono text-slate-400">{manifest.sha256}</span></p>
                   ) : null}
                 </>
               ) : (
@@ -75,7 +72,7 @@ export function DownloadsPage() {
               <li>Go to <strong className="text-white">nfgcord.com</strong> and sign in.</li>
               <li>Press the <strong className="text-white">Menu</strong> button and choose <strong className="text-white">Pin to Home</strong> so it opens like an app.</li>
             </ol>
-            <p className="mt-2 text-[11px] text-slate-500">Chat, servers and friends work with a controller. A USB or Bluetooth keyboard makes typing faster.</p>
+            <p className="mt-2 text-[11px] text-slate-500">A USB or Bluetooth keyboard makes typing on Xbox much faster.</p>
           </div>
           <div className={panel}>
             <h3 className="nf-heading mb-2 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white"><Smartphone className="h-4 w-4 text-sky-300" /> Phone, tablet or Mac</h3>

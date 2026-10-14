@@ -94,7 +94,7 @@ export function AuthenticatorCard({ protection }: { protection: ProtectionStatus
     const url = URL.createObjectURL(new Blob([codesText], { type: "text/plain" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "vexora-recovery-codes.txt";
+    link.download = "nexus-forge-recovery-codes.txt";
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 5000);
   };

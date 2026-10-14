@@ -4,10 +4,10 @@ import axios from "axios";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCheckoutSession, getBillingPlans, getBillingReadiness, type PaidFeatureCode, type PlanInfo } from "@/lib/api";
-import { PREVIOUS_TIER, perksFor } from "@/lib/plan-perks";
+import { megabytes, PREVIOUS_TIER, perksFor } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING } from "@/lib/pricing-catalog";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
@@ -34,7 +34,7 @@ const tierCards = [
     tone: "border-amber-500/50 bg-amber-950/30 text-amber-100",
     accent: "text-amber-200",
     badge: "Most popular",
-    description: "The sweet spot for active squads, creators, and fast-growing forges.",
+    description: "For active squads, creators and growing servers.",
     cta: "Upgrade to Plus",
     spotlight: true,
   },
@@ -46,8 +46,8 @@ const tierCards = [
     yearlySavings: CORE_PLUS_TIER_PRICING.ELITE.yearlySavings,
     tone: "border-amber-500/45 bg-amber-950/30 text-amber-100",
     accent: "text-amber-200",
-    badge: "Creator growth",
-    description: "Built for communities monetizing events, drops, and sponsor attention.",
+    badge: "For creators",
+    description: "For creators and communities that run events and sponsorships.",
     cta: "Go Elite",
   },
   {
@@ -58,8 +58,8 @@ const tierCards = [
     yearlySavings: CORE_PLUS_TIER_PRICING.INFINITE.yearlySavings,
     tone: "border-fuchsia-500/45 bg-fuchsia-950/30 text-fuchsia-100",
     accent: "text-fuchsia-200",
-    badge: "Full power",
-    description: "Maximum velocity for premium brands, esports hubs, and top-tier community ops.",
+    badge: "Largest limits",
+    description: "For esports hubs, brands and large community teams.",
     cta: "Unlock Infinite",
   },
 ];
@@ -103,22 +103,10 @@ const checkoutPreviewCopy: Record<PaidFeatureCode, { label: string; detail: stri
   },
 };
 
-const founderWindowEndsAt = new Date("2026-06-30T23:59:59Z");
-
-function formatCountdown(msRemaining: number): string {
-  if (msRemaining <= 0) return "Ended";
-  const totalSeconds = Math.floor(msRemaining / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${days}d ${hours}h ${minutes}m`;
-}
-
 export function PricingAndPayments({ checkoutState }: { checkoutState?: string }) {
   const { accessToken, csrfToken, user } = useAuthStore();
   const [interval, setInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [pendingCheckout, setPendingCheckout] = useState<{ featureCode: PaidFeatureCode; tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" } | null>(null);
-  const [countdownNow, setCountdownNow] = useState(Date.now());
 
   const checkoutMutation = useMutation({
     mutationFn: (payload: {
@@ -192,20 +180,6 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
       ? checkoutMutation.error.message
       : null;
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setCountdownNow(Date.now());
-    }, 30000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  const founderCountdown = formatCountdown(founderWindowEndsAt.getTime() - countdownNow);
-
-
-
   return (
     <section className="grid gap-4">
       {checkoutMutation.isPending && checkoutPreview ? (
@@ -265,13 +239,12 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         <div className="pointer-events-none absolute -left-14 top-[-70px] h-52 w-52 rounded-full bg-amber-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -right-12 bottom-[-70px] h-56 w-56 rounded-full bg-amber-500/12 blur-3xl" />
 
-        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Pricing + Payments</p>
+        <p className="text-[11px] uppercase tracking-[0.26em] text-amber-300">Pricing</p>
         <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl text-white sm:text-4xl">
-          Premium tiers that feel worth upgrading into.
+          Every plan includes the full app.
         </h2>
         <p className="mt-2 max-w-3xl text-sm text-slate-400 sm:text-base">
-          Start cheap, scale fast, and make the upgrade feel obvious. Every tier is framed to deliver more visible power,
-          better presence, and stronger community momentum than the price suggests.
+          Paid plans raise your upload size, server count and video quality. Pay monthly, or save with yearly billing.
         </p>
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-100">
@@ -279,24 +252,6 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Founder Window</p>
-            <p className="mt-2 text-lg font-semibold text-white">Early pricing is intentionally aggressive while Nexus Forge Gaming scales up.</p>
-            <p className="mt-1 text-sm text-slate-400">
-              Lock in a lower annual rate now and keep it as long as the subscription stays active.
-            </p>
-            <div className="mt-3 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-200">
-              Founder pricing countdown: {founderCountdown}
-            </div>
-          </div>
-          <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Why users upgrade</p>
-            <p className="mt-2 text-sm text-slate-400">
-              Better identity, faster access, stronger visibility, and operational tools that free communities from basic-chat limitations.
-            </p>
-          </div>
-        </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-3 text-xs text-slate-400">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-500">Billing Interval</span>
@@ -316,24 +271,8 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </Button>
           </div>
           <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-amber-200">
-            {interval === "YEARLY" ? "Best value unlocked" : "Switch yearly to save more"}
+            {interval === "YEARLY" ? "Billed once a year" : "Billed monthly, cancel any time"}
           </div>
-        </div>
-
-        <div className="mt-4 grid gap-3">
-          <article className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-3">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-amber-300">Boost Pack Emblem</p>
-            <p className="mt-1 text-xs text-slate-400">Primary image used for Forge Boost Pack purchase flows and callouts.</p>
-            <div className="mt-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
-              <Image
-                src="/brand/boost-pack-icon.png"
-                alt="Nexus Forge Gaming boost pack icon"
-                width={1200}
-                height={1200}
-                className="h-auto w-full object-cover"
-              />
-            </div>
-          </article>
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-4">
@@ -396,7 +335,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <h3 className="mt-1 font-[family-name:var(--font-orbitron)] text-xl text-white">Exactly what each plan unlocks.</h3>
           </div>
           <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
-            Plus Command is the strongest value-to-price tier
+            Prices in US dollars
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -411,7 +350,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {[
-                { label: "Upload size", value: (plan: PlanInfo) => `${Math.round(plan.uploadBytes / (1024 * 1024))} MB` },
+                { label: "Upload size", value: (plan: PlanInfo) => `${megabytes(plan.uploadBytes)}` },
                 { label: "Message length", value: (plan: PlanInfo) => `${plan.messageLength.toLocaleString()} characters` },
                 { label: "Servers you can be in", value: (plan: PlanInfo) => String(plan.maxServers) },
                 { label: "Profile banner", value: (plan: PlanInfo) => (plan.profileBanner ? "Yes" : "-") },
@@ -428,6 +367,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-[11px] text-slate-500">During the beta, single uploads are capped at 95 MB while large-file storage is being set up, whatever your plan.</p>
       </motion.article>
 
       <motion.article
@@ -444,7 +384,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           <li>• Change or cancel any time from <Link href="/app/settings?section=billing" className="text-amber-200 underline underline-offset-2">Settings → Billing</Link>. Cancelling keeps your plan until the end of the period you paid for.</li>
           <li>• If you cancel at checkout, nothing is charged and nothing changes.</li>
         </ul>
-        <p className="mt-3 text-[11px] text-slate-500">See the <Link href="/legal/terms" className="underline underline-offset-2">Terms of Service</Link> and <Link href="/legal/refunds" className="underline underline-offset-2">Refund Policy</Link>.</p>
+        <p className="mt-3 text-[11px] text-slate-500">See the <Link href="/legal/terms" className="underline underline-offset-2">Terms of Service</Link> for the full terms.</p>
         {checkoutMutation.error ? <p className="mt-2 text-xs text-red-300">Checkout failed: {checkoutErrorMessage}</p> : null}
       </motion.article>
     </section>

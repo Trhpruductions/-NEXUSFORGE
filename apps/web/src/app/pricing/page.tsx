@@ -18,7 +18,7 @@ export default async function PricingPage({
     <ExperienceShell
       eyebrow="Core+"
       title="Plans and pricing"
-      subtitle="Nexus Forge is free, with more than Discord gives you for free. Core+ adds bigger uploads, more servers and ultra-quality video."
+      subtitle="Every plan includes the full app. Core+ adds bigger uploads, more servers and ultra-quality video."
       metrics={[
         { label: "Free plan", value: "$0, forever", tone: "emerald" },
         { label: "Core+ from", value: "$3.99/mo", tone: "amber" },
