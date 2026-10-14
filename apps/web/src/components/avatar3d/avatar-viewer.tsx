@@ -22,7 +22,45 @@ const BACKGROUNDS: Record<ViewerBackground, string | null> = {
   transparent: null,
 };
 
-function Model({ url, design, autoRotate, onReady }: { url: string; design: AvatarDesign; autoRotate: boolean; onReady: () => void }) {
+export type ViewerShot = "full" | "portrait" | "side";
+export type ViewerPose = "relaxed" | "victory" | "showcase";
+export type CaptureOptions = { shot: ViewerShot; pose: ViewerPose; background: ViewerBackground; width: number; height: number };
+export type CaptureFn = (options: CaptureOptions) => Promise<Blob>;
+
+/** Camera framing for each shot. The figure stands on the floor and faces +z. */
+export const SHOTS: Record<ViewerShot, { position: [number, number, number]; target: [number, number, number] }> = {
+  full: { position: [0, 1.0, 4.4], target: [0, 0.95, 0] },
+  portrait: { position: [0, 1.62, 1.5], target: [0, 1.6, 0] },
+  side: { position: [4.4, 1.0, 0], target: [0, 0.95, 0] },
+};
+
+/** Sets the arm and head joints for a pose. Idle motion is unaffected. */
+export function applyPose(figure: THREE.Object3D, pose: ViewerPose) {
+  const set = (name: string, rotation: { x?: number; z?: number }) => {
+    const node = figure.getObjectByName(name);
+    if (!node) return;
+    if (rotation.x !== undefined) node.rotation.x = rotation.x;
+    if (rotation.z !== undefined) node.rotation.z = rotation.z;
+  };
+  if (pose === "victory") {
+    set("Shoulder_L", { x: 0, z: -2.6 });
+    set("Shoulder_R", { x: 0, z: 2.6 });
+    set("Elbow_L", { x: 0 });
+    set("Elbow_R", { x: 0 });
+  } else if (pose === "showcase") {
+    set("Shoulder_L", { x: 0, z: 0.12 });
+    set("Elbow_L", { x: -0.12 });
+    set("Shoulder_R", { x: -2.2, z: -0.12 });
+    set("Elbow_R", { x: -0.9 });
+  } else {
+    set("Shoulder_L", { x: 0, z: 0.12 });
+    set("Shoulder_R", { x: 0, z: -0.12 });
+    set("Elbow_L", { x: -0.12 });
+    set("Elbow_R", { x: -0.12 });
+  }
+}
+
+function Model({ url, design, pose, figureRef, autoRotate, onReady }: { url: string; design: AvatarDesign; pose: ViewerPose; figureRef: { current: THREE.Object3D | null }; autoRotate: boolean; onReady: () => void }) {
   const gltf = useLoader(GLTFLoader, url) as GLTF;
   // Each viewer gets its own copy of the materials, so two avatars on one page never share colours.
   const figure = useMemo(() => {
@@ -36,6 +74,10 @@ function Model({ url, design, autoRotate, onReady }: { url: string; design: Avat
   useEffect(() => {
     applyDesign(figure as unknown as Parameters<typeof applyDesign>[0], design);
   }, [figure, design]);
+  useEffect(() => {
+    figureRef.current = figure;
+    applyPose(figure, pose);
+  }, [figure, pose, figureRef]);
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
@@ -102,7 +144,7 @@ function Model({ url, design, autoRotate, onReady }: { url: string; design: Avat
   return <primitive object={figure} />;
 }
 
-function Stage({ url, design, autoRotate, background, onReady }: { url: string; design: AvatarDesign; autoRotate: boolean; background: ViewerBackground; onReady: () => void }) {
+function Stage({ url, design, autoRotate, background, pose, poseRef, figureRef, bridge, onReady }: { url: string; design: AvatarDesign; autoRotate: boolean; background: ViewerBackground; pose: ViewerPose; poseRef: { current: ViewerPose }; figureRef: { current: THREE.Object3D | null }; bridge: { current: CaptureFn | null }; onReady: () => void }) {
   const color = BACKGROUNDS[background];
   return (
     <>
@@ -129,10 +171,56 @@ function Stage({ url, design, autoRotate, background, onReady }: { url: string; 
         <meshBasicMaterial color="#2ea4ff" toneMapped={false} />
       </mesh>
       <Suspense fallback={null}>
-        <Model url={url} design={design} autoRotate={autoRotate} onReady={onReady} />
+        <Model url={url} design={design} pose={pose} figureRef={figureRef} autoRotate={autoRotate} onReady={onReady} />
       </Suspense>
+      <CaptureBridge bridge={bridge} figureRef={figureRef} poseRef={poseRef} />
     </>
   );
+}
+
+/** Lets the page ask the viewer for a PNG of the figure at a chosen shot, size and background. */
+function CaptureBridge({ bridge, figureRef, poseRef }: { bridge: { current: CaptureFn | null }; figureRef: { current: THREE.Object3D | null }; poseRef: { current: ViewerPose } }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+  useEffect(() => {
+    bridge.current = (options) => {
+      const previous = {
+        position: camera.position.clone(),
+        quaternion: camera.quaternion.clone(),
+        aspect: camera.aspect,
+        background: scene.background,
+        size: gl.getSize(new THREE.Vector2()),
+        pixelRatio: gl.getPixelRatio(),
+      };
+      const shot = SHOTS[options.shot];
+      gl.setPixelRatio(1);
+      gl.setSize(options.width, options.height, false);
+      camera.aspect = options.width / options.height;
+      camera.updateProjectionMatrix();
+      camera.position.set(...shot.position);
+      camera.lookAt(...shot.target);
+      scene.background = options.background === "transparent" ? null : new THREE.Color(BACKGROUNDS[options.background] ?? "#0b1220");
+      if (figureRef.current) applyPose(figureRef.current, options.pose);
+      gl.render(scene, camera);
+      return new Promise<Blob>((resolve, reject) => {
+        // The bitmap is copied when toBlob is called, so the page can be put back straight away.
+        gl.domElement.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("The picture could not be created on this device."))), "image/png");
+        if (figureRef.current) applyPose(figureRef.current, poseRef.current);
+        scene.background = previous.background;
+        camera.position.copy(previous.position);
+        camera.quaternion.copy(previous.quaternion);
+        camera.aspect = previous.aspect;
+        camera.updateProjectionMatrix();
+        gl.setPixelRatio(previous.pixelRatio);
+        gl.setSize(previous.size.x, previous.size.y, false);
+      });
+    };
+    return () => {
+      bridge.current = null;
+    };
+  }, [bridge, camera, figureRef, gl, poseRef, scene]);
+  return null;
 }
 
 class ViewerErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, { failed: boolean }> {
@@ -160,15 +248,24 @@ export function AvatarViewer({
   modelUrl,
   autoRotate = true,
   background = "studio",
+  pose = "relaxed",
+  captureRef,
   className = "",
 }: {
   design?: AvatarDesign;
   modelUrl?: string;
   autoRotate?: boolean;
   background?: ViewerBackground;
+  pose?: ViewerPose;
+  captureRef?: { current: CaptureFn | null };
   className?: string;
 }) {
   const url = modelUrl ?? modelUrlFor(design.body);
+  const fallbackBridge = useRef<{ current: CaptureFn | null }>({ current: null });
+  const bridge = captureRef ?? fallbackBridge.current;
+  const figureRef = useRef<THREE.Object3D | null>(null);
+  const poseRef = useRef<ViewerPose>(pose);
+  poseRef.current = pose;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const onReady = useMemo(() => () => setReady(true), []);
@@ -186,7 +283,7 @@ export function AvatarViewer({
           role="img"
           style={{ touchAction: "none" }}
         >
-          <Stage url={url} design={design} autoRotate={autoRotate} background={background} onReady={onReady} />
+          <Stage url={url} design={design} autoRotate={autoRotate} background={background} pose={pose} poseRef={poseRef} figureRef={figureRef} bridge={bridge} onReady={onReady} />
         </Canvas>
       </ViewerErrorBoundary>
       {!ready && !failed ? (

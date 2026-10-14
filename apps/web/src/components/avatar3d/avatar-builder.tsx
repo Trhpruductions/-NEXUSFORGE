@@ -1,12 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import { defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
-import { createAvatarPreset, getApiErrorMessage, updateAvatarPreset, type AvatarConfig } from "@/lib/api";
+import { createAvatarPreset, createUploadPresign, getApiErrorMessage, updateAvatarPreset, type AvatarConfig } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import {
   ACCESSORIES,
@@ -23,6 +23,28 @@ import {
   TOPS,
   type AvatarDesign,
 } from "@/components/avatar3d/design";
+import type { CaptureFn, ViewerPose, ViewerShot } from "@/components/avatar3d/avatar-viewer";
+
+const POSE_CHOICES: Array<{ id: ViewerPose; label: string }> = [
+  { id: "relaxed", label: "Relaxed" },
+  { id: "victory", label: "Victory" },
+  { id: "showcase", label: "Showcase" },
+];
+const SHOT_CHOICES: Array<{ id: ViewerShot; label: string }> = [
+  { id: "full", label: "Full body" },
+  { id: "portrait", label: "Portrait" },
+  { id: "side", label: "Side" },
+];
+const RENDER_BACKGROUNDS: Array<{ id: "studio" | "night" | "transparent"; label: string }> = [
+  { id: "studio", label: "Studio" },
+  { id: "night", label: "Night" },
+  { id: "transparent", label: "Clear PNG" },
+];
+const RENDER_SIZES: Record<ViewerShot, { width: number; height: number }> = {
+  full: { width: 900, height: 1200 },
+  portrait: { width: 800, height: 800 },
+  side: { width: 900, height: 1200 },
+};
 
 // The 3D viewer needs WebGL, so it loads only in the browser.
 const AvatarViewer = dynamic(() => import("@/components/avatar3d/avatar-viewer").then((m) => m.AvatarViewer), {
@@ -101,6 +123,26 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
   const [section, setSection] = useState<Section>("hair");
   const [spin, setSpin] = useState(true);
   const [background, setBackground] = useState<"studio" | "night" | "transparent">("studio");
+  const captureRef = useRef<CaptureFn | null>(null);
+  const [pose, setPose] = useState<ViewerPose>("relaxed");
+  const [shot, setShot] = useState<ViewerShot>("full");
+  const [renderBackground, setRenderBackground] = useState<"studio" | "night" | "transparent">("studio");
+  const [renderNote, setRenderNote] = useState<string | null>(null);
+  const [pictureBusy, setPictureBusy] = useState(false);
+  // A prepared PNG waits for the Save PNG link. It is kept only while the view it was rendered from is unchanged.
+  const [pngFile, setPngFile] = useState<{ url: string; name: string } | null>(null);
+  const pngUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (pngUrlRef.current) URL.revokeObjectURL(pngUrlRef.current);
+    pngUrlRef.current = null;
+    setPngFile(null);
+  }, [shot, pose, renderBackground, design]);
+  useEffect(
+    () => () => {
+      if (pngUrlRef.current) URL.revokeObjectURL(pngUrlRef.current);
+    },
+    []
+  );
 
   const update = useCallback((patch: Partial<AvatarDesign>) => setDesign((current) => ({ ...current, ...patch })), []);
 
@@ -144,6 +186,61 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
       accessories: current.accessories.includes(id) ? current.accessories.filter((a) => a !== id) : [...current.accessories, id],
     }));
 
+  /** Renders the figure to a PNG blob, at the chosen shot, pose and background. */
+  const renderPng = async (target: ViewerShot, background: "studio" | "night" | "transparent") => {
+    const capture = captureRef.current;
+    if (!capture) throw new Error("The 3D view is still loading. Try again in a moment.");
+    return capture({ shot: target, pose, background, ...RENDER_SIZES[target] });
+  };
+  /**
+   * Renders the picture for the Save PNG link. The download itself is a plain link click, so the browser
+   * always treats it as the person's own download; a script click after a slow render can be blocked.
+   */
+  const preparePng = async () => {
+    setRenderNote("Rendering…");
+    try {
+      const blob = await renderPng(shot, renderBackground);
+      const url = URL.createObjectURL(blob);
+      if (pngUrlRef.current) URL.revokeObjectURL(pngUrlRef.current);
+      pngUrlRef.current = url;
+      const slug = (name.trim() || "avatar").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "avatar";
+      setPngFile({ url, name: `${slug}-${shot}.png` });
+      setRenderNote("Ready. Press Save PNG to download it.");
+    } catch (error) {
+      setRenderNote(error instanceof Error ? error.message : "The picture could not be created.");
+    }
+  };
+  /** Uploads a portrait of the saved look and stores it on the avatar, for the gallery and profile. */
+  const useAsPicture = async () => {
+    if (!presetId) {
+      setRenderNote("Save the avatar first, then use it as your profile picture.");
+      return;
+    }
+    if (dirty) {
+      setRenderNote("Save changes first, so the picture matches the saved look.");
+      return;
+    }
+    if (!accessToken || !csrfToken) {
+      setRenderNote("Sign in to save your profile picture.");
+      return;
+    }
+    setPictureBusy(true);
+    setRenderNote("Creating your profile picture…");
+    try {
+      const blob = await renderPng("portrait", renderBackground === "transparent" ? "studio" : renderBackground);
+      const presign = await createUploadPresign(accessToken, csrfToken, { filename: "avatar-portrait.png", contentType: "image/png", size: blob.size });
+      const put = await fetch(presign.uploadUrl, { method: "PUT", headers: { "Content-Type": "image/png" }, body: blob });
+      if (!put.ok) throw new Error("The picture could not be uploaded. Try again.");
+      await updateAvatarPreset(accessToken, csrfToken, presetId, { previewUrl: presign.fileUrl });
+      await queryClient.invalidateQueries({ queryKey: ["avatar"] });
+      setRenderNote("Profile picture saved. It now shows in your gallery.");
+    } catch (error) {
+      setRenderNote(error instanceof Error ? error.message : getApiErrorMessage(error));
+    } finally {
+      setPictureBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -176,7 +273,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
 
       {/* The figure. */}
       <div className="space-y-3">
-        <AvatarViewer design={design} autoRotate={spin} background={background} className="h-[52vh] min-h-[340px] w-full lg:h-[64vh]" />
+        <AvatarViewer design={design} autoRotate={spin} background={background} pose={pose} captureRef={captureRef} className="h-[52vh] min-h-[340px] w-full lg:h-[64vh]" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
             <button type="button" aria-pressed={spin} onClick={() => setSpin((v) => !v)} className={chip(spin)}>Auto turn</button>
@@ -191,6 +288,48 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
           </button>
         </div>
         <p className="text-[11px] text-slate-500">Drag to turn. Scroll or pinch to zoom.</p>
+        <div className="vx-panel space-y-3 rounded-2xl p-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Pose</p>
+              <div className="flex flex-wrap gap-2">
+                {POSE_CHOICES.map((choice) => (
+                  <button key={choice.id} type="button" aria-pressed={pose === choice.id} onClick={() => setPose(choice.id)} className={chip(pose === choice.id)}>{choice.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Camera</p>
+              <div className="flex flex-wrap gap-2">
+                {SHOT_CHOICES.map((choice) => (
+                  <button key={choice.id} type="button" aria-pressed={shot === choice.id} onClick={() => setShot(choice.id)} className={chip(shot === choice.id)}>{choice.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Render background</p>
+              <div className="flex flex-wrap gap-2">
+                {RENDER_BACKGROUNDS.map((choice) => (
+                  <button key={choice.id} type="button" aria-pressed={renderBackground === choice.id} onClick={() => setRenderBackground(choice.id)} className={chip(renderBackground === choice.id)}>{choice.label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void preparePng()} className={chip(false)}>Prepare PNG</button>
+            {pngFile ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={pngFile.url} alt="Preview of the prepared PNG" className="h-16 w-auto rounded-md border border-white/10 bg-[#0b1220] object-contain" />
+                <a href={pngFile.url} download={pngFile.name} className={chip(true)}>Save PNG</a>
+              </>
+            ) : null}
+            <button type="button" onClick={() => void useAsPicture()} disabled={pictureBusy || !presetId} className={`${chip(false)} disabled:opacity-40`}>
+              {pictureBusy ? "Working…" : "Use as profile picture"}
+            </button>
+            {renderNote ? <p role="status" aria-live="polite" className="text-[11px] text-slate-300">{renderNote}</p> : null}
+          </div>
+        </div>
       </div>
 
       {/* Controls for the chosen category. */}

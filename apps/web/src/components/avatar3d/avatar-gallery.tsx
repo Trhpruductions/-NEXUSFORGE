@@ -75,7 +75,12 @@ function AvatarCard({ preset, isMain, onChanged, onError }: { preset: AvatarPres
 
   return (
     <article className="vx-panel flex flex-col overflow-hidden rounded-2xl" aria-label={`Saved avatar ${preset.name}`}>
-      <Swatches design={design} />
+      {preset.previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={preset.previewUrl} alt={`Portrait of ${preset.name}`} loading="lazy" className="h-36 w-full bg-[radial-gradient(circle_at_50%_30%,rgba(46,164,255,0.18),transparent_65%)] object-contain" />
+      ) : (
+        <Swatches design={design} />
+      )}
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           {renaming ? (
