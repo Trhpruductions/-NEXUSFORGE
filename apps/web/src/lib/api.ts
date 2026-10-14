@@ -3528,6 +3528,15 @@ export async function listUnseenUpdates(accessToken: string) {
 export async function markUpdatesSeen(accessToken: string, csrfToken: string) {
   await api.post("/api/updates/seen", {}, { headers: authHeaders(accessToken, csrfToken) });
 }
+export type ErrorEventRow = { id: string; source: "server" | "web"; message: string; detail: string | null; path: string | null; count: number; firstSeenAt: string; lastSeenAt: string };
+
+export async function listErrorEvents(accessToken: string) {
+  return (await api.get<{ errors: ErrorEventRow[]; total: number }>("/api/errors", { headers: authHeaders(accessToken) })).data;
+}
+export async function resolveErrorEvent(accessToken: string, csrfToken: string, id?: string) {
+  await api.delete(id ? `/api/errors/${id}` : "/api/errors", { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export async function listAllUpdatesForStaff(accessToken: string) {
   return (await api.get<{ updates: AppUpdate[] }>("/api/updates/admin", { headers: authHeaders(accessToken) })).data.updates;
 }

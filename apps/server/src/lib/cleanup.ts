@@ -9,6 +9,7 @@
  *   revokes the old token, so these pile up fast)
  * - notifications: read ones after 90 days, unread ones after 1 year
  * - admin audit log and activity log: 1 year
+ * - error log entries (/admin/errors): 30 days after last seen
  */
 import { prisma } from "./prisma.js";
 
@@ -23,6 +24,7 @@ export async function runCleanup() {
   const steps: Array<[string, () => Promise<{ count: number }>]> = [
     ["verification codes", () => prisma.verificationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
     ["OAuth codes", () => prisma.oAuthAuthorizationCode.deleteMany({ where: { expiresAt: { lt: ago(1) } } })],
+    ["error log", () => prisma.errorEvent.deleteMany({ where: { lastSeenAt: { lt: ago(30) } } })],
     ["Discord link codes", () => prisma.discordLinkCode.deleteMany({ where: { expiresAt: { lt: new Date() } } })],
     ["session tokens", () => prisma.refreshToken.deleteMany({ where: { OR: [{ expiresAt: { lt: ago(1) } }, { revokedAt: { lt: ago(7) } }] } })],
     ["read notifications", () => prisma.notification.deleteMany({ where: { read: true, createdAt: { lt: ago(90) } } })],

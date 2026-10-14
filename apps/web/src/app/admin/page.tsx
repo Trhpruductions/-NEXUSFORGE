@@ -139,6 +139,7 @@ export default function AdminPage() {
         { label: "ID Review Queue", href: "/admin/age-verification", tone: "ghost" },
         { label: "Legal Documents", href: "/admin/legal", tone: "ghost" },
         { label: "Reported Messages", href: "/admin/reports", tone: "ghost" },
+        { label: "Error Log", href: "/admin/errors", tone: "ghost" },
         { label: "Review Notifications", href: "/notifications", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-7xl"

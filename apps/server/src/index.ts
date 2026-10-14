@@ -34,6 +34,8 @@ import { settingsRouter } from "./routes/settings.routes.js";
 import { accountRouter } from "./routes/account.routes.js";
 import { meRouter } from "./routes/me.routes.js";
 import { updatesRouter } from "./routes/updates.routes.js";
+import { errorsRouter } from "./routes/errors.routes.js";
+import { recordError } from "./lib/error-log.js";
 import { reportsRouter } from "./routes/reports.routes.js";
 import { legalRouter } from "./routes/legal.routes.js";
 import { linkPreviewRouter } from "./routes/link-preview.routes.js";
@@ -185,6 +187,7 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/account", accountRouter);
 app.use("/api/me", meRouter);
 app.use("/api/updates", updatesRouter);
+app.use("/api/errors", errorsRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/legal", legalRouter);
 app.use("/api/link-preview", linkPreviewRouter);
@@ -701,4 +704,6 @@ process.on("SIGTERM", () => {
 // because the process may be in a broken state after one.
 process.on("unhandledRejection", (reason) => {
   console.error("[process] unhandled promise rejection:", reason);
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  void recordError({ source: "server", message: `Unhandled rejection: ${error.message}`, stack: error.stack });
 });
