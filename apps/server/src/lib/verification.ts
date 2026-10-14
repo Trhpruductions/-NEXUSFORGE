@@ -125,7 +125,12 @@ export async function verifyCode(params: { userId: string; purpose: Verification
   const hash = hashCode(params.userId, params.code.trim());
   const match = candidates.find((entry) => entry.codeHash === hash && entry.attempts < MAX_ATTEMPTS);
   if (match) {
-    await prisma.verificationCode.update({ where: { id: match.id }, data: { consumedAt: new Date() } });
+    // One confirmation is one use: the copy sent to the other channel (email vs text) is used
+    // up too, so it can't be replayed and doesn't block the next request with "please wait".
+    await prisma.verificationCode.updateMany({
+      where: { id: { in: candidates.map((entry) => entry.id) } },
+      data: { consumedAt: new Date() },
+    });
     return { ok: true, channel: match.channel, target: match.target };
   }
 
