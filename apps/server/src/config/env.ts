@@ -96,6 +96,12 @@ const envSchema = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
   UPLOAD_MAX_BYTES: z.coerce.number().default(25 * 1024 * 1024),
   PREMIUM_UPLOAD_MAX_BYTES: z.coerce.number().default(150 * 1024 * 1024),
+  /**
+   * Cap for self-hosted (local-disk) uploads that arrive through a proxy such as the Cloudflare
+   * tunnel, which rejects request bodies over 100 MB before they reach us. Not used once S3/R2
+   * storage is configured (the browser then uploads straight to the bucket).
+   */
+  LOCAL_UPLOAD_PROXY_MAX_BYTES: z.coerce.number().default(95 * 1024 * 1024),
   APP_WEB_URL: z.string().default("http://127.0.0.1:3300"),
   // Email delivery (SMTP). When unset in development, codes are logged to the server console.
   SMTP_HOST: z.string().optional(),

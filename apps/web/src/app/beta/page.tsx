@@ -57,6 +57,7 @@ const checklist: { icon: typeof Users; title: string; items: string[] }[] = [
 const limits = [
   { title: "Email only for codes", text: "Text-message codes are switched off during the beta. Sign-in and recovery codes arrive by email." },
   { title: "Payments are simulated", text: "Checkout runs in Stripe's test mode. Use card 4242 4242 4242 4242 with any future expiry date and any 3-digit code. No real money moves." },
+  { title: "Uploads up to 95 MB for now", text: "Our hosting caps single uploads at 100 MB during the beta, whatever your plan says. Bigger uploads arrive with the storage upgrade before launch." },
   { title: "Short restarts", text: "Updates go out several times a week. A page may reload itself once when that happens; voice calls reconnect." },
   { title: "Installer warning", text: "The Windows installer isn't code-signed yet, so SmartScreen shows a warning. A signing certificate is on the list before launch." },
 ];

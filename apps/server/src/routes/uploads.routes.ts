@@ -62,7 +62,19 @@ uploadsRouter.post("/presign", async (req, res) => {
       res.status(415).json({ error: "That file type can't be uploaded. Use an image, video, audio, PDF or text file." });
       return;
     }
-    res.status(201).json(createLocalUploadUrl({ userId: req.user!.id, filename: parsed.data.filename, contentType: parsed.data.contentType, maxBytes }));
+    // Behind the public tunnel every upload passes through Cloudflare, which drops bodies over
+    // 100 MB before they reach us. Say so here, in plain words, instead of letting the browser
+    // hit an HTML error page mid-upload. Direct-to-bucket uploads (S3/R2) don't have this cap.
+    const throughProxy = /^https:/i.test(env.API_PUBLIC_URL ?? "");
+    const proxyCap = Math.min(maxBytes, env.LOCAL_UPLOAD_PROXY_MAX_BYTES);
+    if (throughProxy && parsed.data.size > proxyCap) {
+      res.status(413).json({
+        error: `Files over ${Math.round(proxyCap / (1024 * 1024))} MB can't be uploaded yet. Our hosting caps single uploads at 100 MB during the beta; bigger uploads come with the storage upgrade.`,
+        code: "UPLOAD_PROXY_LIMIT",
+      });
+      return;
+    }
+    res.status(201).json(createLocalUploadUrl({ userId: req.user!.id, filename: parsed.data.filename, contentType: parsed.data.contentType, maxBytes: throughProxy ? proxyCap : maxBytes }));
     return;
   }
 

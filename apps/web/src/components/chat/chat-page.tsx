@@ -310,7 +310,13 @@ function ChatInner() {
     for (const file of files) {
       const presign = await createUploadPresign(accessToken!, csrfToken!, { filename: file.name, contentType: file.type || "application/octet-stream", size: file.size });
       const put = await fetch(presign.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
-      if (!put.ok) throw new Error(`Upload failed for ${file.name}`);
+      if (!put.ok) {
+        // Our own upload endpoint answers with JSON; a proxy in between (413 from the host) does not.
+        const detail = (await put.json().catch(() => null)) as { error?: string } | null;
+        if (detail?.error) throw new Error(`${file.name}: ${detail.error}`);
+        if (put.status === 413) throw new Error(`${file.name} is too big to upload right now (single uploads are capped at 100 MB during the beta).`);
+        throw new Error(`Upload failed for ${file.name} (${put.status}). Please try again.`);
+      }
       urls.push(presign.fileUrl);
     }
     return urls;
