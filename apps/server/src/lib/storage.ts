@@ -17,6 +17,10 @@ const s3Client = canUseStorage
       },
       endpoint: env.S3_ENDPOINT,
       forcePathStyle: Boolean(env.S3_ENDPOINT),
+      // S3-compatible stores such as Cloudflare R2 reject the SDK's newer default checksum
+      // headers on presigned PUTs; only add checksums when an operation requires them.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     })
   : null;
 
