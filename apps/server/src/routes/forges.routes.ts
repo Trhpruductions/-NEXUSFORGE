@@ -394,6 +394,8 @@ forgesRouter.post("/", async (req, res) => {
           banner: parsed.data.banner,
           inviteCode,
           ownerId: req.user!.id,
+          // New servers start private; the owner makes one public from Overview, which lists it on Discover.
+          isPublic: false,
         },
       });
 

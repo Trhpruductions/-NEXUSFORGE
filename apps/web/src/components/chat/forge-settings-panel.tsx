@@ -345,6 +345,16 @@ function OverviewTab({
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
 
+  // Public servers are listed on Discover, where anyone can search for them and join without an invite code.
+  const visibility = useMutation({
+    mutationFn: (next: boolean) => updateForge(accessToken, csrfToken, forge.id, { isPublic: next }),
+    onSuccess: async (_result, next) => {
+      setNotice({ tone: "ok", text: next ? "Your server is public. It now appears on Discover." : "Your server is private again." });
+      await invalidate();
+    },
+    onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
+  });
+
   return (
     <div className="grid gap-4 md:grid-cols-[1fr_220px]">
       <div className="space-y-3">
@@ -371,6 +381,17 @@ function OverviewTab({
         ) : (
           <p className="text-[11px] text-slate-500">You need the Manage forge permission to edit these fields.</p>
         )}
+        <div className="rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3">
+          <p className="text-sm font-semibold text-slate-100">{forge.isPublic ? "Public server" : "Private server"}</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {forge.isPublic
+              ? "Listed on Discover. Anyone can search for it by name and join with one click, no invite code needed."
+              : "Only people with the invite link can join. Make it public to list it on Discover, so people can search for it and join directly."}
+          </p>
+          <button type="button" className={`${primaryBtn} mt-3`} disabled={!editable || visibility.isPending} onClick={() => visibility.mutate(!forge.isPublic)}>
+            {visibility.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} {forge.isPublic ? "Make private" : "Make public"}
+          </button>
+        </div>
       </div>
       <aside className="space-y-3 rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3 text-xs text-slate-300">
         <div className="flex items-center gap-3">

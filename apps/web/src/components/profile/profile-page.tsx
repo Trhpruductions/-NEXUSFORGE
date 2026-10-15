@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Award, Clock, Crown, Loader2, Radio, Send, Shield, Sparkles, Star, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import {
   applyAvatarPreset,
   createPost,
@@ -177,7 +178,7 @@ function ProfileInner() {
   const friends = (friendsQuery.data?.friends ?? []).filter((entry) => entry.status === "ACCEPTED");
 
   if (summaryQuery.isLoading || !profile) {
-    return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading profile...</p>;
+    return <LoadingNote label="Loading profile..." onRetry={() => void summaryQuery.refetch()} />;
   }
 
   const person = profile.user;
@@ -328,7 +329,7 @@ function ProfileInner() {
                   <PostCard key={post.id} post={post} selfId={self?.id} onLike={(id) => likeMutation.mutate(id)} onDelete={(id) => deleteMutation.mutate(id)} className={panel} />
                 ))
               ) : (
-                <p className={`${panel} text-sm text-slate-500`}>{tab === "clips" ? "No clips shared yet." : "No posts yet."}</p>
+                <p className={`${panel} text-sm text-slate-500`}>{tab === "clips" ? "No clips shared yet. Clips you share will appear here." : "No posts yet. Share your first update above and the community will see it here."}</p>
               )}
             </div>
           ) : null}

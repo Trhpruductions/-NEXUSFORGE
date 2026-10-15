@@ -151,11 +151,11 @@ export function FeedPage() {
           <Users className="h-8 w-8 text-slate-600" />
           {scope === "following" ? (
             <>
-              <p className="text-sm text-slate-300">Nothing from the people you follow yet.</p>
-              <p className="text-xs text-slate-500">
-                Follow players from their profile, or{" "}
-                <button type="button" onClick={() => setScope("all")} className="text-amber-300 hover:text-amber-200">see what everyone&apos;s posting</button>.
-              </p>
+              <p className="text-sm font-semibold text-slate-200">Your feed comes alive when you follow people.</p>
+              <p className="max-w-sm text-xs text-slate-500">Follow players from their profile, or see what the whole community is posting right now.</p>
+              <button type="button" onClick={() => setScope("all")} className="mt-2 rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300">
+                See what everyone&apos;s posting
+              </button>
             </>
           ) : (
             <>

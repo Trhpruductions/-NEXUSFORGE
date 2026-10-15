@@ -37,6 +37,9 @@ const nextConfig = (phase: string): NextConfig => ({
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next-build",
   turbopack: {},
   poweredByHeader: false,
+  // Serve images as they are. The on-the-fly optimizer failed for the large brand PNGs (blank logos on the home
+  // page and elsewhere), and the originals are already sized for the screens that use them.
+  images: { unoptimized: true },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

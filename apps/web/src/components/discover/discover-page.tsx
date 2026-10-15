@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Check, Hash, Loader2, Search, Star, TrendingUp, Users } from "lucide-react";
+import { Check, Hash, Search, Star, TrendingUp, Users } from "lucide-react";
 import { getDiscover, joinForge, type DiscoverForge } from "@/lib/api";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
@@ -133,7 +134,14 @@ export function DiscoverPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0 space-y-4">
           {discoverQuery.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Finding communities...</p>
+            <LoadingNote label="Finding communities..." onRetry={() => void discoverQuery.refetch()} />
+          ) : discoverQuery.isError ? (
+            <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+              <p>Communities could not be loaded right now. The server may be busy.</p>
+              <button type="button" onClick={() => void discoverQuery.refetch()} className="mt-3 rounded-lg border border-rose-300/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] hover:bg-rose-400/10">
+                Try again
+              </button>
+            </div>
           ) : (
             <>
               {data?.featured.length ? (

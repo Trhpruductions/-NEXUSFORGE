@@ -105,6 +105,8 @@ export type Forge = {
   description?: string | null;
   icon?: string | null;
   banner?: string | null;
+  /** Public servers are listed on Discover, where anyone can search for them and join without an invite. */
+  isPublic?: boolean;
   inviteCode: string;
   inviteViewCount?: number;
   inviteJoinCount?: number;
@@ -813,6 +815,8 @@ import { isUpgradePrompt, usePaywallStore } from "@/store/paywall-store";
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  // A request that never answers should fail, so the page can show an error and a retry instead of spinning forever.
+  timeout: 20000,
 });
 
 api.interceptors.request.use((config) => {
@@ -1254,7 +1258,7 @@ export async function updateForge(
   accessToken: string,
   csrfToken: string,
   forgeId: string,
-  payload: { name?: string; description?: string | null; icon?: string | null; banner?: string | null },
+  payload: { name?: string; description?: string | null; icon?: string | null; banner?: string | null; isPublic?: boolean },
 ) {
   const response = await api.patch<{ forge: Forge & { ownerId: string } }>(`/api/forges/${forgeId}`, payload, {
     headers: authHeaders(accessToken, csrfToken),

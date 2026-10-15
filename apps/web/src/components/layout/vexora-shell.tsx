@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
 import { QuickSwitcher } from "@/components/layout/quick-switcher";
+import { GetStartedPanel } from "@/components/layout/get-started-panel";
 import { SavedPanel } from "@/components/chat/saved-panel";
 import { WhatsNewDialog } from "@/components/updates/whats-new-dialog";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
@@ -459,7 +460,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.push(`/app/search?q=${encodeURIComponent(search.trim())}`);
   };
 
-  const displayName = user?.displayName || user?.username || "Member";
+  // Until the account has loaded, say so rather than showing a generic name.
+  const displayName = user?.displayName || user?.username || "Your account";
 
   const renderTextChannel = (channel: Channel) => {
     const counts = channelCounts[channel.id];
@@ -521,9 +523,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     </li>
   );
 
+  // Settings is about the person, not their servers or chats, so it shows only the main navigation.
+  const quietWorkspace = pathname.startsWith("/app/settings");
+
   const sidebar = (
     <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
-      <div className="relative p-3" ref={forgeMenuRef}>
+      <div className={cn("relative p-3", quietWorkspace && "hidden")} ref={forgeMenuRef}>
         <button
           type="button"
           onClick={() => setForgeMenuOpen((open) => !open)}
@@ -542,7 +547,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           )}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-white">{forge?.name ?? (forgesQuery.isLoading ? "Loading..." : "No forge yet")}</span>
+            <span className="block truncate text-sm font-semibold text-white">
+              {forge?.name ??
+                (forgesQuery.isLoading || (selectedForgeId && !forgeQuery.isError)
+                  ? "Loading your server…"
+                  : forges.length
+                    ? "Choose a server"
+                    : "No server yet")}
+            </span>
             <span className="block text-[10px] uppercase tracking-[0.18em] text-slate-500">Community server</span>
           </span>
           <ChevronDown className={cn("h-4 w-4 text-slate-500 transition", forgeMenuOpen && "rotate-180")} />
@@ -633,7 +645,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         })}
       </nav>
 
-      <div className="mt-4 flex-1 overflow-y-auto px-3 pb-3 no-scrollbar">
+      <div className={cn("mt-4 flex-1 overflow-y-auto px-3 pb-3 no-scrollbar", quietWorkspace && "hidden")}>
         <div className="mb-1.5 flex items-center justify-between px-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300/70">Text channels</p>
           <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=channels` : "/app/chat"} className="text-slate-600 transition hover:text-amber-300" title="Add or manage channels">
@@ -771,10 +783,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
       <SavedPanel open={savedOpen} onClose={() => setSavedOpen(false)} />
+      {/* Kept off the pages whose bottom-right corner is already busy (studio, chat, support, rewards). */}
+      <GetStartedPanel inviteCode={forge?.inviteCode ?? null} hidden={quietWorkspace || ["/app/avatar", "/app/chat", "/app/support", "/app/rewards"].some((route) => pathname.startsWith(route))} />
       <WhatsNewDialog />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
-      <div className="hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex">
+      <div className={cn("hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex", quietWorkspace && "lg:hidden")}>
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
           <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge" width={40} height={40} className="h-10 w-10 object-cover" />
         </Link>

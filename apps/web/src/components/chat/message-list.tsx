@@ -442,7 +442,7 @@ export function MessageList({
         );
       })}
 
-      {!messages.length ? <p className="text-sm text-slate-500">No messages yet. Start the channel.</p> : null}
+      {!messages.length ? <p className="text-sm text-slate-500">No messages yet. Say hello and start the conversation.</p> : null}
       <div ref={bottomRef} />
     </div>
   );

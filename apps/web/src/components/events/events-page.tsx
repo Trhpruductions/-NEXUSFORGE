@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Maximize2, Plus, Trophy, Users, X, Play, Crown, Trash2 } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import {
   createEvent,
   deleteEvent,
@@ -255,7 +256,7 @@ export function EventsPage() {
               <span className="text-[11px] text-slate-500">{visibleEvents.length} listed</span>
             </div>
             {eventsQuery.isLoading ? (
-              <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading events...</p>
+              <LoadingNote label="Loading events..." onRetry={() => void eventsQuery.refetch()} />
             ) : visibleEvents.length ? (
               <ul className="space-y-2">
                 {visibleEvents.map((event) => {

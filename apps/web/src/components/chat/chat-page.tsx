@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, X } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import axios from "axios";
 import {
   createDmThread,
@@ -73,7 +74,7 @@ function formatTime(iso: string) {
 
 export function ChatPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-slate-400">Loading chat...</p>}>
+    <Suspense fallback={<LoadingNote label="Loading chat..." />}>
       <ChatInner />
     </Suspense>
   );

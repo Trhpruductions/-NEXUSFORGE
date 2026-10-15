@@ -285,7 +285,10 @@ function SupportDesk() {
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
               <Inbox className="h-8 w-8 text-slate-600" />
-              <p className="text-sm text-slate-400">{scope === "all" ? "Nothing in this queue." : "You haven't opened any tickets."}</p>
+              <p className="text-sm font-semibold text-slate-300">{scope === "all" ? "No open tickets right now." : "You haven't opened any tickets yet."}</p>
+              <p className="max-w-xs text-xs text-slate-500">
+                {scope === "all" ? "Everything has been answered. Nice work, team." : "If something isn't working, open a ticket and a real person will reply."}
+              </p>
             </div>
           )}
         </aside>

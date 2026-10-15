@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # NexusForge Production Automation Setup - Direct Task Registration
 # Run this with: powershell -NoProfile -ExecutionPolicy Bypass -File setup-tasks-direct.ps1
 # REQUIRES: "Run as Administrator"

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, MessageSquare, Search, UserMinus, UserPlus, Users, X, Eye } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -156,7 +157,7 @@ export function FriendsPage() {
           </div>
 
           {friendsQuery.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading friends...</p>
+            <LoadingNote label="Loading friends..." onRetry={() => void friendsQuery.refetch()} />
           ) : tab === "online" || tab === "all" ? (
             visible.length ? (
               <div className="grid gap-2 md:grid-cols-2">{visible.map((row) => <FriendCard key={row.friendship.id} row={row} />)}</div>

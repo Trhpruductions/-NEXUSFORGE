@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
 const panel = "vx-panel rounded-2xl p-4";
@@ -81,8 +82,15 @@ export function CommunityPage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
-          {forgesQuery.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading forges...</p>
+          {forgesQuery.isError ? (
+            <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+              <p>Your forges could not be loaded right now. The server may be busy.</p>
+              <button type="button" onClick={() => void forgesQuery.refetch()} className="mt-3 rounded-lg border border-rose-300/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] hover:bg-rose-400/10">
+                Try again
+              </button>
+            </div>
+          ) : forgesQuery.isLoading ? (
+            <LoadingNote label="Loading forges..." onRetry={() => void forgesQuery.refetch()} />
           ) : forges.length ? (
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
               {forges.map((forge) => {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Backpack, Check, Coins, Crown, Footprints, Glasses, HardHat, Loader2, Save, Search, Shirt, ShoppingBag, Sparkles, Sword, Trash2, X } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { applyLoadoutPreset, deleteLoadoutPreset, getCosmeticCatalog, getCosmeticInventory, purchaseCosmetic, saveLoadoutPreset, setLoadoutSlot, type CosmeticItem, type CosmeticRarity, type CosmeticSlot, type LoadoutPreset } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
@@ -173,7 +174,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           </div>
 
           {query.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading items...</p>
+            <LoadingNote label="Loading items..." onRetry={() => void query.refetch()} />
           ) : items.length ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {items.map((item) => {

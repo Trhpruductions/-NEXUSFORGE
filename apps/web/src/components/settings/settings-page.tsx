@@ -28,6 +28,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import {
   changePassword,
   getAvatar,
@@ -357,7 +358,7 @@ function SettingsInner() {
     return <p className="text-sm text-rose-300">Settings couldn&apos;t load: {errorText(settingsQuery.error)}. Refresh the page to try again.</p>;
   }
   if (settingsQuery.isLoading || !privacy) {
-    return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading settings...</p>;
+    return <LoadingNote label="Loading settings..." onRetry={() => void settingsQuery.refetch()} />;
   }
 
   return (
@@ -542,68 +543,6 @@ function SettingsInner() {
           </div>
         </section>
 
-        <section className="space-y-4">
-          <div className={panel}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className={sectionTitle}>Server Roles</h2>
-              {forge ? <span className="text-[11px] text-slate-500">{forge.name}</span> : null}
-            </div>
-            {forge ? (
-              <ul className="space-y-1.5">
-                {forge.roles.map((role) => {
-                  const holders = forge.members.filter((member) => member.roleLinks.some((link) => link.roleId === role.id)).length;
-                  return (
-                    <li key={role.id} className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: role.color }} />
-                      <span className="flex-1 text-sm" style={{ color: role.color }}>{role.name}</span>
-                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-500"><Users className="h-3 w-3" /> {holders}</span>
-                    </li>
-                  );
-                })}
-                {!forge.roles.length ? <li className="text-sm text-slate-500">No roles yet.</li> : null}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500">Select a forge to see its roles.</p>
-            )}
-            <Link href={selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=roles` : "/app/chat"} className={`${goldBtn} mt-3`}>
-              <Shield className="h-3.5 w-3.5" /> Manage roles
-            </Link>
-          </div>
-
-          <div className={panel}>
-            <h2 className={`${sectionTitle} mb-3`}>Server Settings</h2>
-            <ul className="space-y-2 text-sm text-slate-300">
-              <li className="flex items-center justify-between rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
-                <span>Your role</span>
-                <span className="text-[11px] uppercase tracking-[0.14em] text-amber-200">{isOwner ? "Owner" : "Member"}</span>
-              </li>
-              <li className="flex items-center justify-between rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
-                <span>Members</span>
-                <span className="text-slate-400">{forge?.members.length ?? 0}</span>
-              </li>
-              <li className="flex items-center justify-between rounded-lg border border-white/5 bg-[#11151e] px-3 py-2">
-                <span>Channels</span>
-                <span className="text-slate-400">{forge?.channels.length ?? 0}</span>
-              </li>
-            </ul>
-            <p className="mt-2 text-[11px] text-slate-500">Name, description, visibility and channels are managed from the forge&apos;s Manage panel in Chat.</p>
-          </div>
-
-          <div className={panel}>
-            <h2 className={`${sectionTitle} mb-3`}>Quick Actions</h2>
-            <div className="space-y-2">
-              {[
-                { label: "View audit logs", href: selectedForgeId ? `/app/chat?forge=${selectedForgeId}&manage=audit` : "/app/chat", icon: ScrollText },
-                { label: "Server boost", href: "/core-plus", icon: Zap },
-                { label: "Apps & integrations", href: "/developer", icon: Puzzle },
-              ].map((action) => (
-                <Link key={action.label} href={action.href} className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#11151e] px-3 py-2.5 text-sm text-slate-200 transition hover:border-amber-400/50 hover:text-white">
-                  <action.icon className="h-4 w-4 text-amber-300" /> {action.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
               </div>
               <AccountProtection highlight={highlightProtection} />
               <AgeVerificationCard highlight={highlightAge} />

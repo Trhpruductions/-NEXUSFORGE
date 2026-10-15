@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Bell, Calendar, Check, CheckCheck, Loader2, MessageSquare, Radio, ShieldAlert, UserPlus, Users } from "lucide-react";
+import { AtSign, Bell, Calendar, Check, CheckCheck, MessageSquare, Radio, ShieldAlert, UserPlus, Users } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { listNotifications, markNotificationsRead, type NotificationItem } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -113,7 +114,7 @@ export function NotificationsPage() {
           </div>
 
           {query.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</p>
+            <LoadingNote label="Loading..." onRetry={() => void query.refetch()} />
           ) : items.length ? (
             <ul className="space-y-1.5">
               {items.map((item) => {
