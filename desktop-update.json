@@ -1,20 +1,16 @@
-{
-    "version":  "1.0.11",
+﻿{
+    "version":  "1.0.14",
     "notes":  [
-                  "Deterministic window handoff from splash to full app",
-                  "Automatic local URL recovery retry before fallback",
-                  "Version-aware cinematic launch screen enhancements",
-                  "Premium diagnostics panel redesign for recovery mode",
-                  "Installed-launch resolver and startup telemetry hardening"
+                  "We\u0027re now Nexus Forge Gaming: new name, new logo, electric-blue look",
+                  "Opens Nexus Forge at https://nfgcord.com",
+                  "Downloads and updates come straight from nfgcord.com"
               ],
     "downloadUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
     "downloadUrls":  [
                          "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
-                         "https://github.com/Trhpructions/-NEXUSFORGE/releases/download/v1.0.11/NexusForge%20Desktop%20Setup%201.0.11.exe",
-                         "https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/NexusForge%20Desktop%20Setup%20Latest.exe"
+                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.14.exe"
                      ],
-    "downloadFolderUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/",
-    "sha256":  "353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a",
-    "forceUpdate":  true
+    "downloadFolderUrl":  "https://nfgcord.com/download",
+    "sha256":  "61cc7938d26d45734cb003bf78524aa12c9563d6d638045a743e2700187d9fc5",
+    "forceUpdate":  false
 }
