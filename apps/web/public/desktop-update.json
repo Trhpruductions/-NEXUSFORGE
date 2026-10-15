@@ -1,16 +1,16 @@
-{
-  "version": "1.0.13",
-  "notes": [
-    "We're now Nexus Forge Gaming: new name, new logo, electric-blue look",
-    "Opens Nexus Forge at https://nfgcord.com",
-    "Downloads and updates come straight from nfgcord.com"
-  ],
-  "downloadUrl": "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-1.0.13.exe",
-  "downloadUrls": [
-    "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-1.0.13.exe",
-    "https://nfgcord.com/downloads/Nexus-Forge-Gaming-Setup-Latest.exe"
-  ],
-  "downloadFolderUrl": "https://nfgcord.com/download",
-  "sha256": "2347ca642419d6625b7f46019ace6c1cd07ae4d20f74abbe2cf282f3a5d0e559",
-  "forceUpdate": false
+﻿{
+    "version":  "1.0.14",
+    "notes":  [
+                  "We\u0027re now Nexus Forge Gaming: new name, new logo, electric-blue look",
+                  "Opens Nexus Forge at https://nfgcord.com",
+                  "Downloads and updates come straight from nfgcord.com"
+              ],
+    "downloadUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+    "downloadUrls":  [
+                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.14.exe"
+                     ],
+    "downloadFolderUrl":  "https://nfgcord.com/download",
+    "sha256":  "61cc7938d26d45734cb003bf78524aa12c9563d6d638045a743e2700187d9fc5",
+    "forceUpdate":  false
 }
