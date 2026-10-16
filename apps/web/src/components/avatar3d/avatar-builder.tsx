@@ -35,6 +35,9 @@ import type { CaptureFn, ViewerBackground, ViewerPose, ViewerShot } from "@/comp
 import { usePrefersReducedMotion } from "@/components/avatar3d/reduced-motion";
 import { Chips, FilterBar, OptionGrid, Swatches, chip, type LockFilter } from "@/components/avatar3d/avatar-builder-parts";
 import { SavedLooksPanel, type Notice } from "@/components/avatar3d/saved-looks-panel";
+import { CurrentSelections } from "@/components/avatar3d/current-selections";
+import { STUDIO_CATEGORIES, armorOptions, headwear, onlyHoodies, otherAccessories, remember, topsWithoutHoodies, type RecentPick, type StudioCategory } from "@/components/avatar3d/studio-model";
+import { EmotePanel, OwnedInventory, OwnershipLegend, ProfileCard, RecentlyUsed, SavedOutfitsSummary } from "@/components/avatar3d/studio-panels";
 import { useAuthStore } from "@/store/auth-store";
 
 const POSE_CHOICES: Array<{ id: ViewerPose; label: string }> = [
@@ -64,34 +67,22 @@ const AvatarViewer = dynamic(() => import("@/components/avatar3d/avatar-viewer")
   loading: () => <div className="flex h-full items-center justify-center text-xs uppercase tracking-[0.2em] text-slate-400">Loading 3D…</div>,
 });
 
-type Category = "base" | "face" | "hair" | "clothing" | "accessories" | "colours" | "presets" | "looks";
-const CATEGORIES: Array<{ id: Category; label: string }> = [
-  { id: "base", label: "Base" },
-  { id: "face", label: "Face" },
-  { id: "hair", label: "Hair" },
-  { id: "clothing", label: "Clothing" },
-  { id: "accessories", label: "Accessories" },
-  { id: "colours", label: "Colours" },
-  { id: "presets", label: "Presets" },
-  { id: "looks", label: "Saved looks" },
-];
+type Category = StudioCategory;
+const CATEGORIES = STUDIO_CATEGORIES;
 
-type ClothingPart = "top" | "outer" | "bottom" | "shoes";
-const CLOTHING_PARTS: Array<{ id: ClothingPart; label: string; category: PartCategory }> = [
-  { id: "top", label: "Tops", category: "top" },
-  { id: "outer", label: "Outerwear", category: "outer" },
-  { id: "bottom", label: "Bottoms", category: "bottom" },
-  { id: "shoes", label: "Shoes", category: "shoes" },
-];
-
-type AccessoryTab = "all" | "headwear" | "eyewear" | "face" | "body";
+// Head coverings have their own category, so the accessories tabs cover eyewear, face and body items.
+type AccessoryTab = "all" | "eyewear" | "face" | "body";
 const ACCESSORY_TABS: Array<{ id: AccessoryTab; label: string }> = [
   { id: "all", label: "All" },
-  { id: "headwear", label: ACCESSORY_GROUP_LABELS.headwear },
   { id: "eyewear", label: ACCESSORY_GROUP_LABELS.eyewear },
   { id: "face", label: ACCESSORY_GROUP_LABELS.face },
   { id: "body", label: ACCESSORY_GROUP_LABELS.body },
 ];
+
+/** The option's label, or its id if it is not in the list. */
+function labelOf(category: PartCategory, id: string): string {
+  return PART_OPTIONS[category].find((option) => option.id === id)?.label ?? id;
+}
 
 type Snapshot = { name: string; design: AvatarDesign };
 const EMPTY_OWNED: ReadonlySet<string> = new Set<string>();
@@ -144,8 +135,9 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
   const dirty = signatureOf({ name, design: draft }) !== signatureOf(baseline);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [category, setCategory] = useState<Category>("hair");
-  const [clothingPart, setClothingPart] = useState<ClothingPart>("top");
   const [accessoryTab, setAccessoryTab] = useState<AccessoryTab>("all");
+  const user = useAuthStore((state) => state.user);
+  const [recent, setRecent] = useState<RecentPick[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LockFilter>("all");
   const [hint, setHint] = useState<string | null>(null);
@@ -301,23 +293,36 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
   const onLocked = (option: PartOption) => setHint(`${option.label} is locked. Buy it in the Wardrobe to wear it.`);
 
   /** Single-choice parts: the option id is written to its field. */
-  const pickers: Record<ClothingPart | "hair", (id: string) => void> = {
-    hair: (id) => update({ hair: id as HairStyle }),
-    top: (id) => update({ top: id as TopStyle }),
-    outer: (id) => update({ outer: id as OuterStyle }),
-    bottom: (id) => update({ bottom: id as BottomStyle }),
-    shoes: (id) => update({ shoes: id as ShoeStyle }),
+  /** Wears a part in the draft and remembers it for Recently used. An option the account does not own is refused, as in the grids. */
+  const wear = (pick: RecentPick) => {
+    const option = PART_OPTIONS[pick.category].find((entry) => entry.id === pick.id);
+    if (option?.catalogKey && !owned.has(option.catalogKey)) {
+      onLocked(option);
+      return;
+    }
+    setRecent((current) => remember(current, pick));
+    switch (pick.category) {
+      case "hair": update({ hair: pick.id as HairStyle }); break;
+      case "top": update({ top: pick.id as TopStyle }); break;
+      case "outer": update({ outer: pick.id as OuterStyle }); break;
+      case "bottom": update({ bottom: pick.id as BottomStyle }); break;
+      case "shoes": update({ shoes: pick.id as ShoeStyle }); break;
+      case "accessory": setDraft((current) => ({ ...current, accessories: toggleAccessory(current.accessories, pick.id as Accessory) })); break;
+    }
   };
-  const selectedFor: Record<ClothingPart | "hair", (id: string) => boolean> = {
-    hair: (id) => draft.hair === id,
-    top: (id) => draft.top === id,
-    outer: (id) => draft.outer === id,
-    bottom: (id) => draft.bottom === id,
-    shoes: (id) => draft.shoes === id,
+  /** Whether the draft currently wears this option. */
+  const isWorn = (category: PartCategory, id: string): boolean => {
+    switch (category) {
+      case "hair": return draft.hair === id;
+      case "top": return draft.top === id;
+      case "outer": return draft.outer === id;
+      case "bottom": return draft.bottom === id;
+      case "shoes": return draft.shoes === id;
+      case "accessory": return draft.accessories.includes(id as Accessory);
+      default: return false;
+    }
   };
-
-  const accessoryOptions = PART_OPTIONS.accessory.filter((option) => accessoryTab === "all" || option.group === accessoryTab);
-  const clothingOptions = PART_OPTIONS[CLOTHING_PARTS.find((entry) => entry.id === clothingPart)!.category];
+  const pickFor = (category: PartCategory) => (id: string) => wear({ category, id, label: labelOf(category, id) });
 
   // The status line: what is saved, what is not, and what needs attention.
   const status = notice
@@ -372,9 +377,9 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
       ) : null}
       {accessToken && ownershipQuery.isLoading ? <p className="text-[11px] text-slate-500">Checking what you own…</p> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)_360px]">
-        {/* Categories: a row on phones, a column on desktop. */}
-        <nav aria-label="Avatar categories" className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px_300px]">
+        {/* Categories: one row across the studio, scrolling on narrow screens. */}
+        <nav aria-label="Avatar categories" className="flex gap-2 overflow-x-auto pb-1 xl:col-span-3">
           {CATEGORIES.map((entry) => (
             <button
               key={entry.id}
@@ -393,8 +398,8 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
           ))}
         </nav>
 
-        {/* The figure. */}
-        <div className="space-y-3">
+        {/* The figure: the middle column on desktop, first on phones. */}
+        <div className="order-1 space-y-3 xl:order-none xl:col-start-2 xl:row-start-2">
           <AvatarViewer design={draft} autoRotate={spin} background={background} pose={pose} captureRef={captureRef} className="h-[52vh] min-h-[340px] w-full lg:h-[64vh]" />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap gap-2">
@@ -460,15 +465,17 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
               {renderNote ? <p role="status" aria-live="polite" className="text-[11px] text-slate-300">{renderNote}</p> : null}
             </div>
           </div>
+          <OwnedInventory onWear={wear} />
         </div>
 
-        {/* Controls for the chosen category. */}
-        <div className="vx-panel max-h-[80vh] space-y-5 overflow-y-auto rounded-2xl p-4">
-          {category === "base" ? (
-            <>
-              <Chips label="Body size" options={BODY_TYPES} value={draft.body} onPick={(body) => update({ body })} />
-              <Swatches label="Skin tone" colours={SKIN_TONES} value={draft.skin} onPick={(skin) => update({ skin })} />
-            </>
+        {/* Controls for the chosen category: the catalog column on desktop. */}
+        <div className="order-2 vx-panel max-h-[80vh] space-y-5 overflow-y-auto rounded-2xl p-4 xl:order-none xl:col-start-1 xl:row-start-2">
+          {category === "body" ? (
+            <Chips label="Body size" options={BODY_TYPES} value={draft.body} onPick={(body) => update({ body })} />
+          ) : null}
+
+          {category === "skin" ? (
+            <Swatches label="Skin tone" colours={SKIN_TONES} value={draft.skin} onPick={(skin) => update({ skin })} />
           ) : null}
 
           {category === "face" ? (
@@ -481,22 +488,83 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
           {category === "hair" ? (
             <>
               <FilterBar label="Hair" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
-              <OptionGrid options={PART_OPTIONS.hair} isSelected={selectedFor.hair} ownership={ownership} query={query} filter={filter} onPick={pickers.hair} onLocked={onLocked} />
+              <OptionGrid options={PART_OPTIONS.hair} isSelected={(id) => isWorn("hair", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("hair")} onLocked={onLocked} />
               <Swatches label="Hair colour" colours={PALETTE} value={draft.hairColor} onPick={(hairColor) => update({ hairColor })} />
             </>
           ) : null}
 
-          {category === "clothing" ? (
+          {category === "head" ? (
             <>
-              <div role="group" aria-label="Clothing type" className="flex flex-wrap gap-1.5">
-                {CLOTHING_PARTS.map((entry) => (
-                  <button key={entry.id} type="button" aria-pressed={clothingPart === entry.id} onClick={() => setClothingPart(entry.id)} className={chip(clothingPart === entry.id)}>{entry.label}</button>
-                ))}
-              </div>
-              <FilterBar label={CLOTHING_PARTS.find((entry) => entry.id === clothingPart)!.label} query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
-              <OptionGrid options={clothingOptions} isSelected={selectedFor[clothingPart]} ownership={ownership} query={query} filter={filter} onPick={pickers[clothingPart]} onLocked={onLocked} />
+              <FilterBar label="Head" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={headwear(PART_OPTIONS.accessory)} isSelected={(id) => isWorn("accessory", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("accessory")} onLocked={onLocked} />
+              <p className="text-[11px] text-slate-500">Hats and caps replace each other, so the last pick shows.</p>
             </>
           ) : null}
+
+          {category === "tops" ? (
+            <>
+              <FilterBar label="Tops" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={topsWithoutHoodies(PART_OPTIONS.top)} isSelected={(id) => isWorn("top", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("top")} onLocked={onLocked} />
+              <Swatches label="Top colour" colours={PALETTE} value={draft.topColor} onPick={(topColor) => update({ topColor })} />
+            </>
+          ) : null}
+
+          {category === "hoodies" ? (
+            <>
+              <FilterBar label="Hoodies" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={onlyHoodies(PART_OPTIONS.top)} isSelected={(id) => isWorn("top", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("top")} onLocked={onLocked} />
+              <Swatches label="Hoodie colour" colours={PALETTE} value={draft.topColor} onPick={(topColor) => update({ topColor })} />
+            </>
+          ) : null}
+
+          {category === "jackets" ? (
+            <>
+              <FilterBar label="Jackets" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={PART_OPTIONS.outer} isSelected={(id) => isWorn("outer", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("outer")} onLocked={onLocked} />
+              <Swatches label="Jacket colour" colours={PALETTE} value={draft.outerColor} onPick={(outerColor) => update({ outerColor })} />
+            </>
+          ) : null}
+
+          {category === "pants" ? (
+            <>
+              <FilterBar label="Pants" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={PART_OPTIONS.bottom} isSelected={(id) => isWorn("bottom", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("bottom")} onLocked={onLocked} />
+              <Swatches label="Pants colour" colours={PALETTE} value={draft.bottomColor} onPick={(bottomColor) => update({ bottomColor })} />
+            </>
+          ) : null}
+
+          {category === "shoes" ? (
+            <>
+              <FilterBar label="Shoes" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
+              <OptionGrid options={PART_OPTIONS.shoes} isSelected={(id) => isWorn("shoes", id)} ownership={ownership} query={query} filter={filter} onPick={pickFor("shoes")} onLocked={onLocked} />
+              <Swatches label="Shoe colour" colours={PALETTE} value={draft.shoeColor} onPick={(shoeColor) => update({ shoeColor })} />
+            </>
+          ) : null}
+
+          {category === "armor" ? (
+            <div className="space-y-5">
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                Armour and futuristic parts are paid. Each one stays locked until you own it, and the Wardrobe sells them.
+              </p>
+              {([
+                { label: "Jackets", category: "outer" },
+                { label: "Pants", category: "bottom" },
+                { label: "Shoes", category: "shoes" },
+                { label: "Accessories", category: "accessory" },
+              ] as const).map((section) => {
+                const options = armorOptions(section.category, PART_OPTIONS[section.category]);
+                if (!options.length) return null;
+                return (
+                  <div key={section.category} className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{section.label}</p>
+                    <OptionGrid options={options} isSelected={(id) => isWorn(section.category, id)} ownership={ownership} query="" filter="all" onPick={pickFor(section.category)} onLocked={onLocked} />
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {category === "emotes" ? <EmotePanel /> : null}
 
           {category === "accessories" ? (
             <>
@@ -507,12 +575,12 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
               </div>
               <FilterBar label="Accessories" query={query} onQuery={setQuery} filter={filter} onFilter={setFilter} />
               <OptionGrid
-                options={accessoryOptions}
-                isSelected={(id) => draft.accessories.includes(id as Accessory)}
+                options={otherAccessories(PART_OPTIONS.accessory).filter((option) => accessoryTab === "all" || option.group === accessoryTab)}
+                isSelected={(id) => isWorn("accessory", id)}
                 ownership={ownership}
                 query={query}
                 filter={filter}
-                onPick={(id) => setDraft((current) => ({ ...current, accessories: toggleAccessory(current.accessories, id as Accessory) }))}
+                onPick={pickFor("accessory")}
                 onLocked={onLocked}
               />
               <div className="flex items-center justify-between gap-2">
@@ -522,24 +590,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
             </>
           ) : null}
 
-          {category === "colours" ? (
-            <>
-              {COLOUR_FIELDS.map((entry) => (
-                <Swatches
-                  key={entry.field}
-                  label={entry.label}
-                  help={entry.help}
-                  colours={entry.field === "skin" ? SKIN_TONES : PALETTE}
-                  value={draft[entry.field]}
-                  onPick={(hex) => update({ [entry.field]: hex } as Partial<AvatarDesign>)}
-                />
-              ))}
-              <Chips label="Finish" options={MATERIAL_STYLES} value={draft.material} onPick={(material) => update({ material })} />
-              <p className="text-[11px] leading-relaxed text-slate-500">The finish applies to base tops, outerwear, bottoms and shoes: matte is dull, satin soft, gloss shiny and metallic reflective.</p>
-            </>
-          ) : null}
-
-          {category === "presets" ? (
+          {category === "outfits" ? (
             <div className="space-y-3">
               <p className="text-[11px] leading-relaxed text-slate-500">A preset replaces your draft. Press Save to keep it. Presets use free parts, so every account can wear them.</p>
               {DESIGN_PRESETS.map((preset) => (
@@ -561,7 +612,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
             </div>
           ) : null}
 
-          {category === "looks" ? (
+          {category === "outfits" ? (
             <SavedLooksPanel
               looks={looks}
               maxLooks={maxLooks}
@@ -572,6 +623,30 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
             />
           ) : null}
         </div>
+
+        {/* Right column: what is worn, colour accents, ownership key, saved outfits, recent parts and the profile card. */}
+        <aside aria-label="Current selections and profile" className="order-3 space-y-4 xl:order-none xl:col-start-3 xl:row-start-2">
+          <CurrentSelections design={draft} owned={owned} />
+          <section aria-labelledby="colour-accents-heading" className="vx-panel space-y-4 rounded-2xl p-4">
+            <h2 id="colour-accents-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">Colour accents</h2>
+            {COLOUR_FIELDS.filter((entry) => !["skin", "hairColor", "eyeColor", "topColor", "outerColor", "bottomColor", "shoeColor"].includes(entry.field)).map((entry) => (
+              <Swatches
+                key={entry.field}
+                label={entry.label}
+                help={entry.help}
+                colours={PALETTE}
+                value={draft[entry.field]}
+                onPick={(hex) => update({ [entry.field]: hex } as Partial<AvatarDesign>)}
+              />
+            ))}
+            <Chips label="Finish" options={MATERIAL_STYLES} value={draft.material} onPick={(material) => update({ material })} />
+            <p className="text-[11px] leading-relaxed text-slate-500">The finish applies to base tops, outerwear, bottoms and shoes: matte is dull, satin soft, gloss shiny and metallic reflective.</p>
+          </section>
+          <OwnershipLegend />
+          <SavedOutfitsSummary looks={looks} maxLooks={maxLooks} mainId={mainId} />
+          <RecentlyUsed recent={recent} onWear={wear} />
+          <ProfileCard user={user} />
+        </aside>
       </div>
     </div>
   );

@@ -55,6 +55,8 @@ import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
+import { useServerViewStore } from "@/store/server-view-store";
+import { serverLandingHref } from "@/lib/server-routes";
 import { VoiceEngine } from "@/components/chat/voice-engine";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
@@ -451,10 +453,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   };
 
+  // Choosing a server always opens it, from Home or anywhere else, on the channel it was last open on.
   const selectForge = (forgeId: string) => {
     setSelectedForgeId(forgeId);
     setForgeMenuOpen(false);
-    if (pathname.startsWith("/app/chat")) router.push(`/app/chat?forge=${forgeId}`);
+    setMobileOpen(false);
+    router.push(serverLandingHref(forgeId, useWorkspaceStore.getState().lastChannelByForge[forgeId]));
   };
 
   const onSearch = (event: React.FormEvent) => {
@@ -528,6 +532,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // Settings is about the person, not their servers or chats, so it shows only the main navigation.
   const quietWorkspace = pathname.startsWith("/app/settings");
+  // In a server, the app's own navigation and header step back on desktop; the mobile menu keeps them (the server rail is hidden there).
+  const serverView = useServerViewStore((state) => state.active);
 
   const sidebar = (
     <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
@@ -621,6 +627,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </div>
 
+      {serverView ? (
+        <Link href="/app" onClick={() => setMobileOpen(false)} className="mx-3 mb-2 flex items-center gap-2 rounded-lg border border-white/[0.06] px-2 py-1.5 text-sm text-slate-300 transition hover:bg-white/[0.04] hover:text-white">
+          <Home className="h-4 w-4" /> Home
+        </Link>
+      ) : (
       <nav className="space-y-0.5 px-3">
         {navLinks.map((link, index) => {
           const active = isActive(pathname, link.href) || (link.matches ?? []).some((href) => isActive(pathname, href));
@@ -652,7 +663,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+      )}
 
+      {serverView ? (
       <div className={cn("mt-4 flex-1 overflow-y-auto px-3 pb-3 no-scrollbar", quietWorkspace && "hidden")}>
         <div className="mb-1.5 flex items-center justify-between px-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300/70">Text channels</p>
@@ -703,6 +716,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
       </div>
+      ) : null}
 
       {voiceSession ? (
         <div className="border-t border-emerald-400/20 bg-emerald-500/[0.06] px-3 py-2">
@@ -794,8 +808,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
       <SavedPanel open={savedOpen} onClose={() => setSavedOpen(false)} />
-      {/* Kept off the pages whose bottom-right corner is already busy (studio, chat, support, rewards). */}
-      <GetStartedPanel inviteCode={forge?.inviteCode ?? null} hidden={quietWorkspace || ["/app/avatar", "/app/chat", "/app/support", "/app/rewards"].some((route) => pathname.startsWith(route))} />
+      {/* Onboarding belongs to Home. Servers and the other app pages do not carry it. */}
+      <GetStartedPanel inviteCode={forge?.inviteCode ?? null} hidden={pathname !== "/app"} />
       <WhatsNewDialog />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
       {/* Forge rail */}
@@ -807,7 +821,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto no-scrollbar">
           {forges.map((entry) => {
             const counts = forgeCounts[entry.id];
-            const active = entry.id === selectedForgeId;
+            const active = entry.id === selectedForgeId && serverView;
             return (
               <button
                 key={entry.id}
@@ -898,6 +912,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           return { "--page-accent": hue.base, "--page-accent-light": hue.light } as React.CSSProperties;
         })()}
       >
+        {serverView ? (
+          // Inside a server the channel bar is the header; on phones only the menu stays, since the server rail is hidden there.
+          <header className="relative flex h-14 shrink-0 items-center gap-3 bg-[#0b0e17]/75 px-3 backdrop-blur-xl lg:hidden">
+            <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300" title="Menu" aria-label="Open menu" aria-expanded={mobileOpen}>
+              <Layers className="h-4 w-4" />
+            </button>
+          </header>
+        ) : (
         <header className="relative flex h-14 shrink-0 items-center gap-3 bg-[#0b0e17]/75 px-3 backdrop-blur-xl md:px-5">
           <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-violet-500/60 via-amber-400/70 via-50% to-cyan-400/60" />
           <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-white/10 p-2 text-slate-300 lg:hidden" title="Menu" aria-label="Open menu" aria-expanded={mobileOpen}>
@@ -955,6 +977,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        )}
         {user?.deletionScheduledFor ? (
           <div className="shrink-0 border-b border-rose-500/40 bg-rose-950/50 px-4 py-2 text-xs text-rose-100 md:px-6" role="alert">
             <div className="flex flex-wrap items-center gap-2">

@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
+import { useServerViewStore } from "@/store/server-view-store";
 import { MessageList } from "@/components/chat/message-list";
 import { PollComposer } from "@/components/chat/poll-composer";
 import { MessageAttachments } from "@/components/chat/message-attachments";
@@ -170,6 +171,18 @@ function ChatInner() {
   // Where the reader left off in the open channel, for the "New messages" line.
   const [unreadSince, setUnreadSince] = useState<{ channelId: string; at: string } | null>(null);
   const mode: "voice" | "dm" | "channel" = requestedVoice ? "voice" : requestedDm ? "dm" : "channel";
+  // Inside a server (its channels or voice), the shell steps back so the server fills the window. DMs keep the normal shell.
+  const inServer = mode !== "dm" && Boolean(selectedForgeId);
+  const setServerView = useServerViewStore((state) => state.setActive);
+  useEffect(() => {
+    setServerView(inServer);
+  }, [inServer, setServerView]);
+  useEffect(() => () => setServerView(false), [setServerView]);
+  // Remember the channel per server, so opening that server again returns to it.
+  const rememberChannel = useWorkspaceStore((state) => state.rememberChannel);
+  useEffect(() => {
+    if (mode === "channel" && selectedForgeId && channelId) rememberChannel(selectedForgeId, channelId);
+  }, [mode, selectedForgeId, channelId, rememberChannel]);
   const channel = textChannels.find((entry) => entry.id === channelId) ?? null;
   const voiceChannel = requestedVoice && requestedVoice !== "1" ? voiceChannels.find((entry) => entry.id === requestedVoice) ?? null : voiceChannels[0] ?? null;
 

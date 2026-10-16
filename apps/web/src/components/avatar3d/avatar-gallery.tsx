@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from "lucide-react";
-import { getApiErrorMessage, updateAvatarPreset, type AvatarPreset } from "@/lib/api";
-import { designOfLook, duplicateLook, equipLook, loadLooks, removeLook, retiredPartsOf } from "@/lib/avatar-api";
-import type { AvatarDesign } from "@/components/avatar3d/design";
+import { getApiErrorMessage, getAvatar, updateAvatarPreset, type AvatarPreset } from "@/lib/api";
+import { createLook, designOfLook, duplicateLook, equipLook, loadLooks, removeLook, retiredPartsOf } from "@/lib/avatar-api";
+import { normaliseDesign, type AvatarDesign } from "@/components/avatar3d/design";
 import { useAuthStore } from "@/store/auth-store";
 
 const button = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-40";
@@ -119,12 +119,33 @@ function AvatarCard({ preset, isMain, onChanged, onError, onNotice }: { preset: 
 
 export function AvatarGallery() {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const csrfToken = useAuthStore((state) => state.csrfToken);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const query = useQuery({
     queryKey: ["avatar", accessToken],
     queryFn: () => loadLooks(accessToken!),
     enabled: Boolean(accessToken),
+  });
+
+  // Only read when the account has no looks yet: the worn avatar may predate looks (made in the old Studio).
+  const worn = useQuery({
+    queryKey: ["avatar-worn", accessToken],
+    queryFn: () => getAvatar(accessToken!),
+    enabled: Boolean(accessToken) && query.data?.presets.length === 0,
+  });
+
+  // Saving the worn avatar as a look does not wear it, so the profile avatar does not change.
+  const saveWorn = useMutation({
+    mutationFn: async () => {
+      if (!accessToken || !csrfToken) throw new Error("Sign in to save your avatar.");
+      return createLook(accessToken, csrfToken, "My avatar", normaliseDesign(worn.data?.config.design));
+    },
+    onSuccess: () => {
+      setNotice({ tone: "ok", text: "Saved as a look. Your profile avatar has not changed." });
+      void queryClient.invalidateQueries({ queryKey: ["avatar"] });
+    },
+    onError: (error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }),
   });
 
   // Refreshing keeps the notice, so a message shown by an action survives the list reload.
@@ -157,7 +178,16 @@ export function AvatarGallery() {
       {presets.length === 0 ? (
         <div className="vx-panel rounded-2xl p-8 text-center">
           <p className="text-sm text-white">No saved avatars yet.</p>
-          <p className="mt-1 text-xs text-slate-400">Build a character, then press Save avatar. It will appear here.</p>
+          {worn.data?.config.design ? (
+            <>
+              <p className="mt-1 text-xs text-slate-400">Your current avatar can become your first look. Your profile stays the same until you wear a look.</p>
+              <button type="button" onClick={() => saveWorn.mutate()} disabled={saveWorn.isPending} className="mt-4 inline-flex rounded-lg border border-amber-400/50 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-100 hover:bg-amber-500/10 disabled:opacity-50">
+                {saveWorn.isPending ? "Saving…" : "Save my current avatar as a look"}
+              </button>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-slate-400">Your current avatar stays as it is. Build a character to make a new look. It will appear here.</p>
+          )}
           <Link href="/app/avatars/new" className="mt-4 inline-flex rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950">Build an avatar</Link>
         </div>
       ) : (

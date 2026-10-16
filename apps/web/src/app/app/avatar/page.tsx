@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
-import { AvatarStudio } from "@/components/avatar/avatar-studio";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Avatar Studio",
-  description: "Create. Customize. Be you.",
-};
-
+// The Avatar Studio is the saved-looks editor at /app/avatars. This route stays so older links keep working.
 export default function AppAvatarPage() {
-  return <AvatarStudio />;
+  redirect("/app/avatars");
 }
