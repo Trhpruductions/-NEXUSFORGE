@@ -13,6 +13,7 @@ import { createServer } from "node:http";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { setIo } from "./lib/realtime.js";
+import { allowedOriginList, LOCAL_ORIGIN_PATTERN } from "./lib/origins.js";
 import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
 import { hasForgePermission } from "./lib/forge-permissions.js";
 import { stageJoin, stageRaise, stageSetSpeaker, stageSnapshot, stageSync } from "./lib/stage.js";
@@ -52,6 +53,8 @@ import { startDailyPulse } from "./lib/daily-pulse.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
+import { adminEmailRouter } from "./routes/admin-email.routes.js";
+import { emailRouter, emailWebhookHandler } from "./routes/email.routes.js";
 import { requireAge, requireAuth } from "./middleware/auth.js";
 import { joinVoice, leaveAllVoice, leaveVoice, voiceMembers, voiceOccupancyFor } from "./lib/voice-occupancy.js";
 import { startEventReminders } from "./lib/event-reminders.js";
@@ -97,26 +100,9 @@ const httpServer = createServer(app);
 
 initializeAuditLogger(prisma);
 
-const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const localOriginPattern = LOCAL_ORIGIN_PATTERN;
 
-const configuredOrigins = env.CLIENT_ORIGIN.split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
-
-let appWebOrigin = "";
-try {
-  appWebOrigin = new URL(env.APP_WEB_URL).origin;
-} catch {
-  appWebOrigin = "";
-}
-
-const allowedOrigins = Array.from(
-  new Set(
-    env.NODE_ENV === "production"
-      ? [...configuredOrigins, appWebOrigin].filter(Boolean)
-      : [...configuredOrigins, "http://localhost:3300", "http://localhost:3001", "http://127.0.0.1:3300", "http://127.0.0.1:3001"],
-  ),
-);
+const allowedOrigins = allowedOriginList({ clientOrigin: env.CLIENT_ORIGIN, appWebUrl: env.APP_WEB_URL, nodeEnv: env.NODE_ENV });
 
 const hasOnlyLocalConfiguredOrigins =
   allowedOrigins.length > 0 && allowedOrigins.every((origin) => localOriginPattern.test(origin));
@@ -168,6 +154,8 @@ app.use(helmet());
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms [GHOST-IP: :remote-addr-masked]'));
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
 app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
+// Email provider webhook: needs the raw bytes for its HMAC signature, so it sits ahead of express.json().
+app.post("/api/email/webhooks", express.raw({ type: "application/json", limit: "64kb" }), emailWebhookHandler);
 // Local (no-S3) uploads: the presigned token is the credential, so these sit ahead of the JSON parser and auth.
 app.put("/api/uploads/local", ...localUploadPutHandler);
 app.use("/uploads", ...localUploadsStatic);
@@ -213,6 +201,8 @@ app.use("/api/support", supportRouter);
 app.use("/api/oauth", express.urlencoded({ extended: true }), oauthRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/runtime", runtimeRouter);
+app.use("/api/email", emailRouter);
+app.use("/api/admin/email", adminEmailRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/economy", requireAuth, requireAge, economyRouter);
@@ -233,6 +223,7 @@ io.use((socket, next) => {
   try {
     const payload = verifyAccessToken(token);
     if (cachedSuspension(payload.sub)) return next(new Error("Account suspended"));
+    socket.data.jti = payload.jti;
     socket.data.user = {
       id: payload.sub,
       // Username and Email removed from realtime context for security.

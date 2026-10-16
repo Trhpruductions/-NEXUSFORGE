@@ -315,7 +315,7 @@ function ChatInner() {
         // Our own upload endpoint answers with JSON; a proxy in between (413 from the host) does not.
         const detail = (await put.json().catch(() => null)) as { error?: string } | null;
         if (detail?.error) throw new Error(`${file.name}: ${detail.error}`);
-        if (put.status === 413) throw new Error(`${file.name} is too big to upload right now (single uploads are capped at 100 MB during the beta).`);
+        if (put.status === 413) throw new Error(`${file.name} is too big to upload right now (single uploads are capped at 95 MB during the beta).`);
         throw new Error(`Upload failed for ${file.name} (${put.status}). Please try again.`);
       }
       urls.push(presign.fileUrl);
@@ -806,6 +806,7 @@ function ChatInner() {
     // contain:size stops the message history from setting the shell's minimum height; without it, on short
     // screens (phones, where the header and banner wrap) the panel grew past the bottom and hid the composer.
     <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
+      <h1 className="sr-only">Chat</h1>
       {selectedForgeId ? (
         <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "bots" || requestedManage === "webhooks" || requestedManage === "overview" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}

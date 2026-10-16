@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ArrowRight, Bot, Check, KeyRound, Layers, MessagesSquare, Mic2, Monitor, ShieldCheck, Sparkles } from "lucide-react";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+import { ServerMockup, VoiceMockup } from "@/components/site/app-mockups";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Features",
   description: "Everything in Nexus Forge Gaming: servers, chat, voice and video, moderation, safety, bots, rewards and the desktop app.",
-};
+  path: "/features",
+});
 
 /** Only things that exist in the app today. */
 const sections = [
@@ -47,9 +49,9 @@ const sections = [
     lead: "Low-latency voice channels with camera and screen share, and stage channels for bigger moments.",
     items: [
       ["Voice channels", "Push-to-talk or voice activity, noise suppression, per-person volume, and a soundboard."],
-      ["Camera and screen share together", "HD video for everyone; ultra quality (1440p60) on Plus and above."],
+      ["Camera and screen share together", "Free: camera at 720p and screen share at 1080p30. Ultra quality (1440p60) on Plus and above, once paid plans open."],
       ["Stage channels", "Speakers and an audience, with raise-hand requests."],
-      ["Video calls in DMs", "Call a friend without a server."],
+      ["Video calls in DMs (coming later)", "Not in the app yet. Voice channels work today."],
       ["Go-live status", "Show on your profile when you're streaming, with a link to the stream."],
     ],
   },
@@ -73,11 +75,11 @@ const sections = [
     lead: "Your account stays yours.",
     items: [
       ["Two-factor sign-in", "Authenticator app with recovery codes, or codes by email and text."],
-      ["Verified email and phone", "Sign in with either; reset your password by email link or text code."],
+      ["Verified email and phone", "Sign in with either. Reset your password by email link, or by text code where SMS is set up."],
       ["Change alerts", "An email when your email or phone changes, or a new device signs in."],
       ["Blocking and reporting", "Block anyone, report people and messages, and mute servers you don't want to hear from."],
-      ["Adults only", "Nexus Forge is 18+, with optional ID verification for the communities that need it."],
-      ["Your data", "Download everything you've posted, or delete your account, from Settings."],
+      ["Adults only", "Nexus Forge is for people 18+. Your birthdate is self-declared; optional ID verification is available."],
+      ["Your data", "Download your messages, posts and account data as JSON, or schedule account deletion from Settings (14-day grace period)."],
     ],
   },
   {
@@ -100,7 +102,7 @@ const sections = [
     items: [
       ["Profiles", "Banner, animated avatar, bio, clan tag, badges and medals, all on the Free plan."],
       ["Avatar studio and wardrobe", "Build an avatar and save outfits."],
-      ["Coins and rewards", "Earn coins, run mining rigs, enter jackpots and spend in the store."],
+      ["Coins and rewards", "Earn coins from daily and community rewards, and spend them in the store."],
       ["Leaderboards", "Reputation, streaks and medals across the whole network."],
       ["Feed", "Posts and comments for your communities, in one feed."],
     ],
@@ -131,6 +133,20 @@ export default function FeaturesPage() {
         { label: "See pricing", href: "/pricing", tone: "ghost" },
       ]}
     >
+      <section aria-labelledby="see-it-heading" className="mb-8">
+        <h2 id="see-it-heading" className="nf-heading text-sm font-bold uppercase tracking-[0.18em] text-white">See it in the app</h2>
+        <div className="mt-4 grid gap-6 md:grid-cols-2">
+          <figure className="flex flex-col gap-4">
+            <ServerMockup />
+            <figcaption className="text-sm leading-relaxed text-slate-400">Chat with threads, polls, replies and mentions, in the channels your squad already uses.</figcaption>
+          </figure>
+          <figure className="flex flex-col gap-4">
+            <VoiceMockup />
+            <figcaption className="text-sm leading-relaxed text-slate-400">Voice channels with camera and screen share, push-to-talk and noise suppression, all in one place.</figcaption>
+          </figure>
+        </div>
+      </section>
+
       <nav aria-label="On this page" className="mb-6 flex flex-wrap gap-2">
         {sections.map((section) => (
           <a key={section.id} href={`#${section.id}`} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white">

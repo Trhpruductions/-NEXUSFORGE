@@ -68,6 +68,9 @@ for (const path of envPaths) {
   loadDotEnv({ path, override: false });
 }
 
+/** A blank value in .env means "not set", so optional keys don't fail validation. */
+const emptyToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -118,6 +121,24 @@ const envSchema = z.object({
   MAIL_FROM_NAME: z.string().trim().min(1).default("Nexus Forge Gaming"),
   /** Where replies go (e.g. a support mailbox). Optional. */
   MAIL_REPLY_TO: z.string().email().optional(),
+  /**
+   * Test mode: every email goes through nodemailer's JSON transport, so nothing leaves the process.
+   * Records are still written. Turned on automatically when no SMTP host is set outside production.
+   */
+  EMAIL_TEST_MODE: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+  /** Shared secret for provider delivery webhooks (HMAC-SHA256). Unset or shorter than 32 characters = endpoint disabled. */
+  EMAIL_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  /** Key for signing unsubscribe links. Unset = a key derived from JWT_ACCESS_SECRET. */
+  EMAIL_UNSUBSCRIBE_SECRET: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  /** Comma-separated addresses the admin test-send may deliver to, besides the admin's own verified address. */
+  EMAIL_TEST_ALLOWLIST: z.preprocess(emptyToUndefined, z.string().optional()),
+  /** Public contact addresses shown in email footers. Left unset, nothing is shown. Never invented. */
+  SUPPORT_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
+  SECURITY_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
+  UPDATES_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
   // SMS delivery (Twilio). When unset in development, codes are logged to the server console.
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),

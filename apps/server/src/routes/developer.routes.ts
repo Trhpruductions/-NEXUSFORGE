@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { safePostJson } from "../lib/link-preview.js";
+import { webhookHeaders } from "../lib/webhooks.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 
@@ -312,10 +313,7 @@ developerRouter.post("/webhooks/:webhookId/test", requireCsrf, async (req, res) 
 
   try {
     // Guarded like real deliveries: public http(s) addresses only, no redirects.
-    const response = await safePostJson(webhook.url, JSON.stringify(payload), {
-      "X-Nexus Forge-Webhook-Event": "webhook.test",
-      "X-Nexus Forge-Webhook-Subscription-Id": webhook.id,
-    }, 10000);
+    const response = await safePostJson(webhook.url, JSON.stringify(payload), webhookHeaders("webhook.test", webhook.id), 10000);
 
     if (!response) {
       res.status(502).json({ error: "Webhook delivery failed", details: "The URL couldn't be reached, or points to a private or local address (only public http/https on ports 80 and 443 are allowed)." });

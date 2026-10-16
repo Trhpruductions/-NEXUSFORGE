@@ -60,6 +60,7 @@ export const sectionHue: Record<string, HueName> = {
   "/app/server": "violet",
   "/app/events": "emerald",
   "/app/store": "orange",
+  "/app/shop": "orange",
   "/app/settings": "cyan",
   "/app/support": "teal",
   "/app/profile": "pink",

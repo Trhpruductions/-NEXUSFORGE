@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ArrowRight, Bot, HeartHandshake, ShieldCheck, Sparkles, Wrench } from "lucide-react";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "About TRH Development",
   description: "Nexus Forge Gaming is built and run by TRH Development, an independent studio making tools for gaming communities.",
-};
+  path: "/about",
+});
 
 const principles = [
   { icon: Sparkles, title: "The good stuff is free", text: "Bigger uploads, HD video, banners and animated avatars are included for everyone. Paid plans raise limits; they don't lock away the basics." },

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Award, Check, Coins, Cpu, Flame, Gift, Loader2, Send, ShoppingBag, Sparkles } from "lucide-react";
 import { claimDailyReward, getApiErrorMessage, getDailyReward, getEconomyAccounts, getUserMedals } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { JACKPOT_ENABLED, MINING_ENABLED } from "@/lib/held-features";
 import { CoinHistory } from "./coin-history";
 import { JackpotPanel } from "./jackpot-panel";
 import { SendCoinsDialog } from "./send-coins-dialog";
@@ -80,14 +81,16 @@ export function RewardsPage() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Link href="/app/store" className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 hover:bg-amber-300"><ShoppingBag className="h-3.5 w-3.5" /> Spend in Store</Link>
                     <button type="button" onClick={() => setSendOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100 hover:border-amber-300"><Send className="h-3.5 w-3.5" /> Send coins</button>
-                    <Link href="/app/mining" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50"><Cpu className="h-3.5 w-3.5" /> Mining rigs</Link>
+                    {MINING_ENABLED && (
+                      <Link href="/app/mining" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50"><Cpu className="h-3.5 w-3.5" /> Mining rigs</Link>
+                    )}
                   </div>
                 </>
               )}
             </div>
           </section>
 
-          <JackpotPanel balance={coins?.balance ?? "0"} />
+          {JACKPOT_ENABLED && <JackpotPanel balance={coins?.balance ?? "0"} />}
 
           <section className={`${panel} flex flex-wrap items-center gap-4`}>
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${daily?.claimedToday ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`}>

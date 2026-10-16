@@ -1,7 +1,13 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { VerifyEmailClient } from "@/components/auth/verify-email-client";
+
+export const metadata: Metadata = {
+  title: "Verify email",
+  description: "Confirm the email address on your Nexus Forge Gaming account.",
+};
 
 export default async function VerifyEmailPage({ searchParams }: any) {
   const token = (await searchParams)?.token ?? "";
@@ -24,7 +30,7 @@ export default async function VerifyEmailPage({ searchParams }: any) {
             </article>
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Status</p>
-              <p className="mt-1 text-sm font-semibold text-amber-200">Email confirmed</p>
+              <p className="mt-1 text-sm font-semibold text-amber-200">Checked on this page</p>
             </article>
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Next step</p>
@@ -36,9 +42,9 @@ export default async function VerifyEmailPage({ searchParams }: any) {
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">Email unlock</p>
               <p className="mt-2 text-sm text-slate-400">Confirm your email and step directly into the Nexus Forge Gaming workspace.</p>
             </div>
-            <div className="glass-cut rounded-[20px] border border-cyan-200 bg-cyan-50 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-700">Secure entry</p>
-              <p className="mt-2 text-sm text-cyan-800">Verification completes your identity and preserves your secure session path.</p>
+            <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-sky-300">Secure entry</p>
+              <p className="mt-2 text-sm text-slate-400">Confirming the address proves the account belongs to you.</p>
             </div>
           </div>
         </>

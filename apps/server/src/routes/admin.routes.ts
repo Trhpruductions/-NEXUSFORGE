@@ -29,6 +29,8 @@ import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { cachedSuspension, describeSuspension, liftSuspension, suspendAccount, SUSPENSION_MAX_DAYS, SUSPENSION_REASON_MAX } from "../lib/account-suspension.js";
+import { confirmVacBan, issueVacBan, listVacBans, vacBanTargetUserId } from "../lib/vac-bans.js";
+import { VAC_EVIDENCE_MAX } from "../lib/account-suspension.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
 import { adminAnalytics, ANALYTICS_RANGES, type AnalyticsRange } from "../lib/admin-analytics.js";
 
@@ -51,6 +53,10 @@ const manualBadgeKeySchema = z.enum([
   "moderator",
   "admin",
   "owner",
+  "beta-user",
+  "member",
+  "verified-member",
+  "rep",
 ]);
 
 const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> = {
@@ -63,6 +69,10 @@ const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> 
   moderator: "badge-moderator",
   admin: "badge-admin",
   owner: "badge-owner",
+  "beta-user": "badge-beta-user",
+  member: "badge-member",
+  "verified-member": "badge-verified-member",
+  rep: "badge-rep",
 };
 
 const manualBadgeReverseMap = Object.entries(manualBadgeMedalMap).reduce<Record<string, z.infer<typeof manualBadgeKeySchema>>>(
@@ -550,10 +560,10 @@ const suspendSchema = z.object({
 const liftSchema = z.object({ note: z.string().trim().max(SUSPENSION_REASON_MAX).optional() });
 
 /** Staff can only suspend accounts ranked below them, and never their own. */
-async function suspensionTargets(req: Request, res: Response) {
+async function suspensionTargets(req: Request, res: Response, userId: string = String(req.params.id)) {
   const [actor, target] = await Promise.all([
     prisma.user.findUnique({ where: { id: req.user!.id }, select: { id: true, appRole: true, isAdmin: true } }),
-    prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, username: true, appRole: true, isAdmin: true, deletedAt: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { id: true, username: true, appRole: true, isAdmin: true, deletedAt: true } }),
   ]);
   if (!actor) {
     res.status(401).json({ error: "Unauthorized" });
@@ -591,6 +601,81 @@ adminRouter.post("/users/:id/suspend", async (req, res) => {
   }
   console.log(`[SUSPENSION] ${targets.actor.id} suspended ${targets.target.id} (${parsed.data.days ?? "until lifted"} days)`);
   res.json({ user: { id: targets.target.id, username: targets.target.username }, suspension: describeSuspension(entry) });
+});
+
+const vacSchema = z.object({
+  reason: z.string().trim().min(3).max(SUSPENSION_REASON_MAX),
+  category: z.enum(["SCAM", "HARASSMENT", "SPAM", "EXPLOIT", "OTHER"]),
+  /** null = until staff lift it */
+  days: z.number().int().min(1).max(SUSPENSION_MAX_DAYS).nullable(),
+  evidence: z.string().trim().max(VAC_EVIDENCE_MAX).optional(),
+});
+const vacReviewSchema = z.object({
+  decision: z.enum(["CONFIRM", "LIFT"]),
+  note: z.string().trim().max(SUSPENSION_REASON_MAX).optional(),
+});
+
+/** Active VAC bans, with automatic bans waiting for review first. */
+adminRouter.get("/vac-bans", async (_req, res) => {
+  res.json({ bans: await listVacBans() });
+});
+
+/** A staff VAC ban. Staff choose the category and length, and write a short evidence summary (never message text). */
+adminRouter.post("/users/:id/vac-ban", async (req, res) => {
+  const parsed = vacSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give a reason, a category and a length (or permanent)", details: parsed.error.flatten() });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const entry = await issueVacBan({
+    actorId: targets.actor.id,
+    userId: targets.target.id,
+    category: parsed.data.category,
+    days: parsed.data.days,
+    reason: parsed.data.reason,
+    evidence: parsed.data.evidence || null,
+    automatic: false,
+  });
+  if (!entry) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  console.log(`[VAC] ${targets.actor.id} banned ${targets.target.id} (${parsed.data.category}, ${parsed.data.days ?? "until lifted"} days)`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, ban: describeSuspension(entry) });
+});
+
+/** Staff decide on a VAC ban: CONFIRM keeps an automatic ban, LIFT ends it. Staff can only act on accounts ranked below them. */
+adminRouter.post("/vac-bans/:id/review", async (req, res) => {
+  const parsed = vacReviewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Choose CONFIRM or LIFT", details: parsed.error.flatten() });
+    return;
+  }
+  const banId = String(req.params.id);
+  const userId = await vacBanTargetUserId(banId);
+  if (!userId) {
+    res.status(404).json({ error: "This ban isn't active" });
+    return;
+  }
+  const targets = await suspensionTargets(req, res, userId);
+  if (!targets) return;
+  if (parsed.data.decision === "CONFIRM") {
+    const confirmed = await confirmVacBan(banId);
+    if (!confirmed) {
+      res.status(404).json({ error: "This ban isn't active" });
+      return;
+    }
+    res.json({ ok: true, decision: "CONFIRM" });
+    return;
+  }
+  const lifted = await liftSuspension({ actorId: targets.actor.id, userId, note: parsed.data.note ?? null });
+  if (!lifted) {
+    res.status(404).json({ error: "This ban isn't active" });
+    return;
+  }
+  res.json({ ok: true, decision: "LIFT" });
 });
 
 adminRouter.post("/users/:id/unsuspend", async (req, res) => {

@@ -146,6 +146,8 @@ export default function RegisterPage() {
           <AuthField
             id="register-username"
             label="Username"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="username"
             placeholder="gamertag"
             error={errors.username?.message}
@@ -155,6 +157,8 @@ export default function RegisterPage() {
             id="register-email"
             label="Email"
             type="email"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="email"
             placeholder="you@example.com"
             error={errors.email?.message}

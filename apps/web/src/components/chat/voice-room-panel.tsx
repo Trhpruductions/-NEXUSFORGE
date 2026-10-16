@@ -6,6 +6,9 @@ import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { SoundboardButton } from "@/components/chat/soundboard-button";
+import { useMediaStore } from "@/lib/media/media-store";
+import { useMediaDevices } from "@/components/voice/use-media-devices";
+import { DevicePicker } from "@/components/voice/device-picker";
 
 type MemberLike = { userId: string; user: { id: string; username: string; displayName?: string | null; avatar?: string | null } };
 
@@ -37,11 +40,26 @@ function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
 }
 
+/** Mic and camera pickers during a call. Changes apply straight away (see MeshVoice.setMic and setCameraDevice). */
+function CallDevices() {
+  const prefs = useMediaStore((state) => state.prefs);
+  const update = useMediaStore((state) => state.update);
+  const { devices } = useMediaDevices();
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <DevicePicker id="call-mic" label="Microphone" kind="audioinput" devices={devices} value={prefs.micDeviceId} onChange={(micDeviceId) => update({ micDeviceId })} />
+      <DevicePicker id="call-camera" label="Camera" kind="videoinput" devices={devices} value={prefs.cameraDeviceId} onChange={(cameraDeviceId) => update({ cameraDeviceId })} />
+    </div>
+  );
+}
+
 /** Visible voice room. All state comes from the voice store; the engine runs in the app shell. */
 export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const { session, flags, connection, remote, levels, localScreen, localCamera, error, toggle, leave, pushToTalk, stage } = useVoiceStore();
+  const micNotice = useMediaStore((state) => state.micNotice);
+  const screenShare = useMediaStore((state) => state.screenShare);
 
   const nameOf = (userId: string) => {
     const member = members.find((entry) => entry.userId === userId || entry.user.id === userId);
@@ -106,6 +124,9 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
       </div>
 
       {error ? <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{error}</p> : null}
+      {micNotice ? <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">{micNotice.text}</p> : null}
+      {screenShare.state === "requesting" ? <p className="text-center text-xs text-amber-200">Pick a screen or window in the browser prompt to share it.</p> : null}
+      {screenShare.state === "denied" || screenShare.state === "error" ? <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{screenShare.message}</p> : null}
 
       {(localScreen && selfOnStage) || remote.some((entry) => entry.video && isSpeaker(entry.userId)) ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -198,6 +219,8 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
       ) : null}
       {stageMode && !selfOnStage ? <p className="text-center text-xs text-slate-400">You&apos;re in the audience, so your mic is off. Raise your hand to ask to speak.</p> : null}
       {participants.length === 1 ? <p className="text-center text-xs text-slate-500">You are the only one here. Others in the forge see the count next to the channel and can hop in.</p> : null}
+
+      {session.mode === "mesh" ? <CallDevices /> : null}
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         {stageMode && !selfOnStage ? (

@@ -13,7 +13,7 @@ function RegularUserAccessView() {
     <ExperienceShell
       eyebrow="Regular User Workspace"
       title="This Area Is Built For Admin Operations"
-      subtitle="Your account is fully active for community, mining, rewards, and profile features. Admin governance tools remain restricted to administrator roles."
+      subtitle="Your account is fully active for community, rewards, and profile features. Admin governance tools remain restricted to administrator roles."
       metrics={[
         { label: "Access", value: "User Workspace", tone: "emerald" },
         { label: "Admin Console", value: "Restricted", tone: "amber" },

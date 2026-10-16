@@ -3,6 +3,7 @@ import { prisma } from "./prisma.js";
 import { hashPassword } from "./password.js";
 import { sendEmail } from "./delivery.js";
 import { deleteDocument } from "./age-verification.js";
+import { disconnectUserSockets } from "./realtime.js";
 
 /**
  * Account deletion, Discord-style: the user asks, every session is signed out, and the
@@ -45,6 +46,7 @@ export async function scheduleDeletion(userId: string) {
   });
   // Sign out everywhere: the next sign-in is the moment to change your mind.
   await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+  void disconnectUserSockets(userId, { reason: "account_deletion_scheduled" }).catch((error) => console.error("[DELETION] socket revocation failed", error));
   void sendEmail(
     user.email,
     "Your Nexus Forge Gaming account is scheduled for deletion",

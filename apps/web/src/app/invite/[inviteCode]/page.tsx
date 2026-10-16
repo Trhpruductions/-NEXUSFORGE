@@ -24,6 +24,8 @@ export default function InvitePage() {
 
   const invite = inviteQuery.data?.forge ?? null;
   const isInviteLoading = inviteQuery.fetchStatus === "fetching" && !invite && !inviteQuery.isError;
+  // A made-up, expired or revoked code lands here. Show the reason once, not in every panel.
+  const inviteUnavailable = !isInviteLoading && !invite;
 
   const joinMutation = useMutation({
     mutationFn: () => joinForge(accessToken!, csrfToken!, inviteCode),
@@ -34,13 +36,11 @@ export default function InvitePage() {
 
   const redirectParam = encodeURIComponent(`/invite/${inviteCode}`);
 
-  const errorMessage = inviteQuery.isError || (!isInviteLoading && !invite)
-    ? "This invite link does not exist anymore."
-    : joinMutation.isError
-      ? joinMutation.error instanceof Error
-        ? joinMutation.error.message
-        : "Unable to join this forge right now."
-      : null;
+  const errorMessage = joinMutation.isError
+    ? joinMutation.error instanceof Error
+      ? joinMutation.error.message
+      : "Unable to join this forge right now."
+    : null;
 
   return (
     <ExperienceShell
@@ -49,7 +49,7 @@ export default function InvitePage() {
       subtitle="Review the server details, then join instantly if you are signed in."
       metrics={[
         { label: "Invite Code", value: inviteCode || "N/A", tone: "amber" },
-        { label: "Status", value: isInviteLoading ? "Loading" : invite ? "Valid" : "Unavailable", tone: "amber" },
+        { label: "Status", value: isInviteLoading ? "Loading" : invite ? "Valid" : "Not valid", tone: "amber" },
       ]}
       actions={[
         { label: "Open App", href: "/app", tone: "ghost" },
@@ -68,15 +68,15 @@ export default function InvitePage() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Owner</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Owner</p>
                     <p className="mt-2 text-sm font-semibold text-white">Resolving</p>
                   </div>
                   <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Members</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Members</p>
                     <p className="mt-2 text-sm font-semibold text-white">Scanning</p>
                   </div>
                   <div className="nexus-metric-card nexus-interactive-card rounded-[20px] p-4">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Status</p>
                     <p className="mt-2 text-sm font-semibold text-amber-200">Fetching invite</p>
                   </div>
                 </div>
@@ -139,24 +139,26 @@ export default function InvitePage() {
                   <div className="nexus-display-panel rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Invite Views</p>
                     <p className="mt-2 text-sm font-semibold text-white">{invite.inviteViewCount}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-400">
                       Last viewed {invite.inviteLastViewedAt ? new Date(invite.inviteLastViewedAt).toLocaleString() : "not yet"}
                     </p>
                   </div>
                   <div className="nexus-display-panel rounded-[20px] p-4">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-amber-200">Invite Joins</p>
                     <p className="mt-2 text-sm font-semibold text-white">{invite.inviteJoinCount}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-400">
                       Last joined {invite.inviteLastJoinedAt ? new Date(invite.inviteLastJoinedAt).toLocaleString() : "not yet"}
                     </p>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="nexus-display-panel rounded-[20px] p-5 text-sm text-slate-400">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Invite Unavailable</p>
-                <p className="mt-2">This invite is not active right now. Ask the forge owner for a fresh invite link.</p>
-                {errorMessage ? <p className="mt-2 text-rose-300">{errorMessage}</p> : null}
+              <div className="nexus-display-panel rounded-[20px] p-5 text-sm leading-6 text-slate-300">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Invite unavailable</p>
+                <p className="mt-2">
+                  This invite link isn&apos;t valid anymore. It may have expired, been revoked, or been typed incorrectly.
+                </p>
+                <p className="mt-2 text-slate-400">Ask the forge owner for a fresh invite link.</p>
               </div>
             )}
           </div>
@@ -165,11 +167,13 @@ export default function InvitePage() {
             <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200">Join Flow</p>
             <div className="mt-4 space-y-3 text-sm text-slate-400">
               <p>
-                {hydrated && user
-                  ? `Signed in as ${user.username}. Join immediately and drop into the desktop workspace.`
-                  : "Sign in or register to accept this invite and attach the forge to your account."}
+                {inviteUnavailable
+                  ? "There is nothing to join with this link. Ask the forge owner for a new invite."
+                  : hydrated && user
+                    ? `Signed in as ${user.username}. Join immediately and drop into the desktop workspace.`
+                    : "Sign in or register to accept this invite and attach the forge to your account."}
               </p>
-              {errorMessage ? <p className="text-rose-300">{errorMessage}</p> : null}
+              {errorMessage ? <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-rose-200">{errorMessage}</p> : null}
             </div>
 
             <div className="mt-5 grid gap-3">
@@ -186,15 +190,15 @@ export default function InvitePage() {
                 <>
                   <Link
                     href={`/login?redirect=${redirectParam}`}
-                    className="nexus-button-primary inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-white"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_55%,#0b6fe0)] px-5 text-sm font-semibold text-slate-950 shadow-[0_14px_36px_rgba(46,164,255,0.3)] transition hover:-translate-y-px"
                   >
-                    Sign In To Join
+                    Sign in to join
                   </Link>
                   <Link
                     href={`/register?redirect=${redirectParam}`}
-                    className="nexus-button-secondary inline-flex h-11 w-full items-center justify-center rounded-full px-5 text-sm font-semibold text-slate-300"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-full border border-white/15 bg-[#0d1119] px-5 text-sm font-semibold text-white transition hover:border-amber-300/60"
                   >
-                    Create Account
+                    Create account
                   </Link>
                 </>
               )}

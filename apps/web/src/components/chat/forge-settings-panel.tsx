@@ -48,6 +48,7 @@ import { StickersTab } from "@/components/chat/stickers-tab";
 import { SoundsTab } from "@/components/chat/sounds-tab";
 import { BotsTab } from "@/components/chat/bots-tab";
 import { WebhooksTab } from "@/components/chat/webhooks-tab";
+import { ForgeImageField } from "@/components/chat/forge-image-field";
 
 type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "stickers" | "sounds" | "webhooks" | "bots" | "bans" | "audit" | "danger";
 
@@ -314,29 +315,20 @@ function OverviewTab({
   const { accessToken, csrfToken } = useTokens();
   const [name, setName] = useState(forge.name);
   const [description, setDescription] = useState(forge.description ?? "");
-  const [icon, setIcon] = useState(forge.icon ?? "");
-  const [banner, setBanner] = useState(forge.banner ?? "");
 
   useEffect(() => {
     setName(forge.name);
     setDescription(forge.description ?? "");
-    setIcon(forge.icon ?? "");
-    setBanner(forge.banner ?? "");
-  }, [forge.id, forge.name, forge.description, forge.icon, forge.banner]);
+  }, [forge.id, forge.name, forge.description]);
 
-  const dirty =
-    name.trim() !== forge.name ||
-    description.trim() !== (forge.description ?? "") ||
-    icon.trim() !== (forge.icon ?? "") ||
-    banner.trim() !== (forge.banner ?? "");
+  // The icon and banner are uploaded with their own controls below, so they are not part of this form.
+  const dirty = name.trim() !== forge.name || description.trim() !== (forge.description ?? "");
 
   const mutation = useMutation({
     mutationFn: () =>
       updateForge(accessToken, csrfToken, forge.id, {
         name: name.trim() !== forge.name ? name.trim() : undefined,
         description: description.trim() !== (forge.description ?? "") ? description.trim() || null : undefined,
-        icon: icon.trim() !== (forge.icon ?? "") ? icon.trim() || null : undefined,
-        banner: banner.trim() !== (forge.banner ?? "") ? banner.trim() || null : undefined,
       }),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Forge settings saved." });
@@ -366,14 +358,10 @@ function OverviewTab({
           <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Description</span>
           <textarea className={textareaClass} value={description} onChange={(event) => setDescription(event.target.value)} disabled={!editable} maxLength={300} placeholder="What is this forge about?" />
         </label>
-        <label className="block text-xs text-slate-300">
-          <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Icon URL</span>
-          <input className={inputClass} value={icon} onChange={(event) => setIcon(event.target.value)} disabled={!editable} placeholder="https://..." />
-        </label>
-        <label className="block text-xs text-slate-300">
-          <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-400">Banner URL</span>
-          <input className={inputClass} value={banner} onChange={(event) => setBanner(event.target.value)} disabled={!editable} placeholder="https://..." />
-        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ForgeImageField forgeId={forge.id} kind="icon" value={forge.icon ?? null} editable={editable} accessToken={accessToken} csrfToken={csrfToken} onChanged={invalidate} />
+          <ForgeImageField forgeId={forge.id} kind="banner" value={forge.banner ?? null} editable={editable} accessToken={accessToken} csrfToken={csrfToken} onChanged={invalidate} />
+        </div>
         {editable ? (
           <button type="button" className={primaryBtn} disabled={!dirty || mutation.isPending || name.trim().length < 2} onClick={() => mutation.mutate()}>
             {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save changes
@@ -395,9 +383,9 @@ function OverviewTab({
       </div>
       <aside className="space-y-3 rounded-[14px] border border-slate-800/80 bg-slate-900/60 p-3 text-xs text-slate-300">
         <div className="flex items-center gap-3">
-          {icon.trim() ? (
+          {forge.icon ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={icon.trim()} alt="" className="h-12 w-12 rounded-full border border-slate-700 object-cover" />
+            <img src={forge.icon} alt="" className="h-12 w-12 rounded-full border border-slate-700 object-cover" />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-sm font-semibold text-amber-100">{initials(name || forge.name)}</div>
           )}

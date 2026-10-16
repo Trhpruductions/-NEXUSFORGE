@@ -24,11 +24,16 @@ function hasMinimumTier(currentTier: string, minimumTier: "CORE" | "PLUS" | "ELI
 }
 
 /**
- * Paid features are only enforced once billing is connected (STRIPE_SECRET_KEY set).
- * Without it there is no way to pay, so everything stays open, as before.
+ * Paid features are enforced when billing is connected (STRIPE_SECRET_KEY set), and always in production.
+ * A production server with no billing key must not open every paid feature for free, so it fails closed.
+ * Development and test servers with no key stay open, so they can be used without a payment setup.
  */
+export function billingEnforcedFor(input: { stripeSecretKey?: string | undefined; nodeEnv: string }): boolean {
+  return Boolean(input.stripeSecretKey) || input.nodeEnv === "production";
+}
+
 export function billingEnforced() {
-  return Boolean(env.STRIPE_SECRET_KEY);
+  return billingEnforcedFor({ stripeSecretKey: env.STRIPE_SECRET_KEY, nodeEnv: env.NODE_ENV });
 }
 
 export async function hasActiveFeatureEntitlement(userId: string, featureCode: Exclude<FeatureCode, "CORE_PLUS">) {

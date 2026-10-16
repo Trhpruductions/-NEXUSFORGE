@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { Download, Gamepad2, Loader2, Monitor, ShieldCheck, Smartphone, Sparkles } from "lucide-react";
+import { DesktopUpdateCenter } from "@/components/desktop/desktop-update-center";
 
 type Manifest = {
   version: string;
@@ -33,6 +34,8 @@ export function DownloadsPage() {
         <h1 className="nf-heading text-xl font-bold text-white">Downloads</h1>
         <p className="text-xs text-slate-400">Nexus Forge Gaming for Windows: its own window, a taskbar icon and automatic updates.</p>
       </div>
+
+      <DesktopUpdateCenter />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] p-6">

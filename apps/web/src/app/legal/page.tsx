@@ -1,11 +1,12 @@
 import { Suspense } from "react";
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { LegalCenter } from "@/components/legal/legal-center";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Legal Center",
   description: "Nexus Forge Gaming's terms, policies and agreements, with their effective dates and history.",
-};
+  path: "/legal",
+});
 
 export default function LegalIndexPage() {
   return (

@@ -30,13 +30,13 @@ export function GuestAuthCallout({
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Link
           href={loginHref}
-          className="inline-flex h-14 items-center justify-center rounded-full bg-amber-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+          className="inline-flex h-12 items-center justify-center rounded-full bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_55%,#0b6fe0)] px-6 text-sm font-semibold text-slate-950 shadow-[0_14px_36px_rgba(46,164,255,0.3)] transition hover:-translate-y-px"
         >
           {loginLabel}
         </Link>
         <Link
           href={registerHref}
-          className="inline-flex h-14 items-center justify-center rounded-full border border-white/10 bg-amber-400 px-6 text-sm font-semibold text-slate-300 transition-colors hover:bg-[#0d1119]"
+          className="inline-flex h-12 items-center justify-center rounded-full border border-white/15 bg-[#0d1119] px-6 text-sm font-semibold text-white transition hover:border-amber-300/60"
         >
           {registerLabel}
         </Link>

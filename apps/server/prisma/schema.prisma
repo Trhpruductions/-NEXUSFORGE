@@ -755,8 +755,21 @@ model AccountSuspension {
   liftedAt    DateTime?
   liftedById  String?
   liftNote    String?   @db.VarChar(500)
+  /// STAFF = a staff suspension (the original kind). VAC = a ban from the VAC ban system.
+  kind        String    @default("STAFF") @db.VarChar(16)
+  /// STAFF = applied by a person. AUTO = applied by the VAC escalation rules after upheld reports.
+  source      String    @default("STAFF") @db.VarChar(16)
+  /// VAC bans only: SCAM, HARASSMENT, SPAM, EXPLOIT or OTHER.
+  category    String?   @db.VarChar(16)
+  /// Short, factual summary for staff: counts and report IDs. Never message text.
+  evidence    String?   @db.VarChar(1000)
+  /// True while an automatic ban is waiting for a staff decision.
+  needsReview Boolean   @default(false)
+  appealedAt  DateTime?
+  appealNote  String?   @db.VarChar(1000)
 
   @@index([userId, liftedAt])
+  @@index([kind, liftedAt])
 }
 
 /// A poll attached to a message (the message text is the question). Like Discord, votes
@@ -1317,6 +1330,7 @@ enum VerificationPurpose {
   LOGIN
   SENSITIVE_CHANGE
   RESET_PASSWORD
+  CHANGE_EMAIL
 }
 
 model VerificationCode {
@@ -1334,6 +1348,45 @@ model VerificationCode {
 
   @@index([userId, purpose, createdAt])
   @@index([expiresAt])
+}
+
+enum EmailMessageStatus {
+  QUEUED
+  ACCEPTED
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  FAILED
+  UNKNOWN
+}
+
+enum EmailCategory {
+  ESSENTIAL
+  OPTIONAL
+}
+
+/// Delivery record for every email the server sends. It never holds a body, token, code or link:
+/// the recipient is a SHA-256 hash plus a masked display form, and the error text is redacted.
+model EmailMessage {
+  id                String             @id @default(uuid())
+  kind              String             @db.VarChar(64)
+  category          EmailCategory
+  transport         String             @db.VarChar(16)
+  userId            String?
+  recipientHash     String             @db.VarChar(64)
+  recipientMasked   String             @db.VarChar(160)
+  subject           String             @db.VarChar(200)
+  status            EmailMessageStatus @default(QUEUED)
+  providerMessageId String?            @db.VarChar(255)
+  attempts          Int                @default(0)
+  lastError         String?            @db.VarChar(200)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, kind, createdAt])
+  @@index([providerMessageId])
 }
 
 model StreamSession {

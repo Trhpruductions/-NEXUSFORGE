@@ -3,13 +3,16 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { comparePassword, hashPassword } from "../lib/password.js";
+import { APPEAL_REPLY, submitVacAppeal } from "../lib/vac-bans.js";
+import { VAC_APPEAL_MAX, VAC_APPEAL_MIN } from "../lib/account-suspension.js";
 import { randomToken, sha256, signAccessToken } from "../lib/jwt.js";
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
-import { deliveryStatus, sendEmail } from "../lib/delivery.js";
+import { deliveryStatus, duplicateWaitSeconds, sendEmail, sendTemplateEmail } from "../lib/delivery.js";
+import { emailContextFromEnv, renderEmail } from "../lib/email-templates.js";
 import { dispatchPushNotification, pushConfigured } from "../lib/push.js";
 import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
 import { upgradeRequired } from "../lib/plans.js";
@@ -23,7 +26,9 @@ import { missingSignupAcceptances } from "../lib/legal-rules.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
 import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
 import { currentSuspension, suspendedResponse } from "../lib/account-suspension.js";
+import { disconnectUserSockets } from "../lib/realtime.js";
 import { USERNAME_CHANGE_COOLDOWN_MS, usernameProblem, usernameTaken } from "../lib/usernames.js";
+import { ownedProfileImageKey } from "../lib/storage.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -307,6 +312,26 @@ authRouter.post("/register", async (req, res) => {
   });
 });
 
+const vacAppealSchema = z.object({
+  email: z.string().trim().email().max(254),
+  password: z.string().min(1).max(200),
+  note: z.string().trim().min(VAC_APPEAL_MIN).max(VAC_APPEAL_MAX),
+});
+
+/**
+ * A banned person appeals without signing in: email, password and a note. The reply never says whether the account
+ * exists or is banned, so it can't be used to check who is banned.
+ */
+authRouter.post("/vac-appeal", async (req, res) => {
+  const parsed = vacAppealSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Give your email, password and an appeal of ${VAC_APPEAL_MIN} to ${VAC_APPEAL_MAX} characters.` });
+    return;
+  }
+  await submitVacAppeal(parsed.data);
+  res.json({ ok: true, message: APPEAL_REPLY });
+});
+
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -551,7 +576,10 @@ authRouter.post("/refresh", async (req, res) => {
   }
 
   if (!session || session.revokedAt || session.expiresAt < new Date()) {
-    res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    // A token replaced a moment ago is the other tab of the same sign-in refreshing at once. The
+    // cookie jar is shared, so the newer cookie may already be set; leave it alone in that case.
+    const replacedMomentsAgo = Boolean(session?.revokedAt && Date.now() - session.revokedAt.getTime() <= REFRESH_REUSE_GRACE_MS);
+    if (!replacedMomentsAgo) res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
     res.status(401).json({ error: "Invalid refresh token" });
     return;
   }
@@ -740,7 +768,19 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   }
 
   // Sending your current name back (forms often do) isn't a rename.
-  const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true, usernameChangedAt: true } });
+  const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true, usernameChangedAt: true, avatar: true, banner: true } });
+
+  // Pictures are checked when they are uploaded (lib/image-validation.ts). Here only an address
+  // that is already this account's picture, or one of our own uploads, is accepted. Anything
+  // else would let people point their picture at any outside site.
+  for (const field of ["avatar", "banner"] as const) {
+    const value = parsed.data[field];
+    if (typeof value === "string" && current && value !== current[field] && !ownedProfileImageKey(value, req.user!.id)) {
+      res.status(400).json({ error: "Upload a picture to change it. Links to other sites aren't accepted." });
+      return;
+    }
+  }
+
   const newUsername = parsed.data.username?.trim();
   const renaming = Boolean(newUsername && current && newUsername !== current.username);
   if (renaming && newUsername) {
@@ -881,6 +921,13 @@ authRouter.post("/forgot-password", async (req, res) => {
     return;
   }
 
+  // One reset email per window: a repeated request gets the same answer and no new link.
+  const resetSubject = renderEmail("password-reset", { username: user.username, link: env.APP_WEB_URL, expiresIn: "30 minutes" }, emailContextFromEnv()).subject;
+  if ((await duplicateWaitSeconds(user.id, "password-reset", resetSubject)) > 0) {
+    res.status(200).json(answer);
+    return;
+  }
+
   const resetToken = randomToken(24);
   await prisma.user.update({
     where: { id: user.id },
@@ -891,19 +938,9 @@ authRouter.post("/forgot-password", async (req, res) => {
   });
 
   const link = `${env.APP_WEB_URL.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(resetToken)}`;
-  void sendEmail(
-    user.email,
-    "Reset your Nexus Forge Gaming password",
-    `Hi ${user.username},
-
-Someone (hopefully you) asked to reset your Nexus Forge Gaming password. Open this link within 30 minutes to choose a new one:
-
-${link}
-
-If it wasn't you, you can ignore this email; your password hasn't changed.
-
-Nexus Forge Gaming`,
-  ).catch((error) => console.error("[AUTH] reset email failed", error));
+  void sendTemplateEmail("password-reset", user.email, { username: user.username, link, expiresIn: "30 minutes" }, { userId: user.id }).catch((error) =>
+    console.error("[AUTH] reset email failed", error),
+  );
 
   res.status(200).json(answer);
 });
@@ -969,6 +1006,15 @@ async function setNewPassword(userId: string, newPassword: string, req: Paramete
     },
   });
 
+  // Security notice to the account's address, whichever flow changed the password.
+  const account = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true, username: true } });
+  if (account) {
+    const when = `${new Date().toLocaleString("en-GB", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC`;
+    void sendTemplateEmail("password-changed", account.email, { username: account.username, when }, { userId: user.id }).catch((error) =>
+      console.error("[AUTH] password changed notice failed", error),
+    );
+  }
+
   const revokedSessions = await prisma.refreshToken.findMany({
     where: { userId: user.id, revokedAt: null },
     select: { id: true, userId: true },
@@ -978,6 +1024,8 @@ async function setNewPassword(userId: string, newPassword: string, req: Paramete
     where: { userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  // Live sockets from the old sessions go too, so a signed-in tab can't keep receiving data after a reset.
+  void disconnectUserSockets(user.id, { reason: "password_changed" }).catch((error) => console.error("[AUTH] socket revocation failed", error));
 
   await Promise.all(
     revokedSessions.map((session) =>

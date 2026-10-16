@@ -412,6 +412,8 @@ select:focus-visible {
 .nf-heading {
   font-family: var(--font-orbitron), var(--font-exo), sans-serif;
   letter-spacing: 0.04em;
+  /* Spread the words evenly, so a heading never ends on a single orphaned word. */
+  text-wrap: balance;
 }
 
 .nf-nav-label {
@@ -3267,4 +3269,101 @@ body::after {
 }
 .vx-accent {
   color: var(--page-accent-light, #fcd77f);
+}
+
+/* ===== Visual refresh =====
+   One calmer look across the app: readable type, quieter borders and glows,
+   one card radius, sentence-case buttons. Unlayered on purpose, so these beat
+   Tailwind utilities (which sit in a layer) and the older rules above. */
+:root {
+  --radius-card: 16px;
+  --card-top: rgba(20, 27, 41, 0.94);
+  --card-bottom: rgba(11, 15, 24, 0.94);
+  --card-line: rgba(255, 255, 255, 0.085);
+  --card-line-hover: rgba(255, 255, 255, 0.17);
+  --card-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.8);
+}
+
+/* Small text was 10-12px and hard to read on the dark background. */
+.text-\[10px\] { font-size: 0.6875rem; line-height: 1rem; }
+.text-\[11px\] { font-size: 0.75rem; line-height: 1.1rem; }
+.text-xs { font-size: 0.8125rem; line-height: 1.25rem; }
+.text-sm { font-size: 0.9375rem; line-height: 1.45rem; }
+
+/* Muted text was too dim to read comfortably. */
+.text-slate-500 { color: #8390a5; }
+.text-slate-600 { color: #6e7a8f; }
+::placeholder { color: #6e7a8f; opacity: 1; }
+
+/* Wide tracking on all-caps labels hurts scanning; keep a little. Buttons and tabs read better in sentence case. */
+.uppercase { letter-spacing: 0.08em; }
+button.uppercase,
+a.uppercase { text-transform: none; letter-spacing: 0.01em; }
+
+h1.nf-heading { font-size: 1.5rem; line-height: 1.2; letter-spacing: 0.03em; }
+
+/* Cards: one radius, one border, one shadow. */
+.vx-panel,
+.nexus-panel,
+.nexus-panel-strong,
+.nexus-display-panel,
+.nexus-feature-card,
+.nexus-hero,
+.nexus-metric-card,
+.nexus-value-card,
+.nexus-release-strip,
+.nexus-shell-header,
+.hero-highlight-card,
+.nexus-radar-card {
+  border-radius: var(--radius-card);
+}
+
+.nexus-panel,
+.nexus-panel-strong,
+.nexus-display-panel,
+.nexus-feature-card,
+.nexus-hero,
+.nexus-metric-card {
+  border: 1px solid var(--card-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--card-shadow);
+}
+
+.vx-panel {
+  border: 1px solid var(--card-line);
+  background:
+    radial-gradient(120% 90px at 0% 0%, color-mix(in srgb, var(--page-accent, #f5b83d) 10%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--page-accent, #f5b83d) 40%, transparent), var(--card-shadow);
+  backdrop-filter: none;
+}
+
+/* Panels are containers, not buttons: no floating lift on hover, just a brighter edge. */
+.nexus-display-panel:hover,
+.nexus-panel:hover,
+.nexus-panel-strong:hover,
+.nexus-hero:hover,
+.nexus-feature-card:hover {
+  transform: none;
+  border-color: var(--card-line-hover);
+}
+
+/* Primary buttons: solid accent with a soft glow that lifts slightly on hover. */
+button.bg-amber-400 {
+  box-shadow: 0 10px 24px -14px var(--color-amber-400), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+button.bg-amber-400:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -12px var(--color-amber-400), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+button.bg-amber-400:active:not(:disabled) { transform: translateY(0); }
+button.bg-amber-400:disabled { box-shadow: none; }
+
+/* Inputs: a clear accent ring instead of a thick outline. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-amber-400) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-amber-400) 32%, transparent);
 }

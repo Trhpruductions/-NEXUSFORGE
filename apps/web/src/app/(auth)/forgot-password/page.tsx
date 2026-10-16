@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { forgotPassword, forgotPasswordByPhone, getApiErrorMessage, getDeliveryOptions, resetPasswordByPhone } from "@/lib/api";
 
 type Mode = "email" | "phone";
@@ -73,11 +72,25 @@ export default function ForgotPasswordPage() {
       role="tab"
       aria-selected={mode === value}
       onClick={() => switchMode(value)}
-      className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${mode === value ? "bg-amber-400 text-slate-950" : "text-slate-300 hover:text-white"}`}
+      className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+        mode === value ? "bg-amber-400 text-slate-950" : "text-slate-300 hover:text-white"
+      }`}
     >
       {label}
     </button>
   );
+
+  const resultBox = result ? (
+    <p role="status" aria-live="polite" className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+      {result}
+    </p>
+  ) : null;
+
+  const errorBox = serverError ? (
+    <p role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+      {serverError}
+    </p>
+  ) : null;
 
   return (
     <AuthPageShell
@@ -104,25 +117,25 @@ export default function ForgotPasswordPage() {
       }
     >
       <AuthFormCard
-        title="Reset Password"
-        subtitle={mode === "email" ? "We'll email you a link to choose a new password" : "We'll text a code to your verified phone"}
+        title="Reset your password"
+        subtitle={mode === "email" ? "We'll email you a link to choose a new password." : "We'll text a code to your verified phone."}
         footer={
-          <div className="flex items-center justify-end">
-            <Link href="/login" className="text-amber-200 hover:text-amber-200">
-              Back to login
-            </Link>
-          </div>
+          <Link href="/login" className="font-semibold text-amber-200 transition hover:text-white">
+            Back to sign in
+          </Link>
         }
       >
         {done ? (
-          <div className="grid gap-3" role="status" aria-live="polite">
-            <p className="text-sm text-emerald-200">Your password has been changed and you&apos;ve been signed out on every device.</p>
-            <Link href="/login" className="text-amber-200 underline hover:text-amber-100">
+          <div className="grid gap-4" role="status" aria-live="polite">
+            <p className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              Your password has been changed and you&apos;ve been signed out on every device.
+            </p>
+            <Link href="/login" className={authPrimaryButtonClass}>
               Sign in with your new password
             </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             {smsAvailable ? (
               <div role="tablist" aria-label="How to reset" className="flex gap-1 rounded-xl border border-white/10 bg-[#0d1119] p-1">
                 {tab("email", "Email")}
@@ -132,62 +145,93 @@ export default function ForgotPasswordPage() {
 
             {mode === "email" ? (
               <form
-                className="grid gap-4"
+                className="grid gap-5"
                 noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
                   void sendEmail();
                 }}
               >
-                <Input id="forgot-password-email" label="Account Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-                {result ? (
-                  <p className="text-xs text-amber-200" role="status" aria-live="polite">
-                    {result}
-                  </p>
-                ) : null}
-                <Button type="submit" disabled={busy}>
+                <AuthField
+                  id="forgot-password-email"
+                  label="Account email"
+                  type="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+                {resultBox}
+                {errorBox}
+                <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
                   {busy ? "Sending..." : result ? "Send again" : "Email me a reset link"}
-                </Button>
+                </button>
               </form>
             ) : (
               <form
-                className="grid gap-4"
+                className="grid gap-5"
                 noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
                   void (codeSent ? resetWithCode() : sendText());
                 }}
               >
-                <Input id="forgot-password-phone" label="Verified phone number" type="tel" autoComplete="tel" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} disabled={codeSent} />
-                {result ? (
-                  <p className="text-xs text-amber-200" role="status" aria-live="polite">
-                    {result}
-                  </p>
-                ) : null}
+                <AuthField
+                  id="forgot-password-phone"
+                  label="Verified phone number"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+1 555 123 4567"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  disabled={codeSent}
+                />
+                {resultBox}
                 {codeSent ? (
                   <>
-                    <Input id="forgot-password-code" label="6-digit code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
-                    <Input id="forgot-password-new" label="New password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-                    <Button type="submit" disabled={busy}>
+                    <AuthField
+                      id="forgot-password-code"
+                      label="6-digit code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={code}
+                      onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    />
+                    <AuthField
+                      id="forgot-password-new"
+                      label="New password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="8+ characters"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                    />
+                    {errorBox}
+                    <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
                       {busy ? "Saving..." : "Set new password"}
-                    </Button>
-                    <button type="button" className="text-xs text-slate-400 underline hover:text-slate-200" onClick={() => switchMode("phone")}>
+                    </button>
+                    <button
+                      type="button"
+                      className="justify-self-center py-2 text-xs font-semibold text-slate-300 underline underline-offset-2 hover:text-white"
+                      onClick={() => switchMode("phone")}
+                    >
                       Use a different number or send a new code
                     </button>
                   </>
                 ) : (
-                  <Button type="submit" disabled={busy}>
-                    {busy ? "Sending..." : "Text me a code"}
-                  </Button>
+                  <>
+                    {errorBox}
+                    <button type="submit" disabled={busy} className={authPrimaryButtonClass}>
+                      {busy ? "Sending..." : "Text me a code"}
+                    </button>
+                  </>
                 )}
               </form>
             )}
-
-            {serverError ? (
-              <p role="alert" className="text-sm text-rose-400">
-                {serverError}
-              </p>
-            ) : null}
           </div>
         )}
       </AuthFormCard>

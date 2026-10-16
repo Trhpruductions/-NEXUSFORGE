@@ -9,11 +9,19 @@ export const megabytes = (bytes: number) => {
   return mb >= 1024 ? `${Math.round(mb / 1024)} GB` : `${mb} MB`;
 };
 
+/**
+ * The upload size a plan can use in production today. Files go through the server's 95 MB proxy cap
+ * (apps/server uploads.routes.ts, local storage), so paid plans are shown at that cap. The plan entitlement
+ * itself is unchanged. Update this when real storage (S3) is configured and per-plan limits apply.
+ */
+export const SHOWN_UPLOAD_CAP_BYTES = 95 * 1024 * 1024;
+export const shownUploadBytes = (plan: { uploadBytes: number }) => Math.min(plan.uploadBytes, SHOWN_UPLOAD_CAP_BYTES);
+
 /** Perk lines for a tier, straight from the plan catalog the server enforces. */
 export function perksFor(plan: PlanInfo | undefined, previous: PlanInfo | undefined) {
   if (!plan) return [];
   const lines = [
-    `Uploads up to ${megabytes(plan.uploadBytes)}`,
+    `Uploads up to ${megabytes(shownUploadBytes(plan))}`,
     `${plan.messageLength.toLocaleString()}-character messages`,
     `Be in up to ${plan.maxServers} servers`,
   ];

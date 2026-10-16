@@ -14,7 +14,7 @@ import { SuspensionControl } from "@/components/admin/suspension-control";
 import type { SuspensionInfo } from "@/lib/suspension";
 
 type AppRole = "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
-type ManualBadgeKey = "vip" | "investor" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner";
+type ManualBadgeKey = "vip" | "investor" | "staff" | "legend" | "founder" | "developer" | "moderator" | "admin" | "owner" | "beta-user" | "member" | "verified-member" | "rep";
 
 const manualBadgeOptions: Array<{ key: ManualBadgeKey; label: string }> = [
   { key: "vip", label: "VIP" },
@@ -26,6 +26,10 @@ const manualBadgeOptions: Array<{ key: ManualBadgeKey; label: string }> = [
   { key: "moderator", label: "Moderator" },
   { key: "admin", label: "Admin" },
   { key: "owner", label: "Owner" },
+  { key: "beta-user", label: "Beta User" },
+  { key: "member", label: "Member" },
+  { key: "verified-member", label: "Verified Member" },
+  { key: "rep", label: "Rep" },
 ];
 
 const billingEnvTemplate = [

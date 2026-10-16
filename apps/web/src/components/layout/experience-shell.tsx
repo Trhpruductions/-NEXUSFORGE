@@ -41,7 +41,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_20%,rgba(46,164,255,0.18),transparent_45%)]" />
           <div className="relative flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
-              <p className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300">
+              <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(46,164,255,0.9)]" /> {eyebrow}
               </p>
               <h1 className="nf-heading mt-2 text-2xl font-bold text-white md:text-3xl">{title}</h1>
@@ -55,7 +55,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
                     href={action.href}
                     prefetch={false}
                     className={cn(
-                      "inline-flex items-center rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition",
+                      "inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition",
                       action.tone === "primary" ? "bg-amber-400 text-slate-950 hover:bg-amber-300" : "border border-white/10 text-slate-200 hover:border-amber-400/50",
                     )}
                   >
@@ -71,7 +71,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {metrics.map((metric) => (
               <div key={metric.label} className="rounded-2xl border border-amber-500/15 bg-[#0d1119] px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{metric.label}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{metric.label}</p>
                 <p className={cn("nf-heading mt-1 text-lg font-bold", metricToneClass(metric.tone))}>{metric.value}</p>
               </div>
             ))}

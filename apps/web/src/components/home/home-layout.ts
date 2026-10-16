@@ -1,19 +1,24 @@
 import type { HomePreferences, HomeWidgetId } from "@/lib/api";
+import { JACKPOT_ENABLED } from "@/lib/held-features";
 
 export type HomeColumn = "main" | "side";
 
 /** Every Home widget, in default order. `defaultVisible: false` ones are opt-in extras. */
-export const HOME_WIDGETS: Array<{ id: HomeWidgetId; label: string; column: HomeColumn; defaultVisible: boolean }> = [
+const ALL_HOME_WIDGETS: Array<{ id: HomeWidgetId; label: string; column: HomeColumn; defaultVisible: boolean }> = [
   { id: "hero", label: "Forge banner", column: "main", defaultVisible: true },
   { id: "stats", label: "Forge stats", column: "main", defaultVisible: true },
   { id: "event", label: "Featured event", column: "main", defaultVisible: true },
   { id: "activity", label: "Recent activity", column: "main", defaultVisible: true },
   { id: "creators", label: "Top creators", column: "main", defaultVisible: true },
   { id: "live", label: "Live now", column: "side", defaultVisible: true },
+  { id: "shop", label: "Shop", column: "side", defaultVisible: true },
   { id: "actions", label: "Quick actions", column: "side", defaultVisible: true },
   { id: "posts", label: "Latest posts", column: "side", defaultVisible: false },
   { id: "jackpot", label: "Hourly jackpot", column: "side", defaultVisible: false },
 ];
+
+// The jackpot widget is hidden while its feature is on hold. A saved layout that mentions it is cleaned up the same way.
+export const HOME_WIDGETS = ALL_HOME_WIDGETS.filter((widget) => widget.id !== "jackpot" || JACKPOT_ENABLED);
 
 export type HomeLayoutItem = { id: HomeWidgetId; visible: boolean };
 

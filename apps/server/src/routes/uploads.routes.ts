@@ -44,15 +44,19 @@ uploadsRouter.post("/presign", async (req, res) => {
 
   const limits = limitsFor(user);
   const maxBytes = limits.uploadBytes;
+  // Local storage behind https is capped by the proxy (see the proxy branch below). A plan that is only
+  // allowed above that cap cannot be delivered, so the upgrade offer and the message use the deliverable size.
+  const deliverableCap = !storageConfigured() && /^https:/i.test(env.API_PUBLIC_URL ?? "") ? env.LOCAL_UPLOAD_PROXY_MAX_BYTES : Number.POSITIVE_INFINITY;
+  const deliverable = (bytes: number) => Math.min(bytes, deliverableCap);
   if (parsed.data.size > maxBytes) {
     const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
     const biggest = PLANS.INFINITE.uploadBytes;
     // A bigger plan would allow it: offer the upgrade. Otherwise it's just too big.
     if (limits.enforced && parsed.data.size <= biggest) {
-      res.status(402).json(upgradeRequired(`Files can be up to ${mb(maxBytes)} on your plan.`, "UPLOAD_SIZE", cheapestTierWith((plan) => plan.uploadBytes >= parsed.data.size)));
+      res.status(402).json(upgradeRequired(`Files can be up to ${mb(deliverable(maxBytes))} on your plan.`, "UPLOAD_SIZE", cheapestTierWith((plan) => deliverable(plan.uploadBytes) >= parsed.data.size)));
       return;
     }
-    res.status(413).json({ error: `Files can be up to ${mb(maxBytes)}.` });
+    res.status(413).json({ error: `Files can be up to ${mb(deliverable(maxBytes))}.` });
     return;
   }
 
@@ -69,7 +73,7 @@ uploadsRouter.post("/presign", async (req, res) => {
     const proxyCap = Math.min(maxBytes, env.LOCAL_UPLOAD_PROXY_MAX_BYTES);
     if (throughProxy && parsed.data.size > proxyCap) {
       res.status(413).json({
-        error: `Files over ${Math.round(proxyCap / (1024 * 1024))} MB can't be uploaded yet. Our hosting caps single uploads at 100 MB during the beta; bigger uploads come with the storage upgrade.`,
+        error: `Files over ${Math.round(proxyCap / (1024 * 1024))} MB can't be uploaded yet. Our hosting caps single uploads at ${Math.round(env.LOCAL_UPLOAD_PROXY_MAX_BYTES / (1024 * 1024))} MB during the beta; bigger uploads come with the storage upgrade.`,
         code: "UPLOAD_PROXY_LIMIT",
       });
       return;

@@ -25,6 +25,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       username: payload.username,
       email: payload.email,
       appRole: payload.appRole,
+      jti: payload.jti,
     };
     
     // Non-blocking update of lastSeenAt to keep stats accurate

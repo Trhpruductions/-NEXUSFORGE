@@ -9,6 +9,7 @@ import { canModerateMember, hasForgePermission, resolveForgeAccess } from "../li
 import { loadMemberContext, userCanViewChannel } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { considerAutomaticBan } from "../lib/vac-bans.js";
 
 /**
  * Reporting a message. Channel messages are reviewed by that forge's moderators
@@ -294,6 +295,10 @@ reportsRouter.patch("/:id", async (req, res) => {
     } catch {
       // realtime not ready
     }
+  }
+  // Platform staff upheld this report, so the VAC escalation rules may now ban the author.
+  if (staff && parsed.data.status === "RESOLVED" && report.authorId) {
+    void considerAutomaticBan({ userId: report.authorId, triggeredById: req.user!.id }).catch((error) => console.error("[VAC] automatic check failed", error));
   }
   res.json({ report: updated, messageDeleted });
 });

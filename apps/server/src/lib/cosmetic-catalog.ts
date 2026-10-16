@@ -62,3 +62,11 @@ export async function ensureCosmeticCatalog(): Promise<void> {
   }
   ensured = true;
 }
+
+/**
+ * Free items (priceCoins 0) are always available. A paid item is available only when the account owns it,
+ * which means a UserCosmetic row exists. Equipping, applying and the "available" flag all use this rule.
+ */
+export function isCatalogItemAvailable(item: { priceCoins: number }, owned: boolean): boolean {
+  return item.priceCoins <= 0 || owned;
+}

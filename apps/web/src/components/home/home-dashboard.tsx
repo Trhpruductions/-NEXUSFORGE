@@ -12,6 +12,7 @@ import { plainText } from "@/lib/plain-text";
 import { alpha, hues, hueFor, tileGradient, type Hue } from "@/lib/colors";
 import { HomeCustomizer } from "./home-customizer";
 import { JackpotWidget, LatestPostsWidget } from "./home-extra-widgets";
+import { ShopWidget } from "@/components/shop/shop-hub";
 import { columnOf, resolveLayout, type HomeLayoutItem } from "./home-layout";
 
 function initials(name: string) {
@@ -316,6 +317,12 @@ export function HomeDashboard() {
     ),
     posts: <LatestPostsWidget />,
     jackpot: <JackpotWidget />,
+    shop: (
+      <div className={panel} style={tint(hues.orange)}>
+        <h3 className={`${sectionTitle} mb-3`}><TitleIcon hue={hues.orange} icon={ShoppingBag} /> Shop</h3>
+        <ShopWidget />
+      </div>
+    ),
   };
 
   const shown = (editing ? draft : layout).filter((item) => item.visible);

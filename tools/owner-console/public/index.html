@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Nexus Forge owner console</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">NF</span>
+      <div>
+        <div class="brand-title">Owner console</div>
+        <div class="brand-sub">Nexus Forge Gaming</div>
+      </div>
+      <span class="pill pill-neutral">Read only</span>
+    </div>
+    <div class="live" role="status" aria-live="polite">
+      <span class="dot" id="liveDot" aria-hidden="true"></span>
+      <span id="liveText">Connecting</span>
+    </div>
+    <div class="chips" id="chips" aria-label="Summary"></div>
+    <div class="topbar-right">
+      <span class="muted" id="updated">Waiting for data</span>
+      <button type="button" class="btn" id="allToggle" aria-pressed="false">Show all pm2 apps <kbd>A</kbd></button>
+    </div>
+  </header>
+
+  <div class="error-bar" id="errorBar" role="status" hidden></div>
+
+  <div class="shell">
+    <nav class="rail" aria-label="Sections">
+      <a class="rail-item" href="#overview" data-view="overview"><kbd>1</kbd><span>Overview</span></a>
+      <a class="rail-item" href="#services" data-view="services"><kbd>2</kbd><span>Services</span></a>
+      <a class="rail-item" href="#activity" data-view="activity"><kbd>3</kbd><span>Activity</span></a>
+      <a class="rail-item" href="#logs" data-view="logs"><kbd>4</kbd><span>Logs</span></a>
+      <a class="rail-item" href="#feed" data-view="feed"><kbd>5</kbd><span>Feed</span></a>
+      <a class="rail-item" href="#tickets" data-view="tickets"><kbd>6</kbd><span>Tickets</span><span class="rail-count" id="railTickets"></span></a>
+      <a class="rail-item" href="#release" data-view="release"><kbd>7</kbd><span>Release</span></a>
+      <a class="rail-item" href="#legal" data-view="legal"><kbd>8</kbd><span>Legal</span></a>
+      <a class="rail-item" href="#readiness" data-view="readiness"><kbd>9</kbd><span>Readiness</span></a>
+      <a class="rail-item" href="#operations" data-view="operations"><kbd>0</kbd><span>Operations</span></a>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <section class="view" id="view-overview" data-view="overview"></section>
+      <section class="view" id="view-services" data-view="services" hidden></section>
+      <section class="view" id="view-activity" data-view="activity" hidden></section>
+
+      <section class="view" id="view-logs" data-view="logs" hidden>
+        <div class="view-head">
+          <div>
+            <h1 class="view-title">Logs</h1>
+            <p class="view-sub">Last 200 lines per stream from each app's pm2 log files. Secrets are redacted before they reach this page.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="log-controls">
+            <div class="field">
+              <label for="logApp">App</label>
+              <select id="logApp">
+                <option value="backend">API (backend)</option>
+                <option value="web">Web (Next.js)</option>
+                <option value="gateway">Gateway</option>
+                <option value="tunnel">Tunnel</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="logStream">Stream</label>
+              <select id="logStream">
+                <option value="both">Both</option>
+                <option value="out">Stdout</option>
+                <option value="err">Stderr</option>
+              </select>
+            </div>
+            <label class="field"><span><input type="checkbox" id="logErrors"> Errors and warnings only</span></label>
+            <div class="field grow">
+              <label for="logFilter">Filter text <kbd>/</kbd></label>
+              <input type="search" id="logFilter" placeholder="Type to filter lines" autocomplete="off">
+            </div>
+            <button type="button" class="btn" id="logPause" aria-pressed="false">Pause <kbd>P</kbd></button>
+          </div>
+          <div class="log-meta" id="logMeta"></div>
+          <div class="log-lines" id="logLines" tabindex="0" role="log" aria-label="Log lines"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-feed" data-view="feed" hidden>
+        <div class="view-head">
+          <div>
+            <h1 class="view-title">Feed</h1>
+            <p class="view-sub">What changed since the last checks: sign-ups, messages, errors, restarts, service changes and email status.</p>
+          </div>
+          <div class="field">
+            <label for="feedKind">Show</label>
+            <select id="feedKind">
+              <option value="all">All events</option>
+              <option value="service">Services</option>
+              <option value="pm2">pm2</option>
+              <option value="signup">Sign-ups</option>
+              <option value="message">Messages</option>
+              <option value="error">Errors</option>
+              <option value="email">Email</option>
+              <option value="ticket">Tickets</option>
+              <option value="support">Support</option>
+              <option value="report">Reports</option>
+              <option value="log">Logs</option>
+              <option value="jackpot">Jackpot</option>
+              <option value="system">Console</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <ol class="feed" id="feedList"></ol>
+        </div>
+      </section>
+
+      <section class="view" id="view-tickets" data-view="tickets" hidden></section>
+      <section class="view" id="view-release" data-view="release" hidden></section>
+      <section class="view" id="view-legal" data-view="legal" hidden></section>
+      <section class="view" id="view-readiness" data-view="readiness" hidden></section>
+      <section class="view" id="view-operations" data-view="operations" hidden></section>
+    </main>
+  </div>
+
+  <footer class="foot">
+    Keys: 1 to 9 and 0 change section. A toggles all pm2 apps. / filters logs and P pauses them. This console never changes the app; ticket actions are saved only to its own store.
+  </footer>
+
+  <dialog id="confirmDialog" class="confirm" aria-labelledby="confirmTitle">
+    <form method="dialog">
+      <h2 class="card-title" id="confirmTitle"></h2>
+      <p id="confirmBody"></p>
+      <div id="confirmCheckWrap" hidden>
+        <label class="field"><span><input type="checkbox" id="confirmCheck"> <span id="confirmCheckLabel"></span></span></label>
+      </div>
+      <div class="field-row confirm-actions">
+        <button type="submit" class="btn" value="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" value="confirm" id="confirmOk">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

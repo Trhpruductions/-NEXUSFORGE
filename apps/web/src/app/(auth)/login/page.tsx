@@ -43,6 +43,8 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   const [deletionScheduled, setDeletionScheduled] = useState(false);
+  // Set when the app sent the visitor here because their session expired or was revoked.
+  const [sessionEnded, setSessionEnded] = useState(false);
   const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string; method?: "totp" } | null>(null);
   // Authenticator users can sign in with a one-time recovery code instead.
   const [useRecovery, setUseRecovery] = useState(false);
@@ -88,6 +90,7 @@ export default function LoginPage() {
     const requested = sanitizeRedirectTarget(params.get("redirect") || params.get("next"));
     setRedirectTarget(requested);
     setDeletionScheduled(params.get("deletion") === "scheduled");
+    setSessionEnded(params.get("reason") === "expired");
   }, []);
 
   const {
@@ -221,6 +224,11 @@ export default function LoginPage() {
           </span>
         }
       >
+        {sessionEnded ? (
+          <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="status">
+            Your session has ended. It may have expired, or been signed out from another device. Sign in again to continue.
+          </p>
+        ) : null}
         {deletionScheduled ? (
           <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-100" role="status">
             Your account is scheduled for deletion and you&apos;ve been signed out everywhere. Changed your mind? Sign in and choose &quot;Keep my account&quot;.
@@ -232,6 +240,8 @@ export default function LoginPage() {
             label="Email or phone number"
             type="text"
             inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="username"
             placeholder="you@example.com or +1 555 123 4567"
             error={errors.email?.message}
@@ -248,7 +258,7 @@ export default function LoginPage() {
           />
 
           <div className="flex items-center justify-end">
-            <Link href="/forgot-password" className="text-xs text-slate-400 transition hover:text-amber-200">
+            <Link href="/forgot-password" className="py-2 text-xs font-semibold text-slate-300 transition hover:text-amber-200">
               Forgot password?
             </Link>
           </div>

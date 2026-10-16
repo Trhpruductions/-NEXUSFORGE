@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { StaffReports } from "@/components/admin/staff-reports";
+import { VacReview } from "@/components/admin/vac-review";
 
 // The page only decides what to show; the server checks the role on every request.
 export default function AdminReportsPage() {
@@ -41,6 +42,7 @@ export default function AdminReportsPage() {
 
   return (
     <ExperienceShell eyebrow="Safety" title="Reported messages" subtitle="Direct-message reports land here. Server-channel reports are handled by each forge’s moderators, but staff can see them too." metrics={[]} actions={[{ label: "Admin", href: "/admin", tone: "ghost" }]} maxWidthClassName="max-w-6xl">
+      <VacReview />
       <StaffReports />
     </ExperienceShell>
   );

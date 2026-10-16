@@ -12,12 +12,31 @@ const RESERVED = new Set([
   "nexusforge", "nexus_forge", "nexusforgegaming", "nexusforge_gaming", "nexusforgestaff", "nexusforge_staff", "nfgcord", "everyone", "here", "root", "null", "undefined", "owner", "security", "billing",
 ]);
 
+export type UsernameIssue = { reason: "invalid" | "reserved"; message: string };
+
+/** Why a proposed username can't be used, or null if the form is fine (taken is checked separately). */
+export function usernameIssue(raw: string): UsernameIssue | null {
+  const name = raw.trim();
+  if (!USERNAME_PATTERN.test(name)) return { reason: "invalid", message: "Usernames are 3 to 32 letters, numbers or underscores." };
+  if (RESERVED.has(name.toLowerCase())) return { reason: "reserved", message: "That username is reserved." };
+  return null;
+}
+
 /** A problem with a proposed username, in plain words, or null if it's fine to use. */
 export function usernameProblem(raw: string): string | null {
-  const name = raw.trim();
-  if (!USERNAME_PATTERN.test(name)) return "Usernames are 3 to 32 letters, numbers or underscores.";
-  if (RESERVED.has(name.toLowerCase())) return "That username is reserved.";
-  return null;
+  return usernameIssue(raw)?.message ?? null;
+}
+
+/** When the username may next be changed, or null if it may be changed now. */
+export function usernameCooldownEndsAt(changedAt: Date | null | undefined, now = Date.now()): Date | null {
+  if (!changedAt) return null;
+  const endsAt = changedAt.getTime() + USERNAME_CHANGE_COOLDOWN_MS;
+  return endsAt > now ? new Date(endsAt) : null;
+}
+
+/** True when a write failed because a unique column (such as username) already holds that value. */
+export function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002";
 }
 
 /** True if someone else already has this name, ignoring upper/lower case ("AtlasOps" = "atlasops"). */

@@ -10,6 +10,9 @@ import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MeshVoice, type MeshPeer } from "@/components/chat/mesh-voice";
+import { watchMediaDevices } from "@/lib/media/media-devices";
+import { micSettingsFrom } from "@/lib/media/media-prefs";
+import { useMediaPrefsSync, useMediaStore } from "@/lib/media/media-store";
 
 /**
  * Headless voice engine. Mounted once in the app shell so a call survives page
@@ -23,7 +26,7 @@ export function VoiceEngine() {
   const roomRef = useRef<Room | null>(null);
   const audioHostRef = useRef<HTMLDivElement | null>(null);
   const flagsRef = useRef(flags);
-  // Saved voice settings (Settings > Voice & Video). Shares the cached settings query.
+  // Saved account settings. Used only to seed this PC the first time (see useMediaPrefsSync).
   const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
   // Plan limits: ultra video (1440p60) is a Core+ Plus perk; everyone gets HD.
   const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
@@ -33,15 +36,18 @@ export function VoiceEngine() {
     hdVideoRef.current = hdVideo;
     meshRef.current?.setHdVideo(hdVideo);
   }, [hdVideo]);
-  const voicePrefs = settingsQuery.data?.preferences.voice;
-  const voicePrefsRef = useRef(voicePrefs);
+  // This PC's choices for the signed-in account: devices, processing, volumes, push to talk.
+  useMediaPrefsSync(user?.id ?? null, settingsQuery.data?.preferences.voice);
+  const prefs = useMediaStore((state) => state.prefs);
+  const prefsRef = useRef(prefs);
 
   useEffect(() => {
     flagsRef.current = flags;
   }, [flags]);
+  // Declared before the call effects below, so they read the latest choices.
   useEffect(() => {
-    voicePrefsRef.current = voicePrefs;
-  }, [voicePrefs]);
+    prefsRef.current = prefs;
+  }, [prefs]);
 
   // The server pulls people out of voice when they're timed out or lose access to a
   // private channel; hang up so the call (and everyone's occupancy count) ends cleanly.
@@ -71,8 +77,8 @@ export function VoiceEngine() {
       useVoiceStore.getState().setLastSound({ userId: payload.userId, name: payload.name, emoji: payload.emoji, at: Date.now() });
       if (useVoiceStore.getState().flags.deafened) return;
       const audio = new Audio(payload.soundUrl);
-      audio.volume = Math.max(0, Math.min(1, payload.volume * ((voicePrefsRef.current?.outputVolume ?? 100) / 100)));
-      const sinkId = voicePrefsRef.current?.outputDeviceId;
+      audio.volume = Math.max(0, Math.min(1, payload.volume * (prefsRef.current.outputVolume / 100)));
+      const sinkId = prefsRef.current.speakerDeviceId;
       const withSink = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
       const start = () => void audio.play().catch(() => undefined);
       if (sinkId && withSink.setSinkId) void withSink.setSinkId(sinkId).catch(() => undefined).finally(start);
@@ -119,20 +125,17 @@ export function VoiceEngine() {
     const store = useVoiceStore.getState();
     store.setConnection("connecting");
     store.setError(null);
+    useMediaStore.getState().setScreenShare({ state: "idle", message: null });
+    const choices = prefsRef.current;
     const mesh = new MeshVoice({
       socket: getSocket(accessToken),
       channelId: session.channelId,
       selfId: user.id,
       iceServers: session.iceServers ?? [],
-      constraints: {
-        noiseSuppression: voicePrefsRef.current?.noiseSuppression ?? flagsRef.current.noiseSuppression,
-        echoCancellation: voicePrefsRef.current?.echoCancellation ?? true,
-        autoGainControl: true,
-        ...(voicePrefsRef.current?.inputDeviceId ? { deviceId: { exact: voicePrefsRef.current.inputDeviceId } } : {}),
-      },
-      inputGain: (voicePrefsRef.current?.inputVolume ?? 100) / 100,
-      outputVolume: (voicePrefsRef.current?.outputVolume ?? 100) / 100,
-      outputDeviceId: voicePrefsRef.current?.outputDeviceId ?? null,
+      mic: micSettingsFrom(choices),
+      outputVolume: choices.outputVolume / 100,
+      outputDeviceId: choices.speakerDeviceId,
+      cameraDeviceId: choices.cameraDeviceId,
       onFull: (limit) => {
         useVoiceStore.getState().setError(`This voice channel is full (${limit} people max for peer-to-peer voice).`);
         useVoiceStore.getState().leave();
@@ -146,6 +149,8 @@ export function VoiceEngine() {
       onScreenShareEnded: () => {
         if (useVoiceStore.getState().flags.screenSharing) useVoiceStore.getState().toggle("screenSharing");
       },
+      onScreenState: (update) => useMediaStore.getState().setScreenShare({ state: update.state, message: update.message ?? null }),
+      onMicNotice: (notice) => useMediaStore.getState().setMicNotice(notice),
       onLocalScreen: (stream) => useVoiceStore.getState().setLocalScreen(stream),
       onLevel: (key, level) => useVoiceStore.getState().setLevel(key, level),
       onError: (message) => useVoiceStore.getState().setError(message),
@@ -161,21 +166,39 @@ export function VoiceEngine() {
     return () => {
       mesh.stop();
       if (meshRef.current === mesh) meshRef.current = null;
+      useMediaStore.getState().setScreenShare({ state: "idle", message: null });
+      useMediaStore.getState().setMicNotice(null);
     };
   }, [session, accessToken, user]);
 
   useEffect(() => {
     meshRef.current?.setMuted(flags.muted);
   }, [flags.muted]);
-  // Output volume and speaker apply live; mic device and processing apply on the next join.
+
+  // Microphone choice and processing apply to a live call at once (the outgoing track is replaced,
+  // nobody renegotiates). Gain and sensitivity change the live graph only.
   useEffect(() => {
-    if (!voicePrefs) return;
-    meshRef.current?.setOutputVolume(voicePrefs.outputVolume / 100);
-    meshRef.current?.setOutputDevice(voicePrefs.outputDeviceId);
-  }, [voicePrefs, session]);
+    void meshRef.current?.setMic(micSettingsFrom(prefsRef.current));
+  }, [prefs.micDeviceId, prefs.noiseSuppression, prefs.echoCancellation, prefs.autoGainControl, prefs.inputVolume, prefs.inputSensitivity]);
+  // Output volume and speaker apply live.
+  useEffect(() => {
+    meshRef.current?.setOutputVolume(prefs.outputVolume / 100);
+    meshRef.current?.setOutputDevice(prefs.speakerDeviceId);
+  }, [prefs.outputVolume, prefs.speakerDeviceId, session]);
+  // Camera switch while the camera is on (replaceTrack on each camera sender).
+  useEffect(() => {
+    void meshRef.current?.setCameraDevice(prefs.cameraDeviceId);
+  }, [prefs.cameraDeviceId]);
+
+  // Hot-plug: a saved microphone that goes away moves the call to the default, and comes back into use when listed again.
+  const meshSession = session?.mode === "mesh";
+  useEffect(() => {
+    if (!meshSession) return;
+    return watchMediaDevices(() => meshRef.current?.handleDevicesChanged());
+  }, [meshSession]);
 
   // Push-to-talk: hold ` (backquote) to talk. Ignored while typing in a text field.
-  const pushToTalk = voicePrefs?.inputMode === "ptt" && session?.mode === "mesh";
+  const pushToTalk = prefs.inputMode === "ptt" && session?.mode === "mesh";
   useEffect(() => {
     const store = useVoiceStore.getState();
     meshRef.current?.setPushToTalk(pushToTalk);
@@ -223,7 +246,7 @@ export function VoiceEngine() {
   useEffect(() => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    if (flags.camera) void mesh.startCamera(voicePrefsRef.current?.cameraDeviceId ?? null);
+    if (flags.camera) void mesh.startCamera(prefsRef.current.cameraDeviceId);
     else mesh.stopCamera(false);
   }, [flags.camera]);
 
@@ -240,7 +263,13 @@ export function VoiceEngine() {
 
     void import("livekit-client").then(({ Room: LiveKitRoom, RoomEvent, Track }) => {
     if (cancelled) return;
-    room = new LiveKitRoom({ adaptiveStream: true, dynacast: true });
+    // Processing toggles apply to the LiveKit microphone. Device choice is applied on the mesh path only.
+    const choices = prefsRef.current;
+    room = new LiveKitRoom({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: { noiseSuppression: choices.noiseSuppression, echoCancellation: choices.echoCancellation, autoGainControl: choices.autoGainControl },
+    });
     roomRef.current = room;
     const liveRoom = room;
 

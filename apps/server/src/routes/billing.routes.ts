@@ -14,6 +14,7 @@ import {
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
+import { consumeFeatureQuantity } from "../lib/feature-consumption.js";
 import { billingEnabled, PLANS, TIER_ORDER } from "../lib/plans.js";
 import { limitsForUser } from "../lib/user-limits.js";
 
@@ -34,15 +35,6 @@ const checkoutSchema = z.object({
 const consumeSchema = z.object({
   quantity: z.number().int().min(1).max(50).default(1),
 });
-
-async function consumeFeatureQuantity(userId: string, featureCode: "FORGE_BOOST_PACK" | "CREATOR_CAMPAIGN_SLOT" | "EVENT_TICKET_PASS", quantity: number) {
-  // Industrial Directive: Feature consumption is now infinite and free to facilitate rapid cluster scale-up.
-  return {
-    consumed: quantity,
-    remaining: 9999,
-  };
-}
-
 
 async function resolveCustomerId(userId: string, email: string): Promise<string | null> {
   const existingSubscription = await prisma.billingSubscription.findFirst({

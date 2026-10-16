@@ -7,9 +7,8 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createCheckoutSession, getBillingPlans, getBillingReadiness, type PaidFeatureCode, type PlanInfo } from "@/lib/api";
-import { megabytes, PREVIOUS_TIER, perksFor } from "@/lib/plan-perks";
+import { megabytes, PREVIOUS_TIER, perksFor, shownUploadBytes } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING } from "@/lib/pricing-catalog";
-import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 
 const tierCards = [
@@ -194,15 +193,15 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             <p className="mt-2 text-sm text-slate-400">{checkoutPreview.detail}</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Tier</p>
                 <p className="mt-1 text-sm font-semibold text-white">{pendingTierName ?? "One-time purchase"}</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Billing</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Billing</p>
                 <p className="mt-1 text-sm font-semibold text-white">{pendingBillingLabel}</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Status</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Status</p>
                 <p className="mt-1 text-sm font-semibold text-amber-300">Redirecting now</p>
               </div>
             </div>
@@ -214,7 +213,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
                 className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-300"
               />
             </div>
-            <p className="mt-3 text-xs text-slate-500">Do not close the page. Nexus Forge Gaming is securing your checkout session and handing off to billing.</p>
+            <p className="mt-3 text-xs text-slate-400">Do not close the page. Nexus Forge Gaming is securing your checkout session and handing off to billing.</p>
           </div>
         </motion.div>
       ) : null}
@@ -249,33 +248,39 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
-            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
+            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-200">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-3 text-xs text-slate-400">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-slate-500">Billing Interval</span>
-            <Button
-              onClick={() => setInterval("MONTHLY")}
-              variant="ghost"
-              className={`h-8 rounded-full px-3 text-xs ${interval === "MONTHLY" ? "border-amber-500/55 text-amber-700" : "text-slate-500"}`}
-            >
-              Monthly
-            </Button>
-            <Button
-              onClick={() => setInterval("YEARLY")}
-              variant="ghost"
-              className={`h-8 rounded-full px-3 text-xs ${interval === "YEARLY" ? "border-amber-500/55 text-amber-700" : "text-slate-500"}`}
-            >
-              Yearly
-            </Button>
+            <span className="text-slate-400">Billing interval</span>
+            <div role="group" aria-label="Billing interval" className="inline-flex rounded-full border border-white/10 bg-[#0d1119] p-1">
+              {(["MONTHLY", "YEARLY"] as const).map((option) => {
+                const active = interval === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setInterval(option)}
+                    className={`h-9 rounded-full px-4 text-xs font-semibold transition ${
+                      active
+                        ? "bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(46,164,255,0.96))] text-slate-950 shadow-[0_10px_24px_rgba(30,139,255,0.3)]"
+                        : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    {option === "MONTHLY" ? "Monthly" : "Yearly"}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-amber-200">
             {interval === "YEARLY" ? "Billed once a year" : "Billed monthly, cancel any time"}
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {tierCards.map((tier, index) => (
             <motion.article
               key={tier.id}
@@ -285,13 +290,13 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               transition={{ duration: 0.28, ease: "easeOut", delay: index * 0.05 }}
               className={`nexus-interactive-card rounded-[28px] border bg-[#11151e] p-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)] ${tier.spotlight ? "border-amber-400/40 shadow-[0_18px_50px_rgba(99,192,255,0.12)]" : "border-white/10"}`}
             >
-              <div className="mb-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
+              <div className="relative mb-3 aspect-[4/5] overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
                 <Image
                   src={tierLogoById[tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE"].src}
                   alt={`${tier.name} tier artwork`}
-                  width={1200}
-                  height={800}
-                  className="h-auto w-full object-cover"
+                  fill
+                  sizes="(min-width: 1024px) 22vw, (min-width: 640px) 45vw, 90vw"
+                  className="object-cover object-center"
                 />
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -301,22 +306,23 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
               <p className="mt-3 text-xs text-slate-400">{tier.description}</p>
               <div className="mt-3 flex items-end gap-2">
                 <p className="text-3xl font-semibold text-white">{interval === "YEARLY" ? tier.yearly : tier.monthly}</p>
-                <p className="pb-1 text-xs text-slate-500">{interval === "YEARLY" ? "per year" : "per month"}</p>
+                <p className="pb-1 text-xs text-slate-400">{interval === "YEARLY" ? "per year" : "per month"}</p>
               </div>
               <p className="mt-1 text-xs text-amber-300">{tier.yearlySavings}</p>
-              <ul className="mt-3 space-y-1.5 text-xs text-slate-400">
+              <ul className="mt-3 space-y-1.5 text-sm text-slate-300">
                 {perksFor(planByTier[tier.id], planByTier[PREVIOUS_TIER[tier.id]]).map((perk) => (
                   <li key={perk}>• {perk}</li>
                 ))}
               </ul>
-              <Button
+              <button
+                type="button"
                 onClick={() => handleCheckout({ featureCode: "CORE_PLUS", tier: tier.id as "CORE" | "PLUS" | "ELITE" | "INFINITE" })}
                 disabled={checkoutMutation.isPending || !billingReady}
-                className={`mt-4 h-10 w-full rounded-full px-3 text-xs ${tier.spotlight ? "border-amber-300 bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(99,192,255,0.96)_45%,rgba(30,139,255,0.96))] text-white shadow-[0_16px_30px_rgba(30,139,255,0.16)]" : "border-white/10 bg-[#11151e] text-white"}`}
+                className={`mt-4 inline-flex h-11 w-full items-center justify-center rounded-full px-3 text-sm font-semibold transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 ${tier.spotlight ? "border border-amber-300 bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(99,192,255,0.96)_45%,rgba(30,139,255,0.96))] text-slate-950 shadow-[0_16px_30px_rgba(30,139,255,0.16)]" : "border border-white/15 bg-[#0d1119] text-white hover:border-amber-300/60"}`}
               >
                 {checkoutMutation.isPending ? "Opening..." : tier.cta}
-              </Button>
-              <p className="mt-2 text-center text-[11px] text-slate-500">Instant activation after successful payment</p>
+              </button>
+              <p className="mt-2 text-center text-[11px] text-slate-400">Instant activation after successful payment</p>
             </motion.article>
           ))}
         </div>
@@ -338,10 +344,10 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             Prices in US dollars
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div role="region" aria-label="Plan comparison table" tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-slate-500">
+              <tr className="border-b border-white/10 text-slate-400">
                 <th className="py-2 pr-3 font-semibold">Feature</th>
                 {(plansQuery.data?.plans ?? []).map((plan) => (
                   <th key={plan.tier} className={`py-2 pr-3 font-semibold ${plan.tier === "PLUS" ? "text-amber-200" : ""}`}>{plan.label}</th>
@@ -350,7 +356,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </thead>
             <tbody>
               {[
-                { label: "Upload size", value: (plan: PlanInfo) => `${megabytes(plan.uploadBytes)}` },
+                { label: "Upload size", value: (plan: PlanInfo) => `${megabytes(shownUploadBytes(plan))}` },
                 { label: "Message length", value: (plan: PlanInfo) => `${plan.messageLength.toLocaleString()} characters` },
                 { label: "Servers you can be in", value: (plan: PlanInfo) => String(plan.maxServers) },
                 { label: "Profile banner", value: (plan: PlanInfo) => (plan.profileBanner ? "Yes" : "-") },
@@ -367,7 +373,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-[11px] text-slate-500">During the beta, single uploads are capped at 95 MB while large-file storage is being set up, whatever your plan.</p>
+        <p className="mt-3 text-[11px] text-slate-400">During the beta, single uploads are capped at 95 MB while large-file storage is being set up, whatever your plan.</p>
       </motion.article>
 
       <motion.article
@@ -384,7 +390,7 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
           <li>• Change or cancel any time from <Link href="/app/settings?section=billing" className="text-amber-200 underline underline-offset-2">Settings → Billing</Link>. Cancelling keeps your plan until the end of the period you paid for.</li>
           <li>• If you cancel at checkout, nothing is charged and nothing changes.</li>
         </ul>
-        <p className="mt-3 text-[11px] text-slate-500">See the <Link href="/legal/terms" className="underline underline-offset-2">Terms of Service</Link> for the full terms.</p>
+        <p className="mt-3 text-[11px] text-slate-400">See the <Link href="/legal/terms" className="underline underline-offset-2">Terms of Service</Link> for the full terms.</p>
         {checkoutMutation.error ? <p className="mt-2 text-xs text-red-300">Checkout failed: {checkoutErrorMessage}</p> : null}
       </motion.article>
     </section>

@@ -17,14 +17,12 @@ import {
   Link2,
   Loader2,
   LogOut,
-  Mic,
   Palette,
   Puzzle,
   ScrollText,
   Shield,
   UserRound,
   Users,
-  Video,
   X,
   Zap,
 } from "lucide-react";
@@ -47,7 +45,6 @@ import {
   type AppearancePreferences,
   type NotificationPreferences,
   type PrivacySettings,
-  type VoicePreferences,
   getCosmeticInventory,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
@@ -58,8 +55,10 @@ import { ActiveSessions } from "@/components/settings/active-sessions";
 import { QuietHoursEditor } from "@/components/settings/quiet-hours-editor";
 import { Toggle } from "@/components/settings/toggle";
 import { AgeVerificationCard } from "@/components/settings/age-verification";
+import { VoiceVideoSettings } from "@/components/voice/voice-video-settings";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
+import { shownUploadBytes } from "@/lib/plan-perks";
 
 // Category list from the design reference (Settings panel, left column).
 const categories = [
@@ -164,10 +163,6 @@ function SettingsInner() {
   const [category, setCategory] = useState<CategoryKey>(requestedCategory && categories.some((entry) => entry.key === requestedCategory) ? requestedCategory : "account");
   const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
   const [appearance, setAppearance] = useState<AppearancePreferences | null>(null);
-  const [voice, setVoice] = useState<VoicePreferences | null>(null);
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [deviceError, setDeviceError] = useState<string | null>(null);
-  const [micLevel, setMicLevel] = useState(0);
 
   useEffect(() => {
     const data = settingsQuery.data;
@@ -181,7 +176,6 @@ function SettingsInner() {
     setLinked(Object.fromEntries(Object.entries(data.linkedAccounts).map(([key, value]) => [key, value ?? ""])));
     setNotifications(data.preferences.notifications);
     setAppearance(data.preferences.appearance);
-    setVoice(data.preferences.voice);
     setSeeded(true);
   }, [settingsQuery.data, seeded]);
 
@@ -224,36 +218,6 @@ function SettingsInner() {
     root.dataset.motion = appearance.reduceMotion ? "reduce" : "";
     root.dataset.chatAvatars = appearance.showAvatarsInChat ? "on" : "off";
   }, [appearance]);
-
-  const detectDevices = async () => {
-    setDeviceError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const list = await navigator.mediaDevices.enumerateDevices();
-      setDevices(list);
-      // Meter the mic for a few seconds so the user can see input is working.
-      const AudioContextCtor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const context = new AudioContextCtor();
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 256;
-      context.createMediaStreamSource(stream).connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const started = Date.now();
-      const tick = () => {
-        analyser.getByteFrequencyData(data);
-        setMicLevel(Math.min(100, Math.round((data.reduce((sum, value) => sum + value, 0) / data.length / 128) * 100)));
-        if (Date.now() - started < 8000) requestAnimationFrame(tick);
-        else {
-          stream.getTracks().forEach((track) => track.stop());
-          void context.close();
-          setMicLevel(0);
-        }
-      };
-      tick();
-    } catch (error) {
-      setDeviceError(error instanceof Error ? error.message : "Microphone access was denied");
-    }
-  };
 
   const account = settingsQuery.data?.account;
   const accountDirty = Boolean(account) && (displayName !== (account?.displayName ?? "") || email !== account?.email || bio !== (account?.bio ?? "") || clanTag !== (account?.clanTag ?? ""));
@@ -332,7 +296,6 @@ function SettingsInner() {
     onSuccess: async (result) => {
       setNotifications(result.preferences.notifications);
       setAppearance(result.preferences.appearance);
-      setVoice(result.preferences.voice);
       setNotice({ tone: "ok", text: "Preferences saved." });
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
@@ -340,7 +303,6 @@ function SettingsInner() {
   });
   const notificationsDirty = Boolean(notifications && settingsQuery.data) && JSON.stringify(notifications) !== JSON.stringify(settingsQuery.data?.preferences.notifications);
   const appearanceDirty = Boolean(appearance && settingsQuery.data) && JSON.stringify(appearance) !== JSON.stringify(settingsQuery.data?.preferences.appearance);
-  const voiceDirty = Boolean(voice && settingsQuery.data) && JSON.stringify(voice) !== JSON.stringify(settingsQuery.data?.preferences.voice);
 
   const forge = forgeQuery.data?.forge;
   const isOwner = forge?.ownerId === user?.id;
@@ -512,7 +474,7 @@ function SettingsInner() {
                   <p className="text-sm text-slate-100">{row.label}</p>
                   <p className="text-[11px] text-slate-500">{row.hint}</p>
                 </div>
-                <Toggle checked={privacy[row.key]} onChange={(value) => setPrivacy((current) => (current ? { ...current, [row.key]: value } : current))} />
+                <Toggle checked={privacy[row.key]} label={row.label} onChange={(value) => setPrivacy((current) => (current ? { ...current, [row.key]: value } : current))} />
               </li>
             ))}
           </ul>
@@ -601,7 +563,7 @@ function SettingsInner() {
                   <p className="text-sm text-slate-100">{row.label}</p>
                   <p className="text-[11px] text-slate-500">{row.hint}</p>
                 </div>
-                <Toggle checked={privacy[row.key]} onChange={(value) => setPrivacy((current) => (current ? { ...current, [row.key]: value } : current))} />
+                <Toggle checked={privacy[row.key]} label={row.label} onChange={(value) => setPrivacy((current) => (current ? { ...current, [row.key]: value } : current))} />
               </li>
             ))}
           </ul>
@@ -653,7 +615,7 @@ function SettingsInner() {
                       <p className="text-sm text-slate-100">{row.label}</p>
                       <p className="text-[11px] text-slate-500">{row.hint}</p>
                     </div>
-                    <Toggle checked={notifications[row.key]} onChange={(value) => setNotifications((current) => (current ? { ...current, [row.key]: value } : current))} />
+                    <Toggle checked={notifications[row.key]} label={row.label} onChange={(value) => setNotifications((current) => (current ? { ...current, [row.key]: value } : current))} />
                   </li>
                 ))}
               </ul>
@@ -713,14 +675,14 @@ function SettingsInner() {
                     <p className="text-sm text-slate-100">Reduce motion</p>
                     <p className="text-[11px] text-slate-500">Turn off animations and transitions.</p>
                   </div>
-                  <Toggle checked={appearance.reduceMotion} onChange={(value) => setAppearance((current) => (current ? { ...current, reduceMotion: value } : current))} />
+                  <Toggle checked={appearance.reduceMotion} label="Reduce motion" onChange={(value) => setAppearance((current) => (current ? { ...current, reduceMotion: value } : current))} />
                 </li>
                 <li className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm text-slate-100">Show avatars in chat</p>
                     <p className="text-[11px] text-slate-500">Hide them for a denser message list.</p>
                   </div>
-                  <Toggle checked={appearance.showAvatarsInChat} onChange={(value) => setAppearance((current) => (current ? { ...current, showAvatarsInChat: value } : current))} />
+                  <Toggle checked={appearance.showAvatarsInChat} label="Show avatars in chat" onChange={(value) => setAppearance((current) => (current ? { ...current, showAvatarsInChat: value } : current))} />
                 </li>
               </ul>
               <p className="text-[11px] text-slate-500">Changes preview instantly and apply everywhere once saved.</p>
@@ -730,77 +692,7 @@ function SettingsInner() {
             </section>
           ) : null}
 
-          {category === "voice" && voice ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              <section className={`${panel} space-y-4`}>
-                <div className="flex items-center justify-between">
-                  <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Mic className="h-4 w-4 vx-accent" /> Voice</h2>
-                  <button type="button" className={ghostBtn} onClick={() => void detectDevices()}>Detect devices</button>
-                </div>
-                {deviceError ? <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{deviceError}</p> : null}
-                <label className="block text-xs text-slate-300">
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Input device</span>
-                  <select className={inputClass} value={voice.inputDeviceId ?? ""} onChange={(event) => setVoice((current) => (current ? { ...current, inputDeviceId: event.target.value || null } : current))}>
-                    <option value="">System default</option>
-                    {devices.filter((device) => device.kind === "audioinput").map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Microphone"}</option>)}
-                  </select>
-                </label>
-                <label className="block text-xs text-slate-300">
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Output device</span>
-                  <select className={inputClass} value={voice.outputDeviceId ?? ""} onChange={(event) => setVoice((current) => (current ? { ...current, outputDeviceId: event.target.value || null } : current))}>
-                    <option value="">System default</option>
-                    {devices.filter((device) => device.kind === "audiooutput").map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Speakers"}</option>)}
-                  </select>
-                </label>
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500"><span>Mic test</span><span>{micLevel}%</span></div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-emerald-400 transition-[width]" style={{ width: `${micLevel}%` }} /></div>
-                  <p className="mt-1 text-[11px] text-slate-500">Click Detect devices and speak to see the meter move.</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-xs text-slate-300">
-                    <span className="mb-1 flex justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500"><span>Input volume</span><span>{voice.inputVolume}</span></span>
-                    <input type="range" min={0} max={100} value={voice.inputVolume} onChange={(event) => setVoice((current) => (current ? { ...current, inputVolume: Number(event.target.value) } : current))} className="w-full accent-amber-400" />
-                  </label>
-                  <label className="block text-xs text-slate-300">
-                    <span className="mb-1 flex justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500"><span>Output volume</span><span>{voice.outputVolume}</span></span>
-                    <input type="range" min={0} max={100} value={voice.outputVolume} onChange={(event) => setVoice((current) => (current ? { ...current, outputVolume: Number(event.target.value) } : current))} className="w-full accent-amber-400" />
-                  </label>
-                </div>
-                <div className="flex gap-1 rounded-lg border border-white/10 bg-[#11151e] p-1">
-                  {(["voice", "ptt"] as const).map((mode) => (
-                    <button key={mode} type="button" onClick={() => setVoice((current) => (current ? { ...current, inputMode: mode } : current))} className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${voice.inputMode === mode ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                      {mode === "voice" ? "Voice activity" : "Push to talk"}
-                    </button>
-                  ))}
-                </div>
-                <ul className="space-y-3">
-                  <li className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-slate-100">Noise suppression</p>
-                    <Toggle checked={voice.noiseSuppression} onChange={(value) => setVoice((current) => (current ? { ...current, noiseSuppression: value } : current))} />
-                  </li>
-                  <li className="flex items-center justify-between gap-3">
-                    <p className="text-sm text-slate-100">Echo cancellation</p>
-                    <Toggle checked={voice.echoCancellation} onChange={(value) => setVoice((current) => (current ? { ...current, echoCancellation: value } : current))} />
-                  </li>
-                </ul>
-              </section>
-              <section className={`${panel} space-y-4`}>
-                <h2 className={`${sectionTitle} inline-flex items-center gap-2`}><Video className="h-4 w-4 vx-accent" /> Video</h2>
-                <label className="block text-xs text-slate-300">
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Camera</span>
-                  <select className={inputClass} value={voice.cameraDeviceId ?? ""} onChange={(event) => setVoice((current) => (current ? { ...current, cameraDeviceId: event.target.value || null } : current))}>
-                    <option value="">System default</option>
-                    {devices.filter((device) => device.kind === "videoinput").map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label || "Camera"}</option>)}
-                  </select>
-                </label>
-                <p className="text-[11px] text-slate-500">Device names appear after you allow microphone access with Detect devices.</p>
-                <button type="button" className={goldBtn} disabled={!voiceDirty || preferencesMutation.isPending} onClick={() => preferencesMutation.mutate({ voice })}>
-                  {preferencesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save voice &amp; video
-                </button>
-              </section>
-            </div>
-          ) : null}
+          {category === "voice" ? <VoiceVideoSettings userId={user?.id ?? null} serverVoice={settingsQuery.data?.preferences.voice} /> : null}
 
           {category === "connections" ? (
             <section className={`${panel} space-y-4`}>
@@ -978,7 +870,7 @@ function SettingsInner() {
                 <h2 className={sectionTitle}>Your plan includes</h2>
                 {limitsQuery.data ? (
                   <ul className="grid gap-1.5 text-sm text-slate-300 sm:grid-cols-2">
-                    <li>Uploads up to <strong className="text-white">{Math.round(limitsQuery.data.uploadBytes / (1024 * 1024))} MB</strong></li>
+                    <li>Uploads up to <strong className="text-white">{Math.round(shownUploadBytes({ uploadBytes: limitsQuery.data.uploadBytes }) / (1024 * 1024))} MB</strong></li>
                     <li>Messages up to <strong className="text-white">{limitsQuery.data.messageLength.toLocaleString()}</strong> characters</li>
                     <li>Up to <strong className="text-white">{limitsQuery.data.maxServers}</strong> servers</li>
                     <li>Profile banner: <strong className="text-white">{limitsQuery.data.profileBanner ? "yes" : "no"}</strong></li>

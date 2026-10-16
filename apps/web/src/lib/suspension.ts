@@ -3,7 +3,7 @@
 import { useAuthStore } from "@/store/auth-store";
 
 /** What the server says about a suspended account. `until` null = until staff lift it. */
-export type SuspensionInfo = { reason: string; until: string | null; since: string };
+export type SuspensionInfo = { reason: string; until: string | null; since: string; kind?: "STAFF" | "VAC"; category?: string | null; appealed?: boolean };
 
 const STORAGE_KEY = "vx-suspension";
 
@@ -19,6 +19,19 @@ export function readSuspension(): SuspensionInfo | null {
   } catch {
     return null;
   }
+}
+
+/** Remembers in this browser that an appeal was sent, so a reload shows the sent state instead of the form again. */
+export function markSuspensionAppealed(): SuspensionInfo | null {
+  const info = readSuspension();
+  if (!info) return null;
+  const next = { ...info, appealed: true };
+  try {
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* storage blocked: the sent state lasts until the page is left */
+  }
+  return next;
 }
 
 let handled = false;

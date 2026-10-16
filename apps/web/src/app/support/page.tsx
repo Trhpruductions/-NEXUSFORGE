@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { Bug, LifeBuoy, Mail, ShieldAlert, Ticket } from "lucide-react";
 import { ExperienceShell } from "@/components/layout/experience-shell";
@@ -6,10 +6,11 @@ import { HelpCenter } from "@/components/support/help-center";
 import { StatusCard } from "@/components/support/status-card";
 import { ReportProblem } from "@/components/home/report-problem";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Support",
   description: "Help with your Nexus Forge Gaming account, servers, voice, Core+ and the desktop app. Search the help center, check service status, open a ticket or report a problem.",
-};
+  path: "/support",
+});
 
 const contact = [
   { icon: Ticket, title: "Open a support ticket", text: "For anything about your account. A real person replies in the app and by email. Sign in first.", href: "/app/support?new=1", cta: "Open a ticket" },
@@ -42,9 +43,9 @@ export default function SupportPage() {
                   <h3 className="text-base font-semibold text-white">{item.title}</h3>
                   <p className="mt-1 flex-1 text-sm text-slate-400">{item.text}</p>
                   {item.href.startsWith("#") ? (
-                    <a href={item.href} className="mt-3 inline-flex w-fit items-center rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{item.cta}</a>
+                    <a href={item.href} className="mt-3 inline-flex min-h-11 w-fit items-center rounded-lg border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{item.cta}</a>
                   ) : (
-                    <Link href={item.href} className="mt-3 inline-flex w-fit items-center rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{item.cta}</Link>
+                    <Link href={item.href} className="mt-3 inline-flex min-h-11 w-fit items-center rounded-lg border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{item.cta}</Link>
                   )}
                 </div>
               ))}

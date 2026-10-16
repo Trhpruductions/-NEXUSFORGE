@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AuthGate } from "@/components/layout/auth-gate";
 import { DeveloperShell } from "@/components/developer/developer-shell";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
-  return <DeveloperShell>{children}</DeveloperShell>;
+  return (
+    <AuthGate>
+      <DeveloperShell>{children}</DeveloperShell>
+    </AuthGate>
+  );
 }

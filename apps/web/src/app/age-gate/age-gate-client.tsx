@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -45,6 +46,8 @@ export function AgeGateClient() {
   const deniedParam = searchParams?.get("denied") === "1";
   const { user, accessToken, csrfToken, fetchMe, clearSession } = useAuthStore();
   const [denied, setDenied] = useState(deniedParam);
+  // True when the denial is for a signed-in account (it is signed out at that point).
+  const [deniedAccount, setDeniedAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -58,6 +61,7 @@ export function AgeGateClient() {
     onError: (err) => {
       if (axios.isAxiosError(err) && (err.response?.data as { underage?: boolean } | undefined)?.underage) {
         clearSession();
+        setDeniedAccount(true);
         setDenied(true);
         return;
       }
@@ -99,9 +103,17 @@ export function AgeGateClient() {
 
   if (denied) {
     return (
-      <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4">
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100"><ShieldAlert className="h-4 w-4" /> You must be 18 or older to use Nexus Forge Gaming.</p>
-        <p className="mt-2 text-xs text-rose-200/80">This account cannot sign in. If you entered the wrong date of birth, contact support with proof of age.</p>
+      <div role="status" className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4">
+        <p className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100"><ShieldAlert className="h-4 w-4" aria-hidden="true" /> You must be 18 or older to use Nexus Forge Gaming.</p>
+        <p className="mt-2 text-xs leading-5 text-rose-100/85">
+          {deniedAccount
+            ? "This account cannot sign in. If you entered the wrong date of birth, contact support with proof of age."
+            : "If you think this is a mistake, contact support."}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+          <Link href="/support" className="font-semibold text-sky-200 underline underline-offset-2 hover:text-white">Contact support</Link>
+          <Link href="/legal/terms" className="text-rose-100/85 underline underline-offset-2 hover:text-white">Read the Terms</Link>
+        </div>
       </div>
     );
   }
@@ -110,7 +122,7 @@ export function AgeGateClient() {
     const alreadyConfirmed = user.ageVerificationLevel && user.ageVerificationLevel !== "NONE";
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between rounded-xl border border-white/5 bg-[#11151e] px-3 py-2 text-xs text-slate-300">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-[#11151e] px-3 py-2 text-xs text-slate-300">
           <span>
             Signed in as <span className="font-semibold text-white">@{user.username}</span>
           </span>
@@ -151,7 +163,7 @@ export function AgeGateClient() {
           I am under 18
         </button>
       </div>
-      <p className="text-xs text-slate-500">When you create an account you will enter your date of birth, and you can verify it with a government ID in Settings for the Verified 18+ badge.</p>
+      <p className="text-xs text-slate-400">When you create an account you will enter your date of birth, and you can verify it with a government ID in Settings for the Verified 18+ badge.</p>
     </div>
   );
 }

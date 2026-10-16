@@ -14,7 +14,7 @@ type Draft = Omit<AutoModRule, "id" | "forgeId" | "createdAt" | "updatedAt" | "p
 
 const typeInfo: Record<AutoModRule["type"], { label: string; icon: typeof Type; color: string; hint: string }> = {
   KEYWORDS: { label: "Blocked words", icon: Type, color: "text-rose-300", hint: "Words or phrases. Use * as a wildcard (scam* also catches scammer). Look-alike spellings like fr33 are caught too." },
-  LINKS: { label: "Links", icon: Link2, color: "text-sky-300", hint: "Any link, except domains you allow (subdomains included)." },
+  LINKS: { label: "Links", icon: Link2, color: "text-sky-300", hint: "Web links (http and https) and common domains, except domains you allow (subdomains included)." },
   INVITES: { label: "Other server invites", icon: UserPlus, color: "text-amber-300", hint: "Invites to other forges or Discord servers. This forge's own invites are always fine." },
   MENTION_SPAM: { label: "Mention spam", icon: AtSign, color: "text-violet-300", hint: "Messages that mention more people than the limit." },
 };

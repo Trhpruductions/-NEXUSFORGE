@@ -11,7 +11,7 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
     throw err;
   }
 }
-const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
+const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen, desktopCapturer } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -19,6 +19,10 @@ const net = require("node:net");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
+const integrity = require("./lib/integrity");
+
+// Shown when a manifest has no valid hash. The update is not downloaded or installed in that case.
+const NO_HASH_MESSAGE = "The update manifest has no valid SHA-256 hash, so this update was refused. Nothing was downloaded or installed.";
 
 const localStartUrl = "http://127.0.0.1:3300/app";
 const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
@@ -650,15 +654,6 @@ function normalizeUpdateFilename(latestVersion, sourceUrl) {
   return filename.replace(/[^a-zA-Z0-9._\- ()]/g, "_");
 }
 
-async function computeSha256(filePath) {
-  const hash = crypto.createHash("sha256");
-  const stream = fs.createReadStream(filePath);
-  for await (const chunk of stream) {
-    hash.update(chunk);
-  }
-  return hash.digest("hex");
-}
-
 async function downloadUpdateInstaller(downloadUrl, latestVersion) {
   fs.mkdirSync(updateDownloadDir, { recursive: true });
   const installerName = normalizeUpdateFilename(latestVersion, downloadUrl);
@@ -721,14 +716,6 @@ function resolveManifestUrlCandidate(candidateUrl, manifestUrl) {
   }
 }
 
-async function verifyInstallerIntegrity(installerPath, expectedSha256) {
-  if (!expectedSha256) {
-    return true;
-  }
-  const actual = await computeSha256(installerPath);
-  return actual.toLowerCase() === String(expectedSha256).toLowerCase();
-}
-
 async function installDownloadedUpdate() {
   if (installInProgress) {
     return;
@@ -746,19 +733,34 @@ async function installDownloadedUpdate() {
     throw new Error("Downloaded installer does not match the latest available version.");
   }
 
+  // Set before the asynchronous check, so an overlapping call cannot start a second install.
   installInProgress = true;
-
   const launchArgs = process.platform === "win32" ? ["/S"] : [];
-  const child = spawn(installerPath, launchArgs, {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  child.unref();
-
-  setTimeout(() => {
-    app.quit();
-  }, 150);
+  // Checked again right before launch. If it fails, the installer is not run, and a mismatched file is discarded.
+  let gate;
+  try {
+    gate = await integrity.runIfVerified(installerPath, updateRuntime.sha256, () => {
+      const child = spawn(installerPath, launchArgs, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      child.unref();
+      setTimeout(() => {
+        app.quit();
+      }, 150);
+    });
+  } catch (error) {
+    installInProgress = false;
+    throw error;
+  }
+  if (!gate.launched) {
+    installInProgress = false;
+    if (gate.code === "mismatch") integrity.discardOwnedInstaller(installerPath, installerPath);
+    updateRuntime = { ...updateRuntime, downloaded: false, downloadedVersion: null, installerPath: null, lastError: gate.reason };
+    emitUpdateRuntime();
+    throw new Error(gate.reason);
+  }
 }
 
 function canAutoInstallOnClose() {
@@ -846,10 +848,11 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
       throw lastDownloadError || new Error("Unable to download installer from any configured URL.");
     }
 
-    const integrityOk = await verifyInstallerIntegrity(installerPath, updateRuntime.sha256);
-    if (!integrityOk) {
-      fs.rmSync(installerPath, { force: true });
-      throw new Error("Downloaded update failed integrity verification.");
+    // A file that does not match the manifest, or that the manifest gives no valid hash for, is discarded here.
+    const verified = await integrity.verifyInstallerIntegrity(installerPath, updateRuntime.sha256);
+    if (!verified.ok) {
+      integrity.discardOwnedInstaller(installerPath, installerPath);
+      throw new Error(verified.reason);
     }
 
     updateRuntime = {
@@ -940,14 +943,17 @@ async function checkForUpdates(trigger = "manual") {
           .map((value) => resolveManifestUrlCandidate(value, updateManifestUrl))
           .filter(Boolean)
       : [];
-    const sha256 = typeof payload?.sha256 === "string" ? payload.sha256.trim() : null;
+    // Only a valid 64-character hash is kept. Anything else is null, and an update with no hash is refused.
+    const sha256 = integrity.normalizeSha256(payload?.sha256);
     const hasUpdate = Boolean(latestVersion) && isVersionGreater(latestVersion, app.getVersion());
+    const refusedNoHash = hasUpdate && !sha256;
     const payloadForceUpdate =
       payload?.forceUpdate === true ||
       payload?.required === true ||
       payload?.mandatory === true ||
       payload?.forceRequired === true;
-    const forceRequired = hasUpdate && (payloadForceUpdate || forceUpdateByDefault);
+    // A required update that cannot be verified is not enforced: the app keeps working, and the refusal is shown instead.
+    const forceRequired = hasUpdate && !refusedNoHash && (payloadForceUpdate || forceUpdateByDefault);
     const sameAvailableVersion = hasUpdate && updateRuntime.latestVersion === latestVersion;
 
     // Updates download and install in the background; nobody is asked to download or click "Update now".
@@ -968,14 +974,14 @@ async function checkForUpdates(trigger = "manual") {
       installerPath: hasUpdate ? (sameAvailableVersion ? updateRuntime.installerPath : null) : null,
       updatePromptPending: promptPending,
       lastCheckedAt: new Date().toISOString(),
-      lastError: null,
+      lastError: refusedNoHash ? NO_HASH_MESSAGE : null,
     };
     if (promptPending && !startupUpdatePromptPromise) {
       createStartupUpdatePromptPromise();
     }
     emitUpdateRuntime();
 
-    if (hasUpdate && !updateRuntime.downloading && !updateRuntime.downloaded) {
+    if (hasUpdate && !refusedNoHash && !updateRuntime.downloading && !updateRuntime.downloaded) {
       void beginBackgroundUpdateDownload(forceRequired);
     }
 
@@ -991,6 +997,7 @@ async function checkForUpdates(trigger = "manual") {
 
     if (
       hasUpdate &&
+      !refusedNoHash &&
       !forceRequired &&
       (updateRuntime.remindLaterUntil || 0) <= Date.now() &&
       trigger !== "silent" &&
@@ -2194,6 +2201,91 @@ app.on("certificate-error", (event, _webContents, url, error, _certificate, call
   callback(true);
 });
 
+/** Origins the app window may load and keep inside itself. The preload bridge is handed to every page in it. */
+function trustedAppOrigins() {
+  const origins = new Set(["https://nfgcord.com", "https://nexusforge.app"]);
+  try {
+    origins.add(new URL(startUrl).origin);
+  } catch {
+    // A malformed start URL adds nothing; the hosted origins above still apply.
+  }
+  return origins;
+}
+
+/** True for the hosted or local app pages, and for the bundled splash and fallback pages. */
+function isAllowedAppUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "file:") {
+    return [splashPath, fallbackPath].some((localPath) => url.pathname === pathToFileURL(localPath).pathname);
+  }
+  return trustedAppOrigins().has(url.origin);
+}
+
+/** Opens a link in the user's browser. Only web addresses: never file: or other custom protocols. */
+function openExternalSafely(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      void shell.openExternal(url.href);
+    }
+  } catch {
+    // Not a valid address, so there is nothing safe to open.
+  }
+}
+
+/**
+ * Keeps the app window on app pages. Anything else opens in the browser instead, so a link to
+ * another site never gets the desktop bridge (preload) inside the window.
+ */
+function keepAppNavigationInside(contents) {
+  const guard = (event, value) => {
+    if (isAllowedAppUrl(value)) return;
+    event.preventDefault();
+    let origin = "invalid-url";
+    try {
+      origin = new URL(value).origin;
+    } catch {
+      // keep the placeholder; never log the full address, which can carry tokens in its query
+    }
+    appendStartupLog(`[navigation] kept out of the app window: ${origin}`);
+    openExternalSafely(value);
+  };
+  contents.on("will-navigate", guard);
+  contents.on("will-redirect", guard);
+}
+
+/**
+ * Screen share in the hosted app calls getDisplayMedia. Electron refuses that unless a handler is
+ * set. The app asks for video only, so we give the primary screen to trusted app pages. There is
+ * no picker yet, so any trusted page that asks can capture that screen.
+ */
+function registerScreenShareHandler() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    try {
+      if (!isAllowedAppUrl(request.securityOrigin)) {
+        callback({});
+        return;
+      }
+      const sources = await desktopCapturer.getSources({
+        types: ["screen", "window"],
+        thumbnailSize: { width: 0, height: 0 },
+      });
+      const primaryDisplayId = String(screen.getPrimaryDisplay().id);
+      const screens = sources.filter((source) => source.id.startsWith("screen:"));
+      const chosen = screens.find((source) => source.display_id === primaryDisplayId) ?? screens[0];
+      callback(chosen ? { video: chosen } : {});
+    } catch (error) {
+      appendStartupLog(`[screen-share] could not list screens: ${error instanceof Error ? error.message : String(error)}`);
+      callback({});
+    }
+  });
+}
+
 function createWindow() {
   markStartupTiming("main-window-create");
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2231,9 +2323,10 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalSafely(url);
     return { action: "deny" };
   });
+  keepAppNavigationInside(mainWindow.webContents);
 
   mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
     appendStartupLog(`[renderer-console] level=${level} line=${line} source=${sourceId} msg=${message}`);
@@ -2341,6 +2434,7 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   markStartupTiming("app-when-ready");
+  registerScreenShareHandler();
   appendStartupLog(`[startup-timing] log-path="${startupLogPath}"`);
   appendStartupLog(
     updateManifestUrl

@@ -64,7 +64,7 @@ const topics: Topic[] = [
     title: "Chat",
     icon: MessagesSquare,
     articles: [
-      { q: "What are the limits on uploads and messages?", a: "Free: files up to 50 MB and messages up to 4,000 characters. Core+ plans raise the upload limit (100 MB on Core up to 1 GB on Infinite). When something is over your limit, the app tells you which plan would allow it." },
+      { q: "What are the limits on uploads and messages?", a: "Free: files up to 50 MB and messages up to 4,000 characters. Core+ plans raise the upload limit. During the beta, single uploads are capped at 95 MB on every paid plan while large-file storage is being set up. When something is over your limit, the app tells you which plan would allow it." },
       { q: "How do I search?", a: "Use the search box in chat. Narrow it with from:name, in:channel, has:link (or image, file, poll), mentions:name, before:, after:, during: and pinned:true." },
       { q: "How do threads and forums work?", a: "Reply in a thread from any message to keep a side-conversation out of the channel. Forum channels show each post as its own topic with tags; create them in Server settings → Channels." },
       { q: "Can I save a message for later?", a: "Yes: use Save on any message. Your saved messages are in the app sidebar, and nobody else can see them. You can also keep a private note on any person from their profile." },
@@ -76,7 +76,7 @@ const topics: Topic[] = [
     icon: Mic2,
     articles: [
       { q: "Nobody can hear me", a: "Check the microphone and input device in Settings → Voice, and that your browser allowed microphone access (the lock icon next to the address). If you use push-to-talk, hold the key you set. The desktop app and the browser each ask for permission separately." },
-      { q: "How do I share my screen or camera?", a: "Join a voice channel and use the camera and screen buttons at the bottom. Both can be on at once. HD is included; ultra quality (1440p60 screen share, 1080p camera) is on Plus and above." },
+      { q: "How do I share my screen or camera?", a: "Join a voice channel and use the camera and screen buttons at the bottom. Both can be on at once. Free includes a 720p camera and 1080p30 screen share. Ultra quality (1440p60 screen share, 1080p camera) is on Plus and above, once paid plans open." },
       { q: "What is a stage channel?", a: "A channel where a few people speak and everyone else listens. Moderators invite speakers; listeners can raise a hand to ask for the mic. Create one in Server settings → Channels." },
       { q: "Calls keep dropping or won't connect", a: "This is usually a strict network (school, work or mobile data) blocking peer-to-peer media. Try a different network or the desktop app. If it keeps happening, send a problem report with where you were connecting from." },
     ],

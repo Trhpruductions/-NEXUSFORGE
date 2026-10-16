@@ -20,7 +20,7 @@ export function AuthFormCard({ title, subtitle, eyebrow = "Nexus Forge Gaming", 
       aria-labelledby={titleId}
       // overflow-clip, not overflow-hidden: the glow below pokes 80px past the edge, and a "hidden" box is still
       // scrollable, so focusing an input slid the whole form sideways and cut off its left side.
-      className="relative w-full max-w-[480px] overflow-clip rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-8 text-slate-100 shadow-[0_30px_90px_rgba(46,164,255,0.2)] backdrop-blur-xl sm:p-10"
+      className="relative w-full max-w-[480px] overflow-clip rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-6 text-slate-100 shadow-[0_30px_90px_rgba(46,164,255,0.2)] backdrop-blur-xl sm:p-10"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#9fd8ff,#2ea4ff,#0b6fe0,transparent)]" />
       <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(46,164,255,0.3),transparent_65%)] blur-2xl" />

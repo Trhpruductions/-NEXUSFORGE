@@ -1,12 +1,12 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { avatarDesignSchema, previewUrlSchema } from "../lib/avatar-design.js";
+import { avatarDesignSchema, missingPaidParts, previewUrlSchema, readStoredDesign, requiredCatalogKeys, type AvatarDesignInput, type PaidPart } from "../lib/avatar-design.js";
 
-/** Avatar Studio: the layered avatar config on the user plus up to 10 saved presets. */
+/** Avatar Studio: the layered avatar config on the user plus up to 10 saved looks (AvatarPreset rows). */
 export const avatarRouter = Router();
 
 avatarRouter.use(requireAuth);
@@ -47,14 +47,58 @@ const presetSchema = z.object({
 
 export const MAX_PRESETS = 10;
 
+/** The catalog keys the account owns, out of the ones given. A UserCosmetic row is the only proof of ownership. */
+async function ownedCatalogKeys(userId: string, keys: string[]): Promise<Set<string>> {
+  if (!keys.length) return new Set();
+  const rows = await prisma.userCosmetic.findMany({
+    where: { userId, item: { key: { in: keys } } },
+    select: { item: { select: { key: true } } },
+  });
+  return new Set(rows.map((row) => row.item.key));
+}
+
+/** Refuses a write or an apply that uses a paid part the account does not own. Returns true when it refused. */
+async function refuseUnownedPaidParts(res: Response, userId: string, design: AvatarDesignInput | undefined): Promise<boolean> {
+  if (!design) return false;
+  const owned = await ownedCatalogKeys(userId, requiredCatalogKeys(design));
+  const missing = missingPaidParts(design, owned);
+  if (!missing.length) return false;
+  res.status(403).json({ error: unownedMessage(missing), missing: missing.map(toMissingEntry) });
+  return true;
+}
+
+function unownedMessage(missing: PaidPart[]) {
+  return `You do not own ${missing.map((part) => part.label).join(", ")}. Buy it in the Wardrobe to wear it.`;
+}
+
+function toMissingEntry(part: PaidPart) {
+  return { category: part.category, id: part.id, label: part.label, catalogKey: part.catalogKey };
+}
+
+/**
+ * The config a stored look produces when it is applied or copied: unknown ids fall back to the default for
+ * that field (listed in `fallbacks`), and the legacy fields are checked as before. Returns null when the
+ * legacy part is invalid. The stored record itself is never written here.
+ */
+function readableConfig(raw: unknown): { config: AvatarConfig; design: AvatarDesignInput | undefined; fallbacks: Array<{ field: string; value: string }> } | null {
+  const stored = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const { design: rawDesign, ...legacyFields } = stored;
+  const legacy = avatarConfigSchema.omit({ design: true }).safeParse(legacyFields);
+  if (!legacy.success) return null;
+  if (rawDesign === undefined) return { config: { ...legacy.data }, design: undefined, fallbacks: [] };
+  const read = readStoredDesign(rawDesign);
+  return { config: { ...legacy.data, design: read.design }, design: read.design, fallbacks: read.fallbacks };
+}
+
 avatarRouter.get("/", async (req, res) => {
   const [user, presets] = await Promise.all([
     prisma.user.findUnique({ where: { id: req.user!.id }, select: { avatarConfig: true, mainAvatarPresetId: true } }),
     prisma.avatarPreset.findMany({ where: { userId: req.user!.id }, orderBy: { createdAt: "asc" } }),
   ]);
-  const parsed = avatarConfigSchema.safeParse(user?.avatarConfig ?? {});
+  // Retired ids in the worn design fall back per field, so one retired part does not reset the whole avatar.
+  const readable = readableConfig(user?.avatarConfig ?? {});
   res.json({
-    config: parsed.success ? parsed.data : avatarConfigSchema.parse({}),
+    config: readable ? readable.config : avatarConfigSchema.parse({}),
     presets,
     maxPresets: MAX_PRESETS,
     mainPresetId: user?.mainAvatarPresetId ?? null,
@@ -67,6 +111,7 @@ avatarRouter.put("/", async (req, res) => {
     res.status(400).json({ error: "Invalid avatar", details: parsed.error.flatten() });
     return;
   }
+  if (await refuseUnownedPaidParts(res, req.user!.id, parsed.data.design)) return;
   await prisma.user.update({ where: { id: req.user!.id }, data: { avatarConfig: parsed.data } });
   res.json({ config: parsed.data });
 });
@@ -82,6 +127,7 @@ avatarRouter.post("/presets", async (req, res) => {
     res.status(400).json({ error: `You can keep up to ${MAX_PRESETS} saved avatars` });
     return;
   }
+  if (await refuseUnownedPaidParts(res, req.user!.id, parsed.data.config.design)) return;
   const preset = await prisma.avatarPreset.create({
     data: {
       userId: req.user!.id,
@@ -107,6 +153,7 @@ avatarRouter.patch("/presets/:id", async (req, res) => {
     res.status(404).json({ error: "Preset not found" });
     return;
   }
+  if (await refuseUnownedPaidParts(res, req.user!.id, parsed.data.config?.design)) return;
   const preset = await prisma.avatarPreset.update({
     where: { id: existing.id },
     data: {
@@ -132,17 +179,55 @@ avatarRouter.delete("/presets/:id", async (req, res) => {
   res.json({ ok: true, presetId: existing.id });
 });
 
+/** Copies a saved look. The copy is private, and retired ids are replaced by their defaults in the copy only. */
+avatarRouter.post("/presets/:id/duplicate", async (req, res) => {
+  const existing = await prisma.avatarPreset.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Preset not found" });
+    return;
+  }
+  const count = await prisma.avatarPreset.count({ where: { userId: req.user!.id } });
+  if (count >= MAX_PRESETS) {
+    res.status(400).json({ error: `You can keep up to ${MAX_PRESETS} saved avatars` });
+    return;
+  }
+  const readable = readableConfig(existing.config);
+  if (!readable) {
+    res.status(400).json({ error: "Stored avatar is invalid" });
+    return;
+  }
+  if (await refuseUnownedPaidParts(res, req.user!.id, readable.design)) return;
+  const preset = await prisma.avatarPreset.create({
+    data: {
+      userId: req.user!.id,
+      name: `${existing.name.slice(0, 32)} copy`,
+      tagline: existing.tagline,
+      config: readable.config,
+      isPublic: false,
+      previewUrl: null,
+    },
+  });
+  res.status(201).json({ preset, fallbacks: readable.fallbacks });
+  void evaluateAchievements(req.user!.id);
+});
+
+/**
+ * Equips a saved look as the profile avatar. A paid part the account does not own is refused (403).
+ * Retired ids fall back to their defaults for the worn avatar, and are listed in `fallbacks`. The saved
+ * look itself is not changed.
+ */
 avatarRouter.post("/presets/:id/apply", async (req, res) => {
   const existing = await prisma.avatarPreset.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
   if (!existing) {
     res.status(404).json({ error: "Preset not found" });
     return;
   }
-  const parsed = avatarConfigSchema.safeParse(existing.config);
-  if (!parsed.success) {
+  const readable = readableConfig(existing.config);
+  if (!readable) {
     res.status(400).json({ error: "Stored preset is invalid" });
     return;
   }
-  await prisma.user.update({ where: { id: req.user!.id }, data: { avatarConfig: parsed.data, mainAvatarPresetId: existing.id } });
-  res.json({ config: parsed.data, mainPresetId: existing.id });
+  if (await refuseUnownedPaidParts(res, req.user!.id, readable.design)) return;
+  await prisma.user.update({ where: { id: req.user!.id }, data: { avatarConfig: readable.config, mainAvatarPresetId: existing.id } });
+  res.json({ config: readable.config, mainPresetId: existing.id, fallbacks: readable.fallbacks });
 });

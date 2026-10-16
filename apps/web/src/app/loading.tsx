@@ -2,7 +2,7 @@ import styles from './loading.module.css';
 
 export default function Loading() {
   return (
-    <main className={styles.screen} role='status' aria-live='polite' aria-label='Loading Nexus Forge Gaming app'>
+    <div className={styles.screen} role='status' aria-live='polite' aria-label='Loading Nexus Forge Gaming app'>
       <section className={styles.content}>
         <div className={styles.logoWrap}>
           <div className={styles.halo} aria-hidden='true' />
@@ -17,7 +17,7 @@ export default function Loading() {
         </div>
 
         <div className={styles.textBlock}>
-          <h1 className={styles.title}>Nexus Forge Gaming</h1>
+          <p className={styles.title}>Nexus Forge Gaming</p>
           <p className={styles.status}>Preparing your workspace...</p>
           <p className={styles.phaseText}>Syncing recent updates</p>
 
@@ -36,6 +36,6 @@ export default function Loading() {
 
         <p className='sr-only'>Nexus Forge Gaming is preparing your workspace. Please wait.</p>
       </section>
-    </main>
+    </div>
   );
 }

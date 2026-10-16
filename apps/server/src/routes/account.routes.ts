@@ -1,10 +1,17 @@
 import { Router, type Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { comparePassword } from "../lib/password.js";
 import { cancelDeletion, deletionBlockers, DELETION_GRACE_DAYS, scheduleDeletion } from "../lib/account-deletion.js";
+import { confirmCurrentPassword, PASSWORD_REQUIRED } from "../lib/reauth.js";
+import { duplicateWaitSeconds, sendTemplateEmail } from "../lib/delivery.js";
+import { confirmEmailChange, requestEmailChange, type EmailChangeDeps } from "../lib/email-change.js";
+import { emailContextFromEnv, renderCodeEmail } from "../lib/email-templates.js";
+import { issueCode, RESEND_COOLDOWN_MS, verifyCode } from "../lib/verification.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { accountOrIpKey } from "../middleware/rate-limit.js";
 import { REFRESH_COOKIE_NAME } from "./auth.routes.js";
 
 /** Account deletion and "download my data". Mounted at /api/account. */
@@ -211,4 +218,105 @@ accountRouter.get("/export", async (req, res) => {
     console.error("[ACCOUNT] export failed", error);
     res.end("\n]\n}\n");
   }
+});
+
+// ---------------------------------------------------------------------------
+// Email change. A 6-digit code goes to the NEW address before anything changes; the OLD address
+// gets a security notice once it has. The password is checked on every request (lib/reauth.ts).
+// ---------------------------------------------------------------------------
+
+const emailChangeRequestLimit = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 5,
+  keyGenerator: accountOrIpKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "You've asked for too many email changes. Try again later." },
+});
+
+const emailChangeConfirmLimit = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: 20,
+  keyGenerator: accountOrIpKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please wait a few minutes." },
+});
+
+const newEmailSchema = z.object({ newEmail: z.string().trim().toLowerCase().min(3).max(254).email() });
+const emailCodeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code") });
+
+const emailChangeDeps: EmailChangeDeps = {
+  async findAccount(userId) {
+    return prisma.user.findFirst({ where: { id: userId, deletedAt: null }, select: { id: true, username: true, email: true } });
+  },
+  async isEmailTaken(email, exceptUserId) {
+    const taken = await prisma.user.findFirst({ where: { email, id: { not: exceptUserId } }, select: { id: true } });
+    return Boolean(taken);
+  },
+  async cooldownSeconds(userId) {
+    // Two clocks: the code helper's resend cooldown, and the duplicate window for the same email kind.
+    const latest = await prisma.verificationCode.findFirst({
+      where: { userId, channel: "EMAIL", purpose: "CHANGE_EMAIL", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const codeWait = latest ? Math.ceil((latest.createdAt.getTime() + RESEND_COOLDOWN_MS - Date.now()) / 1000) : 0;
+    const subject = renderCodeEmail("CHANGE_EMAIL", "000000", emailContextFromEnv()).rendered.subject;
+    const mailWait = await duplicateWaitSeconds(userId, "email-change-requested", subject);
+    return Math.max(0, codeWait, mailWait);
+  },
+  async issueCode({ userId, target }) {
+    const result = await issueCode({ userId, channel: "EMAIL", purpose: "CHANGE_EMAIL", target });
+    if (!result.ok) console.error("[ACCOUNT] email change code not sent:", result.error ?? "unknown");
+    return result;
+  },
+  async checkCode({ userId, code }) {
+    const result = await verifyCode({ userId, purpose: "CHANGE_EMAIL", code, channel: "EMAIL" });
+    return result.ok ? { ok: true, target: result.target } : { ok: false, error: result.error, attemptsLeft: result.attemptsLeft };
+  },
+  async applyEmail({ userId, email }) {
+    try {
+      // Verified on purpose: the code proved control of the new address. Any reset link sent to the old one stops working.
+      await prisma.user.update({
+        where: { id: userId },
+        data: { email, emailVerified: true, emailVerifyToken: null, emailVerifyExpires: null, resetToken: null, resetTokenExpires: null },
+        select: { id: true },
+      });
+      return { ok: true } as const;
+    } catch (error) {
+      // Two requests raced for the same address: the unique constraint picks one, and the other is told it is taken.
+      if ((error as { code?: string }).code === "P2002") return { ok: false, reason: "taken" } as const;
+      throw error;
+    }
+  },
+  notifyOldAddress({ userId, to, username, newEmailMasked, at }) {
+    void sendTemplateEmail("email-changed", to, { username, newEmailMasked, when: at.toUTCString() }, { userId }).catch((error) =>
+      console.error("[ACCOUNT] email-changed notice failed", error),
+    );
+  },
+};
+
+accountRouter.post("/email/change", emailChangeRequestLimit, async (req, res) => {
+  const parsed = newEmailSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email address" });
+    return;
+  }
+  if (!(await confirmCurrentPassword(req.user!.id, req.body?.password))) {
+    res.status(403).json(PASSWORD_REQUIRED);
+    return;
+  }
+  const result = await requestEmailChange(emailChangeDeps, { userId: req.user!.id, newEmail: parsed.data.newEmail });
+  res.status(result.status).json(result.body);
+});
+
+accountRouter.post("/email/confirm", emailChangeConfirmLimit, async (req, res) => {
+  const parsed = emailCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter the 6-digit code" });
+    return;
+  }
+  const result = await confirmEmailChange(emailChangeDeps, { userId: req.user!.id, code: parsed.data.code });
+  res.status(result.status).json(result.body);
 });

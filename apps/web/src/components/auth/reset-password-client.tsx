@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { resetPassword } from "@/lib/api";
 
 const schema = z
@@ -61,38 +60,59 @@ export function ResetPasswordClient({ token }: { token: string }) {
 
   return (
     <AuthFormCard
-      title="Reset Password"
-      subtitle="Use your recovery token to set a new password"
+      title="Choose a new password"
+      subtitle="Use the reset token from your email to set a new password."
       footer={
-        <div className="flex items-center justify-end">
-          <Link href="/login" className="text-amber-300 hover:text-amber-200">
-            Back to login
-          </Link>
-        </div>
+        <Link href="/login" className="font-semibold text-amber-200 transition hover:text-white">
+          Back to sign in
+        </Link>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-        <Input label="Reset Token" error={errors.token?.message} {...register("token")} />
-        <Input
-          label="New Password"
-          type="password"
-          autoComplete="new-password"
-          error={errors.newPassword?.message}
-          {...register("newPassword")}
-        />
-        <Input
-          label="Confirm New Password"
-          type="password"
-          autoComplete="new-password"
-          error={errors.confirmPassword?.message}
-          {...register("confirmPassword")}
-        />
-        {result ? <p className="text-xs text-amber-200">{result}</p> : null}
-        {serverError ? <p className="text-sm text-rose-400">{serverError}</p> : null}
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Resetting password..." : "Reset password"}
-        </Button>
-      </form>
+      {result ? (
+        <div className="space-y-4" role="status" aria-live="polite">
+          <p className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{result}</p>
+          <Link href="/login" className={authPrimaryButtonClass}>
+            Sign in with your new password
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-5" noValidate>
+          <AuthField
+            id="reset-token"
+            label="Reset token"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            error={errors.token?.message}
+            {...register("token")}
+          />
+          <AuthField
+            id="reset-new-password"
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="8+ characters"
+            error={errors.newPassword?.message}
+            {...register("newPassword")}
+          />
+          <AuthField
+            id="reset-confirm-password"
+            label="Confirm new password"
+            type="password"
+            autoComplete="new-password"
+            error={errors.confirmPassword?.message}
+            {...register("confirmPassword")}
+          />
+          {serverError ? (
+            <div role="alert" className="rounded-2xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {serverError}
+            </div>
+          ) : null}
+          <button type="submit" disabled={isSubmitting} className={authPrimaryButtonClass}>
+            {isSubmitting ? "Resetting password..." : "Reset password"}
+          </button>
+        </form>
+      )}
     </AuthFormCard>
   );
 }

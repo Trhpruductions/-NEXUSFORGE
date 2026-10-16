@@ -846,24 +846,45 @@ function isNonRefreshableAuthUrl(url?: string) {
 
 /**
  * Exchange the httpOnly refresh cookie for a new access token. Concurrent 401s share one refresh call.
- * Returns null when the refresh cookie is missing, expired or revoked.
+ * Resolves null only when the server rejects the cookie (missing, expired, revoked or suspended).
+ * Rejects on network or server errors, which are not a verdict on the session.
  */
 export function refreshAccessToken(): Promise<RefreshedSession | null> {
   if (!refreshInFlight) {
     refreshInFlight = axios
-      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true, timeout: 20000 })
       .then((response) => {
         const data = response.data;
         if (!data?.accessToken) return null;
         useAuthStore.setState({ accessToken: data.accessToken, csrfToken: data.csrfToken ?? null });
         return { accessToken: data.accessToken, csrfToken: data.csrfToken };
       })
-      .catch(() => null)
+      .catch((error: unknown) => {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        if (status === 401 || status === 403) return null;
+        throw error;
+      })
       .finally(() => {
         refreshInFlight = null;
       });
   }
   return refreshInFlight;
+}
+
+/**
+ * Revoke this browser's sign-in on the server (the refresh cookie), so the cookie cannot bring the
+ * session back. Fire-and-forget; keepalive lets it finish while the page navigates to /login.
+ */
+export function revokeServerSession(): void {
+  try {
+    void fetch(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Offline or blocked: the cookie still expires on its own schedule.
+  }
 }
 
 export function setApiUnauthorizedHandler(handler: (() => void) | null) {
@@ -911,9 +932,13 @@ api.interceptors.response.use(
         }
       }
 
+      // Only a request that carried a session can end it; an anonymous 401 is just a refusal.
       const now = Date.now();
-      if (unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
+      if (hadSession && unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
         lastUnauthorizedHandledAt = now;
+        // Drop the session locally before the handler runs, so its clearSession does not revoke the
+        // cookie: a sibling tab may have just rotated it, and this 401 is not the user signing out.
+        useAuthStore.getState().expireSession();
         unauthorizedHandler();
       }
     }
@@ -2681,7 +2706,7 @@ export async function updatePrivacySettings(accessToken: string, csrfToken: stri
   return response.data;
 }
 
-export type HomeWidgetId = "hero" | "stats" | "event" | "activity" | "creators" | "live" | "actions" | "posts" | "jackpot";
+export type HomeWidgetId = "hero" | "stats" | "event" | "activity" | "creators" | "live" | "actions" | "posts" | "jackpot" | "shop";
 /** Saved Home layout. Empty = default; widgets missing from the list are appended. */
 export type HomePreferences = { widgets: Array<{ id: HomeWidgetId; visible: boolean }> };
 
@@ -2802,6 +2827,37 @@ export async function listForgeReports(accessToken: string, forgeId: string, sta
 
 export async function listStaffReports(accessToken: string, params: { status?: ReportStatus | "ALL"; kind?: "CHANNEL" | "DM" } = {}) {
   const response = await api.get<{ reports: MessageReport[]; openCount: number }>("/api/reports/staff", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export type VacBanRow = {
+  id: string;
+  userId: string;
+  reason: string;
+  category: string | null;
+  source: "STAFF" | "AUTO";
+  evidence: string | null;
+  until: string | null;
+  createdAt: string;
+  needsReview: boolean;
+  appealedAt: string | null;
+  appealNote: string | null;
+  user: { username: string };
+};
+
+export async function listVacBans(accessToken: string) {
+  const response = await api.get<{ bans: VacBanRow[] }>("/api/admin/vac-bans", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function reviewVacBan(accessToken: string, csrfToken: string, banId: string, payload: { decision: "CONFIRM" | "LIFT"; note?: string }) {
+  const response = await api.post<{ ok: boolean; decision: string }>(`/api/admin/vac-bans/${banId}/review`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** A banned person's appeal. Sent without signing in; the reply never says whether the account exists or is banned. */
+export async function submitVacAppeal(payload: { email: string; password: string; note: string }) {
+  const response = await api.post<{ ok: boolean; message: string }>("/api/auth/vac-appeal", payload);
   return response.data;
 }
 

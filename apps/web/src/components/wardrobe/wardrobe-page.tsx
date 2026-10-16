@@ -13,6 +13,7 @@ import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { getAvatar } from "@/lib/api";
 import { useEscapeKey } from "@/lib/use-escape-key";
+import { MINING_ENABLED } from "@/lib/held-features";
 
 type Filter = "all" | "outfits" | "accessories" | "cosmetics" | "emotes";
 
@@ -293,9 +294,11 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           ) : null}
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-2`}>Earn coins</h2>
-            <p className="text-sm text-slate-400">Nexus Forge Coins come from mining rigs, jackpots and community rewards.</p>
+            <p className="text-sm text-slate-400">Nexus Forge Coins come from daily and community rewards.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href="/app/mining" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mining</Link>
+              {MINING_ENABLED && (
+                <Link href="/app/mining" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mining</Link>
+              )}
               <Link href="/app/rewards" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Rewards</Link>
             </div>
           </div>

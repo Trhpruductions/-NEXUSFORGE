@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from "lucide-react";
-import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getApiErrorMessage, getAvatar, updateAvatarPreset, type AvatarPreset } from "@/lib/api";
-import { normaliseDesign, type AvatarDesign } from "@/components/avatar3d/design";
+import { getApiErrorMessage, updateAvatarPreset, type AvatarPreset } from "@/lib/api";
+import { designOfLook, duplicateLook, equipLook, loadLooks, removeLook, retiredPartsOf } from "@/lib/avatar-api";
+import type { AvatarDesign } from "@/components/avatar3d/design";
 import { useAuthStore } from "@/store/auth-store";
 
 const button = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-40";
 
-/** A simple colour preview of a saved look until its rendered portrait exists (stage 4). */
+/** A simple colour preview of a saved look until its rendered portrait exists. */
 function Swatches({ design }: { design: AvatarDesign }) {
   const items = [
     { label: "Skin", colour: design.skin },
@@ -28,13 +29,14 @@ function Swatches({ design }: { design: AvatarDesign }) {
   );
 }
 
-function AvatarCard({ preset, isMain, onChanged, onError }: { preset: AvatarPreset; isMain: boolean; onChanged: () => void; onError: (text: string) => void }) {
+function AvatarCard({ preset, isMain, onChanged, onError, onNotice }: { preset: AvatarPreset; isMain: boolean; onChanged: () => void; onError: (text: string) => void; onNotice: (text: string) => void }) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(preset.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const design = normaliseDesign((preset.config as { design?: unknown }).design);
+  const design = designOfLook(preset);
+  const retired = retiredPartsOf(preset);
 
   const rename = useMutation({
     mutationFn: () => updateAvatarPreset(accessToken!, csrfToken!, preset.id, { name: name.trim() || preset.name }),
@@ -50,17 +52,20 @@ function AvatarCard({ preset, isMain, onChanged, onError }: { preset: AvatarPres
     onError: (error) => onError(getApiErrorMessage(error)),
   });
   const duplicate = useMutation({
-    mutationFn: () => createAvatarPreset(accessToken!, csrfToken!, { name: `${preset.name.slice(0, 32)} copy`, config: preset.config }),
+    mutationFn: () => duplicateLook(accessToken!, csrfToken!, preset.id),
     onSuccess: onChanged,
     onError: (error) => onError(getApiErrorMessage(error)),
   });
   const makeMain = useMutation({
-    mutationFn: () => applyAvatarPreset(accessToken!, csrfToken!, preset.id),
-    onSuccess: onChanged,
+    mutationFn: () => equipLook(accessToken!, csrfToken!, preset.id),
+    onSuccess: (result) => {
+      onNotice(result.fallbacks.length ? `${preset.name} is now your profile avatar. Some parts show their defaults: ${result.fallbacks.map((f) => f.field).join(", ")}.` : `${preset.name} is now your profile avatar.`);
+      onChanged();
+    },
     onError: (error) => onError(getApiErrorMessage(error)),
   });
   const remove = useMutation({
-    mutationFn: () => deleteAvatarPreset(accessToken!, csrfToken!, preset.id),
+    mutationFn: () => removeLook(accessToken!, csrfToken!, preset.id),
     onSuccess: onChanged,
     onError: (error) => onError(getApiErrorMessage(error)),
   });
@@ -89,6 +94,7 @@ function AvatarCard({ preset, isMain, onChanged, onError }: { preset: AvatarPres
           </span>
         </div>
         <p className="text-[11px] text-slate-500">Saved {new Date(preset.createdAt).toLocaleDateString()}</p>
+        {retired.length ? <p role="note" className="text-[11px] text-amber-200">Some parts no longer exist and show their defaults: {retired.join(", ")}.</p> : null}
 
         <div className="mt-auto flex flex-wrap gap-2">
           <Link href={`/app/avatars/${preset.id}`} className={button}><Pencil className="h-3.5 w-3.5" /> Edit</Link>
@@ -117,12 +123,12 @@ export function AvatarGallery() {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const query = useQuery({
     queryKey: ["avatar", accessToken],
-    queryFn: () => getAvatar(accessToken!),
+    queryFn: () => loadLooks(accessToken!),
     enabled: Boolean(accessToken),
   });
 
+  // Refreshing keeps the notice, so a message shown by an action survives the list reload.
   const refresh = () => {
-    setNotice(null);
     void queryClient.invalidateQueries({ queryKey: ["avatar"] });
   };
 
@@ -163,6 +169,7 @@ export function AvatarGallery() {
               isMain={mainId === preset.id}
               onChanged={refresh}
               onError={(text) => setNotice({ tone: "error", text })}
+              onNotice={(text) => setNotice({ tone: "ok", text })}
             />
           ))}
         </div>

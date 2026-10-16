@@ -222,7 +222,7 @@ export function AgeVerificationCard({ highlight = false }: { highlight?: boolean
                   On file: <span className="font-semibold text-white">{summary.birthdate}</span> (age {summary.age}). Update it below if it is wrong.
                 </p>
               ) : (
-                <p className="mb-2 text-xs text-slate-400">No date of birth on file yet. You cannot use the store, mining, jackpots, or go live until this is done.</p>
+                <p className="mb-2 text-xs text-slate-400">No date of birth on file yet. You cannot use the store or go live until this is done.</p>
               )}
               <BirthdateForm initial={summary.birthdate} busy={attest.isPending} submitLabel={summary.birthdate ? "Update date of birth" : "Confirm my age"} onSubmit={(value) => attest.mutate(value)} />
             </>

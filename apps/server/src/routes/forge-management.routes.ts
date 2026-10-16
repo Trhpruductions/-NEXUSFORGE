@@ -1,11 +1,12 @@
-import { Router } from "express";
+import express, { Router, type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
 import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtime.js";
 import { logForgeAction } from "../lib/forge-audit.js";
 import { clearAutoModCache } from "../lib/automod-runtime.js";
-import { isOwnUploadUrl } from "../lib/storage.js";
+import { isOwnUploadUrl, ownedForgeImageKey, storeForgeImage, swapStoredImage } from "../lib/storage.js";
+import { checkProfileImage, PROFILE_IMAGE_LIMITS } from "../lib/image-validation.js";
 import { hashWebhookToken, newWebhookToken } from "./webhooks.routes.js";
 import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
 import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
@@ -293,6 +294,17 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
   const context = await guard(req, res, "manageForge");
   if (!context) return;
 
+  // Icons and banners come through the upload routes below, which check the picture. Here only the
+  // server's current picture, or one of its own uploads, is accepted.
+  const currentPictures = await prisma.forge.findUnique({ where: { id: context.forge.id }, select: { icon: true, banner: true } });
+  for (const field of ["icon", "banner"] as const) {
+    const value = parsed.data[field];
+    if (typeof value === "string" && currentPictures && value !== currentPictures[field] && !ownedForgeImageKey(value, context.forge.id)) {
+      res.status(400).json({ error: "Upload a picture to change it. Links to other sites aren't accepted." });
+      return;
+    }
+  }
+
   const forge = await prisma.forge.update({
     where: { id: context.forge.id },
     data: { ...parsed.data, tags: parsed.data.tags?.map((tag) => tag.replace(/^#/, "").toLowerCase()) },
@@ -303,6 +315,103 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
   void logForgeAction(forge.id, req.user!.id, "forge.update", { type: "forge", id: forge.id, label: forge.name }, { changed: Object.keys(parsed.data) });
   res.json({ forge });
 });
+
+// ---------------------------------------------------------------------------
+// Server icon and banner: uploaded like profile pictures (checked, stored, old file removed after the swap)
+// ---------------------------------------------------------------------------
+
+type ForgeImageKind = "icon" | "banner";
+const forgeImageTypes = ["image/png", "image/jpeg", "image/webp"];
+
+/** Raw picture bodies, size-checked before they are read in full. Icons use the square avatar rules. */
+function forgeImageParsers(kind: ForgeImageKind): [RequestHandler, ErrorRequestHandler] {
+  const limit = kind === "icon" ? PROFILE_IMAGE_LIMITS.avatar.maxBytes : PROFILE_IMAGE_LIMITS.banner.maxBytes;
+  const parser = express.raw({ type: forgeImageTypes, limit, inflate: false });
+  const parserError: ErrorRequestHandler = (error, _req, res, next) => {
+    const status = (error as { status?: unknown } | null)?.status;
+    if (status === 413) {
+      res.status(413).json({ error: `${kind === "icon" ? "Server icons" : "Server banners"} can be up to ${limit / (1024 * 1024)} MB.` });
+      return;
+    }
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      res.status(415).json({ error: "Only plain PNG, JPEG and WebP pictures are accepted." });
+      return;
+    }
+    next(error);
+  };
+  return [parser, parserError];
+}
+
+/** Points the server at a new picture (or none) and returns the URL it had before. */
+async function commitForgeImage(forgeId: string, kind: ForgeImageKind, url: string | null): Promise<string | null> {
+  const before = await prisma.forge.findUnique({ where: { id: forgeId }, select: { icon: true, banner: true } });
+  await prisma.forge.update({ where: { id: forgeId }, data: kind === "icon" ? { icon: url } : { banner: url } });
+  return before ? before[kind] : null;
+}
+
+/** Tells the server's members the settings changed, and records who changed what. */
+async function announceForgeImage(forgeId: string, actorId: string, kind: ForgeImageKind, action: "set" | "removed") {
+  const forge = await prisma.forge.findUnique({
+    where: { id: forgeId },
+    select: { id: true, name: true, description: true, icon: true, banner: true, inviteCode: true, ownerId: true, isPublic: true, category: true, tags: true, updatedAt: true },
+  });
+  if (forge) emitForgeEvent(forgeId, "forge:updated", { forge });
+  void logForgeAction(forgeId, actorId, "forge.update", { type: "forge", id: forgeId, label: forge?.name }, { image: kind, action });
+}
+
+async function uploadForgeImage(kind: ForgeImageKind, req: Request<{ id: string }>, res: Response) {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const forgeId = context.forge.id;
+  try {
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(415).json({ error: "Send the picture file itself as PNG, JPEG or WebP." });
+      return;
+    }
+    const contentType = req.headers["content-type"];
+    const declared = typeof contentType === "string" ? contentType.split(";")[0].trim().toLowerCase() : null;
+    const picture = checkProfileImage(req.body, kind === "icon" ? "avatar" : "banner", declared);
+    if (!picture.ok) {
+      res.status(picture.status).json({ error: picture.error });
+      return;
+    }
+    // Write the new file, switch the server to it, and only then remove the old one (lib/storage.ts).
+    const result = await swapStoredImage({
+      write: () => storeForgeImage({ forgeId, kind, bytes: picture.bytes, ext: picture.ext, mime: picture.mime }),
+      commit: (url) => commitForgeImage(forgeId, kind, url),
+      keyForOwnedUrl: (url) => ownedForgeImageKey(url, forgeId),
+      onCleanupError: (error, key) => console.error("Server picture cleanup failed:", key, error),
+    });
+    await announceForgeImage(forgeId, req.user!.id, kind, "set");
+    res.json({ [kind]: result.url });
+  } catch (error) {
+    console.error("Server picture upload error:", error);
+    res.status(500).json({ error: "Couldn't save that picture. The current one is unchanged." });
+  }
+}
+
+async function removeForgeImage(kind: ForgeImageKind, req: Request<{ id: string }>, res: Response) {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const forgeId = context.forge.id;
+  try {
+    await swapStoredImage({
+      commit: () => commitForgeImage(forgeId, kind, null),
+      keyForOwnedUrl: (url) => ownedForgeImageKey(url, forgeId),
+      onCleanupError: (error, key) => console.error("Server picture cleanup failed:", key, error),
+    });
+    await announceForgeImage(forgeId, req.user!.id, kind, "removed");
+    res.json({ [kind]: null });
+  } catch (error) {
+    console.error("Server picture remove error:", error);
+    res.status(500).json({ error: "Couldn't remove that picture. The current one is unchanged." });
+  }
+}
+
+forgeManagementRouter.post("/:id/icon", ...forgeImageParsers("icon"), (req, res) => uploadForgeImage("icon", req, res));
+forgeManagementRouter.post("/:id/banner", ...forgeImageParsers("banner"), (req, res) => uploadForgeImage("banner", req, res));
+forgeManagementRouter.delete("/:id/icon", (req, res) => removeForgeImage("icon", req, res));
+forgeManagementRouter.delete("/:id/banner", (req, res) => removeForgeImage("banner", req, res));
 
 // ---------------------------------------------------------------------------
 // Your own notification settings for this forge (any member)

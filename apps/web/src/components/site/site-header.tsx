@@ -27,7 +27,7 @@ export function SiteHeader() {
           </span>
           <span className="hidden sm:block">
             <span className="nf-heading block text-sm font-semibold uppercase tracking-[0.3em] text-white">Nexus Forge</span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
           </span>
         </Link>
 
@@ -70,7 +70,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="rounded-lg p-2 text-slate-300 hover:bg-white/5 hover:text-white md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 hover:bg-white/5 hover:text-white md:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="site-mobile-nav"
@@ -88,7 +88,7 @@ export function SiteHeader() {
             </Link>
           ))}
           {!user ? (
-            <Link href="/login" className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/5">Sign in</Link>
+            <Link href="/login" className="block rounded-lg px-3 py-3 text-sm font-semibold text-slate-200 hover:bg-white/5">Sign in</Link>
           ) : null}
         </nav>
       ) : null}

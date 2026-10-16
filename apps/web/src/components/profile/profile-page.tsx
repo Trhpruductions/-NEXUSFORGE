@@ -260,7 +260,7 @@ function ProfileInner() {
               {profile.isSelf ? (
                 <>
                   <Link href="/app/avatar" className={goldBtn}>Manage avatar</Link>
-                  <Link href="/app/settings" className={ghostBtn}>Edit profile</Link>
+                  <Link href="/app/profile/edit" className={ghostBtn}>Edit profile</Link>
                 </>
               ) : (
                 <>
@@ -348,9 +348,15 @@ function ProfileInner() {
                   <p>{profile.isSelf ? "You are not live." : `${displayName} is not live right now.`}</p>
                   {person.socialLinks && Object.values(person.socialLinks).some(Boolean) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {Object.entries(person.socialLinks).filter(([, value]) => value).map(([key, value]) => (
-                        <span key={key} className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-200"><span className="uppercase text-slate-500">{key}</span> {value}</span>
-                      ))}
+                      {Object.entries(person.socialLinks).filter(([, value]) => value).map(([key, value]) => {
+                        const href = safeHref(value);
+                        const label = <><span className="uppercase text-slate-500">{key}</span> {value}</>;
+                        return (
+                          <span key={key} className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-200">
+                            {href ? <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="hover:text-amber-200">{label}</a> : label}
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : profile.isSelf ? (
                     <Link href="/app/settings" className="text-amber-300 hover:text-amber-200">Link your Twitch, Kick or YouTube in Settings.</Link>

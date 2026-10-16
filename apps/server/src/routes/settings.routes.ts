@@ -9,7 +9,9 @@ import { PASSWORD_REQUIRED, confirmCurrentPassword, sendSecurityAlert } from "..
 import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
 import { sha256 } from "../lib/jwt.js";
 import { HHMM, isValidTimeZone } from "../lib/quiet-hours.js";
+import { emailOptInSchema } from "../lib/email-policy.js";
 import { REFRESH_COOKIE_NAME } from "./auth.routes.js";
+import { disconnectUserSockets } from "../lib/realtime.js";
 
 const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
 
@@ -101,6 +103,9 @@ export const preferencesSchema = z.object({
       cameraDeviceId: z.string().max(200).nullable().default(null),
     })
     .prefault({}),
+  // Optional email (product announcements, release notes, promotions). Every flag is OFF until the
+  // person opts in. Essential mail (codes, security notices) is not controlled here.
+  email: emailOptInSchema.prefault({}),
   // Home dashboard layout: widget order (within each column) and visibility. An empty
   // list means "default layout"; the client appends any widget missing from it.
   home: z
@@ -299,6 +304,7 @@ settingsRouter.put("/preferences", async (req, res) => {
     appearance: { ...base.appearance, ...(incoming.appearance ?? {}) },
     voice: { ...base.voice, ...(incoming.voice ?? {}) },
     home: { ...base.home, ...(incoming.home ?? {}) },
+    email: { ...base.email, ...(incoming.email ?? {}) },
   };
   const parsed = preferencesSchema.safeParse(merged);
   if (!parsed.success) {
@@ -351,6 +357,10 @@ settingsRouter.post("/password", async (req, res) => {
     // Sign out every other device.
     prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
+  // The other devices' sockets close now; this one stays connected.
+  void disconnectUserSockets(req.user!.id, { reason: "password_changed", exceptAccessJti: req.user!.jti }).catch((error) =>
+    console.error("[SETTINGS] socket revocation failed", error),
+  );
   res.json({ ok: true, message: "Password updated. Other sessions were signed out." });
 });
 
@@ -361,6 +371,10 @@ settingsRouter.delete("/sessions", async (req, res) => {
     where: { userId: req.user!.id, revokedAt: null, ...(cookie ? { NOT: { tokenHash: sha256(cookie) } } : {}) },
     data: { revokedAt: new Date() },
   });
+  // Every other device's sockets close; the device that asked stays connected.
+  void disconnectUserSockets(req.user!.id, { reason: "signed_out_everywhere", exceptAccessJti: req.user!.jti }).catch((error) =>
+    console.error("[SETTINGS] socket revocation failed", error),
+  );
   res.json({ ok: true, signedOut: result.count });
 });
 

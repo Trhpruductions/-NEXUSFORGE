@@ -1,6 +1,8 @@
 "use client";
 
 import type { Socket } from "socket.io-client";
+import { isSecurePage, listMediaDevices, mediaDevicesAvailable, newAudioContext, openCamera, openMicrophone, stopStream } from "@/lib/media/media-devices";
+import { MIC_NOTICE, classifyMediaError, isMissingDeviceError, needsMicProcessing, nextGateState, resolveDeviceChoice, rmsOf, rmsToMeter, sameMicCapture, type GateState, type MicSettings } from "@/lib/media/media-prefs";
 
 /**
  * Built-in voice: a small WebRTC mesh signaled over the realtime socket.
@@ -13,6 +15,13 @@ import type { Socket } from "socket.io-client";
  *   doesn't recover it, it is torn down and re-dialled while the person is still in the
  *   room. Only the side with the smaller user id initiates, so both sides never offer
  *   at once.
+ *
+ * Devices:
+ * - The outgoing mic runs through Web Audio (gain, sensitivity gate, meter). Changing the
+ *   mic or its processing swaps the outgoing track with RTCRtpSender.replaceTrack, so the
+ *   call is not renegotiated.
+ * - The camera keeps one MediaStream for the whole time it is on, so the other side keeps
+ *   its label; switching camera swaps the track inside it.
  */
 
 export type MeshPeer = {
@@ -39,17 +48,22 @@ export type MeshPeer = {
   pendingIceRestart: boolean;
 };
 
+export type MeshNotice = { tone: "info" | "warn" | "error"; text: string } | null;
+
+export type ScreenShareUpdate = { state: "requesting" | "sharing" | "stopped" | "denied" | "error"; message?: string };
+
 export type MeshVoiceOptions = {
   socket: Socket;
   channelId: string;
   selfId: string;
   iceServers: RTCIceServer[];
-  constraints: MediaTrackConstraints;
-  /** Mic gain, 1 = unchanged (Settings > Voice > input volume). */
-  inputGain?: number;
-  /** Playback volume 0..1 for everyone else (Settings > Voice > output volume). */
+  /** Microphone choice and processing (Settings > Voice & Video). Changes apply during a call. */
+  mic: MicSettings;
+  /** Playback volume 0..1 for everyone else. */
   outputVolume?: number;
   outputDeviceId?: string | null;
+  /** Camera used when the camera turns on (null = system default). */
+  cameraDeviceId?: string | null;
   onPeersChanged: (peers: MeshPeer[]) => void;
   onLevel?: (userId: string, level: number) => void;
   onError: (message: string) => void;
@@ -57,10 +71,14 @@ export type MeshVoiceOptions = {
   onFull?: (limit: number) => void;
   /** Fired when the local screen share stops (user pressed the browser's Stop sharing). */
   onScreenShareEnded?: () => void;
+  /** Screen share status for the room UI: requesting, sharing, stopped, denied or error. */
+  onScreenState?: (update: ScreenShareUpdate) => void;
   onLocalScreen?: (stream: MediaStream | null) => void;
   /** Local camera preview, and a callback when the camera stops on its own (unplugged, revoked). */
   onLocalCamera?: (stream: MediaStream | null) => void;
   onCameraEnded?: () => void;
+  /** Microphone notices: fell back to the default device, or the microphone disconnected. null clears. */
+  onMicNotice?: (notice: MeshNotice) => void;
 };
 
 type SignalData =
@@ -68,10 +86,28 @@ type SignalData =
   | { type: "answer"; sdp: string }
   | { type: "ice"; candidate: RTCIceCandidateInit };
 
+/** The microphone graph: a meter tap on the captured mic, plus gain and a sensitivity gate when set. */
+type MicGraph = {
+  source: MediaStreamAudioSourceNode;
+  analyser: AnalyserNode;
+  silent: GainNode;
+  buffer: Float32Array<ArrayBuffer>;
+  processing: GraphProcessing | null;
+};
+
+type GraphProcessing = {
+  gain: GainNode;
+  gate: GainNode;
+  destination: MediaStreamAudioDestinationNode;
+  gateState: GateState;
+  timer: number;
+};
+
 const RESTART_AFTER_DISCONNECT_MS = 4000;
 const MAX_ICE_RESTARTS = 2;
 const REDIAL_DELAY_MS = 1500;
 const SCREEN_STALL_GRACE_MS = 3000;
+const GATE_INTERVAL_MS = 50;
 
 export class MeshVoice {
   private peers = new Map<string, MeshPeer>();
@@ -79,10 +115,25 @@ export class MeshVoice {
   private restarts = new Map<string, number>();
   private timers = new Set<number>();
   private present = new Set<string>();
+  /** Captured microphone (raw) and the outgoing stream that goes to every peer. */
   private raw: MediaStream | null = null;
   private local: MediaStream | null = null;
+  private graph: MicGraph | null = null;
+  private mic: MicSettings;
+  /** The settings the current capture was opened with. */
+  private micApplied: MicSettings | null = null;
+  private micQueue: Promise<void> = Promise.resolve();
+  /** The current capture is the system default because the saved microphone wasn't connected. */
+  private micFellBack = false;
+  private started = false;
   private screen: MediaStream | null = null;
+  /** Bumped on every start or stop, so a slow picker that finishes after a stop is dropped. */
+  private screenRequest = 0;
+  private screenPending = false;
   private camera: MediaStream | null = null;
+  private cameraPending = false;
+  private cameraDeviceId: string | null;
+  private screenSenders = new Map<string, RTCRtpSender>();
   /** Ultra video (Core+ Plus and up): 1080p camera and 1440p60 screen share. Everyone else gets HD: 720p camera, 1080p30 screen share. */
   private hdVideo = false;
 
@@ -92,7 +143,6 @@ export class MeshVoice {
   /** Stage channels: only these people are heard and seen (null = ordinary voice room). */
   private stageSpeakers: Set<string> | null = null;
   private cameraSenders = new Map<string, RTCRtpSender>();
-  private screenSenders = new Map<string, RTCRtpSender>();
   private audioContext: AudioContext | null = null;
   private analysers = new Map<string, { analyser: AnalyserNode; data: Uint8Array<ArrayBuffer> }>();
   private meter: number | null = null;
@@ -105,36 +155,19 @@ export class MeshVoice {
   private closed = false;
 
   constructor(private readonly options: MeshVoiceOptions) {
+    this.mic = { ...options.mic };
+    this.cameraDeviceId = options.cameraDeviceId ?? null;
     this.outputVolume = options.outputVolume ?? 1;
     this.outputDeviceId = options.outputDeviceId ?? null;
   }
 
   async start() {
     const { socket, channelId } = this.options;
-    try {
-      this.raw = await navigator.mediaDevices.getUserMedia({ audio: this.options.constraints });
-    } catch (error) {
-      // A saved microphone that's been unplugged: fall back to the default one.
-      if (this.options.constraints.deviceId) {
-        try {
-          const fallback: MediaTrackConstraints = { ...this.options.constraints };
-          delete fallback.deviceId;
-          this.raw = await navigator.mediaDevices.getUserMedia({ audio: fallback });
-        } catch {
-          this.raw = null;
-        }
-      }
-      if (!this.raw && !this.closed) this.options.onError(error instanceof Error ? `Microphone unavailable: ${error.message}` : "Microphone unavailable");
-    }
+    this.started = true;
+    // A microphone that fails doesn't stop the join: the person can listen and retry in settings.
+    await this.applyMic();
     // stop() may have run while the microphone prompt was open (React remounts); do not join with a dead instance.
-    if (this.closed) {
-      this.raw?.getTracks().forEach((track) => track.stop());
-      this.raw = null;
-      return;
-    }
-    this.local = this.applyInputGain(this.raw);
-    this.applyMute();
-    this.watchLevel("self", this.local);
+    if (this.closed) return;
 
     socket.on("voice:peers", this.handlePeers);
     socket.on("voice:signal", this.handleSignal);
@@ -162,8 +195,9 @@ export class MeshVoice {
     for (const peer of Array.from(this.peers.values())) this.drop(peer.userId, false);
     this.peers.clear();
     if (this.meter) window.clearInterval(this.meter);
-    this.raw?.getTracks().forEach((track) => track.stop());
-    this.local?.getTracks().forEach((track) => track.stop());
+    this.teardownGraph();
+    stopStream(this.raw);
+    stopStream(this.local);
     this.raw = null;
     this.local = null;
     void this.audioContext?.close();
@@ -207,39 +241,335 @@ export class MeshVoice {
     for (const peer of this.peers.values()) this.applySink(peer.audio);
   }
 
-  /** Turn the camera on for everyone in the room (like screen share: a video track per peer). */
-  async startCamera(deviceId?: string | null) {
-    if (this.camera) return;
-    const video: MediaTrackConstraints = this.hdVideo
-      ? { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }
-      : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } };
-    try {
-      try {
-        this.camera = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { ...video, deviceId: { exact: deviceId } } : video, audio: false });
-      } catch (error) {
-        // The chosen camera is gone (unplugged): use the default one instead.
-        if (!deviceId || (error instanceof Error && error.name === "NotAllowedError")) throw error;
-        this.camera = await navigator.mediaDevices.getUserMedia({ video, audio: false });
-      }
-    } catch (error) {
-      this.camera = null;
-      this.options.onError(error instanceof Error && error.name === "NotAllowedError" ? "Camera permission was denied" : "Couldn't start your camera");
-      this.options.onCameraEnded?.();
+  /**
+   * Change the microphone or how it is processed. Applies to the call straight away: the outgoing
+   * track is swapped with replaceTrack, so nobody has to renegotiate. Gain and sensitivity change
+   * the live graph without reopening the device.
+   */
+  setMic(next: Partial<MicSettings>): Promise<void> {
+    this.mic = { ...this.mic, ...next };
+    return this.applyMic();
+  }
+
+  /** Runs mic changes one at a time, so two switches never race for the device. */
+  private applyMic(): Promise<void> {
+    this.micQueue = this.micQueue.then(() => this.applyMicNow()).catch(() => undefined);
+    return this.micQueue;
+  }
+
+  private async applyMicNow() {
+    if (this.closed || !this.started) return;
+    const wanted: MicSettings = { ...this.mic };
+    const applied = this.micApplied;
+    if (applied && this.raw && sameMicCapture(applied, wanted)) {
+      // Same device and processing: only the gain, the sensitivity or the graph itself can change.
+      this.micApplied = wanted;
+      const processing = this.graph?.processing ?? null;
+      if (processing) processing.gain.gain.value = wanted.inputVolume / 100;
+      if (needsMicProcessing(wanted) !== Boolean(processing)) await this.swapOutgoing(wanted);
       return;
     }
+
+    const { stream, fellBack, error } = await this.openMic(wanted);
     if (this.closed) {
-      this.camera.getTracks().forEach((entry) => entry.stop());
-      this.camera = null;
+      stopStream(stream);
       return;
     }
-    const [track] = this.camera.getVideoTracks();
-    track.onended = () => this.stopCamera(true);
-    this.options.onLocalCamera?.(this.camera);
+    if (!stream) {
+      // Keep the microphone in use (if any) and report why the new one didn't open.
+      this.options.onError(classifyMediaError(error, "microphone", isSecurePage()).message);
+      return;
+    }
+
+    const previousRaw = this.raw;
+    const previousLocal = this.local;
+    this.raw = stream;
+    this.micApplied = wanted;
+    this.micFellBack = fellBack;
+    stream.getAudioTracks().forEach((track) => {
+      track.onended = () => this.handleMicEnded(stream);
+    });
+    await this.ensureRunning();
+    const outgoing = this.buildOutgoing(stream, wanted);
+    this.local = outgoing;
+    this.applyMute();
+    const [track] = outgoing.getAudioTracks();
+    if (track) await this.swapAudio(track, outgoing);
+    previousRaw?.getTracks().forEach((entry) => {
+      entry.onended = null;
+      entry.stop();
+    });
+    if (previousLocal && previousLocal !== previousRaw) stopStream(previousLocal);
+    this.options.onMicNotice?.(fellBack ? { tone: "warn", text: MIC_NOTICE.fallback } : null);
+  }
+
+  /** Rebuilds the outgoing stream from the open microphone (no device reopen) and swaps it into every connection. */
+  private async swapOutgoing(settings: MicSettings) {
+    const raw = this.raw;
+    if (!raw) return;
+    const previous = this.local;
+    await this.ensureRunning();
+    const outgoing = this.buildOutgoing(raw, settings);
+    if (outgoing === previous) return;
+    this.local = outgoing;
+    this.applyMute();
+    const [track] = outgoing.getAudioTracks();
+    if (track) await this.swapAudio(track, outgoing);
+    if (previous && previous !== raw) stopStream(previous);
+  }
+
+  /** Opens the microphone. A saved device that is gone falls back to the system default. */
+  private async openMic(settings: MicSettings): Promise<{ stream: MediaStream | null; fellBack: boolean; error?: unknown }> {
+    if (!mediaDevicesAvailable()) return { stream: null, fellBack: false, error: new DOMException("Not supported", "NotSupportedError") };
+    try {
+      return { stream: await openMicrophone(settings), fellBack: false };
+    } catch (error) {
+      if (settings.deviceId && isMissingDeviceError(error)) {
+        try {
+          return { stream: await openMicrophone({ ...settings, deviceId: null }), fellBack: true };
+        } catch (fallbackError) {
+          return { stream: null, fellBack: false, error: fallbackError };
+        }
+      }
+      return { stream: null, fellBack: false, error };
+    }
+  }
+
+  /**
+   * The microphone track ended (unplugged, or the device failed). Reopen the chosen microphone; if it
+   * is gone, the open falls back to the default and says so.
+   */
+  private handleMicEnded(stream: MediaStream) {
+    if (this.closed || stream !== this.raw) return;
+    this.micApplied = null;
+    void this.applyMic();
+  }
+
+  /**
+   * Hot-plug: a saved microphone that was missing switches the call back to it once it is listed
+   * again, and a saved microphone that disappeared (without its track ending) moves the call to the default.
+   */
+  handleDevicesChanged() {
+    const wanted = this.mic.deviceId;
+    if (this.closed || !this.started || !wanted) return;
+    void listMediaDevices().then((list) => {
+      if (this.closed || list.length === 0) return;
+      const listed = resolveDeviceChoice(wanted, list, "audioinput").status === "selected";
+      // Reopen when the capture no longer matches what is connected (back to the saved mic, or off a
+      // missing one), or when there is no capture yet (the mic failed at join). The open falls back if needed.
+      if (!this.raw || listed === this.micFellBack) {
+        this.micApplied = null;
+        void this.applyMic();
+      }
+    });
+  }
+
+  /**
+   * Puts the new outgoing track on every connection. An existing audio sender switches with
+   * replaceTrack (no renegotiation). A connection that has no audio sender yet gets one, then offers.
+   */
+  private async swapAudio(track: MediaStreamTrack, stream: MediaStream) {
     for (const peer of this.peers.values()) {
-      this.cameraSenders.set(peer.userId, peer.connection.addTrack(track, this.camera));
+      const sender = peer.connection.getSenders().find((entry) => entry.track?.kind === "audio");
+      if (sender) {
+        try {
+          await sender.replaceTrack(track);
+        } catch {
+          // The connection is closing; the next offer or recovery sends the track.
+        }
+      } else {
+        try {
+          peer.connection.addTrack(track, stream);
+          void this.renegotiate(peer.userId);
+        } catch {
+          // connection already closed
+        }
+      }
+    }
+  }
+
+  /**
+   * The outgoing stream for a microphone. With no gain or sensitivity set it is the microphone itself,
+   * and the Web Audio graph is only a meter. Otherwise it is the processed stream (gain, then the gate).
+   * Without an AudioContext the microphone is sent as captured.
+   */
+  private buildOutgoing(raw: MediaStream, settings: MicSettings): MediaStream {
+    this.teardownGraph();
+    const context = this.ensureContext();
+    if (!context) return raw;
+    try {
+      void context.resume().catch(() => undefined);
+      const source = context.createMediaStreamSource(raw);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      // The analyser also feeds a silent output so the browser keeps running it.
+      const silent = context.createGain();
+      silent.gain.value = 0;
+      analyser.connect(silent).connect(context.destination);
+      const buffer = new Float32Array(analyser.fftSize);
+      // Gain and the gate need a running context. If the browser still has it paused, send the mic unprocessed.
+      if (!needsMicProcessing(settings) || context.state !== "running") {
+        source.connect(analyser);
+        this.graph = { source, analyser, silent, buffer, processing: null };
+        this.analysers.set("self", { analyser, data: new Uint8Array(analyser.frequencyBinCount) });
+        return raw;
+      }
+      const gain = context.createGain();
+      gain.gain.value = settings.inputVolume / 100;
+      const gate = context.createGain();
+      gate.gain.value = 1;
+      const destination = context.createMediaStreamDestination();
+      source.connect(gain);
+      gain.connect(analyser);
+      gain.connect(gate);
+      gate.connect(destination);
+      const graph: MicGraph = {
+        source,
+        analyser,
+        silent,
+        buffer,
+        processing: { gain, gate, destination, gateState: { open: true, lastAboveMs: 0 }, timer: 0 },
+      };
+      graph.processing!.timer = window.setInterval(() => this.runGate(graph), GATE_INTERVAL_MS);
+      this.graph = graph;
+      this.analysers.set("self", { analyser, data: new Uint8Array(analyser.frequencyBinCount) });
+      return destination.stream;
+    } catch {
+      this.graph = null;
+      return raw;
+    }
+  }
+
+  private teardownGraph() {
+    const graph = this.graph;
+    if (!graph) return;
+    this.graph = null;
+    this.analysers.delete("self");
+    const nodes: AudioNode[] = [graph.source, graph.analyser, graph.silent];
+    if (graph.processing) {
+      window.clearInterval(graph.processing.timer);
+      nodes.push(graph.processing.gain, graph.processing.gate, graph.processing.destination);
+    }
+    for (const node of nodes) node.disconnect();
+  }
+
+  /** Opens the sensitivity gate when the level is above the threshold (see nextGateState). */
+  private runGate(graph: MicGraph) {
+    const context = this.audioContext;
+    const processing = graph.processing;
+    if (this.graph !== graph || !context || !processing) return;
+    graph.analyser.getFloatTimeDomainData(graph.buffer);
+    const level = rmsToMeter(rmsOf(graph.buffer));
+    processing.gateState = nextGateState(processing.gateState, level, this.mic.inputSensitivity, Date.now());
+    processing.gate.gain.setTargetAtTime(processing.gateState.open ? 1 : 0, context.currentTime, 0.02);
+  }
+  /** Gain and the gate need Web Audio running. Resuming it counts as the join or settings click that started it. */
+  private async ensureRunning(): Promise<void> {
+    const context = this.ensureContext();
+    if (context && context.state !== "running") await context.resume().catch(() => undefined);
+  }
+
+  private ensureContext(): AudioContext | null {
+    this.audioContext ??= newAudioContext();
+    return this.audioContext;
+  }
+
+  private applyPlayback(peer: MeshPeer) {
+    peer.audio.muted = this.deafened || !this.isHeard(peer.userId);
+  }
+
+  private applyMute() {
+    const onStage = !this.stageSpeakers || this.stageSpeakers.has(this.options.selfId);
+    const live = onStage && !this.muted && !this.deafened && (!this.pushToTalk || this.talking);
+    this.local?.getAudioTracks().forEach((track) => {
+      track.enabled = live;
+    });
+  }
+
+  private applySink(audio: HTMLAudioElement) {
+    const element = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+    if (element.setSinkId) void element.setSinkId(this.outputDeviceId ?? "").catch(() => undefined);
+  }
+
+  /** Turn the camera on for everyone in the room (like screen share: a video track per peer). */
+  async startCamera(deviceId: string | null = this.cameraDeviceId) {
+    this.cameraDeviceId = deviceId;
+    if (this.camera || this.cameraPending || this.closed) return;
+    this.cameraPending = true;
+    let stream: MediaStream;
+    try {
+      stream = await this.captureCamera(deviceId);
+    } catch (error) {
+      this.cameraPending = false;
+      if (!this.closed) {
+        this.options.onError(classifyMediaError(error, "camera", isSecurePage()).message);
+        this.options.onCameraEnded?.();
+      }
+      return;
+    }
+    this.cameraPending = false;
+    if (this.closed) {
+      stopStream(stream);
+      return;
+    }
+    this.camera = stream;
+    const [track] = stream.getVideoTracks();
+    track.onended = () => this.stopCamera(true);
+    this.options.onLocalCamera?.(stream);
+    for (const peer of this.peers.values()) {
+      this.cameraSenders.set(peer.userId, peer.connection.addTrack(track, stream));
       void this.renegotiate(peer.userId);
     }
     this.broadcastState();
+  }
+
+  private async captureCamera(deviceId: string | null): Promise<MediaStream> {
+    try {
+      return await openCamera(deviceId, this.hdVideo);
+    } catch (error) {
+      // The chosen camera is gone (unplugged): use the default one instead.
+      if (deviceId && isMissingDeviceError(error)) return openCamera(null, this.hdVideo);
+      throw error;
+    }
+  }
+
+  /**
+   * Switch camera while it's on. The same MediaStream stays (so the other side keeps its label);
+   * the track inside it is swapped and each camera sender gets it with replaceTrack.
+   */
+  async setCameraDevice(deviceId: string | null) {
+    this.cameraDeviceId = deviceId;
+    const current = this.camera;
+    if (!current || this.closed) return;
+    let next: MediaStream;
+    try {
+      next = await this.captureCamera(deviceId);
+    } catch (error) {
+      if (!this.closed) this.options.onError(classifyMediaError(error, "camera", isSecurePage()).message);
+      return;
+    }
+    // The camera may have been turned off, or the call ended, while the new one opened.
+    const [newTrack] = next.getVideoTracks();
+    if (this.closed || this.camera !== current || !newTrack) {
+      stopStream(next);
+      return;
+    }
+    const [oldTrack] = current.getVideoTracks();
+    if (oldTrack) oldTrack.onended = null;
+    newTrack.onended = () => this.stopCamera(true);
+    current.addTrack(newTrack);
+    for (const sender of this.cameraSenders.values()) {
+      try {
+        await sender.replaceTrack(newTrack);
+      } catch {
+        // connection already closed
+      }
+    }
+    if (oldTrack) {
+      current.removeTrack(oldTrack);
+      oldTrack.stop();
+    }
+    this.options.onLocalCamera?.(current);
   }
 
   stopCamera(notify: boolean) {
@@ -263,34 +593,64 @@ export class MeshVoice {
 
   /** Share the screen with everyone in the room (adds a video track to each peer and renegotiates). */
   async startScreenShare() {
-    if (this.screen) return;
+    if (this.screen || this.screenPending || this.closed) return;
+    if (!mediaDevicesAvailable() || typeof navigator.mediaDevices.getDisplayMedia !== "function") {
+      this.options.onScreenState?.({ state: "error", message: "Screen sharing isn't available in this browser or app." });
+      this.options.onScreenShareEnded?.();
+      return;
+    }
+    const request = ++this.screenRequest;
+    this.screenPending = true;
+    this.options.onScreenState?.({ state: "requesting" });
+    let stream: MediaStream;
     try {
-      this.screen = await navigator.mediaDevices.getDisplayMedia({
+      stream = await navigator.mediaDevices.getDisplayMedia({
         video: this.hdVideo
           ? { width: { max: 2560 }, height: { max: 1440 }, frameRate: { ideal: 60, max: 60 } }
           : { width: { max: 1920 }, height: { max: 1080 }, frameRate: { ideal: 30, max: 30 } },
         audio: false,
       });
-    } catch {
-      this.options.onScreenShareEnded?.();
+    } catch (error) {
+      if (request !== this.screenRequest) return;
+      this.screenPending = false;
+      if (!this.closed) {
+        const failure = classifyMediaError(error, "screen", isSecurePage());
+        this.options.onScreenState?.({ state: failure.code === "denied" ? "denied" : "error", message: failure.message });
+        this.options.onScreenShareEnded?.();
+      }
       return;
     }
-    const [track] = this.screen.getVideoTracks();
+    // Stopped or left while the picker was open: release the capture at once.
+    if (request !== this.screenRequest || this.closed) {
+      stopStream(stream);
+      return;
+    }
+    this.screenPending = false;
+    this.screen = stream;
+    const [track] = stream.getVideoTracks();
+    // The browser's own "Stop sharing" control ends the track; release it and tell the room.
     track.onended = () => {
       this.stopScreenShare(true);
     };
-    this.options.onLocalScreen?.(this.screen);
+    this.options.onLocalScreen?.(stream);
     for (const peer of this.peers.values()) {
-      const sender = peer.connection.addTrack(track, this.screen);
+      const sender = peer.connection.addTrack(track, stream);
       this.screenSenders.set(peer.userId, sender);
       void this.renegotiate(peer.userId);
     }
+    this.options.onScreenState?.({ state: "sharing" });
     // Tell everyone which incoming stream is the screen (vs the camera).
     this.broadcastState();
   }
 
   stopScreenShare(notify: boolean) {
-    if (!this.screen) return;
+    const wasPending = this.screenPending;
+    this.screenPending = false;
+    this.screenRequest++;
+    if (!this.screen) {
+      if (wasPending) this.options.onScreenState?.({ state: "stopped" });
+      return;
+    }
     this.screen.getTracks().forEach((entry) => entry.stop());
     this.screen = null;
     for (const [userId, sender] of this.screenSenders) {
@@ -304,6 +664,7 @@ export class MeshVoice {
     }
     this.screenSenders.clear();
     this.options.onLocalScreen?.(null);
+    this.options.onScreenState?.({ state: "stopped" });
     this.broadcastState();
     if (notify) this.options.onScreenShareEnded?.();
   }
@@ -343,40 +704,6 @@ export class MeshVoice {
 
   isHeard(userId: string) {
     return !this.stageSpeakers || this.stageSpeakers.has(userId);
-  }
-
-  private applyPlayback(peer: MeshPeer) {
-    peer.audio.muted = this.deafened || !this.isHeard(peer.userId);
-  }
-
-  private applyMute() {
-    const onStage = !this.stageSpeakers || this.stageSpeakers.has(this.options.selfId);
-    const live = onStage && !this.muted && !this.deafened && (!this.pushToTalk || this.talking);
-    this.local?.getAudioTracks().forEach((track) => {
-      track.enabled = live;
-    });
-  }
-
-  /** Mic gain through Web Audio; returns the stream to send. */
-  private applyInputGain(stream: MediaStream | null): MediaStream | null {
-    const gain = this.options.inputGain ?? 1;
-    if (!stream || Math.abs(gain - 1) < 0.01) return stream;
-    try {
-      this.audioContext ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const source = this.audioContext.createMediaStreamSource(stream);
-      const node = this.audioContext.createGain();
-      node.gain.value = gain;
-      const destination = this.audioContext.createMediaStreamDestination();
-      source.connect(node).connect(destination);
-      return destination.stream;
-    } catch {
-      return stream;
-    }
-  }
-
-  private applySink(audio: HTMLAudioElement) {
-    const element = audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
-    if (element.setSinkId) void element.setSinkId(this.outputDeviceId ?? "").catch(() => undefined);
   }
 
   private broadcastState() {
@@ -662,10 +989,11 @@ export class MeshVoice {
   private watchLevel(key: string, stream: MediaStream | null) {
     if (!stream || !this.options.onLevel) return;
     try {
-      this.audioContext ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const analyser = this.audioContext.createAnalyser();
+      const context = this.ensureContext();
+      if (!context) return;
+      const analyser = context.createAnalyser();
       analyser.fftSize = 256;
-      this.audioContext.createMediaStreamSource(stream).connect(analyser);
+      context.createMediaStreamSource(stream).connect(analyser);
       this.analysers.set(key, { analyser, data: new Uint8Array(analyser.frequencyBinCount) });
     } catch {
       // level metering is optional

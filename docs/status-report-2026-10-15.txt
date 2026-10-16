@@ -1,0 +1,135 @@
+NEXUS FORGE GAMING - FULL STATUS REPORT
+Status as of October 15, 2026 (about 1:40 AM local time)
+Branch: feat/community-feed | Last commit: e03bc6c | Uncommitted changes: 164 files
+Nothing is pushed, released or published.
+
+==============================================================
+1. INCIDENT: ALL SERVICES RESTARTED AT 01:18 AM
+==============================================================
+- The pm2 daemon hit a "write EOF" error at 01:18:19 and resurrected itself.
+- That restarted all 17 pm2 apps, including the live backend and web app. They were back up within seconds.
+- Most likely cause: the owner console's frequent pm2 polling. Not confirmed yet.
+- Rule: the console must not run pm2 again until this is settled, and pm2 save must never be run.
+- The public site is healthy now. The API health check, login, pricing and app pages all return 200.
+
+==============================================================
+2. THE APP - LIVE ON NFGCORD.COM
+==============================================================
+Live and working:
+- Landing, login, pricing and app pages.
+- Shop page and the home Shop widget.
+- Navigation grouped into Community, Create, Shop and Account.
+- Beta logo everywhere on the site and in the app icons.
+- Server icons and banners: Retreats Community has an icon and banner. TRH Development has an icon. Smoke Clan has none.
+- Owner and Admin rank badges.
+- Pricing toggle fix and sign-in page layout.
+
+Built and tested in code, but not checked in a browser:
+- Sign-in gating: signed-out visitors no longer see the app shell. The 2FA token bypass is closed. Sign-out revokes the session.
+- Device settings for microphone, speaker and camera (20 unit tests pass; no real hardware tested).
+- Profile editor and picture checks (40 tests pass; the editor UI is not checked).
+- Avatar wardrobe and saved looks (27 tests pass; visuals not checked).
+- Email system: templates, delivery log, signed webhook, admin page, password reset and password-changed emails through the pipeline (93 tests pass). Real delivery is blocked on a provider and DNS.
+- Desktop update center on the downloads page (not tested against a real update).
+- Public website upgrades: landing, features, about, beta, download, support, legal layout. Phone layouts not fully checked.
+
+Code changes waiting for a desktop rebuild:
+- New desktop icon and sign-in changes. The last published desktop manifest is still 1.0.14.
+
+Known gaps and risks:
+- The hourly jackpot takes coins for tickets and pays one winner. Texas gambling and lottery law may apply.
+- The crypto swap and the internal "Nexus" asset units (NF_BTC, NF_ETH, FORGE) show prices the code generates. That could be read as deceptive pricing, and may raise securities or money rules.
+- Government ID uploads for age checks. Texas breach-notification law applies. Retention and face matching need a decision.
+- The desktop updater skips the SHA-256 check when a manifest has no hash. Not fixed.
+- No copyright agent is registered with the U.S. Copyright Office, so the DMCA safe harbor does not apply yet.
+- Upload limit conflict: public pages say 50 MB for Free; beta page and server default say 95 MB.
+- Public leaderboard shows smoke and test accounts.
+
+==============================================================
+3. LEGAL DOCUMENTS (TEXAS)
+==============================================================
+Finished, placeholder-free (9 of 10):
+- Terms of Service, Privacy Policy, Cookie Policy, EULA, Refund Policy, IP and DMCA Policy, Acceptable Use Policy, Community Rules, Moderation Policy, Appeals Policy.
+
+Held back:
+- Virtual Currency Terms (19 placeholders left, and they contain the jackpot and crypto-asset decisions).
+
+Not published. The site still shows the "not yet published" draft notice.
+
+Four facts the drafts state that the owner must confirm before publishing:
+- Discord receives problem-report text (first 200 characters), server-error text (first 300 characters) and a daily summary.
+- Voice falls back to direct device-to-device WebRTC when LiveKit is not configured.
+- ID images: the privacy draft says they are deleted after review. The actual retention rule must be confirmed.
+- Age-gate cookie: production name is __Host-nexusforge_age18, lasting five years.
+
+Publishing plan: Terms and Privacy stop being required at sign-up until counsel signs off.
+Assumed-name certificate for TRH Development is not confirmed.
+A Texas attorney should review before publication.
+
+==============================================================
+4. OWNER CONSOLE (tools\owner-console)
+==============================================================
+Working:
+- Desktop app: "Owner Console" shortcut on the desktop. It starts the console server on this PC, opens its own window, and stops the server when the window closes.
+- Dark app theme (navy background, blue accent, Exo 2 and Orbitron fonts).
+- Access control: token required (401 without it). Requests carrying Cloudflare or proxy headers are refused (403). Non-local Host headers are refused (403).
+- Public domain returns 404 for every console path.
+- Live stream pushes a snapshot every 3 seconds.
+- No database credentials appear in any response (scan checked).
+- Tickets tab: counts per tab, severity and status pills, real message reports, support tickets and suspensions mirrored from the app's database. Triage data is stored in the console's own store.
+- Test data removed: six "TEST seed" incidents, one test bug and twelve action-log rows.
+
+Broken right now:
+- API and gateway show Down (HTTP 429). The console's own health probes are rate-limited by the app's per-IP limit. Public traffic is not affected.
+- All services show Missing when the pm2 status read fails. This is related to the incident in section 1.
+
+In progress (builder agent):
+- Health probes every 15 seconds, with "rate limited" shown instead of Down.
+- pm2 polling every 15 seconds with timeout and cached results.
+- Readiness checklist (presence only, no values).
+- Service restarts for five named services only, each needing the owner to type the service name.
+- Web and backend builds, streamed live.
+- Type checks and selected test files.
+- Schema status (read only; additive or not).
+- Release status (read only; no publish button).
+- Email status.
+- Legal draft status.
+- Action log for every write action.
+- Live build panel, streaming output line by line.
+
+Not verified yet:
+- The live build panel, the restart and build actions in the console. The backend build ran directly and finished with exit 0 in about 35 seconds.
+
+Not running right now: no console instance is listening.
+
+Rules the console must keep: read-only on the app database, nothing published automatically, no pm2 save, no secrets shown, no commits.
+
+==============================================================
+5. DECISIONS NEEDED FROM THE OWNER
+==============================================================
+1. Jackpot and crypto-style assets: remove, restructure, or keep until counsel reviews.
+2. Government ID retention, and whether faces are ever matched.
+3. Publish the nine legal documents after confirming the four facts.
+4. Desktop release approval for the icon and sign-in changes.
+5. Commit plan for the 164 uncommitted files.
+6. Upload limit: 50 MB or 95 MB for Free.
+7. Email provider, sending domain and DNS records.
+8. Hide smoke and test accounts from the public leaderboard?
+
+==============================================================
+6. NEXT STEPS
+==============================================================
+1. Confirm the pm2 polling fix, then check the pm2 daemon log for "write EOF" again.
+2. Finish the console build-out, then open it and capture the live build running in it.
+3. Commit the work in logical groups, then run the full test suite and a fresh web build.
+4. Publish the legal documents once the facts are confirmed and counsel has reviewed them.
+
+==============================================================
+TEST RESULTS (most recent runs)
+==============================================================
+- Web type-check: passes. Web lint: 0 errors, 1 existing warning.
+- Server type-check: passes.
+- Server test suite: 298 of 299 pass. The one failure is error-handler.test.ts crashing at teardown on Windows (pre-existing, not from this work).
+- Email and access-token tests: 93 of 93.
+- Web unit tests: 31 of 31.
+- Forge image ownership tests: 6 of 6.

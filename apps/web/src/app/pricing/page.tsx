@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Pricing",
-  description: "Nexus Forge Gaming is free, with more included than other apps give away. Core+ plans from $3.99 a month add bigger uploads, more servers and ultra-quality video.",
-};
+  description: "Nexus Forge Gaming is free to use. Core+ plans from $3.99 a month add bigger uploads, more servers and ultra-quality video.",
+  path: "/pricing",
+});
 
 export default async function PricingPage({
   searchParams,

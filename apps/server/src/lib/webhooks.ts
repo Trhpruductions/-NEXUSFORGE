@@ -1,6 +1,15 @@
 import { prisma } from "./prisma.js";
 import { safePostJson } from "./link-preview.js";
 
+/** Delivery headers. Header names must be plain tokens (no spaces), or the request is never sent. */
+export function webhookHeaders(event: string, subscriptionId: string, deliveredAt = new Date().toISOString()): Record<string, string> {
+  return {
+    "X-NexusForge-Webhook-Event": event,
+    "X-NexusForge-Webhook-Subscription-Id": subscriptionId,
+    "X-NexusForge-Webhook-Delivered-At": deliveredAt,
+  };
+}
+
 const WEBHOOK_TIMEOUT_MS = 10_000;
 
 export type WebhookEventPayload = Record<string, unknown>;
@@ -34,11 +43,7 @@ export async function dispatchDeveloperWebhookEvent(
     const response = await safePostJson(
       subscription.url,
       body,
-      {
-        "X-Nexus Forge-Webhook-Event": eventName,
-        "X-Nexus Forge-Webhook-Subscription-Id": subscription.id,
-        "X-Nexus Forge-Webhook-Delivered-At": new Date().toISOString(),
-      },
+      webhookHeaders(eventName, subscription.id),
       WEBHOOK_TIMEOUT_MS,
     );
     if (!response) {

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { getApiErrorMessage, getAvatar } from "@/lib/api";
-import { normaliseDesign } from "@/components/avatar3d/design";
+import { getApiErrorMessage } from "@/lib/api";
+import { designOfLook, loadLooks, retiredPartsOf } from "@/lib/avatar-api";
 import { AvatarBuilder } from "@/components/avatar3d/avatar-builder";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -12,7 +12,7 @@ export function AvatarEditor({ presetId }: { presetId: string }) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const query = useQuery({
     queryKey: ["avatar", accessToken],
-    queryFn: () => getAvatar(accessToken!),
+    queryFn: () => loadLooks(accessToken!),
     enabled: Boolean(accessToken),
   });
 
@@ -31,6 +31,5 @@ export function AvatarEditor({ presetId }: { presetId: string }) {
       </div>
     );
   }
-  const design = normaliseDesign((preset.config as { design?: unknown }).design);
-  return <AvatarBuilder key={preset.id} presetId={preset.id} initialName={preset.name} initial={design} />;
+  return <AvatarBuilder key={preset.id} presetId={preset.id} initialName={preset.name} initial={designOfLook(preset)} retiredParts={retiredPartsOf(preset)} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -41,6 +41,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
 import { QuickSwitcher } from "@/components/layout/quick-switcher";
@@ -57,28 +58,30 @@ import { useVoiceStore } from "@/store/voice-store";
 import { VoiceEngine } from "@/components/chat/voice-engine";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
-// The six destinations from the design reference (design/vexora-app-mockup.png, Home panel).
-const navLinks = [
-  { label: "Home", href: "/app", icon: Home },
-  { label: "Feed", href: "/app/feed", icon: Newspaper },
-  { label: "Avatar Studio", href: "/app/avatar", icon: UserRound },
-  { label: "Community", href: "/app/server", icon: Layers },
-  { label: "Events", href: "/app/events", icon: Calendar },
-  { label: "Store", href: "/app/store", icon: ShoppingBag },
-  { label: "Settings", href: "/app/settings", icon: Settings },
-  { label: "Support", href: "/app/support", icon: LifeBuoy },
-  { label: "Download app", href: "/app/downloads", icon: Download },
+// The sidebar, grouped so people can find their way: Home, then Community, Create, Shop and Account.
+// `matches` lists older paths that should still light up this entry (the Shop covers the outfit store).
+type NavLink = { label: string; href: string; icon: typeof Home; group: string; matches?: string[] };
+const navLinks: NavLink[] = [
+  { label: "Home", href: "/app", icon: Home, group: "" },
+  { label: "Feed", href: "/app/feed", icon: Newspaper, group: "Community" },
+  { label: "Community", href: "/app/server", icon: Layers, group: "Community" },
+  { label: "Events", href: "/app/events", icon: Calendar, group: "Community" },
+  { label: "Avatar Studio", href: "/app/avatar", icon: UserRound, group: "Create" },
+  { label: "Shop", href: "/app/shop", icon: ShoppingBag, group: "Shop", matches: ["/app/store"] },
+  { label: "My wardrobe", href: "/app/wardrobe", icon: Shirt, group: "Shop" },
+  { label: "Rewards & Coins", href: "/app/rewards", icon: Coins, group: "Shop" },
+  { label: "Settings", href: "/app/settings", icon: Settings, group: "Account" },
+  { label: "Support", href: "/app/support", icon: LifeBuoy, group: "Account" },
+  { label: "Download app", href: "/app/downloads", icon: Download, group: "Account" },
 ];
 
 // Everything else lives on the thin icon rail, like the reference.
 const railLinks = [
   { label: "Profile", href: "/app/profile", icon: User },
-  { label: "Wardrobe & Inventory", href: "/app/wardrobe", icon: Shirt },
   { label: "Discover", href: "/app/discover", icon: Compass },
   { label: "Chat", href: "/app/chat", icon: MessageSquare },
   { label: "Friends", href: "/app/friends", icon: Users },
   { label: "Live", href: "/app/live", icon: Radio },
-  { label: "Rewards & Coins", href: "/app/rewards", icon: Coins },
 ];
 
 /** Short two-note chime generated with WebAudio, so no asset is needed. */
@@ -619,12 +622,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
 
       <nav className="space-y-0.5 px-3">
-        {navLinks.map((link) => {
-          const active = isActive(pathname, link.href);
+        {navLinks.map((link, index) => {
+          const active = isActive(pathname, link.href) || (link.matches ?? []).some((href) => isActive(pathname, href));
           const hue = hues[sectionHue[link.href] ?? "amber"];
+          const startsGroup = index === 0 || navLinks[index - 1].group !== link.group;
           return (
+            <Fragment key={link.href}>
+            {startsGroup && link.group ? (
+              <p className="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{link.group}</p>
+            ) : null}
             <Link
-              key={link.href}
               href={link.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
@@ -641,6 +648,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               {link.label}
             </Link>
+            </Fragment>
           );
         })}
       </nav>
@@ -771,6 +779,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     </aside>
   );
 
+  // The bottom tab bar is for phones, and it stays off chat, where the message box needs the bottom of the screen.
+  const showTabBar = !quietWorkspace && !pathname.startsWith("/app/chat");
+
   return (
     <div className="relative isolate flex h-dvh overflow-hidden bg-[#070a10] text-slate-100">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -878,7 +889,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main
         id="main-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col"
+        className={cn("flex min-w-0 flex-1 flex-col", showTabBar && "pb-16 lg:pb-0")}
         style={(() => {
           const key = Object.keys(sectionHue)
             .filter((href) => pathname === href || (href !== "/app" && pathname.startsWith(href)))
@@ -979,7 +990,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-100 md:px-6">
             <Link href="/app/settings?verify=1" className="flex flex-wrap items-center gap-2 hover:text-white">
               <span className="rounded bg-amber-400 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-950">Secure your account</span>
-              {!protection?.emailVerified ? "Verify your email" : "Turn on two-factor sign-in"} so nobody can take over your account. Open Settings →
+              {!protection?.emailVerified ? "Verify your email" : "Turn on two-factor sign-in"}
+              <span className="hidden sm:inline"> so nobody can take over your account.</span>
+              <span className="sm:hidden"> to secure it.</span> Open Settings →
             </Link>
           </div>
         ) : null}
@@ -988,6 +1001,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto w-full max-w-[1400px] flex-1 p-4 md:p-6">{children}</div>
         </div>
       </main>
+      {showTabBar ? <MobileTabBar pathname={pathname} onMore={() => setMobileOpen(true)} /> : null}
     </div>
   );
 }

@@ -18,6 +18,7 @@
  * Reads the bot token and channel names from apps/server/.env; nothing is printed from it.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import http from "node:http";
 import https from "node:https";
@@ -43,7 +44,25 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const PGBIN = process.env.PGBIN || "C:\\Program Files\\PostgreSQL\\17\\bin";
 const PGDATA = process.env.PGDATA || "D:\\NexusForgeDB\\data";
 const PGLOG = process.env.PGLOG || "D:\\NexusForgeDB\\postgres.log";
-const pm2Script = process.env.PM2_SCRIPT || path.join(process.env.APPDATA ?? "", "npm", "node_modules", "pm2", "bin", "pm2");
+const pm2Script = resolvePm2Script();
+
+/**
+ * The pm2 entry point, read from pm2's own package.json ("bin"), so a different install layout
+ * or a missing APPDATA variable doesn't leave the watchdog unable to restart anything.
+ */
+function resolvePm2Script() {
+  if (process.env.PM2_SCRIPT) return process.env.PM2_SCRIPT;
+  const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+  const globalRoot = path.join(appData, "npm", "node_modules", "pm2");
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(globalRoot, "package.json"), "utf8"));
+    const entry = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.pm2;
+    if (entry) return path.join(globalRoot, entry);
+  } catch {
+    // no readable package.json: fall back to the standard location below
+  }
+  return path.join(globalRoot, "bin", "pm2");
+}
 
 const log = (message) => console.log(`${new Date().toISOString()} ${message}`);
 
@@ -85,7 +104,7 @@ function get(url, { timeout = 8_000, ip } = {}) {
         res.on("data", (chunk) => {
           if (body.length < 4096) body += chunk;
         });
-        res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
       },
     );
     req.on("timeout", () => req.destroy(new Error(`no answer within ${timeout / 1000}s`)));
@@ -94,9 +113,27 @@ function get(url, { timeout = 8_000, ip } = {}) {
   });
 }
 
+/**
+ * The app answers HTTP 429 when this PC's own probes exceed its per-address limit. That says the
+ * probe is being throttled, not that the piece is down, so it is never counted as a failure
+ * and never leads to a restart.
+ */
+class RateLimited extends Error {
+  constructor(retryAfterMs) {
+    super("rate limited by the app (HTTP 429)");
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function retryAfterMs(headers) {
+  const seconds = Number(headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
+}
+
 async function expectOk(url, options) {
   const started = Date.now();
   const res = await get(url, options);
+  if (res.status === 429) throw new RateLimited(retryAfterMs(res.headers));
   if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
   return `${Date.now() - started} ms`;
 }
@@ -259,7 +296,25 @@ const checks = [
   },
 ];
 
-const state = new Map(checks.map((check) => [check.key, { fails: 0, down: false, downSince: 0, lastHealAt: 0, lastAlertAt: 0, lastDetail: "" }]));
+const state = new Map(
+  checks.map((check) => [check.key, { fails: 0, down: false, downSince: 0, lastHealAt: 0, lastAlertAt: 0, lastDetail: "", limitedUntil: 0, limitedNoted: false, healing: false, lastAction: "" }]),
+);
+
+/**
+ * Runs a restart in the background, so one slow or hung pm2 call can never stop the checks.
+ * pm2 is not killed mid-call: a call that is still running simply holds this check's healing flag.
+ */
+async function runHeal(check, s) {
+  let action;
+  try {
+    action = await check.heal();
+  } catch (error) {
+    action = `heal failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  s.healing = false;
+  s.lastAction = action;
+  log(`${check.key}: ${action}`);
+}
 
 function minutes(ms) {
   const total = Math.round(ms / 60_000);
@@ -272,6 +327,8 @@ async function round() {
     const s = state.get(check.key);
     // When something this depends on is down, its own failure says nothing new: skip, don't heal.
     if ((check.needs ?? []).some((dep) => !okNow.has(dep))) continue;
+    // Rate limited recently: wait it out. Neither a failure nor a success.
+    if (s.limitedUntil > Date.now()) continue;
 
     let ok = false;
     let detail = "";
@@ -279,11 +336,20 @@ async function round() {
       detail = await check.probe();
       ok = true;
     } catch (error) {
+      if (error instanceof RateLimited) {
+        s.limitedUntil = Date.now() + Math.max(error.retryAfterMs, 60_000);
+        if (!s.limitedNoted) {
+          s.limitedNoted = true;
+          log(`${check.key}: rate limited by the app (HTTP 429). Not counted as a failure; this check pauses for at least 1 min.`);
+        }
+        continue;
+      }
       detail = error instanceof Error ? error.message : String(error);
     }
 
     if (ok) {
       okNow.add(check.key);
+      s.limitedNoted = false;
       if (s.down) {
         const outage = minutes(Date.now() - s.downSince);
         log(`${check.key} recovered after ${outage}`);
@@ -303,26 +369,22 @@ async function round() {
     if (s.fails < FAILS_BEFORE_ACTION) continue;
 
     const now = Date.now();
-    let action = "";
-    if (check.heal && now - s.lastHealAt > HEAL_COOLDOWN_MS) {
+    if (check.heal && !s.healing && now - s.lastHealAt > HEAL_COOLDOWN_MS) {
       s.lastHealAt = now;
-      log(`${check.key}: healing`);
-      try {
-        action = await check.heal();
-      } catch (error) {
-        action = `heal failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-      log(`${check.key}: ${action}`);
+      s.healing = true;
+      log(`${check.key}: healing (in the background; checks keep running)`);
+      void runHeal(check, s);
     }
+    const action = s.lastAction ? `\nLast action: ${s.lastAction}.` : "";
 
     if (!s.down) {
       s.down = true;
       s.downSince = now - (FAILS_BEFORE_ACTION - 1) * INTERVAL_MS;
       s.lastAlertAt = now;
-      await discordPost("alerts", `🔴 ${check.label} is down`, `${FAILS_BEFORE_ACTION} checks in a row failed: ${detail}.${action ? `\nAction: ${action}.` : ""}`, RED);
+      await discordPost("alerts", `🔴 ${check.label} is down`, `${FAILS_BEFORE_ACTION} checks in a row failed: ${detail}.${action}`, RED);
     } else if (now - s.lastAlertAt > REMIND_EVERY_MS) {
       s.lastAlertAt = now;
-      await discordPost("alerts", `🔴 ${check.label} is still down`, `Down for ${minutes(now - s.downSince)}. Latest: ${detail}.${action ? `\nAction: ${action}.` : ""}`, RED);
+      await discordPost("alerts", `🔴 ${check.label} is still down`, `Down for ${minutes(now - s.downSince)}. Latest: ${detail}.${action}`, RED);
     }
   }
   return okNow;
@@ -349,6 +411,11 @@ async function tick() {
   } finally {
     running = false;
   }
+}
+
+if (process.argv.includes("--show-pm2")) {
+  console.log(pm2Script);
+  process.exit(0);
 }
 
 if (process.argv.includes("--once")) {

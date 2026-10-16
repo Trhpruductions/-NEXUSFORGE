@@ -12,7 +12,7 @@ export function SiteFooter() {
             <Image src="/brand/nexusforge-emblem-256.png" alt="" width={36} height={36} className="h-9 w-9 rounded-xl object-cover" />
             <span>
               <span className="nf-heading block text-sm font-semibold uppercase tracking-[0.28em] text-white">Nexus Forge</span>
-              <span className="block text-[10px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.34em] text-amber-300">Gaming</span>
             </span>
           </Link>
           <p className="max-w-xs text-xs leading-relaxed text-slate-500">
@@ -25,10 +25,10 @@ export function SiteFooter() {
         {footerColumns.map((column) => (
           <div key={column.title}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{column.title}</p>
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-2 space-y-1">
               {column.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-slate-400 transition hover:text-white">{link.label}</Link>
+                  <Link href={link.href} className="inline-block py-1 text-slate-400 transition hover:text-white">{link.label}</Link>
                 </li>
               ))}
             </ul>
@@ -36,7 +36,7 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="border-t border-white/5">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>© 2026 Nexus Forge Gaming · TRH Development. All rights reserved.</p>
           <p>Discord is a trademark of Discord Inc. Nexus Forge Gaming isn&apos;t affiliated with Discord.</p>
         </div>

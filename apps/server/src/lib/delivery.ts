@@ -1,101 +1,139 @@
-import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../config/env.js";
 import { brandedEmailHtml, senderAddress } from "./email-template.js";
+import { createEmailPipeline, type EmailMode } from "./email-pipeline.js";
+import { emailContextFromEnv, type EmailKindData } from "./email-templates.js";
+import { smtpSend, testSend, getSmtpTransporter } from "./email-transports.js";
+import { prismaEmailStore, userOptedIn } from "./email-store.js";
+import { issueUnsubscribeToken, unsubscribeKey } from "./email-tokens.js";
+import { resolveEmailMode, type EmailCategory, type EmailKind, type OptionalPreferenceKey } from "./email-policy.js";
 
 /**
- * Outbound delivery for verification codes.
+ * Outbound delivery for verification codes and account mail.
  *
- * Email goes through SMTP when SMTP_HOST is configured. SMS goes through Twilio when the
- * account SID, auth token and a sender are configured. When a channel is not configured:
+ * Email goes through SMTP when SMTP_HOST is configured and EMAIL_TEST_MODE is off. In test mode (or
+ * with no SMTP outside production) mail goes through nodemailer's JSON transport: nothing leaves the
+ * process, but every send is still recorded. SMS goes through Twilio when the account SID, auth token
+ * and a sender are configured. When a channel is not configured:
  *   - in development the message is printed to the server console so the flow can be tested,
  *   - in production the send fails loudly so nobody is left believing a code went out.
+ *
+ * `delivered` only means the SMTP server accepted the message. It does not mean the inbox received it.
+ * Real delivery is only confirmed by a provider webhook (see routes/email.routes.ts).
  */
 
-export type DeliveryResult = { delivered: boolean; transport: "smtp" | "twilio" | "console"; error?: string };
-
-let transporter: Transporter | null = null;
-
-function smtpConfigured() {
-  return Boolean(env.SMTP_HOST);
-}
+export type DeliveryResult = {
+  delivered: boolean;
+  transport: "smtp" | "twilio" | "console" | "test";
+  error?: string;
+  suppressed?: boolean;
+  skipped?: "not-subscribed";
+};
 
 function twilioConfigured() {
   return Boolean(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && (env.TWILIO_FROM_NUMBER || env.TWILIO_MESSAGING_SERVICE_SID));
 }
 
-function getTransporter(): Transporter {
-  if (!transporter) {
-    // Pooled: the SMTP connection (TLS handshake + login, 1-3 s on Gmail) is reused between
-    // sends instead of being rebuilt for every code, so sign-up and resend answer faster.
-    transporter = nodemailer.createTransport({
-      pool: true,
-      maxConnections: 2,
-      maxMessages: 100,
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-      connectionTimeout: 15_000,
-      socketTimeout: 30_000,
-    });
-  }
-  return transporter;
+/** smtp, test (JSON transport), or unconfigured (production without SMTP: sends fail loudly). */
+export function emailMode(): EmailMode {
+  return resolveEmailMode({ testMode: env.EMAIL_TEST_MODE, smtpHost: env.SMTP_HOST, production: env.NODE_ENV === "production" });
 }
 
-/**
- * Opens and checks the SMTP connection once at boot (sends nothing), so the first sign-up
- * doesn't pay the connection cost and a broken mailbox login shows up in the log right away.
- */
+/** Opens and checks the SMTP connection once at boot (sends nothing), so the first sign-up doesn't pay the connection cost. */
 export async function warmUpEmailDelivery(): Promise<void> {
-  if (!smtpConfigured()) return;
+  const mode = emailMode();
+  if (mode === "test") {
+    if (env.NODE_ENV === "production") {
+      console.error("[mail] EMAIL_TEST_MODE is on in production: mail is recorded but nothing reaches an inbox.");
+    } else {
+      console.log("[mail] test mode: emails are recorded, nothing leaves the process");
+    }
+    return;
+  }
+  if (mode !== "smtp") {
+    if (env.NODE_ENV === "production") console.error("[mail] SMTP is not configured: verification emails will not go out.");
+    return;
+  }
   const started = Date.now();
   try {
-    await getTransporter().verify();
+    await getSmtpTransporter().verify();
     console.log(`[mail] SMTP ready (${env.SMTP_HOST}, ${Date.now() - started} ms)`);
   } catch (error) {
     console.error(`[mail] SMTP check failed, verification emails will not go out: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
+/**
+ * Status shown to the sign-in pages and to the admin. `email` keeps its old values. `emailMode`
+ * says exactly what is happening: smtp, test, or unconfigured.
+ */
 export function deliveryStatus() {
+  const mode = emailMode();
   return {
-    email: smtpConfigured() ? "smtp" : env.NODE_ENV === "production" ? "unconfigured" : "console",
+    // A test mode in production reads as "unconfigured": nothing real goes out, so no email options are offered.
+    email: mode === "smtp" ? "smtp" : mode === "test" && env.NODE_ENV !== "production" ? "console" : "unconfigured",
+    emailMode: mode,
     sms: twilioConfigured() ? "twilio" : env.NODE_ENV === "production" ? "unconfigured" : "console",
   } as const;
 }
 
-/** RFC 2606 / 6761 reserved names: mail to them can never arrive, it only bounces back to us. */
-function isUndeliverableAddress(to: string) {
-  const domain = to.split("@")[1]?.toLowerCase() ?? "";
-  return /\.(test|invalid|example|localhost)$/.test(domain) || /^example\.(com|net|org)$/.test(domain);
+let unsubscribeSigningKey: Buffer | null = null;
+
+/** Signed link for one optional kind. Points at the API, because the web app does not proxy /api. */
+export function buildUnsubscribeUrl(userId: string, key: OptionalPreferenceKey): string {
+  if (!unsubscribeSigningKey) {
+    unsubscribeSigningKey = unsubscribeKey({ explicit: env.EMAIL_UNSUBSCRIBE_SECRET, fallbackSecret: env.JWT_ACCESS_SECRET });
+  }
+  const token = issueUnsubscribeToken(unsubscribeSigningKey, userId, key, Date.now());
+  const base = (env.API_PUBLIC_URL || env.APP_WEB_URL).replace(/\/+$/, "");
+  return `${base}/api/email/unsubscribe?token=${encodeURIComponent(token)}`;
 }
 
-export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<DeliveryResult> {
-  if (isUndeliverableAddress(to)) {
-    console.log(`[MAIL] skipped (reserved test domain) subject=${subject}`);
-    return { delivered: false, transport: "console", error: "Reserved test address" };
-  }
-  if (smtpConfigured()) {
-    try {
-      // Always sent as "Nexus Forge Gaming" in the branded layout, whatever mailbox sends it.
-      await getTransporter().sendMail({
-        from: senderAddress(),
-        ...(env.MAIL_REPLY_TO ? { replyTo: env.MAIL_REPLY_TO } : {}),
-        to,
-        subject,
-        text,
-        html: html ?? brandedEmailHtml(subject, text),
-      });
-      return { delivered: true, transport: "smtp" };
-    } catch (error) {
-      return { delivered: false, transport: "smtp", error: error instanceof Error ? error.message : "SMTP send failed" };
-    }
-  }
-  if (env.NODE_ENV === "production") {
-    return { delivered: false, transport: "console", error: "Email delivery is not configured (SMTP_HOST missing)" };
-  }
-  console.log(`\n[DEV MAIL] to=${to}\n[DEV MAIL] subject=${subject}\n[DEV MAIL] ${text.replace(/\n/g, "\n[DEV MAIL] ")}\n`);
-  return { delivered: true, transport: "console" };
+export const emailPipeline = createEmailPipeline({
+  store: prismaEmailStore,
+  transports: { smtp: smtpSend, test: testSend },
+  mode: emailMode,
+  context: emailContextFromEnv,
+  sender: senderAddress,
+  replyTo: () => env.MAIL_REPLY_TO,
+  isOptedIn: userOptedIn,
+  unsubscribeUrl: buildUnsubscribeUrl,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  now: () => Date.now(),
+  log: (line) => console.log(line),
+});
+
+export type EmailSendMeta = {
+  /** Template key or a free label, recorded with the delivery. Defaults to "legacy". */
+  kind?: string;
+  /** Defaults to ESSENTIAL, which is never gated by preferences. */
+  category?: EmailCategory;
+  userId?: string | null;
+};
+
+/**
+ * Sends a plain or pre-rendered email. Existing call sites keep working unchanged. Pass `meta` to get
+ * a named delivery record and duplicate protection for the account.
+ */
+export async function sendEmail(to: string, subject: string, text: string, html?: string, meta: EmailSendMeta = {}): Promise<DeliveryResult> {
+  return emailPipeline.sendMessage({
+    kind: meta.kind ?? "legacy",
+    category: meta.category ?? "ESSENTIAL",
+    to,
+    subject,
+    text,
+    html: html ?? brandedEmailHtml(subject, text),
+    userId: meta.userId ?? null,
+  });
+}
+
+/** Renders a named template and sends it. Optional kinds only go to accounts that opted in. */
+export function sendTemplateEmail<K extends EmailKind>(kind: K, to: string, data: EmailKindData[K], options: { userId?: string | null } = {}): Promise<DeliveryResult> {
+  return emailPipeline.sendTemplate(kind, to, data, options);
+}
+
+/** Seconds until an identical essential email to this account is allowed again (0 = now). */
+export function duplicateWaitSeconds(userId: string, kind: string, subject: string): Promise<number> {
+  return emailPipeline.duplicateWaitSeconds(userId, kind, subject);
 }
 
 export async function sendSms(to: string, body: string): Promise<DeliveryResult> {

@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { Bug, CheckSquare, CreditCard, Download, MessageSquare, Mic, ShieldCheck, Smartphone, Users } from "lucide-react";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Beta program",
   description: "Help test Nexus Forge Gaming before launch: how to get in, what to try, how to report problems, and what's still switched off during the beta.",
-};
+  path: "/beta",
+});
 
 const ways = [
   { icon: MessageSquare, title: "In your browser", text: "Nothing to install. Sign in at nfgcord.com/app on any computer.", href: "/register", cta: "Create a free account" },
@@ -39,7 +40,6 @@ const checklist: { icon: typeof Users; title: string; items: string[] }[] = [
     title: "Voice and video",
     items: [
       "Join a voice channel with a friend: can you hear each other? Try mute, deafen and screen share.",
-      "Start a video call from a DM. Try it on home Wi-Fi and on mobile data.",
       "Leave the voice channel while browsing other pages: the call should keep going until you hang up.",
     ],
   },
@@ -55,9 +55,9 @@ const checklist: { icon: typeof Users; title: string; items: string[] }[] = [
 ];
 
 const limits = [
-  { title: "Email only for codes", text: "Text-message codes are switched off during the beta. Sign-in and recovery codes arrive by email." },
+  { title: "Codes by email", text: "Text-message codes are offered only where SMS is set up. Sign-in and recovery codes can always arrive by email." },
   { title: "Payments are simulated", text: "Checkout runs in Stripe's test mode. Use card 4242 4242 4242 4242 with any future expiry date and any 3-digit code. No real money moves." },
-  { title: "Uploads up to 95 MB for now", text: "Our hosting caps single uploads at 100 MB during the beta, whatever your plan says. Bigger uploads arrive with the storage upgrade before launch." },
+  { title: "Uploads up to 95 MB for now", text: "Our hosting caps single uploads at 95 MB during the beta, whatever your plan says. Bigger uploads arrive with the storage upgrade before launch." },
   { title: "Short restarts", text: "Updates go out several times a week. A page may reload itself once when that happens; voice calls reconnect." },
   { title: "Installer warning", text: "The Windows installer isn't code-signed yet, so SmartScreen shows a warning. A signing certificate is on the list before launch." },
 ];
@@ -82,7 +82,7 @@ export default function BetaPage() {
               <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300"><way.icon className="h-5 w-5" /></span>
               <h3 className="text-base font-semibold text-white">{way.title}</h3>
               <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-400">{way.text}</p>
-              <Link href={way.href} className="mt-3 inline-flex w-fit items-center rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{way.cta}</Link>
+              <Link href={way.href} className="mt-3 inline-flex min-h-11 w-fit items-center rounded-lg border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">{way.cta}</Link>
             </article>
           ))}
         </div>
