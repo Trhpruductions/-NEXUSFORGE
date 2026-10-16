@@ -1,24 +1,35 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../prisma.js";
+import { adjustAddon, setStorePurchaseStatus, syncStorePremium } from "./lifecycle.js";
 import { StoreVerifyError, type VerifiedStorePurchase } from "./types.js";
 
 // Grants a verified store purchase the same way the Stripe checkout does: a Core+ subscription sets the user's plan,
 // an add-on adds to their entitlement. The purchase record and the grant are written in one transaction, so either
 // both are saved or neither is, and a retry applies the purchase cleanly.
 
-function boostLevelFor(tier: "CORE" | "PLUS" | "ELITE" | "INFINITE"): number {
-  return tier === "INFINITE" ? 5 : tier === "ELITE" ? 3 : tier === "PLUS" ? 2 : 1;
-}
-
 export function receiptHashOf(receipt: string): string {
   return createHash("sha256").update(receipt).digest("hex");
 }
 
-// The same store transaction for the same account is a retry, and is not granted again. For another account it is
-// already claimed, and is refused.
-function existingResult(ownerId: string, userId: string): "duplicate" {
-  if (ownerId === userId) return "duplicate";
-  throw new StoreVerifyError("CLAIMED", "This purchase is already linked to another account");
+/**
+ * A store transaction seen before. For the same account it is a retry: if it was refunded or lapsed and the store
+ * now says it is active again, it is reinstated; otherwise nothing changes. For another account it is already
+ * claimed, and is refused.
+ */
+async function resolveExisting(
+  existing: { id: string; userId: string; provider: string; transactionId: string; status: string },
+  purchase: VerifiedStorePurchase,
+  userId: string,
+): Promise<"applied" | "duplicate"> {
+  if (existing.userId !== userId) throw new StoreVerifyError("CLAIMED", "This purchase is already linked to another account");
+  if (existing.status === "ACTIVE") return "duplicate";
+  const result = await setStorePurchaseStatus({
+    provider: purchase.provider,
+    transactionId: purchase.transactionId,
+    status: "ACTIVE",
+    expiresAt: purchase.expiresAt,
+  });
+  return result === "changed" ? "applied" : "duplicate";
 }
 
 export async function applyStorePurchase(input: {
@@ -33,8 +44,8 @@ export async function applyStorePurchase(input: {
   if (purchase.accountToken !== userId) throw new StoreVerifyError("ACCOUNT_MISMATCH", "This purchase was not made under your account");
 
   const transactionKey = { provider_transactionId: { provider: purchase.provider, transactionId: purchase.transactionId } };
-  const existing = await prisma.storePurchase.findUnique({ where: transactionKey, select: { userId: true } });
-  if (existing) return existingResult(existing.userId, userId);
+  const existing = await prisma.storePurchase.findUnique({ where: transactionKey, select: { id: true, userId: true, provider: true, transactionId: true, status: true } });
+  if (existing) return resolveExisting(existing, purchase, userId);
 
   const { grant } = purchase;
   try {
@@ -58,28 +69,17 @@ export async function applyStorePurchase(input: {
 
       if (grant.kind === "SUBSCRIPTION") {
         // Lifetime members keep their granted tier; a purchase never changes it.
-        await tx.user.updateMany({
-          where: { id: userId, lifetimeMember: false },
-          data: {
-            premium: true,
-            premiumTier: grant.tier,
-            corePlusActivatedAt: new Date(),
-            corePlusBoostLevel: boostLevelFor(grant.tier),
-          },
-        });
+        await syncStorePremium(tx, userId, new Date());
+        await tx.user.updateMany({ where: { id: userId, lifetimeMember: false }, data: { corePlusActivatedAt: new Date() } });
       } else {
-        await tx.featureEntitlement.upsert({
-          where: { userId_featureCode: { userId, featureCode: grant.featureCode } },
-          update: { active: true, quantity: { increment: 1 } },
-          create: { userId, featureCode: grant.featureCode, source: purchase.provider, active: true, quantity: 1 },
-        });
+        await adjustAddon(tx, userId, grant.featureCode, 1, purchase.provider);
       }
     });
   } catch (error) {
     // Two deliveries at the same moment: the other one recorded it first.
     if ((error as { code?: string }).code === "P2002") {
-      const recorded = await prisma.storePurchase.findUnique({ where: transactionKey, select: { userId: true } });
-      if (recorded) return existingResult(recorded.userId, userId);
+      const recorded = await prisma.storePurchase.findUnique({ where: transactionKey, select: { id: true, userId: true, provider: true, transactionId: true, status: true } });
+      if (recorded) return resolveExisting(recorded, purchase, userId);
     }
     throw error;
   }

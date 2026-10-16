@@ -47,6 +47,7 @@ import { ensureLegalPolicies } from "./lib/legal-policies.js";
 import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
 import { runStartupTask } from "./lib/startup.js";
 import { startCleanup } from "./lib/cleanup.js";
+import { startStoreBillingSweep } from "./lib/store-billing/sweep.js";
 import { warmUpEmailDelivery } from "./lib/delivery.js";
 import { startDeletionSweeper } from "./lib/account-deletion.js";
 import { startDailyPulse } from "./lib/daily-pulse.js";
@@ -648,6 +649,7 @@ void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 
 startEventReminders();
 startDeletionSweeper();
 startCleanup();
+startStoreBillingSweep();
 startDailyPulse();
 void runStartupTask("achievements catalog", ensureAchievementCatalog);
 

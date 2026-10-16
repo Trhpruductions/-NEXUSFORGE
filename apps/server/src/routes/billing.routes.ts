@@ -17,6 +17,7 @@ import { requirePaidFeature } from "../middleware/entitlements.js";
 import { consumeFeatureQuantity } from "../lib/feature-consumption.js";
 import { billingEnabled, PLANS, TIER_ORDER } from "../lib/plans.js";
 import { limitsForUser } from "../lib/user-limits.js";
+import { syncStorePremium } from "../lib/store-billing/lifecycle.js";
 
 const checkoutSchema = z.object({
   featureCode: z.enum([
@@ -575,25 +576,8 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
           select: { userId: true },
         });
 
-        if (localSub?.userId) {
-          const activeCount = await prisma.billingSubscription.count({
-            where: {
-              userId: localSub.userId,
-              status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
-            },
-          });
-
-          if (activeCount === 0) {
-            // Ending a subscription never removes a lifetime membership.
-            await prisma.user.updateMany({
-              where: { id: localSub.userId, lifetimeMember: false },
-              data: {
-                premium: false,
-                premiumTier: "NONE",
-              },
-            });
-          }
-        }
+        // Ends only the Stripe source. A live store subscription keeps the user's premium, and a lifetime membership is never removed.
+        if (localSub?.userId) await syncStorePremium(prisma, localSub.userId);
       }
     }
 

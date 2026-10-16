@@ -205,6 +205,8 @@ const envSchema = z.object({
   GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
   GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
   GOOGLE_PLAY_PRIVATE_KEY: z.string().optional(),
+  // Shared secret in the Pub/Sub push URL (?token=...). Notifications without it are refused.
+  GOOGLE_RTDN_TOKEN: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);

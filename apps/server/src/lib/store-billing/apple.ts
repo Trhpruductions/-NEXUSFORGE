@@ -39,11 +39,24 @@ export function signAppleBearer(config: AppleConfig, nowSeconds: number): string
 }
 
 /**
+ * Checks a StoreKit signed transaction or notification. Malformed input is refused as an invalid purchase, never
+ * surfaced as a server error.
+ */
+export function verifySignedTransaction(jws: string, rootCertPem: string, now: Date): Record<string, unknown> {
+  try {
+    return checkSignedTransaction(jws, rootCertPem, now);
+  } catch (error) {
+    if (error instanceof StoreVerifyError) throw error;
+    throw new StoreVerifyError("INVALID_PURCHASE", "Apple signed data could not be read");
+  }
+}
+
+/**
  * Checks a StoreKit signed transaction. Its x5c certificate chain must lead to the pinned Apple root, every
  * certificate must be inside its validity period, and the ES256 signature must match the leaf certificate.
  * Returns the decoded payload only when all of that holds.
  */
-export function verifySignedTransaction(jws: string, rootCertPem: string, now: Date): Record<string, unknown> {
+function checkSignedTransaction(jws: string, rootCertPem: string, now: Date): Record<string, unknown> {
   const parts = jws.split(".");
   if (parts.length !== 3) throw new StoreVerifyError("INVALID_PURCHASE", "Apple returned a malformed transaction");
   const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as { alg?: string; x5c?: string[] };
@@ -89,6 +102,8 @@ type ApplePayload = {
   expiresDate?: number;
   revocationDate?: number | null;
   appAccountToken?: string;
+  /** Apple's product type: "Auto-Renewable Subscription", "Consumable", "Non-Consumable" or "Non-Renewing Subscription". */
+  type?: string;
 };
 
 /** Turns a verified Apple payload into a purchase, refusing anything that is not ours or not for this transaction. */
@@ -103,6 +118,12 @@ export function purchaseFromApplePayload(
   const grant = grantForProduct(payload.productId ?? "");
   if (!grant) throw new StoreVerifyError("UNKNOWN_PRODUCT", "This product is not sold in the app");
   if (payload.purchaseDate === undefined) throw new StoreVerifyError("INVALID_PURCHASE", "Apple transaction has no purchase date");
+  // The product's type in the store must match what we grant: a subscription for a Core+ tier, a one-time product for an add-on.
+  if (payload.type !== undefined) {
+    const isSubscription = payload.type === "Auto-Renewable Subscription";
+    if (grant.kind === "SUBSCRIPTION" && !isSubscription) throw new StoreVerifyError("INVALID_PURCHASE", "This product is not a subscription");
+    if (grant.kind === "ADDON" && isSubscription) throw new StoreVerifyError("INVALID_PURCHASE", "This product is not an add-on");
+  }
 
   const environment = payload.environment === "Sandbox" ? "SANDBOX" : payload.environment === "Production" ? "PRODUCTION" : null;
   if (!environment) throw new StoreVerifyError("INVALID_PURCHASE", "Apple transaction has an unknown environment");
