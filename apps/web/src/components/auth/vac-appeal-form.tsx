@@ -48,7 +48,7 @@ export function VacAppealForm({ onSent }: { onSent?: () => void }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-5 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+    <form method="post" onSubmit={onSubmit} className="mt-5 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
       <p className="text-sm font-semibold text-white">Appeal this ban</p>
       <label className="block text-xs font-semibold text-slate-300">
         Account email

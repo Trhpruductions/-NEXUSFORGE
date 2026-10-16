@@ -142,7 +142,7 @@ export default function RegisterPage() {
           </span>
         }
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <AuthField
             id="register-username"
             label="Username"

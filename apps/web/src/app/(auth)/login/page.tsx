@@ -234,7 +234,7 @@ export default function LoginPage() {
             Your account is scheduled for deletion and you&apos;ve been signed out everywhere. Changed your mind? Sign in and choose &quot;Keep my account&quot;.
           </p>
         ) : null}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <AuthField
             id="login-email"
             label="Email or phone number"

@@ -145,6 +145,7 @@ export default function ForgotPasswordPage() {
 
             {mode === "email" ? (
               <form
+                method="post"
                 className="grid gap-5"
                 noValidate
                 onSubmit={(event) => {
@@ -171,6 +172,7 @@ export default function ForgotPasswordPage() {
               </form>
             ) : (
               <form
+                method="post"
                 className="grid gap-5"
                 noValidate
                 onSubmit={(event) => {

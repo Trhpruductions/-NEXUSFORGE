@@ -76,7 +76,7 @@ export function ResetPasswordClient({ token }: { token: string }) {
           </Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-5" noValidate>
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="grid gap-5" noValidate>
           <AuthField
             id="reset-token"
             label="Reset token"
