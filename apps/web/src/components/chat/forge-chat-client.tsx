@@ -2267,6 +2267,11 @@ export function ForgeChatClient() {
               Admin
             </Link>
           ) : null}
+          {user?.appRole === "OWNER" ? (
+            <Link href="/owner" className="rounded-[14px] border border-amber-400/60 bg-amber-400/15 px-2 py-1 text-amber-100 hover:border-amber-200">
+              Owner Console
+            </Link>
+          ) : null}
           <Link href="/settings" className="rounded-[14px] border border-amber-500/30 bg-amber-950/20 px-2 py-1 text-amber-100 hover:border-amber-300">
             Settings
           </Link>
