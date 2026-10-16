@@ -4,11 +4,10 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../src/lib/prisma.js";
 import { applyStorePurchase } from "../src/lib/store-billing/grant.js";
 import { StoreVerifyError, type VerifiedStorePurchase } from "../src/lib/store-billing/types.js";
+import { assertNotLiveDatabase } from "./helpers/live-database-guard.js";
 
-// Runs against the isolated test database only. Refuses to run against any other database.
-if (!/\/nexusforge_test$/.test(new URL(process.env.DATABASE_URL ?? "postgres://invalid/").pathname)) {
-  throw new Error("store-billing-grant.test.ts must run against nexusforge_test");
-}
+// Writes test rows, so it must never run against the live database.
+assertNotLiveDatabase();
 
 const RUN = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 const createdUserIds: string[] = [];

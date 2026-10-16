@@ -11,11 +11,10 @@ import { syncStorePremium } from "../src/lib/store-billing/lifecycle.js";
 import { runStoreBillingSweep } from "../src/lib/store-billing/sweep.js";
 import { StoreVerifyError, type VerifiedStorePurchase } from "../src/lib/store-billing/types.js";
 import { jsonResponse, makeAppleTestChain, makeEcApiKey, makeRsaServiceKey, signAppleTransaction } from "./helpers/store-fixtures.js";
+import { assertNotLiveDatabase } from "./helpers/live-database-guard.js";
 
-// Runs against the isolated test database only. Refuses to run against any other database.
-if (!/\/nexusforge_test$/.test(new URL(process.env.DATABASE_URL ?? "postgres://invalid/").pathname)) {
-  throw new Error("store-billing-lifecycle.test.ts must run against nexusforge_test");
-}
+// Writes test rows, so it must never run against the live database.
+assertNotLiveDatabase();
 
 // Test-only keys and chains. Store responses are mocked; nothing goes to Apple or Google.
 const RUN = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

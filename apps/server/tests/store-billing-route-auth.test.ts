@@ -7,13 +7,11 @@ import type { AddressInfo } from "node:net";
 import { signAccessToken } from "../src/lib/jwt.js";
 import { prisma } from "../src/lib/prisma.js";
 import { storeBillingRouter } from "../src/routes/store-billing.routes.js";
+import { assertNotLiveDatabase } from "./helpers/live-database-guard.js";
 
 // Signed-in and notification behaviour of the store routes, in a test environment where no store is configured.
-// Runs against the test database (the user row is removed afterwards).
-
-if (!/\/nexusforge_test$/.test(new URL(process.env.DATABASE_URL ?? "postgres://invalid/").pathname)) {
-  throw new Error("store-billing-route-auth.test.ts must run against nexusforge_test");
-}
+// Writes one user row (removed afterwards), so it must never run against the live database.
+assertNotLiveDatabase();
 
 const RUN = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 const userId = randomUUID();
