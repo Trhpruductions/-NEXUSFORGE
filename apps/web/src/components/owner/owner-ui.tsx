@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function OwnerCard({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
@@ -25,28 +24,4 @@ export function OwnerStat({ label, value, hint }: { label: string; value: string
 
 export function OwnerEmpty({ children }: { children: ReactNode }) {
   return <p className="px-4 py-8 text-center text-sm text-slate-400">{children}</p>;
-}
-
-export function OwnerNav({ active }: { active: "overview" | "financial" }) {
-  const items: Array<{ key: "overview" | "financial"; label: string; href: string }> = [
-    { key: "overview", label: "Overview", href: "/owner" },
-    { key: "financial", label: "Financial", href: "/owner/financial" },
-  ];
-  return (
-    <nav className="mb-4 flex flex-wrap gap-2" aria-label="Owner console sections">
-      {items.map((item) => (
-        <Link
-          key={item.key}
-          href={item.href}
-          aria-current={active === item.key ? "page" : undefined}
-          className={cn(
-            "rounded-full border px-4 py-1.5 text-xs font-medium transition",
-            active === item.key ? "border-amber-400/60 bg-amber-400/15 text-amber-100" : "border-white/10 text-slate-300 hover:border-amber-400/40",
-          )}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  );
 }

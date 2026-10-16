@@ -1138,6 +1138,7 @@ model BillingSubscription {
   cancelAtPeriodEnd     Boolean         @default(false)
   // Stripe event.created (seconds) of the last applied subscription event; older events are ignored.
   providerEventCreatedAt DateTime?
+  livemode              Boolean         @default(false)
   metadata              Json?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
@@ -1160,6 +1161,8 @@ model PaymentTransaction {
   providerSubscriptionId String?
   amountCents           Int
   feeCents              Int?            // Stripe processing fee when the balance transaction was readable
+  // Stripe livemode of the event that created the row. Test-mode money is never reported as live revenue.
+  livemode              Boolean         @default(false)
   refundedCents         Int             @default(0)
   currency              String          @default("usd")
   status                PaymentStatus
@@ -1178,6 +1181,37 @@ model PaymentTransaction {
   @@index([status, createdAt])
   @@index([featureCode, createdAt])
   @@index([kind, createdAt])
+  @@index([livemode, status, createdAt])
+}
+
+enum ExpenseCategory {
+  HOSTING
+  SOFTWARE
+  PAYMENT_PROCESSING
+  REFUNDS_AND_CHARGEBACKS
+  MARKETING
+  CONTRACTORS
+  OTHER
+}
+
+model Expense {
+  id              String          @id @default(uuid())
+  category        ExpenseCategory
+  customCategory  String?         @db.VarChar(80)
+  description     String          @db.VarChar(500)
+  amountCents     Int
+  currency        String          @default("usd")
+  incurredOn      DateTime
+  recurring       Boolean         @default(false)
+  reference       String?         @db.VarChar(200)
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([incurredOn])
+  @@index([category, incurredOn])
 }
 
 model PaymentRefund {

@@ -8,7 +8,7 @@ import { prisma } from "../src/lib/prisma.js";
 // Every Stripe network call the webhook makes is stubbed below, which keeps these tests offline.
 const { processStripeEvent, recordWebhookFailure } = await import("../src/lib/billing-webhook.js");
 const { stripeClient } = await import("../src/lib/stripe.js");
-const { getFinanceWindowTotals } = await import("../src/lib/finance-metrics.js");
+const { getFinanceTotals } = await import("../src/lib/finance-metrics.js");
 const { requireOwner } = await import("../src/middleware/owner.js");
 
 const client = stripeClient as any;
@@ -242,16 +242,19 @@ describe("billing webhook processing", () => {
   });
 
   it("keeps the finance totals equal to the sum of the verified rows", async () => {
-    const totals = await getFinanceWindowTotals("all");
+    const totals = await getFinanceTotals({ start: null, end: null }, true);
     const captured = await prisma.paymentTransaction.aggregate({
-      where: { status: { in: ["SUCCEEDED", "REFUNDED", "DISPUTED"] } },
+      where: { livemode: true, status: { in: ["SUCCEEDED", "REFUNDED", "DISPUTED"] } },
       _sum: { amountCents: true },
     });
     const pending = await prisma.paymentTransaction.aggregate({
-      where: { status: "PENDING" },
+      where: { livemode: true, status: "PENDING" },
       _sum: { amountCents: true },
     });
-    const refunds = await prisma.paymentRefund.aggregate({ _sum: { amountCents: true } });
+    const refunds = await prisma.paymentRefund.aggregate({
+      where: { transaction: { livemode: true } },
+      _sum: { amountCents: true },
+    });
 
     expect(totals.grossCents).toBe(captured._sum.amountCents ?? 0);
     expect(totals.refundCents).toBe(refunds._sum.amountCents ?? 0);

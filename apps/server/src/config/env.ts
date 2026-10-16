@@ -146,6 +146,7 @@ const envSchema = z.object({
   DISCORD_REPORT_CHANNEL_APP_USER_FEEDBACK: z.string().default("app-user-feedback"),
   DISCORD_REPORT_HEARTBEAT_MINUTES: z.coerce.number().default(0),
   DISCORD_SOCIAL_CHANNEL_ID: z.string().optional(),
+  OWNER_SITE_URL: z.string().url().optional().default("https://nfgcord.com/"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_CORE_MONTHLY: z.string().optional(),

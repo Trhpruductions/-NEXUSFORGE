@@ -197,6 +197,7 @@ async function enrich(event: Stripe.Event): Promise<Enriched> {
 
 type PaymentWrite = {
   eventId: string;
+  livemode: boolean;
   providerPaymentId: string;
   userId: string;
   kind: PaymentKind;
@@ -226,6 +227,7 @@ async function writePayment(tx: Tx, write: PaymentWrite) {
 
   const data = {
     providerEventId: write.eventId,
+    livemode: write.livemode,
     kind: write.kind,
     featureCode: write.featureCode,
     tier: write.tier,
@@ -282,6 +284,7 @@ async function upsertSubscription(
     userId: string;
     subscription: Stripe.Subscription;
     eventCreatedAt: Date;
+    livemode: boolean;
     tier: PremiumTier;
     interval: BillingInterval;
   },
@@ -302,6 +305,7 @@ async function upsertSubscription(
     currentPeriodEnd: period.end,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     providerEventCreatedAt: params.eventCreatedAt,
+    livemode: params.livemode,
   };
 
   await tx.billingSubscription.upsert({
@@ -353,6 +357,7 @@ async function applyCheckout(tx: Tx, enriched: Extract<Enriched, { kind: "checko
     // Waiting on an async payment method. Record it so the console shows it as pending, grant nothing.
     await writePayment(tx, {
       eventId: event.id,
+      livemode: event.livemode,
       providerPaymentId,
       userId,
       kind,
@@ -371,6 +376,7 @@ async function applyCheckout(tx: Tx, enriched: Extract<Enriched, { kind: "checko
 
   const { row, transitionedToSucceeded } = await writePayment(tx, {
     eventId: event.id,
+      livemode: event.livemode,
     providerPaymentId,
     userId,
     kind,
@@ -403,6 +409,7 @@ async function applyCheckout(tx: Tx, enriched: Extract<Enriched, { kind: "checko
       userId,
       subscription,
       eventCreatedAt: new Date(event.created * 1000),
+      livemode: event.livemode,
       tier,
       interval,
     });
@@ -459,6 +466,7 @@ async function applyCheckoutFailed(tx: Tx, enriched: Extract<Enriched, { kind: "
   const kind = isSubscription ? PaymentKind.SUBSCRIPTION : featureCode === "COIN_PACK" ? PaymentKind.COIN_PACK : PaymentKind.ONE_TIME;
   await writePayment(tx, {
     eventId: event.id,
+      livemode: event.livemode,
     providerPaymentId: session.id,
     userId,
     kind,
@@ -499,6 +507,7 @@ async function applyInvoice(tx: Tx, enriched: Extract<Enriched, { kind: "invoice
     if (invoice.amount_paid > 0) {
       await writePayment(tx, {
         eventId: event.id,
+      livemode: event.livemode,
         providerPaymentId: invoice.id,
         userId: local.userId,
         kind: PaymentKind.RENEWAL,
@@ -526,6 +535,7 @@ async function applyInvoice(tx: Tx, enriched: Extract<Enriched, { kind: "invoice
   if (invoice.amount_due > 0) {
     await writePayment(tx, {
       eventId: event.id,
+      livemode: event.livemode,
       providerPaymentId: invoice.id,
       userId: local.userId,
       kind: invoice.billing_reason === "subscription_create" ? PaymentKind.SUBSCRIPTION : PaymentKind.RENEWAL,
@@ -576,6 +586,7 @@ async function applySubscription(tx: Tx, enriched: Extract<Enriched, { kind: "su
       currentPeriodEnd: period.end,
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
       providerEventCreatedAt: eventCreatedAt,
+      livemode: event.livemode,
     },
   });
 
