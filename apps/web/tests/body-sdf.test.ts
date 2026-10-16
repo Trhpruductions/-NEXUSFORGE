@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { blend, carve, ellipsoid, humanParts, polygonize, roundCone, type PartSpec } from "../src/components/avatar3d/body-sdf";
+import { blend, carve, ellipsoid, humanParts, longHairParts, polygonize, roundCone, type PartSpec } from "../src/components/avatar3d/body-sdf";
 import { buildAvatarModel } from "../src/components/avatar3d/base-model";
 
 /** The organic body parts: field signs, blending, a real surface per part, margin in each box, and the named nodes. */
@@ -74,6 +74,28 @@ test("each part's box has a margin: the middle of every box face is outside the 
         assert.ok(part.sdf(x, y, z) > 0, `${name} face ${index} at limb ${limb} is outside the body`);
       });
     }
+  }
+});
+
+test("the long hair parts have a margin too, so the hair does not cut flat at a box edge", () => {
+  const hair = longHairParts();
+  for (const [name, part] of [["cap", hair.cap], ["back", hair.back]] as const) {
+    const [cx, cy, cz] = part.center;
+    const [hx, hy, hz] = part.half;
+    const faces: Array<[number, number, number]> = [
+      [cx + hx, cy, cz],
+      [cx - hx, cy, cz],
+      [cx, cy + hy, cz],
+      [cx, cy - hy, cz],
+      [cx, cy, cz + hz],
+      [cx, cy, cz - hz],
+    ];
+    faces.forEach(([x, y, z], index) => {
+      assert.ok(part.sdf(x, y, z) > 0, `hair ${name} face ${index} is outside the hair`);
+    });
+    const mesh = polygonize(part, new THREE.MeshStandardMaterial());
+    assert.ok(mesh.count > 0, `hair ${name} has a surface`);
+    mesh.geometry.dispose();
   }
 });
 

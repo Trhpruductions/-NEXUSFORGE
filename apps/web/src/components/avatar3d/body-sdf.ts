@@ -142,7 +142,7 @@ export function humanParts(limb: number) {
         ellipsoid([0, -0.1, 0.07], [0.03, 0.02, 0.03]),
         ellipsoid([-0.06, -0.02, 0.07], [0.035, 0.04, 0.04]),
         ellipsoid([0.06, -0.02, 0.07], [0.035, 0.04, 0.04]),
-        ellipsoid([0, -0.02, 0.122], [0.017, 0.035, 0.024]),
+        ellipsoid([0, -0.028, 0.12], [0.013, 0.026, 0.02]),
         roundCone([-0.05, 0.04, 0.1], [0.05, 0.04, 0.1], 0.012, 0.012),
         ellipsoid([0, -0.06, 0.1], [0.03, 0.012, 0.012]),
       ),
@@ -155,6 +155,46 @@ export function humanParts(limb: number) {
     maxTriangles: 26000,
   };
   return { thigh, shin, upperArm, forearm, hand, skull };
+}
+
+/** Adds a gentle ripple along the height of a field, so long hair reads as waves, not a sheet. */
+function rippled(field: Field, amplitude: number, frequency: number): Field {
+  return (x, y, z) => field(x, y, z) + amplitude * Math.sin(frequency * y);
+}
+
+/**
+ * Long, wavy hair, in two sculpted parts on the head joint: a cap with a swept fringe that leaves the eyes and
+ * forehead clear, and a back that falls to the shoulders, with a soft wave.
+ */
+export function longHairParts(): { cap: PartSpec; back: PartSpec } {
+  const cap: PartSpec = {
+    sdf: carve(
+      blend(0.02, ellipsoid([0, 0.025, -0.01], [0.128, 0.138, 0.13]), roundCone([-0.09, 0.095, 0.11], [0.07, 0.09, 0.13], 0.016, 0.022)),
+      ellipsoid([0, -0.04, 0.19], [0.13, 0.13, 0.1]),
+      0.012,
+    ),
+    center: [0, 0, 0],
+    half: [0.15, 0.17, 0.16],
+    resolution: 60,
+    maxTriangles: 26000,
+  };
+  const back: PartSpec = {
+    sdf: rippled(
+      blend(
+        0.03,
+        roundCone([0, 0, -0.08], [0, -0.55, -0.1], 0.12, 0.14),
+        roundCone([-0.09, -0.02, -0.02], [-0.12, -0.36, -0.05], 0.08, 0.1),
+        roundCone([0.09, -0.02, -0.02], [0.12, -0.36, -0.05], 0.08, 0.1),
+      ),
+      0.006,
+      45,
+    ),
+    center: [0, -0.32, -0.09],
+    half: [0.3, 0.46, 0.3],
+    resolution: 56,
+    maxTriangles: 26000,
+  };
+  return { cap, back };
 }
 
 /** Polygonises a part into a mesh that sits at the joint, with the material given. */

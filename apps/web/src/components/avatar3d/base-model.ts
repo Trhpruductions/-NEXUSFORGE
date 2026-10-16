@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { humanParts, polygonize, type PartSpec } from "./body-sdf";
+import { humanParts, longHairParts, polygonize, type PartSpec } from "./body-sdf";
 
 /**
  * The customisable Nexus Forge character, built from original geometry written in code.
@@ -331,16 +331,27 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
   // ----------------------------------------------------------------- head, face and hair
   const head = group("Head", root, 0, 1.7, 0);
   skinPart("Skull", human.skull, head);
+  // Eyes in the stylised style: a white sclera, a coloured iris, a dark pupil and a catch-light.
+  const sclera = new T.MeshStandardMaterial({ color: "#f8fafc", roughness: 0.2, metalness: 0 });
+  sclera.name = "Sclera";
   for (const side of [-1, 1]) {
     const s = side < 0 ? "L" : "R";
     blob(`Ear_${s}`, materials.Skin, head, 0.015, 0.03, 0.024, side * 0.122, -0.01, 0);
-    // Eyes keep their own geometry: applyDesign sets the scale for each eye style.
-    mesh(new T.SphereGeometry(0.022, 16, 12), materials.Eyes, `Eye_${s}`, head, side * 0.056, 0.015, 0.124);
+    // The sclera sits behind the iris. The iris keeps the Eye_ name, so applyDesign still sets its scale per eye style.
+    mesh(new T.SphereGeometry(0.03, 20, 14), sclera, `Sclera_${s}`, head, side * 0.056, 0.015, 0.11).scale.set(1, 0.9, 0.6);
+    mesh(new T.SphereGeometry(0.02, 16, 12), materials.Eyes, `Eye_${s}`, head, side * 0.056, 0.015, 0.126);
+    mesh(new T.SphereGeometry(0.009, 12, 10), materials.Dark, `Pupil_${s}`, head, side * 0.056, 0.015, 0.142);
+    mesh(new T.SphereGeometry(0.0045, 8, 6), sclera, `Highlight_${s}`, head, side * 0.056 + 0.007, 0.024, 0.146);
     // Brows take the hair colour. The tilt puts the inner ends a little lower.
     mesh(new T.BoxGeometry(0.052, 0.012, 0.02), materials.Hair, `Brow_${s}`, head, side * 0.056, 0.05, 0.116).rotation.z = -side * 0.12;
   }
   blob("Nose", materials.Skin, head, 0.02, 0.034, 0.026, 0, -0.025, 0.128);
-  mesh(new T.BoxGeometry(0.044, 0.007, 0.012), materials.Dark, "Mouth", head, 0, -0.07, 0.118);
+  // Soft lips: a fixed rose tone, a dark line between them, and a gentle upper curve.
+  const lipMaterial = new T.MeshStandardMaterial({ color: "#c9756b", roughness: 0.45, metalness: 0 });
+  lipMaterial.name = "Lips";
+  mesh(new T.SphereGeometry(1, 16, 10), lipMaterial, "Lips_upper", head, 0, -0.059, 0.116).scale.set(0.028, 0.008, 0.01);
+  mesh(new T.SphereGeometry(1, 16, 10), lipMaterial, "Lips_lower", head, 0, -0.069, 0.117).scale.set(0.026, 0.009, 0.01);
+  mesh(new T.BoxGeometry(0.044, 0.005, 0.012), materials.Dark, "Mouth", head, 0, -0.064, 0.122);
 
   const hairShell = (theta: number, name: string, radius = 0.14) => {
     const m = mesh(new T.SphereGeometry(radius, 40, 24, 0, Math.PI * 2, 0, theta), materials.Hair, name, head, 0, 0.005, 0);
@@ -354,15 +365,12 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
     const spike = mesh(new T.ConeGeometry(0.03, 0.2, 8), materials.Hair, `Hair_spiky_${i}`, head, Math.cos(angle) * 0.09, 0.13, Math.sin(angle) * 0.09);
     spike.rotation.set(Math.sin(angle) * 0.45, 0, -Math.cos(angle) * 0.45);
   }
-  hairShell(1.5, "Hair_long");
-  {
-    const longTotal = 0.42;
-    const back = new T.CylinderGeometry(0.15, 0.175, longTotal, 28, 6, true, Math.PI - 0.95, 1.9);
-    mesh(back, materials.Hair, "Hair_long_back", head, 0, 0.1 - longTotal / 2, -0.005);
-    for (const side of [-1, 1]) {
-      const centre = side < 0 ? (3 * Math.PI) / 2 : Math.PI / 2;
-      mesh(new T.CylinderGeometry(0.155, 0.175, longTotal * 0.9, 24, 6, true, centre - 0.8, 1.6), materials.Hair, `Hair_long_side_${side < 0 ? "L" : "R"}`, head, 0, 0.02 - longTotal * 0.45, 0);
-    }
+  // Long hair: a sculpted cap with a swept fringe, and a wavy back that falls to the shoulders.
+  const longHair = longHairParts();
+  for (const [name, part] of [["Hair_long_cap", longHair.cap], ["Hair_long_back", longHair.back]] as const) {
+    const mc = polygonize(part, materials.Hair);
+    mc.name = name;
+    head.add(mc);
   }
   hairShell(1.2, "Hair_curls");
   for (let i = 0; i < 16; i += 1) {
