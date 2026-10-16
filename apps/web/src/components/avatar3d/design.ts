@@ -35,7 +35,7 @@ export type BottomStyle = (typeof BOTTOMS)[number];
 export const SHOES = ["sneakers", "boots", "hightops", "slides", "chunky", "galaxy"] as const;
 export type ShoeStyle = (typeof SHOES)[number];
 
-export const ACCESSORIES = ["cap", "beanie", "visor", "bandana", "shades", "glasses", "cybershades", "chain", "mask", "headset", "backpack"] as const;
+export const ACCESSORIES = ["cap", "beanie", "visor", "bandana", "shades", "glasses", "cybershades", "chain", "mask", "headset", "backpack", "watch", "bracelet"] as const;
 export type Accessory = (typeof ACCESSORIES)[number];
 
 export const EYE_STYLES = ["round", "sharp", "calm"] as const;
@@ -115,6 +115,8 @@ const ACCESSORY_META: Record<Accessory, Meta & { group: AccessoryGroup }> = {
   mask: { label: "Mask", group: "face" },
   headset: { label: "Headset", group: "face" },
   backpack: { label: "Backpack", group: "body", catalogKey: "back-neon-backpack" },
+  watch: { label: "Watch", group: "body" },
+  bracelet: { label: "Bracelet", group: "body" },
 };
 
 export const ACCESSORY_GROUP_LABELS: Record<AccessoryGroup, string> = {
@@ -543,7 +545,7 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     bottomColor: "#111318",
     shoes: "sneakers",
     shoeColor: "#111318",
-    accessories: ["cap", "chain"],
+    accessories: ["cap", "chain", "watch", "bracelet"],
     accent: "#1f6fe8",
     metalColor: "#d1d5db",
     darkColor: "#0b1220",

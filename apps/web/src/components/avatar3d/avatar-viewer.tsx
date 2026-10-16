@@ -9,6 +9,7 @@ import { applyDesign, DEFAULT_DESIGN, type AvatarDesign } from "@/components/ava
 import { buildAvatarModel, disposeAvatar } from "@/components/avatar3d/base-model";
 import { usePrefersReducedMotion } from "@/components/avatar3d/reduced-motion";
 import { EMOTE_JOINTS, emoteDuration, emoteFrame, type EmoteId, type JointAngles } from "@/components/avatar3d/emote-poses";
+import { poseJoints, type ViewerPose } from "@/components/avatar3d/pose-joints";
 
 /**
  * Real-time 3D viewer for a Nexus Forge avatar. The figure is built in code from base-model.ts, so it
@@ -33,7 +34,7 @@ const BACKGROUNDS: Record<ViewerBackground, string | null> = {
 };
 
 export type ViewerShot = "full" | "portrait" | "side";
-export type ViewerPose = "relaxed" | "victory" | "showcase";
+export type { ViewerPose };
 export type CaptureOptions = { shot: ViewerShot; pose: ViewerPose; background: ViewerBackground; width: number; height: number };
 export type CaptureFn = (options: CaptureOptions) => Promise<Blob>;
 
@@ -59,33 +60,6 @@ type Target = { theta?: number; phi?: number; radius?: number };
 
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-/** The arm angles a pose sets. Knees, and any joint a pose leaves out, stay at zero. */
-export function poseJoints(pose: ViewerPose): JointAngles {
-  const joints: JointAngles = {
-    Shoulder_L: { x: 0, z: 0 },
-    Shoulder_R: { x: 0, z: 0 },
-    Elbow_L: { x: 0, z: 0 },
-    Elbow_R: { x: 0, z: 0 },
-    Knee_L: { x: 0, z: 0 },
-    Knee_R: { x: 0, z: 0 },
-  };
-  if (pose === "victory") {
-    joints.Shoulder_L = { x: 0, z: -2.6 };
-    joints.Shoulder_R = { x: 0, z: 2.6 };
-  } else if (pose === "showcase") {
-    joints.Shoulder_L = { x: 0, z: 0.12 };
-    joints.Elbow_L = { x: -0.12, z: 0 };
-    joints.Shoulder_R = { x: -2.2, z: -0.12 };
-    joints.Elbow_R = { x: -0.9, z: 0 };
-  } else {
-    joints.Shoulder_L = { x: 0, z: 0.12 };
-    joints.Shoulder_R = { x: 0, z: -0.12 };
-    joints.Elbow_L = { x: -0.12, z: 0 };
-    joints.Elbow_R = { x: -0.12, z: 0 };
-  }
-  return joints;
-}
 
 /** Writes joint angles onto the figure. Joints the figure does not have are skipped. */
 function setJoints(figure: THREE.Object3D, joints: JointAngles) {

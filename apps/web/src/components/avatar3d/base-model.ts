@@ -1,11 +1,13 @@
 import type * as THREE from "three";
+import { humanParts, polygonize, type PartSpec } from "./body-sdf";
 
 /**
  * The customisable Nexus Forge character, built from original geometry written in code.
  *
  * The viewer builds it at runtime with buildAvatarModel, so it always matches the option lists in
  * design.ts. scripts/avatar-renders can still export it to GLB. That script transpiles this file on
- * its own, so this file must not import anything at runtime. Keep it self-contained.
+ * its own. The skin parts are organic: head, arms, hands and legs come from body-sdf.ts, which blends signed distance
+ * fields and polygonises them with marching cubes. Garments, hair and accessories are still lathes and primitives.
  *
  * Naming contract (option ids are listed in design.ts):
  *  - Hair_<id>[_...]        hair styles, children of Head (ponytail has a pivot)
@@ -75,20 +77,6 @@ const OVERSIZED_TORSO: Array<[number, number]> = [
   [0.19, 0.58],
 ];
 
-/** The head, bottom to top: a rounded skull that narrows into the jaw. */
-const SKULL: Array<[number, number]> = [
-  [0.0, -0.15],
-  [0.04, -0.145],
-  [0.078, -0.12],
-  [0.108, -0.075],
-  [0.124, -0.02],
-  [0.128, 0.035],
-  [0.118, 0.092],
-  [0.095, 0.125],
-  [0.05, 0.142],
-  [0.0, 0.146],
-];
-
 /** The snapback crown, bottom to top. It sits over the hair and stays open at the base. */
 const CAP_CROWN: Array<[number, number]> = [
   [0.134, 0.06],
@@ -129,32 +117,12 @@ const SHORTS_THIGH: Array<[number, number]> = [
   [0.12, 0.04],
   [0.0, 0.06],
 ];
-const UPPER_ARM: Array<[number, number]> = [
-  [0.0, -0.37],
-  [0.04, -0.365],
-  [0.052, -0.34],
-  [0.058, -0.22],
-  [0.066, -0.1],
-  [0.07, -0.02],
-  [0.066, 0.02],
-  [0.0, 0.05],
-];
-const FOREARM: Array<[number, number]> = [
-  [0.0, -0.36],
-  [0.034, -0.355],
-  [0.044, -0.33],
-  [0.052, -0.22],
-  [0.056, -0.1],
-  [0.052, -0.02],
-  [0.046, 0.0],
-  [0.0, 0.02],
-];
 
 /** A smooth solid of revolution through (radius, height) points, listed bottom to top. */
-function revolve(T: Lib, points: Array<[number, number]>, segments = 28): THREE.LatheGeometry {
+function revolve(T: Lib, points: Array<[number, number]>, segments = 28, phiStart = 0, phiLength = Math.PI * 2): THREE.LatheGeometry {
   const curve = new T.SplineCurve(points.map(([r, y]) => new T.Vector2(r, y)));
   const smooth = curve.getPoints(points.length * 6).map((p) => new T.Vector2(Math.max(0, p.x), p.y));
-  return new T.LatheGeometry(smooth, segments);
+  return new T.LatheGeometry(smooth, segments, phiStart, phiLength);
 }
 
 /** Multiplies the radius of every point in a profile and keeps its height. */
@@ -195,6 +163,14 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
   }
 
   const unitSphere = new T.SphereGeometry(1, 20, 14);
+  // The organic parts for this body size. Each is a polygonised field, placed under the joint it belongs to.
+  const human = humanParts(limb);
+  const skinPart = (name: string, part: PartSpec, parent: THREE.Object3D) => {
+    const mc = polygonize(part, materials.Skin);
+    mc.name = name;
+    parent.add(mc);
+    return mc;
+  };
   const root = new T.Group();
   root.name = "Avatar";
 
@@ -221,10 +197,10 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
     const s = side < 0 ? "L" : "R";
     const hip = group(`Hip_${s}`, root, side * 0.11 * w, 0.95, 0);
     hips.push(hip);
-    mesh(revolve(T, scaleRadius(THIGH, limb)), materials.Skin, `Thigh_${s}`, hip);
+    skinPart(`Thigh_${s}`, human.thigh, hip);
     const knee = group(`Knee_${s}`, hip, 0, -0.42, 0);
     knees.push(knee);
-    mesh(revolve(T, scaleRadius(SHIN, limb)), materials.Skin, `Shin_${s}`, knee);
+    skinPart(`Shin_${s}`, human.shin, knee);
 
     // Footwear, one group per style. Only the chosen style shows. Each foot is a few rounded solids.
     const sneakers = group(`Shoes_sneakers_${s}`, knee);
@@ -318,6 +294,10 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
     mesh(new T.BoxGeometry(0.03, 0.5, 0.02), materials.Accent, `Top_jersey_stripe_${s}`, root, side * 0.13 * w, 1.3, 0.18);
   }
   torsoMesh(1, materials.Suit, "Top_oversized", OVERSIZED_TORSO);
+  // Flame strokes on the oversized tee, in the accent colour: slim bands, lying on the chest, across its right side.
+  for (let i = 0; i < 4; i += 1) {
+    mesh(new T.BoxGeometry(0.022, 0.2 - i * 0.02, 0.006), materials.Accent, `Top_oversized_flame_${i}`, root, 0.1 + i * 0.03, 1.0 - i * 0.05, 0.176).rotation.z = -0.6;
+  }
   // Outer layers: each covers the base top (larger radius), so they never clip.
   torsoMesh(1.14, materials.Outer, "Top_jacket");
   mesh(new T.BoxGeometry(0.02, 0.5, 0.02), materials.Accent, "Top_jacket_zip", root, 0, 1.1, 0.16);
@@ -350,7 +330,7 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
 
   // ----------------------------------------------------------------- head, face and hair
   const head = group("Head", root, 0, 1.7, 0);
-  mesh(revolve(T, SKULL), materials.Skin, "Skull", head).scale.set(0.92, 1, 0.96);
+  skinPart("Skull", human.skull, head);
   for (const side of [-1, 1]) {
     const s = side < 0 ? "L" : "R";
     blob(`Ear_${s}`, materials.Skin, head, 0.015, 0.03, 0.024, side * 0.122, -0.01, 0);
@@ -416,25 +396,40 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
   // Side fringe: a swept slab across the forehead above the eyes.
   hairShell(1.2, "Hair_fringe");
   mesh(new T.BoxGeometry(0.2, 0.035, 0.05), materials.Hair, "Hair_fringe_sweep", head, 0.02, 0.058, 0.122).rotation.set(-0.5, 0, -0.25);
-  // Mullet: a short crown with a long back that flares out to the shoulders, a feathered end and swept bangs.
-  hairShell(1.25, "Hair_mullet_top", 0.138).scale.set(0.97, 1.02, 1.03);
-  mesh(new T.CylinderGeometry(0.13, 0.2, 0.46, 32, 6, true, Math.PI - 1.25, 2.5), materials.Hair, "Hair_mullet_back", head, 0, -0.16, -0.035);
+  // Mullet: a fuller crown, a back cut in three layers that flares out to the shoulders, side curtains, and a feathered
+  // edge of alternating strand lengths.
+  hairShell(1.25, "Hair_mullet_top", 0.142).scale.set(1.0, 1.08, 1.04);
+  const backLayers: Array<[number, number, number, number]> = [
+    [0.13, 0.19, 0.5, -0.12],
+    [0.135, 0.205, 0.44, -0.14],
+    [0.13, 0.215, 0.36, -0.17],
+  ];
+  backLayers.forEach(([top, bottom, height, y], index) => {
+    mesh(new T.CylinderGeometry(top, bottom, height, 32, 6, true, Math.PI - 1.3 + index * 0.08, 2.6 - index * 0.16), materials.Hair, `Hair_mullet_back_${index}`, head, 0, y, -0.035 - index * 0.006);
+  });
   for (const side of [-1, 1]) {
     const centre = side < 0 ? (3 * Math.PI) / 2 : Math.PI / 2;
-    mesh(new T.CylinderGeometry(0.14, 0.16, 0.24, 24, 4, true, centre - 0.7, 1.4), materials.Hair, `Hair_mullet_side_${side < 0 ? "L" : "R"}`, head, 0, -0.06, 0);
+    mesh(new T.CylinderGeometry(0.14, 0.18, 0.32, 24, 4, true, centre - 0.75, 1.5), materials.Hair, `Hair_mullet_side_${side < 0 ? "L" : "R"}`, head, 0, -0.1, 0);
   }
-  for (let i = 0; i < 7; i += 1) {
-    const angle = Math.PI - 1.1 + (i / 6) * 2.2;
-    mesh(new T.ConeGeometry(0.03, 0.2, 6), materials.Hair, `Hair_mullet_shag_${i}`, head, Math.sin(angle) * 0.2, -0.36, Math.cos(angle) * 0.2 - 0.035).rotation.x = Math.PI;
+  for (let i = 0; i < 11; i += 1) {
+    const angle = Math.PI - 1.25 + (i / 10) * 2.5;
+    const strand = mesh(new T.ConeGeometry(0.02, i % 2 === 0 ? 0.15 : 0.1, 5), materials.Hair, `Hair_mullet_shag_${i}`, head, Math.sin(angle) * 0.2, -0.37, Math.cos(angle) * 0.2 - 0.03);
+    strand.rotation.x = Math.PI;
+    strand.rotation.z = -Math.sin(angle) * 0.25;
   }
 
   // ----------------------------------------------------------------- accessories on the head
   // Snapback: a crown that sits over the hair, and a flat brim. The crown takes the top colour; the brim takes the accent,
   // so the underside shows the accent as the reference cap does.
-  mesh(revolve(T, CAP_CROWN, 32), materials.Suit, "Acc_cap", head, 0, -0.004, 0);
+  // The crown is split: the front panels take the top colour, and the back panels are a light mesh, as on the reference.
+  const meshPanel = new T.MeshStandardMaterial({ color: "#e5e7eb", roughness: 0.9, metalness: 0 });
+  meshPanel.name = "Mesh";
+  mesh(revolve(T, CAP_CROWN, 32, Math.PI + 1.1, Math.PI * 2 - 2.2), materials.Suit, "Acc_cap", head, 0, -0.004, 0);
+  mesh(revolve(T, CAP_CROWN, 24, Math.PI - 1.1, 2.2), meshPanel, "Acc_cap_mesh", head, 0, -0.004, 0);
+  // A flat, solid brim with a thin edge: its underside takes the accent colour.
   const brim = new T.Shape();
   brim.absarc(0, 0, 0.13, Math.PI, 2 * Math.PI, false);
-  mesh(new T.ShapeGeometry(brim, 28), materials.Accent, "Acc_cap_brim", head, 0, 0.078, 0.128).rotation.x = -Math.PI / 2 + 0.1;
+  mesh(new T.ExtrudeGeometry(brim, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 2, curveSegments: 28 }), materials.Accent, "Acc_cap_brim", head, 0, 0.078, 0.122).rotation.x = -Math.PI / 2 + 0.1;
   // Beanie: a knit dome with a cuff, in Accent.
   mesh(new T.SphereGeometry(0.165, 32, 16, 0, Math.PI * 2, 0, 1.22), materials.Accent, "Acc_beanie", head, 0, 0.0, 0);
   mesh(new T.TorusGeometry(0.163, 0.018, 8, 32), materials.Accent, "Acc_beanie_cuff", head, 0, 0.04, 0).rotation.x = Math.PI / 2;
@@ -472,12 +467,18 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
     const s = side < 0 ? "L" : "R";
     const shoulder = group(`Shoulder_${s}`, root, side * 0.27 * w, 1.45, 0);
     shoulder.rotation.z = side * -0.12;
-    mesh(revolve(T, scaleRadius(UPPER_ARM, limb)), materials.Skin, `UpperArm_${s}`, shoulder);
+    skinPart(`UpperArm_${s}`, human.upperArm, shoulder);
     const elbow = group(`Elbow_${s}`, shoulder, 0, -0.36, 0);
     elbow.rotation.x = -0.12;
-    mesh(revolve(T, scaleRadius(FOREARM, limb)), materials.Skin, `Forearm_${s}`, elbow);
-    blob(`Hand_${s}`, materials.Skin, elbow, 0.04 * limb, 0.07, 0.026, 0, -0.4, 0);
-    blob(`Hand_thumb_${s}`, materials.Skin, elbow, 0.016 * limb, 0.035, 0.018, side * 0.034 * limb, -0.37, 0.016);
+    skinPart(`Forearm_${s}`, human.forearm, elbow);
+    skinPart(`Hand_${s}`, human.hand(side as -1 | 1), elbow);
+    // Wrist accessories, shown with the watch or bracelet option: a watch on the right wrist, a bracelet on the left.
+    if (s === "R") {
+      mesh(new T.TorusGeometry(forearmR * 1.1, 0.009, 8, 24), materials.Dark, "Acc_watch_band", elbow, 0, -0.3, 0).rotation.x = Math.PI / 2;
+      blob("Acc_watch_face", materials.Dark, elbow, 0.02, 0.022, 0.012, 0, -0.3, forearmR * 1.1);
+    } else {
+      mesh(new T.TorusGeometry(forearmR * 1.1, 0.008, 8, 24), materials.Metal, "Acc_bracelet_band", elbow, 0, -0.31, 0).rotation.x = Math.PI / 2;
+    }
   }
   // Sleeves attach to the joints above, so they are added after the arms exist.
   const addSleeves = (prefix: string, material: THREE.Material, mode: "short" | "wide" | "full", radiusScale = 1.2) => {

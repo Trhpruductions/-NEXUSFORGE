@@ -45,6 +45,7 @@ const POSE_CHOICES: Array<{ id: ViewerPose; label: string }> = [
   { id: "relaxed", label: "Relaxed" },
   { id: "victory", label: "Victory" },
   { id: "showcase", label: "Showcase" },
+  { id: "pockets", label: "Hands in pockets" },
 ];
 const SHOT_CHOICES: Array<{ id: ViewerShot; label: string }> = [
   { id: "full", label: "Full body" },

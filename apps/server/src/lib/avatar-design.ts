@@ -20,7 +20,7 @@ export const TOPS = ["tee", "longsleeve", "hoodie", "polo", "tank", "jersey", "o
 export const OUTERWEAR = ["none", "jacket", "bomber", "vest", "neon"] as const;
 export const BOTTOMS = ["jeans", "shorts", "cargo", "track", "tactical", "armored"] as const;
 export const SHOES = ["sneakers", "boots", "hightops", "slides", "chunky", "galaxy"] as const;
-export const ACCESSORIES = ["cap", "beanie", "visor", "bandana", "shades", "glasses", "cybershades", "chain", "mask", "headset", "backpack"] as const;
+export const ACCESSORIES = ["cap", "beanie", "visor", "bandana", "shades", "glasses", "cybershades", "chain", "mask", "headset", "backpack", "watch", "bracelet"] as const;
 export const EYE_STYLES = ["round", "sharp", "calm"] as const;
 export const MATERIAL_STYLES = ["matte", "satin", "gloss", "metallic"] as const;
 
