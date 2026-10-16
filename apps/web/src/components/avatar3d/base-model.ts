@@ -143,6 +143,29 @@ function sleeveProfile(length: number, radius: number, flare: number): Array<[nu
   ];
 }
 
+/**
+ * Sculpted geometry (body and hair parts) is built once per body size and shared by every model of that size, so a new
+ * model does not rebuild it. disposeAvatar leaves shared geometry alone.
+ */
+const sculptCache = new Map<string, { geometry: THREE.BufferGeometry; position: THREE.Vector3; scale: THREE.Vector3 }>();
+
+/** Places a sculpted part under its parent. The first model of a body size builds it; later models reuse it. */
+function sculpt(T: Lib, key: string, part: PartSpec, material: THREE.Material, parent: THREE.Object3D, name: string): THREE.Mesh {
+  let entry = sculptCache.get(key);
+  if (!entry) {
+    const source = polygonize(part, material);
+    source.geometry.userData.shared = true;
+    entry = { geometry: source.geometry, position: source.position.clone(), scale: source.scale.clone() };
+    sculptCache.set(key, entry);
+  }
+  const mesh = new T.Mesh(entry.geometry, material);
+  mesh.position.copy(entry.position);
+  mesh.scale.copy(entry.scale);
+  mesh.name = name;
+  parent.add(mesh);
+  return mesh;
+}
+
 /** Builds the whole character, with every option present in the hierarchy. Visibility is set by design.ts. */
 export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Group {
   const k = BODY_SIZES[body];
@@ -165,12 +188,9 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
   const unitSphere = new T.SphereGeometry(1, 20, 14);
   // The organic parts for this body size. Each is a polygonised field, placed under the joint it belongs to.
   const human = humanParts(limb);
-  const skinPart = (name: string, part: PartSpec, parent: THREE.Object3D) => {
-    const mc = polygonize(part, materials.Skin);
-    mc.name = name;
-    parent.add(mc);
-    return mc;
-  };
+  // Limbs share one sculpt per side-less part name; hands differ by side, so their name is kept whole.
+  const skinPart = (name: string, part: PartSpec, parent: THREE.Object3D) =>
+    sculpt(T, `${body}|${name.startsWith("Hand_") ? name : name.replace(/_[LR]$/, "")}`, part, materials.Skin, parent, name);
   const root = new T.Group();
   root.name = "Avatar";
 
@@ -368,9 +388,7 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
   // Long hair: a sculpted cap with a swept fringe, and a wavy back that falls to the shoulders.
   const longHair = longHairParts();
   for (const [name, part] of [["Hair_long_cap", longHair.cap], ["Hair_long_back", longHair.back]] as const) {
-    const mc = polygonize(part, materials.Hair);
-    mc.name = name;
-    head.add(mc);
+    sculpt(T, `${body}|${name}`, part, materials.Hair, head, name);
   }
   hairShell(1.2, "Hair_curls");
   for (let i = 0; i < 16; i += 1) {
@@ -527,7 +545,7 @@ export function buildAvatarModel(T: Lib, body: BodySize = "athletic"): THREE.Gro
 export function disposeAvatar(root: THREE.Object3D) {
   root.traverse((node) => {
     const object = node as THREE.Mesh;
-    if (object.geometry) object.geometry.dispose();
+    if (object.geometry && !object.geometry.userData.shared) object.geometry.dispose();
     const material = object.material as THREE.Material | THREE.Material[] | undefined;
     if (!material) return;
     for (const m of Array.isArray(material) ? material : [material]) {
