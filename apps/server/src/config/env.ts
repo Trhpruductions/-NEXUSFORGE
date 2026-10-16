@@ -196,6 +196,15 @@ const envSchema = z.object({
   STRIPE_PRICE_EVENT_TICKET_PASS: z.string().optional(),
   STRIPE_PRICE_TEAM_BRANDING_KIT: z.string().optional(),
   STRIPE_PRICE_ADVANCED_MODERATION_AI: z.string().optional(),
+  // App store billing. A store stays "not configured" (its purchases are refused) until its keys are set.
+  APPLE_IAP_ISSUER_ID: z.string().optional(),
+  APPLE_IAP_KEY_ID: z.string().optional(),
+  APPLE_IAP_PRIVATE_KEY: z.string().optional(),
+  APPLE_BUNDLE_ID: z.string().optional(),
+  APPLE_ROOT_CA_PEM: z.string().optional(),
+  GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
+  GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
+  GOOGLE_PLAY_PRIVATE_KEY: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);

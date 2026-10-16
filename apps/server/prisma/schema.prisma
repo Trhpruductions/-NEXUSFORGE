@@ -73,6 +73,10 @@ enum BillingInterval {
 
 enum BillingProvider {
   STRIPE
+  APPLE
+  GOOGLE
+  MICROSOFT
+  AMAZON
 }
 
 enum BillingStatus {
@@ -297,6 +301,7 @@ model User {
   billingSubscriptions BillingSubscription[]
   paymentTransactions PaymentTransaction[]
   featureEntitlements FeatureEntitlement[]
+  storePurchases      StorePurchase[]
   economyAccounts      EconomyAccount[]
   economyTransactions  EconomyTransaction[] @relation("EconomyTransactions")
   miningRigs          MiningRig[]
@@ -1712,6 +1717,34 @@ model PaymentTransaction {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([featureCode, createdAt])
+}
+
+/// A purchase made through an app store (Apple, Google, Microsoft or Amazon). One row per store transaction, so a
+/// receipt that is submitted twice grants once. Written only after the store has confirmed the purchase.
+model StorePurchase {
+  id                    String          @id @default(uuid())
+  userId                String
+  provider              BillingProvider
+  productId             String          @db.VarChar(120)
+  transactionId         String          @db.VarChar(120)
+  originalTransactionId String?         @db.VarChar(120)
+  /// The Core+ tier this product grants, or null for an add-on.
+  tier                  String?         @db.VarChar(16)
+  /// The add-on this product grants, or null for a subscription.
+  featureCode           PaidFeatureCode?
+  /// ACTIVE, EXPIRED, REVOKED or REFUNDED. Store notifications move a purchase out of ACTIVE.
+  status                String          @default("ACTIVE") @db.VarChar(16)
+  environment           String          @db.VarChar(16)
+  purchasedAt           DateTime
+  expiresAt             DateTime?
+  /// SHA-256 of the receipt the client sent, so a record can be matched to a submission without storing the receipt.
+  receiptHash           String          @db.VarChar(64)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, transactionId])
+  @@index([userId])
 }
 
 model FeatureEntitlement {
