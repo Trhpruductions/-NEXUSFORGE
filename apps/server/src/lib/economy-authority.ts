@@ -18,7 +18,7 @@ type BalanceChange = {
  * Credits that don't count toward lifetimeEarnings: coins another player earned
  * (TRANSFER_IN) and money handed back (JACKPOT_REFUND).
  */
-const NON_EARNING_CREDIT_TYPES = new Set(["TRANSFER_IN", "JACKPOT_REFUND"]);
+const NON_EARNING_CREDIT_TYPES = new Set(["TRANSFER_IN", "JACKPOT_REFUND", "COIN_PURCHASE"]);
 
 /** Thrown when a debit would take an account below zero. Routes turn this into a 400. */
 export class InsufficientBalanceError extends Error {
