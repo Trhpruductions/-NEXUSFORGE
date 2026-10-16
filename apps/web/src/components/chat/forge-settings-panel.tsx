@@ -49,8 +49,7 @@ import { SoundsTab } from "@/components/chat/sounds-tab";
 import { BotsTab } from "@/components/chat/bots-tab";
 import { WebhooksTab } from "@/components/chat/webhooks-tab";
 import { ForgeImageField } from "@/components/chat/forge-image-field";
-
-type Tab = "overview" | "channels" | "roles" | "members" | "invites" | "reports" | "automod" | "emoji" | "stickers" | "sounds" | "webhooks" | "bots" | "bans" | "audit" | "danger";
+import { manageTabsFor, type ManageTab as Tab } from "@/components/chat/forge-manage-tabs";
 
 const permissionLabels: Record<ForgePermissionKey, { label: string; hint: string }> = {
   manageForge: { label: "Manage forge", hint: "Edit name, description, icon and banner. Implies channels + roles." },
@@ -163,27 +162,8 @@ export function ForgeSettingsPanel({
     ]);
   };
 
-  const tabs = useMemo(() => {
-    const list: Array<{ id: Tab; label: string }> = [
-      { id: "overview", label: "Overview" },
-      { id: "channels", label: "Channels" },
-    ];
-    if (can("manageRoles")) list.push({ id: "roles", label: "Roles" });
-    list.push({ id: "members", label: "Members" });
-    list.push({ id: "invites", label: "Invites" });
-    if (can("moderateChat")) list.push({ id: "reports", label: "Reports" });
-    if (can("manageForge")) list.push({ id: "automod", label: "AutoMod" });
-    if (can("manageForge")) list.push({ id: "emoji", label: "Emoji" });
-    if (can("manageForge")) list.push({ id: "stickers", label: "Stickers" });
-    if (can("manageForge")) list.push({ id: "sounds", label: "Soundboard" });
-    if (can("manageChannels")) list.push({ id: "webhooks", label: "Webhooks" });
-    if (access?.isOwner) list.push({ id: "bots", label: "Bots" });
-    if (can("banUsers")) list.push({ id: "bans", label: "Bans" });
-    if (can("manageForge")) list.push({ id: "audit", label: "Audit log" });
-    list.push({ id: "danger", label: access?.isOwner ? "Delete" : "Leave" });
-    return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access]);
+  // The tab rules live in forge-manage-tabs.ts, so the server's right-click menu offers the same tabs.
+  const tabs = useMemo(() => manageTabsFor(access), [access]);
 
   if (!open || typeof document === "undefined") return null;
 

@@ -8,6 +8,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { applyDesign, DEFAULT_DESIGN, type AvatarDesign } from "@/components/avatar3d/design";
 import { buildAvatarModel, disposeAvatar } from "@/components/avatar3d/base-model";
 import { usePrefersReducedMotion } from "@/components/avatar3d/reduced-motion";
+import { EMOTE_JOINTS, emoteDuration, emoteFrame, type EmoteId, type JointAngles } from "@/components/avatar3d/emote-poses";
 
 /**
  * Real-time 3D viewer for a Nexus Forge avatar. The figure is built in code from base-model.ts, so it
@@ -59,30 +60,91 @@ type Target = { theta?: number; phi?: number; radius?: number };
 const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-/** Sets the arm and head joints for a pose. Idle motion is unaffected. */
-export function applyPose(figure: THREE.Object3D, pose: ViewerPose) {
-  const set = (name: string, rotation: { x?: number; z?: number }) => {
-    const node = figure.getObjectByName(name);
-    if (!node) return;
-    if (rotation.x !== undefined) node.rotation.x = rotation.x;
-    if (rotation.z !== undefined) node.rotation.z = rotation.z;
+/** The arm angles a pose sets. Knees, and any joint a pose leaves out, stay at zero. */
+export function poseJoints(pose: ViewerPose): JointAngles {
+  const joints: JointAngles = {
+    Shoulder_L: { x: 0, z: 0 },
+    Shoulder_R: { x: 0, z: 0 },
+    Elbow_L: { x: 0, z: 0 },
+    Elbow_R: { x: 0, z: 0 },
+    Knee_L: { x: 0, z: 0 },
+    Knee_R: { x: 0, z: 0 },
   };
   if (pose === "victory") {
-    set("Shoulder_L", { x: 0, z: -2.6 });
-    set("Shoulder_R", { x: 0, z: 2.6 });
-    set("Elbow_L", { x: 0 });
-    set("Elbow_R", { x: 0 });
+    joints.Shoulder_L = { x: 0, z: -2.6 };
+    joints.Shoulder_R = { x: 0, z: 2.6 };
   } else if (pose === "showcase") {
-    set("Shoulder_L", { x: 0, z: 0.12 });
-    set("Elbow_L", { x: -0.12 });
-    set("Shoulder_R", { x: -2.2, z: -0.12 });
-    set("Elbow_R", { x: -0.9 });
+    joints.Shoulder_L = { x: 0, z: 0.12 };
+    joints.Elbow_L = { x: -0.12, z: 0 };
+    joints.Shoulder_R = { x: -2.2, z: -0.12 };
+    joints.Elbow_R = { x: -0.9, z: 0 };
   } else {
-    set("Shoulder_L", { x: 0, z: 0.12 });
-    set("Shoulder_R", { x: 0, z: -0.12 });
-    set("Elbow_L", { x: -0.12 });
-    set("Elbow_R", { x: -0.12 });
+    joints.Shoulder_L = { x: 0, z: 0.12 };
+    joints.Shoulder_R = { x: 0, z: -0.12 };
+    joints.Elbow_L = { x: -0.12, z: 0 };
+    joints.Elbow_R = { x: -0.12, z: 0 };
   }
+  return joints;
+}
+
+/** Writes joint angles onto the figure. Joints the figure does not have are skipped. */
+function setJoints(figure: THREE.Object3D, joints: JointAngles) {
+  for (const joint of EMOTE_JOINTS) {
+    const node = figure.getObjectByName(joint);
+    if (!node) continue;
+    node.rotation.x = joints[joint].x;
+    node.rotation.z = joints[joint].z;
+  }
+}
+
+/** Sets the arm and head joints for a pose. Idle motion is unaffected. */
+export function applyPose(figure: THREE.Object3D, pose: ViewerPose) {
+  setJoints(figure, poseJoints(pose));
+}
+
+/** An emote the viewer is playing. `started` is set on the first frame, from the frame clock. */
+type EmotePlay = { id: EmoteId; nonce: number; started: number | null };
+
+/**
+ * Plays an emote over the chosen pose and hands the pose back when it ends. It blends in and out, so the figure
+ * never snaps. With reduced motion it holds the middle of the emote for the same length of time instead.
+ */
+function EmotePlayer({
+  emoteRef,
+  figureRef,
+  poseRef,
+  reduced,
+}: {
+  emoteRef: { current: EmotePlay | null };
+  figureRef: { current: THREE.Object3D | null };
+  poseRef: { current: ViewerPose };
+  reduced: boolean;
+}) {
+  useFrame((state) => {
+    const play = emoteRef.current;
+    const figure = figureRef.current;
+    if (!play || !figure) return;
+    if (play.started === null) play.started = state.clock.elapsedTime;
+    const frame = emoteFrame(play.id, state.clock.elapsedTime - play.started);
+    if (!frame) {
+      emoteRef.current = null;
+      applyPose(figure, poseRef.current);
+      return;
+    }
+    const held = reduced ? emoteFrame(play.id, emoteDuration(play.id) / 2) : frame;
+    const weight = held?.weight ?? 0;
+    const base = poseJoints(poseRef.current);
+    const blended = {} as JointAngles;
+    for (const joint of EMOTE_JOINTS) {
+      const target = held?.joints[joint] ?? base[joint];
+      blended[joint] = {
+        x: base[joint].x + (target.x - base[joint].x) * weight,
+        z: base[joint].z + (target.z - base[joint].z) * weight,
+      };
+    }
+    setJoints(figure, blended);
+  });
+  return null;
 }
 
 /** The figure: built from code for the body size, dressed with the design, and freed when it is replaced or the viewer unmounts. */
@@ -281,6 +343,7 @@ function Stage({
   background,
   pose,
   poseRef,
+  emoteRef,
   figureRef,
   bridge,
   commandRef,
@@ -294,6 +357,7 @@ function Stage({
   background: ViewerBackground;
   pose: ViewerPose;
   poseRef: { current: ViewerPose };
+  emoteRef: { current: EmotePlay | null };
   figureRef: { current: THREE.Object3D | null };
   bridge: { current: CaptureFn | null };
   commandRef: { current: Command | null };
@@ -345,6 +409,7 @@ function Stage({
       </mesh>
       <Figure design={design} pose={pose} figureRef={figureRef} onReady={onReady} />
       <Rig controlsRef={controlsRef} commandRef={commandRef} targetRef={targetRef} figureRef={figureRef} autoRotate={autoRotate} reduced={reduced} />
+      <EmotePlayer emoteRef={emoteRef} figureRef={figureRef} poseRef={poseRef} reduced={reduced} />
       <CaptureBridge bridge={bridge} figureRef={figureRef} poseRef={poseRef} />
     </>
   );
@@ -386,6 +451,7 @@ export function AvatarViewer({
   autoRotate = true,
   background = "studio",
   pose = "relaxed",
+  emote = null,
   captureRef,
   className = "",
 }: {
@@ -393,6 +459,8 @@ export function AvatarViewer({
   autoRotate?: boolean;
   background?: ViewerBackground;
   pose?: ViewerPose;
+  /** Plays an emote on the figure. A new object (new nonce) starts it again; null stops it and restores the pose. */
+  emote?: { id: EmoteId; nonce: number } | null;
   captureRef?: { current: CaptureFn | null };
   className?: string;
 }) {
@@ -402,6 +470,7 @@ export function AvatarViewer({
   const bridge = captureRef ?? localBridge;
   const figureRef = useRef<THREE.Object3D | null>(null);
   const poseRef = useRef<ViewerPose>(pose);
+  const emoteRef = useRef<EmotePlay | null>(null);
   const commandRef = useRef<Command | null>(null);
   const targetRef = useRef<Target | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -416,6 +485,16 @@ export function AvatarViewer({
   useEffect(() => {
     poseRef.current = pose;
   }, [pose]);
+
+  // A new emote object starts it again. Clearing it hands the chosen pose back straight away.
+  useEffect(() => {
+    if (!emote) {
+      emoteRef.current = null;
+      if (figureRef.current) applyPose(figureRef.current, poseRef.current);
+      return;
+    }
+    emoteRef.current = { id: emote.id, nonce: emote.nonce, started: null };
+  }, [emote]);
 
   // Stop rendering when the viewer scrolls out of view or the tab is hidden.
   useEffect(() => {
@@ -483,6 +562,7 @@ export function AvatarViewer({
             background={background}
             pose={pose}
             poseRef={poseRef}
+            emoteRef={emoteRef}
             figureRef={figureRef}
             bridge={bridge}
             commandRef={commandRef}

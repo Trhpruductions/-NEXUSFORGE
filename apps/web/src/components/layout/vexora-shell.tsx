@@ -49,10 +49,12 @@ import { GetStartedPanel } from "@/components/layout/get-started-panel";
 import { SavedPanel } from "@/components/chat/saved-panel";
 import { WhatsNewDialog } from "@/components/updates/whats-new-dialog";
 import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib/colors";
-import { markAllForgesRead, markForgeRead, listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
+import { markAllForgesRead, markForgeRead, listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgePermissions, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
+import { ServerContextMenu } from "@/components/layout/server-context-menu";
+import { serverMenuItems, type ServerMenuItem } from "@/components/layout/server-menu-model";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { useServerViewStore } from "@/store/server-view-store";
@@ -461,6 +463,38 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.push(serverLandingHref(forgeId, useWorkspaceStore.getState().lastChannelByForge[forgeId]));
   };
 
+  // Right-click on a server in the rail opens its menu. The person's permissions load when it opens.
+  const [serverMenu, setServerMenu] = useState<{
+    forgeId: string;
+    name: string;
+    x: number;
+    y: number;
+    loading: boolean;
+    access: { isOwner: boolean; permissions: Partial<Record<string, boolean>> } | undefined;
+  } | null>(null);
+  const openServerMenu = (forgeId: string, name: string, x: number, y: number) => {
+    setServerMenu({ forgeId, name, x, y, loading: Boolean(accessToken), access: undefined });
+    if (!accessToken) return;
+    queryClient
+      .fetchQuery({ queryKey: ["server-menu-access", forgeId, accessToken], queryFn: () => getForgePermissions(accessToken, forgeId), staleTime: 30_000 })
+      .then((data) =>
+        setServerMenu((menu) => (menu && menu.forgeId === forgeId ? { ...menu, loading: false, access: { isOwner: data.isOwner, permissions: { ...data.permissions } } } : menu)),
+      )
+      .catch(() => setServerMenu((menu) => (menu && menu.forgeId === forgeId ? { ...menu, loading: false } : menu)));
+  };
+  const runServerMenuItem = (item: ServerMenuItem) => {
+    const menu = serverMenu;
+    setServerMenu(null);
+    if (!menu) return;
+    if (item.action === "read") void markRead(menu.forgeId);
+    else if (item.action === "open") selectForge(menu.forgeId);
+    else if (item.href) {
+      setSelectedForgeId(menu.forgeId);
+      setMobileOpen(false);
+      router.push(item.href);
+    }
+  };
+
   const onSearch = (event: React.FormEvent) => {
     event.preventDefault();
     if (!search.trim()) return;
@@ -812,6 +846,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       <GetStartedPanel inviteCode={forge?.inviteCode ?? null} hidden={pathname !== "/app"} />
       <WhatsNewDialog />
       {forge ? <ForgeNotificationsDialog forgeId={forge.id} forgeName={forge.name} open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} /> : null}
+      {serverMenu ? (
+        <ServerContextMenu
+          serverName={serverMenu.name}
+          x={serverMenu.x}
+          y={serverMenu.y}
+          loading={serverMenu.loading}
+          items={serverMenuItems({
+            forgeId: serverMenu.forgeId,
+            access: serverMenu.access,
+            unread: Boolean(forgeCounts[serverMenu.forgeId]?.unread),
+            mentions: Boolean(forgeCounts[serverMenu.forgeId]?.mentions),
+          })}
+          onSelect={runServerMenuItem}
+          onClose={() => setServerMenu(null)}
+        />
+      ) : null}
       {/* Forge rail */}
       <div className={cn("hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex", quietWorkspace && "lg:hidden")}>
         <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
@@ -828,11 +878,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => selectForge(entry.id)}
                 onContextMenu={(event) => {
-                  if (!counts?.unread && !counts?.mentions) return;
                   event.preventDefault();
-                  void markRead(entry.id);
+                  openServerMenu(entry.id, entry.name, event.clientX, event.clientY);
                 }}
-                title={counts?.unread || counts?.mentions ? `${entry.name} (right-click to mark as read)` : entry.name}
+                title={`${entry.name} (right-click for server menu)`}
                 className={cn(
                   "relative flex h-10 w-10 items-center justify-center text-[11px] font-bold text-slate-950 transition-all duration-200",
                   active ? "rounded-[14px]" : "rounded-[20px] opacity-85 hover:rounded-[14px] hover:opacity-100",

@@ -7,6 +7,7 @@ import { getApiErrorMessage, getCosmeticInventory, setLoadoutSlot, type AvatarPr
 import { useAuthStore } from "@/store/auth-store";
 import { ALL_PART_OPTIONS, type RecentPick } from "@/components/avatar3d/studio-model";
 import type { PartCategory } from "@/components/avatar3d/design";
+import { isEmoteId, type EmoteId } from "@/components/avatar3d/emote-poses";
 import { chip } from "@/components/avatar3d/avatar-builder-parts";
 
 const RARITY_LABEL: Record<CosmeticItem["rarity"], string> = { COMMON: "Common", RARE: "Rare", EPIC: "Epic", LEGENDARY: "Legendary", MYTHIC: "Mythic" };
@@ -84,8 +85,11 @@ export function OwnedInventory({ onWear }: { onWear: (pick: RecentPick) => void 
   );
 }
 
-/** Owned emotes, equipped to the account's loadout. Equipping saves to the server straight away, like the Wardrobe. */
-export function EmotePanel() {
+/**
+ * Owned emotes, equipped to the account's loadout. Equipping saves to the server straight away, like the Wardrobe.
+ * Preview plays an emote on the figure above, without changing what is equipped.
+ */
+export function EmotePanel({ onPreview }: { onPreview?: (id: EmoteId) => void }) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const queryClient = useQueryClient();
@@ -103,7 +107,7 @@ export function EmotePanel() {
   return (
     <section aria-labelledby="emotes-heading" className="space-y-3">
       <h2 id="emotes-heading" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">Emotes</h2>
-      <p className="text-[11px] leading-relaxed text-slate-500">An emote is worn on your profile and in voice rooms. Choose one you own, or none.</p>
+      <p className="text-[11px] leading-relaxed text-slate-500">An emote is worn on your profile and in voice rooms. Choose one you own, or none. Preview plays it on the figure above.</p>
       {query.isLoading ? <p className="text-[11px] text-slate-500">Loading your emotes…</p> : null}
       {!query.isLoading && emotes.length === 0 ? (
         <p className="text-[11px] text-slate-500">You do not own any emotes yet. Browse them in the <Link href="/app/wardrobe" className="text-amber-200 underline">Wardrobe</Link>.</p>
@@ -117,9 +121,16 @@ export function EmotePanel() {
                 <span className="block truncate text-sm font-semibold text-white">{item.name}</span>
                 <span className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">{RARITY_LABEL[item.rarity]}{on ? " · Equipped" : ""}</span>
               </span>
-              <button type="button" aria-pressed={on} disabled={equip.isPending} onClick={() => equip.mutate(on ? null : item.id)} className={chip(on)}>
-                {on ? "Unequip" : "Equip"}
-              </button>
+              <span className="flex shrink-0 items-center gap-1.5">
+                {onPreview && isEmoteId(item.key) ? (
+                  <button type="button" onClick={() => onPreview(item.key as EmoteId)} className={chip(false)} aria-label={`Preview ${item.name} on the figure`}>
+                    Preview
+                  </button>
+                ) : null}
+                <button type="button" aria-pressed={on} disabled={equip.isPending} onClick={() => equip.mutate(on ? null : item.id)} className={chip(on)}>
+                  {on ? "Unequip" : "Equip"}
+                </button>
+              </span>
             </li>
           );
         })}

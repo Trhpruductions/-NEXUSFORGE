@@ -18,11 +18,11 @@ import type { MaterialSlot } from "./base-model";
 export const BODY_TYPES = ["slim", "athletic", "broad"] as const;
 export type BodyType = (typeof BODY_TYPES)[number];
 
-export const HAIR_STYLES = ["none", "buzz", "spiky", "long", "curls", "bun", "mohawk", "bob", "ponytail", "afro", "fringe"] as const;
+export const HAIR_STYLES = ["none", "buzz", "spiky", "long", "curls", "bun", "mohawk", "bob", "ponytail", "afro", "fringe", "mullet"] as const;
 export type HairStyle = (typeof HAIR_STYLES)[number];
 
 /** Base layer, worn next to the skin. */
-export const TOPS = ["tee", "longsleeve", "hoodie", "polo", "tank", "jersey"] as const;
+export const TOPS = ["tee", "longsleeve", "hoodie", "polo", "tank", "jersey", "oversized"] as const;
 export type TopStyle = (typeof TOPS)[number];
 
 /** Layered over the base top. "none" means no outer layer. */
@@ -63,6 +63,7 @@ const HAIR_META: Record<HairStyle, Meta & { hatCovered?: boolean }> = {
   ponytail: { label: "Ponytail" },
   afro: { label: "Afro", hatCovered: true },
   fringe: { label: "Side fringe", hatCovered: true },
+  mullet: { label: "Mullet" },
 };
 
 const TOP_META: Record<TopStyle, Meta> = {
@@ -72,6 +73,7 @@ const TOP_META: Record<TopStyle, Meta> = {
   polo: { label: "Polo" },
   tank: { label: "Tank top" },
   jersey: { label: "Esports jersey", catalogKey: "top-esports-jersey" },
+  oversized: { label: "Oversized tee" },
 };
 
 const OUTER_META: Record<OuterStyle, Meta> = {
@@ -526,6 +528,26 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     accent: "#94a3b8",
     metalColor: "#e2e8f0",
     material: "matte",
+  }),
+  preset("community-merch", "Community merch", "Oversized black tee, cargos, snapback with a blue brim and a chain", {
+    body: "athletic",
+    skin: "#f0c8a0",
+    hair: "mullet",
+    hairColor: "#c9a46a",
+    eyeColor: "#4b7bb5",
+    eyeStyle: "sharp",
+    top: "oversized",
+    topColor: "#0b0c10",
+    outer: "none",
+    bottom: "cargo",
+    bottomColor: "#111318",
+    shoes: "sneakers",
+    shoeColor: "#111318",
+    accessories: ["cap", "chain"],
+    accent: "#1f6fe8",
+    metalColor: "#d1d5db",
+    darkColor: "#0b1220",
+    material: "satin",
   }),
 ];
 

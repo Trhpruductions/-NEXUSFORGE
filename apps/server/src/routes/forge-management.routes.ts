@@ -901,15 +901,16 @@ forgeManagementRouter.get("/:id/audit-log", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 forgeManagementRouter.post("/:id/transfer", async (req, res) => {
-  const parsed = transferSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
-    return;
-  }
+  // Authorise before validating, so a non-owner gets the same 403 whatever they send and never learns the payload rules.
   const context = await guard(req, res);
   if (!context) return;
   if (!context.access.isOwner) {
     res.status(403).json({ error: "Only the owner can transfer ownership" });
+    return;
+  }
+  const parsed = transferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
   if (parsed.data.userId === req.user!.id) {

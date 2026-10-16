@@ -54,6 +54,7 @@ import dynamic from "next/dynamic";
 const ForgeSettingsPanel = dynamic(() => import("@/components/chat/forge-settings-panel").then((mod) => mod.ForgeSettingsPanel), { ssr: false });
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
+import { isManageTab } from "@/components/chat/forge-manage-tabs";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { ThreadPanel } from "@/components/chat/thread-panel";
 import { ForumView } from "@/components/chat/forum-view";
@@ -821,7 +822,7 @@ function ChatInner() {
     <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
       <h1 className="sr-only">Chat</h1>
       {selectedForgeId ? (
-        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={requestedManage === "channels" || requestedManage === "roles" || requestedManage === "members" || requestedManage === "invites" || requestedManage === "audit" || requestedManage === "reports" || requestedManage === "automod" || requestedManage === "bots" || requestedManage === "webhooks" || requestedManage === "overview" || requestedManage === "danger" ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
+        <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={isManageTab(requestedManage) ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
       ) : null}
       <ReportDialog target={reportTarget} onClose={() => setReportTarget(null)} />
       <PollComposer open={pollOpen} onClose={() => setPollOpen(false)} onSubmit={sendPoll} busy={sendMutation.isPending} />

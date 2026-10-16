@@ -38,6 +38,7 @@ import { SavedLooksPanel, type Notice } from "@/components/avatar3d/saved-looks-
 import { CurrentSelections } from "@/components/avatar3d/current-selections";
 import { STUDIO_CATEGORIES, armorOptions, headwear, onlyHoodies, otherAccessories, remember, topsWithoutHoodies, type RecentPick, type StudioCategory } from "@/components/avatar3d/studio-model";
 import { EmotePanel, OwnedInventory, OwnershipLegend, ProfileCard, RecentlyUsed, SavedOutfitsSummary } from "@/components/avatar3d/studio-panels";
+import type { EmoteId } from "@/components/avatar3d/emote-poses";
 import { useAuthStore } from "@/store/auth-store";
 
 const POSE_CHOICES: Array<{ id: ViewerPose; label: string }> = [
@@ -145,6 +146,9 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
   const [background, setBackground] = useState<ViewerBackground>("studio");
   const captureRef = useRef<CaptureFn | null>(null);
   const [pose, setPose] = useState<ViewerPose>("relaxed");
+  // Each preview gets a new nonce, so pressing Preview again plays the emote from the start.
+  const [emote, setEmote] = useState<{ id: EmoteId; nonce: number } | null>(null);
+  const previewEmote = (id: EmoteId) => setEmote((current) => ({ id, nonce: (current?.nonce ?? 0) + 1 }));
   const [shot, setShot] = useState<ViewerShot>("full");
   const [renderBackground, setRenderBackground] = useState<"studio" | "night" | "transparent">("studio");
   const [renderNote, setRenderNote] = useState<string | null>(null);
@@ -400,7 +404,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
 
         {/* The figure: the middle column on desktop, first on phones. */}
         <div className="order-1 space-y-3 xl:order-none xl:col-start-2 xl:row-start-2">
-          <AvatarViewer design={draft} autoRotate={spin} background={background} pose={pose} captureRef={captureRef} className="h-[52vh] min-h-[340px] w-full lg:h-[64vh]" />
+          <AvatarViewer design={draft} autoRotate={spin} background={background} pose={pose} emote={emote} captureRef={captureRef} className="h-[52vh] min-h-[340px] w-full lg:h-[64vh]" />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap gap-2">
               <button type="button" aria-pressed={spin} onClick={() => setSpin((v) => !v)} className={chip(spin)}>Auto turn</button>
@@ -564,7 +568,7 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
             </div>
           ) : null}
 
-          {category === "emotes" ? <EmotePanel /> : null}
+          {category === "emotes" ? <EmotePanel onPreview={previewEmote} /> : null}
 
           {category === "accessories" ? (
             <>

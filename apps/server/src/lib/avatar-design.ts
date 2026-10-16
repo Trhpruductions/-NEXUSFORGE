@@ -15,8 +15,8 @@ import { z } from "zod";
  */
 
 export const BODY_TYPES = ["slim", "athletic", "broad"] as const;
-export const HAIR_STYLES = ["none", "buzz", "spiky", "long", "curls", "bun", "mohawk", "bob", "ponytail", "afro", "fringe"] as const;
-export const TOPS = ["tee", "longsleeve", "hoodie", "polo", "tank", "jersey"] as const;
+export const HAIR_STYLES = ["none", "buzz", "spiky", "long", "curls", "bun", "mohawk", "bob", "ponytail", "afro", "fringe", "mullet"] as const;
+export const TOPS = ["tee", "longsleeve", "hoodie", "polo", "tank", "jersey", "oversized"] as const;
 export const OUTERWEAR = ["none", "jacket", "bomber", "vest", "neon"] as const;
 export const BOTTOMS = ["jeans", "shorts", "cargo", "track", "tactical", "armored"] as const;
 export const SHOES = ["sneakers", "boots", "hightops", "slides", "chunky", "galaxy"] as const;
