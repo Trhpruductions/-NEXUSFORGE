@@ -1,7 +1,7 @@
 "use client";
 
 import type { Socket } from "socket.io-client";
-import { isSecurePage, listMediaDevices, mediaDevicesAvailable, newAudioContext, openCamera, openMicrophone, stopStream } from "@/lib/media/media-devices";
+import { isDesktopApp, isSecurePage, listMediaDevices, mediaDevicesAvailable, newAudioContext, openCamera, openMicrophone, stopStream } from "@/lib/media/media-devices";
 import { MIC_NOTICE, classifyMediaError, isMissingDeviceError, needsMicProcessing, nextGateState, resolveDeviceChoice, rmsOf, rmsToMeter, sameMicCapture, type GateState, type MicSettings } from "@/lib/media/media-prefs";
 
 /**
@@ -614,7 +614,9 @@ export class MeshVoice {
       if (request !== this.screenRequest) return;
       this.screenPending = false;
       if (!this.closed) {
-        const failure = classifyMediaError(error, "screen", isSecurePage());
+        const failure = classifyMediaError(error, "screen", isSecurePage(), isDesktopApp());
+        // The error name only, never the screen or window. The desktop app copies console warnings into its startup log.
+        console.warn(`[voice] screen share failed: ${failure.code} (${error instanceof Error ? error.name : "unknown"})`);
         this.options.onScreenState?.({ state: failure.code === "denied" ? "denied" : "error", message: failure.message });
         this.options.onScreenShareEnded?.();
       }
@@ -814,6 +816,9 @@ export class MeshVoice {
         await peer.connection.setLocalDescription(answer);
         this.signal(from, { type: "answer", sdp: answer.sdp ?? "" });
         if (collision) this.later(() => void this.renegotiate(from), 100);
+        // Our screen share or camera that their offer had no place for (someone joining while we already share):
+        // an answer cannot add a media section, so offer it ourselves. Without this they never saw the share.
+        else if (this.hasUnnegotiatedVideo(peer)) this.later(() => void this.renegotiate(from), 50);
       } else if (data.type === "answer") {
         const peer = this.peers.get(from);
         if (peer && peer.connection.signalingState === "have-local-offer") {
@@ -835,6 +840,11 @@ export class MeshVoice {
       this.options.onError(error instanceof Error ? error.message : "Voice negotiation failed");
     }
   };
+
+  /** True when one of our video tracks (screen or camera) has not been placed in the connection's negotiation yet. */
+  private hasUnnegotiatedVideo(peer: MeshPeer) {
+    return peer.connection.getTransceivers().some((transceiver) => transceiver.sender.track?.kind === "video" && !transceiver.mid);
+  }
 
   private async flushIce(userId: string) {
     const peer = this.peers.get(userId);

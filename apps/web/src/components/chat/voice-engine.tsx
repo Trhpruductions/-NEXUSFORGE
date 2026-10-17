@@ -20,6 +20,12 @@ import { useMediaPrefsSync, useMediaStore } from "@/lib/media/media-store";
  */
 export function VoiceEngine() {
   const { user, accessToken } = useAuthStore();
+  // The call is built once per voice session. A token refresh (every 15 minutes) or a profile reload hands the store a
+  // new token or user object, and the call must survive both: the realtime socket is shared and takes the new token in
+  // place (lib/socket.ts). Depending on these stable values instead of the token and user object stops a refresh from
+  // tearing the call down, which ended screen shares and cameras while the buttons still said they were on.
+  const userId = user?.id ?? null;
+  const signedIn = Boolean(accessToken);
   const session = useVoiceStore((state) => state.session);
   const flags = useVoiceStore((state) => state.flags);
   const meshRef = useRef<MeshVoice | null>(null);
@@ -112,25 +118,25 @@ export function VoiceEngine() {
     // Until the first stage update arrives, nobody is heard (and your mic stays off).
     meshRef.current?.setStage(stageSession ? stage?.speakers ?? [] : null);
     // Moved to the audience: switch off your camera and screen share.
-    if (stageSession && stage && user && !stage.speakers.includes(user.id)) {
+    if (stageSession && stage && userId && !stage.speakers.includes(userId)) {
       const { flags, toggle } = useVoiceStore.getState();
       if (flags.camera) toggle("camera");
       if (flags.screenSharing) toggle("screenSharing");
     }
-  }, [stage, stageSession, user]);
+  }, [stage, stageSession, userId]);
 
   // ------------------------------------------------------------- built-in mesh
   useEffect(() => {
-    if (!session || session.mode !== "mesh" || !accessToken || !user) return;
+    if (!session || session.mode !== "mesh" || !signedIn || !userId) return;
     const store = useVoiceStore.getState();
     store.setConnection("connecting");
     store.setError(null);
     useMediaStore.getState().setScreenShare({ state: "idle", message: null });
     const choices = prefsRef.current;
     const mesh = new MeshVoice({
-      socket: getSocket(accessToken),
+      socket: getSocket(useAuthStore.getState().accessToken ?? undefined),
       channelId: session.channelId,
-      selfId: user.id,
+      selfId: userId,
       iceServers: session.iceServers ?? [],
       mic: micSettingsFrom(choices),
       outputVolume: choices.outputVolume / 100,
@@ -169,7 +175,7 @@ export function VoiceEngine() {
       useMediaStore.getState().setScreenShare({ state: "idle", message: null });
       useMediaStore.getState().setMicNotice(null);
     };
-  }, [session, accessToken, user]);
+  }, [session, signedIn, userId]);
 
   useEffect(() => {
     meshRef.current?.setMuted(flags.muted);
@@ -252,9 +258,9 @@ export function VoiceEngine() {
 
   // ------------------------------------------------------------- LiveKit
   useEffect(() => {
-    if (!session || session.mode !== "livekit" || !accessToken) return;
+    if (!session || session.mode !== "livekit" || !signedIn) return;
     const audioHost = audioHostRef.current;
-    const socket = getSocket(accessToken);
+    const socket = getSocket(useAuthStore.getState().accessToken ?? undefined);
     const store = useVoiceStore.getState();
     let cancelled = false;
     let room: Room | null = null;
@@ -333,7 +339,7 @@ export function VoiceEngine() {
       }
       audioHost?.replaceChildren();
     };
-  }, [session, accessToken]);
+  }, [session, signedIn]);
 
   useEffect(() => {
     const room = roomRef.current;

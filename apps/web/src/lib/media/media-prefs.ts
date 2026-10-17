@@ -251,7 +251,7 @@ export type MediaFailureCode = "denied" | "in-use" | "missing" | "unsupported" |
 export type MediaFailure = { code: MediaFailureCode; message: string };
 
 /** Plain-language reason for a capture failure, with what the user can do about it. */
-export function classifyMediaError(error: unknown, kind: MediaKind, secure = true): MediaFailure {
+export function classifyMediaError(error: unknown, kind: MediaKind, secure = true, desktopApp = false): MediaFailure {
   const name = errorName(error);
   const device = kind === "microphone" ? "microphone" : kind === "camera" ? "camera" : "screen sharing";
   if (!secure) {
@@ -263,6 +263,10 @@ export function classifyMediaError(error: unknown, kind: MediaKind, secure = tru
       code: "denied",
       message: `${kind === "camera" ? "Camera" : "Microphone"} access is blocked. Allow it for Nexus Forge in your browser's site settings or in Windows privacy settings, then try again.`,
     };
+  }
+  // The desktop app's picker refuses the request when it is cancelled or closed, which Electron reports as AbortError.
+  if (name === "AbortError" && kind === "screen") {
+    return { code: "denied", message: "Screen sharing was cancelled or could not start. Pick a screen or window to share and try again." };
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
     if (kind === "screen") return { code: "in-use", message: "Screen sharing couldn't start. Close the app that is capturing the screen, then try again." };
@@ -276,6 +280,10 @@ export function classifyMediaError(error: unknown, kind: MediaKind, secure = tru
     return { code: "missing", message: `No ${device} found. Connect one, then try again.` };
   }
   if (name === "NotSupportedError" || name === "TypeError") {
+    // Desktop 1.0.14 and older have no screen-capture handler, so Electron refuses every request with NotSupportedError.
+    if (kind === "screen" && desktopApp) {
+      return { code: "unsupported", message: "Screen sharing needs Nexus Forge Desktop 1.0.15 or newer. Update the desktop app, or share from nfgcord.com in your browser." };
+    }
     return { code: "unsupported", message: `This browser or app can't use ${device}.` };
   }
   return { code: "unknown", message: `Couldn't start your ${device}. Try again.` };

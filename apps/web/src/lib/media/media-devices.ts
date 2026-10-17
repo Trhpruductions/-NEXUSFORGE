@@ -16,6 +16,11 @@ export function isSecurePage(): boolean {
   return typeof window === "undefined" || window.isSecureContext !== false;
 }
 
+/** True inside the Nexus Forge desktop app (its preload exposes this bridge). */
+export function isDesktopApp(): boolean {
+  return typeof window !== "undefined" && (window as { nexusforgeDesktop?: { runtime?: string } }).nexusforgeDesktop?.runtime === "electron";
+}
+
 /** Speaker choice for media elements. Chromium-based browsers have it; Firefox and Safari don't. */
 export function outputSelectionSupported(): boolean {
   return typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
