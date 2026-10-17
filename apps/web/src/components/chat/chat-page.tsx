@@ -838,9 +838,10 @@ function ChatInner() {
         ) : null}
 
         {mode === "voice" ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6">
+          <div className={`flex min-h-0 flex-1 flex-col gap-4 ${voiceSession && voiceSession.channelId === voiceChannel?.id ? "p-2 sm:p-3" : "items-center justify-center p-6"}`}>
             {voiceSession && voiceSession.channelId === voiceChannel?.id ? (
-              <div className="w-full max-w-2xl rounded-2xl border border-amber-500/20 bg-[#0d1119] p-4 text-slate-100">
+              // In the call: the room fills the whole content area.
+              <div className="flex min-h-0 w-full flex-1 flex-col rounded-2xl border border-amber-500/20 bg-[#0d1119] p-3 text-slate-100 sm:p-4">
                 <VoiceRoomPanel members={forge?.members ?? []} />
               </div>
             ) : voiceSession ? (

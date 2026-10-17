@@ -12,7 +12,20 @@ export type VoiceFlags = { muted: boolean; deafened: boolean; screenSharing: boo
 export type VoiceSession = VoiceTokenResponse & { channelId: string; channelName: string; forgeId: string | null; /** Stage channel: speakers and audience. */ stage?: boolean };
 export type StageState = { speakers: string[]; raised: string[]; moderators: string[] };
 export type VoiceConnection = "connecting" | "connected" | "reconnecting" | "disconnected";
-export type RemotePeer = { userId: string; name?: string; connected: boolean; video?: MediaStream | null; camera?: MediaStream | null; muted?: boolean; deafened?: boolean };
+/** state is the peer connection's real state (new, connecting, connected, disconnected, failed, closed). */
+export type RemotePeer = { userId: string; name?: string; connected: boolean; state?: RTCPeerConnectionState; video?: MediaStream | null; camera?: MediaStream | null; muted?: boolean; deafened?: boolean };
+
+// How loud each person is for you (0 to 1), kept on this device. Changing it only affects what you hear.
+const PEER_VOLUME_KEY = "nf-peer-volumes";
+function loadPeerVolumes(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PEER_VOLUME_KEY) ?? "{}") as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "number" && value >= 0 && value <= 1)) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
 
 type VoiceStore = {
   session: VoiceSession | null;
@@ -28,6 +41,9 @@ type VoiceStore = {
   error: string | null;
   /** Push-to-talk is on (Settings > Voice > input mode) and whether the key is held. */
   pushToTalk: { enabled: boolean; talking: boolean };
+  /** Per-person volume (0 to 1) on this device; missing means 100%. */
+  peerVolumes: Record<string, number>;
+  setPeerVolume: (userId: string, volume: number) => void;
   join: (session: VoiceSession) => void;
   leave: () => void;
   toggle: (flag: keyof VoiceFlags) => void;
@@ -55,6 +71,19 @@ export const useVoiceStore = create<VoiceStore>()((set) => ({
   lastSound: null,
   error: null,
   pushToTalk: { enabled: false, talking: false },
+  peerVolumes: loadPeerVolumes(),
+  setPeerVolume: (userId, volume) =>
+    set((state) => {
+      const clamped = Math.max(0, Math.min(1, volume));
+      const peerVolumes = { ...state.peerVolumes, [userId]: clamped };
+      if (clamped === 1) delete peerVolumes[userId];
+      try {
+        window.localStorage.setItem(PEER_VOLUME_KEY, JSON.stringify(peerVolumes));
+      } catch {
+        // Storage blocked: the volume still applies for this session.
+      }
+      return { peerVolumes };
+    }),
   join: (session) => set({ session, connection: "connecting", remote: [], levels: {}, localScreen: null, localCamera: null, stage: null, error: null, flags: { muted: false, deafened: false, screenSharing: false, camera: false, noiseSuppression: true, voiceActivity: true } }),
   leave: () => set((state) => ({ session: null, connection: "disconnected", remote: [], levels: {}, localScreen: null, localCamera: null, stage: null, error: null, flags: { ...state.flags, screenSharing: false, camera: false } })),
   toggle: (flag) => set((state) => ({ flags: { ...state.flags, [flag]: !state.flags[flag] } })),

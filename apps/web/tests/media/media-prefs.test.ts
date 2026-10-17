@@ -2,9 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_MEDIA_PREFS,
+  DESKTOP_SCREEN_SHARE_VERSION,
   buildAudioConstraints,
   cameraConstraints,
   classifyMediaError,
+  desktopTooOldForScreenShare,
   isMissingDeviceError,
   mediaPrefsKey,
   micSettingsFrom,
@@ -242,4 +244,26 @@ test("sensitivity gate: 0 always sends; below the threshold it closes after the 
   assert.equal(closed.open, false, "closes once the hold time has passed");
   const stillClosed = nextGateState(closed, 10, 40, 1500);
   assert.equal(stillClosed.open, false);
+});
+
+test("desktop app versions older than 1.0.15 can't share a screen; browsers and newer apps can", () => {
+  assert.equal(DESKTOP_SCREEN_SHARE_VERSION, "1.0.15");
+  assert.equal(desktopTooOldForScreenShare("1.0.14"), true);
+  assert.equal(desktopTooOldForScreenShare("1.0.9"), true);
+  assert.equal(desktopTooOldForScreenShare("0.9.99"), true);
+  assert.equal(desktopTooOldForScreenShare("1.0.15"), false);
+  assert.equal(desktopTooOldForScreenShare("1.0.16"), false);
+  assert.equal(desktopTooOldForScreenShare("1.1.0"), false);
+  assert.equal(desktopTooOldForScreenShare("2.0.0"), false);
+  // Not the desktop app, or a version we can't read: never block sharing.
+  assert.equal(desktopTooOldForScreenShare(null), false);
+  assert.equal(desktopTooOldForScreenShare("1.0"), false);
+  assert.equal(desktopTooOldForScreenShare("beta"), false);
+});
+
+test("screen share failures in the desktop app point to the update; in a browser they stay generic", () => {
+  const notSupported = new DOMException("x", "NotSupportedError");
+  assert.match(classifyMediaError(notSupported, "screen", true, true).message, /Desktop 1\.0\.15 or newer/);
+  assert.equal(classifyMediaError(notSupported, "screen", true, false).message, "This browser or app can't use screen sharing.");
+  assert.equal(classifyMediaError(new DOMException("x", "AbortError"), "screen", true, true).code, "denied");
 });

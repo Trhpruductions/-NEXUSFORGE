@@ -16,6 +16,13 @@ export function isSecurePage(): boolean {
   return typeof window === "undefined" || window.isSecureContext !== false;
 }
 
+/** The desktop app's version from its user agent ("NexusForgeDesktop/1.0.15"), or null outside the app. */
+export function desktopAppVersion(): string | null {
+  if (typeof navigator === "undefined") return null;
+  const match = /NexusForgeDesktop\/(\d+\.\d+\.\d+)/.exec(navigator.userAgent);
+  return match ? match[1] : null;
+}
+
 /** True inside the Nexus Forge desktop app (its preload exposes this bridge). */
 export function isDesktopApp(): boolean {
   return typeof window !== "undefined" && (window as { nexusforgeDesktop?: { runtime?: string } }).nexusforgeDesktop?.runtime === "electron";

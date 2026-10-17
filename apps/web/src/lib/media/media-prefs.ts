@@ -317,3 +317,17 @@ export function nextGateState(previous: GateState, level: number, sensitivity: n
   const open = previous.open && nowMs - previous.lastAboveMs < holdMs;
   return { open, lastAboveMs: previous.lastAboveMs };
 }
+
+/** Screen sharing in the desktop app arrived in 1.0.15; older versions refuse every share. */
+export const DESKTOP_SCREEN_SHARE_VERSION = "1.0.15";
+
+/** True when a desktop app version (x.y.z) is older than the first one that can share a screen. */
+export function desktopTooOldForScreenShare(version: string | null): boolean {
+  if (!version || !/^\d+\.\d+\.\d+$/.test(version)) return false;
+  const have = version.split(".").map(Number);
+  const need = DESKTOP_SCREEN_SHARE_VERSION.split(".").map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    if (have[i] !== need[i]) return have[i] < need[i];
+  }
+  return false;
+}

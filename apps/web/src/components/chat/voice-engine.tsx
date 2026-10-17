@@ -147,7 +147,7 @@ export function VoiceEngine() {
         useVoiceStore.getState().leave();
       },
       onPeersChanged: (peers: MeshPeer[]) =>
-        useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", video: peer.video, camera: peer.camera, muted: peer.remoteMuted, deafened: peer.remoteDeafened }))),
+        useVoiceStore.getState().setRemote(peers.map((peer) => ({ userId: peer.userId, connected: peer.state === "connected", state: peer.state, video: peer.video, camera: peer.camera, muted: peer.remoteMuted, deafened: peer.remoteDeafened }))),
       onLocalCamera: (stream) => useVoiceStore.getState().setLocalCamera(stream),
       onCameraEnded: () => {
         if (useVoiceStore.getState().flags.camera) useVoiceStore.getState().toggle("camera");
@@ -155,7 +155,7 @@ export function VoiceEngine() {
       onScreenShareEnded: () => {
         if (useVoiceStore.getState().flags.screenSharing) useVoiceStore.getState().toggle("screenSharing");
       },
-      onScreenState: (update) => useMediaStore.getState().setScreenShare({ state: update.state, message: update.message ?? null }),
+      onScreenState: (update) => useMediaStore.getState().setScreenShare({ state: update.state, message: update.message ?? null, detail: update.detail ?? null }),
       onMicNotice: (notice) => useMediaStore.getState().setMicNotice(notice),
       onLocalScreen: (stream) => useVoiceStore.getState().setLocalScreen(stream),
       onLevel: (key, level) => useVoiceStore.getState().setLevel(key, level),
@@ -180,6 +180,12 @@ export function VoiceEngine() {
   useEffect(() => {
     meshRef.current?.setMuted(flags.muted);
   }, [flags.muted]);
+
+  // Per-person volume (on this device only), for everyone in the call and anyone who joins later.
+  const peerVolumes = useVoiceStore((state) => state.peerVolumes);
+  useEffect(() => {
+    meshRef.current?.setPeerVolumes(peerVolumes);
+  }, [peerVolumes, session]);
 
   // Microphone choice and processing apply to a live call at once (the outgoing track is replaced,
   // nobody renegotiates). Gain and sensitivity change the live graph only.

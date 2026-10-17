@@ -23,6 +23,8 @@ export type MediaNotice = { tone: "info" | "warn" | "error"; text: string } | nu
 export type ScreenShareStatus = {
   state: "idle" | "requesting" | "sharing" | "stopped" | "denied" | "error";
   message: string | null;
+  /** Technical reason for a failure (the error name), for diagnostics. */
+  detail?: string | null;
 };
 
 type MediaStore = {

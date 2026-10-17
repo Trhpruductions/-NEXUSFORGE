@@ -15,6 +15,9 @@ import { MIC_NOTICE, classifyMediaError, isMissingDeviceError, needsMicProcessin
  *   doesn't recover it, it is torn down and re-dialled while the person is still in the
  *   room. Only the side with the smaller user id initiates, so both sides never offer
  *   at once.
+ * - Offers, answers and candidates from one person are applied one at a time, in order. When both sides
+ *   offer at once, the side with the smaller user id keeps its offer and the other answers it first
+ *   ("perfect negotiation"), then re-sends its own change.
  *
  * Devices:
  * - The outgoing mic runs through Web Audio (gain, sensitivity gate, meter). Changing the
@@ -46,11 +49,16 @@ export type MeshPeer = {
   /** A camera or screen change that waits until the connection is stable enough to offer it. */
   pendingRenegotiation: boolean;
   pendingIceRestart: boolean;
+  /** Our offer is being made right now (see sendOffer); an offer from them meanwhile is a collision. */
+  makingOffer: boolean;
+  /** Failed offer/answer attempts in a row; reset when one succeeds. */
+  negotiationFailures: number;
 };
 
 export type MeshNotice = { tone: "info" | "warn" | "error"; text: string } | null;
 
-export type ScreenShareUpdate = { state: "requesting" | "sharing" | "stopped" | "denied" | "error"; message?: string };
+/** detail is the technical reason (the error name), shown small under the message so a report can quote it. */
+export type ScreenShareUpdate = { state: "requesting" | "sharing" | "stopped" | "denied" | "error"; message?: string; detail?: string };
 
 export type MeshVoiceOptions = {
   socket: Socket;
@@ -105,12 +113,16 @@ type GraphProcessing = {
 
 const RESTART_AFTER_DISCONNECT_MS = 4000;
 const MAX_ICE_RESTARTS = 2;
+const MAX_NEGOTIATION_RETRIES = 2;
+const NEGOTIATION_RETRY_MS = 600;
 const REDIAL_DELAY_MS = 1500;
 const SCREEN_STALL_GRACE_MS = 3000;
 const GATE_INTERVAL_MS = 50;
 
 export class MeshVoice {
   private peers = new Map<string, MeshPeer>();
+  /** Signals from each person, applied one at a time in arrival order (see handleSignal). */
+  private signalChains = new Map<string, Promise<void>>();
   private pendingIce = new Map<string, RTCIceCandidateInit[]>();
   private restarts = new Map<string, number>();
   private timers = new Set<number>();
@@ -151,6 +163,8 @@ export class MeshVoice {
   private pushToTalk = false;
   private talking = false;
   private outputVolume: number;
+  /** Per-person volume on this device (0 to 1), multiplied by the output volume. */
+  private peerVolumes = new Map<string, number>();
   private outputDeviceId: string | null;
   private closed = false;
 
@@ -231,9 +245,26 @@ export class MeshVoice {
     this.applyMute();
   }
 
+  /** How loud one person is for you. Only changes what you hear, never what they send. */
+  setPeerVolume(userId: string, volume: number) {
+    this.peerVolumes.set(userId, Math.max(0, Math.min(1, volume)));
+    const peer = this.peers.get(userId);
+    if (peer) peer.audio.volume = this.volumeFor(userId);
+  }
+
+  /** Replaces every per-person volume (anyone missing goes back to 100%) and applies it to the call. */
+  setPeerVolumes(volumes: Record<string, number>) {
+    this.peerVolumes = new Map(Object.entries(volumes).map(([userId, volume]) => [userId, Math.max(0, Math.min(1, volume))]));
+    for (const peer of this.peers.values()) peer.audio.volume = this.volumeFor(peer.userId);
+  }
+
+  private volumeFor(userId: string) {
+    return this.outputVolume * (this.peerVolumes.get(userId) ?? 1);
+  }
+
   setOutputVolume(volume: number) {
     this.outputVolume = Math.max(0, Math.min(1, volume));
-    for (const peer of this.peers.values()) peer.audio.volume = this.outputVolume;
+    for (const peer of this.peers.values()) peer.audio.volume = this.volumeFor(peer.userId);
   }
 
   setOutputDevice(deviceId: string | null) {
@@ -595,7 +626,7 @@ export class MeshVoice {
   async startScreenShare() {
     if (this.screen || this.screenPending || this.closed) return;
     if (!mediaDevicesAvailable() || typeof navigator.mediaDevices.getDisplayMedia !== "function") {
-      this.options.onScreenState?.({ state: "error", message: "Screen sharing isn't available in this browser or app." });
+      this.options.onScreenState?.({ state: "error", message: "Screen sharing isn't available in this browser or app.", detail: "getDisplayMedia missing" });
       this.options.onScreenShareEnded?.();
       return;
     }
@@ -617,7 +648,7 @@ export class MeshVoice {
         const failure = classifyMediaError(error, "screen", isSecurePage(), isDesktopApp());
         // The error name only, never the screen or window. The desktop app copies console warnings into its startup log.
         console.warn(`[voice] screen share failed: ${failure.code} (${error instanceof Error ? error.name : "unknown"})`);
-        this.options.onScreenState?.({ state: failure.code === "denied" ? "denied" : "error", message: failure.message });
+        this.options.onScreenState?.({ state: failure.code === "denied" ? "denied" : "error", message: failure.message, detail: error instanceof Error ? error.name : "unknown" });
         this.options.onScreenShareEnded?.();
       }
       return;
@@ -674,9 +705,9 @@ export class MeshVoice {
   private async renegotiate(userId: string, iceRestart = false) {
     const peer = this.peers.get(userId);
     if (!peer || this.closed) return;
-    if (peer.connection.signalingState !== "stable") {
+    if (peer.makingOffer || peer.connection.signalingState !== "stable") {
       // Mid-negotiation (e.g. answering their change): keep the change and send it once the
-      // connection is stable again (see onsignalingstatechange). A timed retry gave up after a
+      // connection is stable again (see onsignalingstatechange and sendOffer). A timed retry gave up after a
       // few seconds, and then a camera or screen change silently never reached the other side.
       peer.pendingRenegotiation = true;
       peer.pendingIceRestart = peer.pendingIceRestart || iceRestart;
@@ -686,12 +717,48 @@ export class MeshVoice {
     const restart = iceRestart || peer.pendingIceRestart;
     peer.pendingIceRestart = false;
     try {
-      const offer = await peer.connection.createOffer({ iceRestart: restart });
-      await peer.connection.setLocalDescription(offer);
-      this.signal(userId, { type: "offer", sdp: offer.sdp ?? "" });
+      if (restart) peer.connection.restartIce();
+      await this.sendOffer(peer);
+      peer.negotiationFailures = 0;
     } catch (error) {
-      this.options.onError(error instanceof Error ? error.message : "Could not update the call");
+      this.negotiationFailed(peer, error);
     }
+  }
+
+  /**
+   * Makes and sends our offer. setLocalDescription() without an argument creates the description inside the
+   * connection's own queue, so an offer from them landing at the same moment cannot leave it in the wrong state (the
+   * old createOffer-then-set pair failed with "Called in wrong signalingState"). While it runs, makingOffer tells
+   * handleSignal that an offer from them is a collision. Whatever was set is sent with its real type.
+   */
+  private async sendOffer(peer: MeshPeer) {
+    peer.makingOffer = true;
+    try {
+      await peer.connection.setLocalDescription();
+      const local = peer.connection.localDescription;
+      if (local && (local.type === "offer" || local.type === "answer")) this.signal(peer.userId, { type: local.type, sdp: local.sdp });
+    } finally {
+      peer.makingOffer = false;
+      // A change queued while this offer was in flight, with nothing left to wake it: offer it now.
+      if (peer.pendingRenegotiation && peer.connection.signalingState === "stable") this.later(() => void this.renegotiate(peer.userId), 0);
+    }
+  }
+
+  /**
+   * An offer or answer failed. Usually a moment of overlap with the other side, which a retry fixes; the raw browser
+   * error goes to the console, and only a failure that keeps happening is shown, in plain words.
+   */
+  private negotiationFailed(peer: MeshPeer, error: unknown) {
+    const name = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.warn(`[voice] connection update failed (${name})`);
+    if (this.closed || this.peers.get(peer.userId) !== peer) return;
+    peer.negotiationFailures += 1;
+    if (peer.negotiationFailures <= MAX_NEGOTIATION_RETRIES) {
+      this.later(() => void this.renegotiate(peer.userId), NEGOTIATION_RETRY_MS * peer.negotiationFailures);
+      return;
+    }
+    peer.negotiationFailures = 0;
+    this.options.onError("Couldn't update the connection with someone in the call. If their screen, camera or voice is missing, leave the channel and join again.");
   }
 
   /**
@@ -797,38 +864,63 @@ export class MeshVoice {
     if (joined) this.broadcastState();
   };
 
-  private handleSignal = async (payload: { channelId: string; from: string; data: SignalData }) => {
+  /**
+   * Signals from one person are applied one at a time, in the order they arrived. Run side by side, an answer and the
+   * offer right behind it (someone joining while a screen is shared gets exactly that pair) raced: the offer was
+   * either dropped or failed with "Called in wrong signalingState: stable", and the newcomer never saw the screen.
+   */
+  private handleSignal = (payload: { channelId: string; from: string; data: SignalData }) => {
     if (payload.channelId !== this.options.channelId || this.closed) return;
+    const previous = this.signalChains.get(payload.from) ?? Promise.resolve();
+    const next = previous.then(() => this.applySignal(payload));
+    this.signalChains.set(payload.from, next);
+    void next.finally(() => {
+      if (this.signalChains.get(payload.from) === next) this.signalChains.delete(payload.from);
+    });
+  };
+
+  private async applySignal(payload: { channelId: string; from: string; data: SignalData }) {
+    if (this.closed) return;
     const { from, data } = payload;
+    let peer: MeshPeer | undefined;
     try {
       if (data.type === "offer") {
-        const peer = this.ensurePeer(from);
+        peer = this.ensurePeer(from);
+        const connection = peer.connection;
         // Both sides offered at once (e.g. two people turn their camera on together).
-        // "Perfect negotiation": the side that leads keeps its offer and ignores theirs;
-        // the other side rolls back, answers, then re-sends its own change. Without the
+        // "Perfect negotiation": the side that leads keeps its offer and ignores theirs; the other side drops its own
+        // offer (setRemoteDescription rolls it back by itself), answers, then re-sends its own change. Without the
         // re-send, the yielding side's new track would never be negotiated.
-        const collision = peer.connection.signalingState !== "stable";
+        const collision = peer.makingOffer || connection.signalingState !== "stable";
         if (collision && this.leads(from)) return;
-        if (collision) await peer.connection.setLocalDescription({ type: "rollback" });
-        await peer.connection.setRemoteDescription({ type: "offer", sdp: data.sdp });
+        await connection.setRemoteDescription({ type: "offer", sdp: data.sdp });
         await this.flushIce(from);
-        const answer = await peer.connection.createAnswer();
-        await peer.connection.setLocalDescription(answer);
-        this.signal(from, { type: "answer", sdp: answer.sdp ?? "" });
-        if (collision) this.later(() => void this.renegotiate(from), 100);
+        if (connection.signalingState === "have-remote-offer") {
+          await connection.setLocalDescription();
+          const local = connection.localDescription;
+          if (local?.type === "answer") this.signal(from, { type: "answer", sdp: local.sdp });
+        }
+        peer.negotiationFailures = 0;
+        if (collision) {
+          peer.pendingRenegotiation = true;
+          this.later(() => void this.renegotiate(from), 100);
+        }
         // Our screen share or camera that their offer had no place for (someone joining while we already share):
         // an answer cannot add a media section, so offer it ourselves. Without this they never saw the share.
         else if (this.hasUnnegotiatedVideo(peer)) this.later(() => void this.renegotiate(from), 50);
       } else if (data.type === "answer") {
-        const peer = this.peers.get(from);
+        peer = this.peers.get(from);
+        // An answer to an offer that was rolled back or already answered has nothing to apply to.
         if (peer && peer.connection.signalingState === "have-local-offer") {
           await peer.connection.setRemoteDescription({ type: "answer", sdp: data.sdp });
           await this.flushIce(from);
+          peer.negotiationFailures = 0;
         }
       } else if (data.type === "ice") {
-        const peer = this.peers.get(from);
-        if (peer?.connection.remoteDescription) {
-          await peer.connection.addIceCandidate(data.candidate).catch(() => undefined);
+        const target = this.peers.get(from);
+        if (target?.connection.remoteDescription) {
+          // Candidates for an offer we ignored in a collision fail harmlessly.
+          await target.connection.addIceCandidate(data.candidate).catch(() => undefined);
         } else {
           // Arrived before the offer/answer was applied: keep it for later.
           const queue = this.pendingIce.get(from) ?? [];
@@ -837,9 +929,10 @@ export class MeshVoice {
         }
       }
     } catch (error) {
-      this.options.onError(error instanceof Error ? error.message : "Voice negotiation failed");
+      if (peer) this.negotiationFailed(peer, error);
+      else console.warn(`[voice] connection update failed (${error instanceof Error ? error.name : String(error)})`);
     }
-  };
+  }
 
   /** True when one of our video tracks (screen or camera) has not been placed in the connection's negotiation yet. */
   private hasUnnegotiatedVideo(peer: MeshPeer) {
@@ -866,12 +959,12 @@ export class MeshVoice {
     const audio = document.createElement("audio");
     audio.autoplay = true;
     audio.muted = this.deafened || !this.isHeard(userId);
-    audio.volume = this.outputVolume;
+    audio.volume = this.volumeFor(userId);
     audio.setAttribute("playsinline", "true");
     this.applySink(audio);
     document.body.appendChild(audio);
 
-    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, camera: null, videoStreams: new Map(), screenId: null, cameraId: null, labelled: false, state: connection.connectionState, remoteMuted: false, remoteDeafened: false, pendingRenegotiation: false, pendingIceRestart: false };
+    const peer: MeshPeer = { userId, connection, audio, stream: null, video: null, camera: null, videoStreams: new Map(), screenId: null, cameraId: null, labelled: false, state: connection.connectionState, remoteMuted: false, remoteDeafened: false, pendingRenegotiation: false, pendingIceRestart: false, makingOffer: false, negotiationFailures: 0 };
     this.peers.set(userId, peer);
 
     this.local?.getTracks().forEach((track) => connection.addTrack(track, this.local!));
@@ -972,12 +1065,19 @@ export class MeshVoice {
 
   private async offerTo(userId: string) {
     const peer = this.ensurePeer(userId);
+    if (peer.makingOffer || peer.connection.signalingState !== "stable") {
+      // Already negotiating with them (their offer got here first): our offer follows once that settles.
+      peer.pendingRenegotiation = true;
+      return;
+    }
     try {
-      const offer = await peer.connection.createOffer({ offerToReceiveAudio: true });
-      await peer.connection.setLocalDescription(offer);
-      this.signal(userId, { type: "offer", sdp: offer.sdp ?? "" });
+      // Hear them even when we have no microphone to send (what offerToReceiveAudio used to do).
+      if (!peer.connection.getTransceivers().some((transceiver) => transceiver.receiver.track.kind === "audio")) {
+        peer.connection.addTransceiver("audio", { direction: "recvonly" });
+      }
+      await this.sendOffer(peer);
     } catch (error) {
-      this.options.onError(error instanceof Error ? error.message : "Could not reach a participant");
+      this.negotiationFailed(peer, error);
     }
   }
 
@@ -991,6 +1091,7 @@ export class MeshVoice {
     peer.audio.srcObject = null;
     peer.audio.remove();
     this.peers.delete(userId);
+    this.signalChains.delete(userId);
     this.pendingIce.delete(userId);
     this.analysers.delete(userId);
     if (emit) this.emitPeers();
