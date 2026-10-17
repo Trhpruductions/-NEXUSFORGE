@@ -1,16 +1,17 @@
-﻿{
-    "version":  "1.0.14",
-    "notes":  [
-                  "We\u0027re now Nexus Forge Gaming: new name, new logo, electric-blue look",
-                  "Opens Nexus Forge at https://nfgcord.com",
-                  "Downloads and updates come straight from nfgcord.com"
-              ],
-    "downloadUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-    "downloadUrls":  [
-                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.14.exe"
-                     ],
-    "downloadFolderUrl":  "https://nfgcord.com/download",
-    "sha256":  "61cc7938d26d45734cb003bf78524aa12c9563d6d638045a743e2700187d9fc5",
-    "forceUpdate":  false
+{
+  "version": "1.0.15",
+  "notes": [
+    "Screen sharing now works in the desktop app: pick a screen or a window to share in any voice channel",
+    "The app opens as a normal window you can move, resize, minimize and maximize; F11 switches to full screen",
+    "New opening screen you can move, minimize or close",
+    "Known limitations in this beta: computer sound is not shared with the screen yet, and some strict networks may need a relay server that is not set up yet"
+  ],
+  "downloadUrl": "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+  "downloadUrls": [
+    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.15.exe"
+  ],
+  "downloadFolderUrl": "https://nfgcord.com/download",
+  "sha256": "c0c59104a78f59256ea9c0358612820c80683a87c098ba9ee641bfc473fb6d61",
+  "forceUpdate": false
 }
