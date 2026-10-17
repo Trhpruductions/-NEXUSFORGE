@@ -5,8 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { useAuthStore } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
-import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, approveAdminAgeGateAudit, getAdminAiInsights, getAdminAgeGateAudit, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, getAdminRevenue, getBillingReadiness, rejectAdminAgeGateAudit, setAdminLaunchMode } from "@/lib/api";
-import { CORE_PLUS_TIER_DISPLAY_LABELS, PAID_FEATURE_DISPLAY_LABELS } from "@/lib/pricing-catalog";
+import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, approveAdminAgeGateAudit, getAdminAiInsights, getAdminAgeGateAudit, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, rejectAdminAgeGateAudit, setAdminLaunchMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AdminAnalyticsPanel } from "@/components/admin/admin-analytics";
@@ -31,28 +30,6 @@ const manualBadgeOptions: Array<{ key: ManualBadgeKey; label: string }> = [
   { key: "verified-member", label: "Verified Member" },
   { key: "rep", label: "Rep" },
 ];
-
-const billingEnvTemplate = [
-  "STRIPE_SECRET_KEY=",
-  "STRIPE_WEBHOOK_SECRET=",
-  "STRIPE_PRICE_CORE_MONTHLY=",
-  "STRIPE_PRICE_CORE_YEARLY=",
-  "STRIPE_PRICE_PLUS_MONTHLY=",
-  "STRIPE_PRICE_PLUS_YEARLY=",
-  "STRIPE_PRICE_ELITE_MONTHLY=",
-  "STRIPE_PRICE_ELITE_YEARLY=",
-  "STRIPE_PRICE_INFINITE_MONTHLY=",
-  "STRIPE_PRICE_INFINITE_YEARLY=",
-  "STRIPE_PRICE_FORGE_BOOST_PACK=",
-  "STRIPE_PRICE_CREATOR_CAMPAIGN_SLOT=",
-  "STRIPE_PRICE_EVENT_TICKET_PASS=",
-  "STRIPE_PRICE_TEAM_BRANDING_KIT=",
-  "STRIPE_PRICE_ADVANCED_MODERATION_AI=",
-].join("\n");
-
-function formatUsd(cents: number): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
-}
 
 function extractAdminErrorNote(error: unknown, fallback: string) {
   if (!isAxiosError(error)) {
@@ -92,7 +69,6 @@ export function AdminDashboard() {
   const [auditActorFilter, setAuditActorFilter] = useState<string>("all");
   const [auditOffset, setAuditOffset] = useState<number>(0);
   const [desktopOnlyDraft, setDesktopOnlyDraft] = useState<boolean>(true);
-  const [billingCopyState, setBillingCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [ageGateOffset] = useState<number>(0);
   const [ageGateReviewNotes, setAgeGateReviewNotes] = useState<Record<string, string>>({});
   const auditPageSize = 30;
@@ -122,12 +98,6 @@ export function AdminDashboard() {
       );
       return response.data;
     },
-    enabled: Boolean(accessToken && csrfToken),
-  });
-
-  const revenueQuery = useQuery({
-    queryKey: ["admin-revenue", accessToken],
-    queryFn: () => getAdminRevenue(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
   });
 
@@ -197,14 +167,6 @@ export function AdminDashboard() {
     queryKey: ["admin-launch-mode", accessToken],
     queryFn: () => getAdminLaunchMode(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
-  });
-
-  const billingReadinessQuery = useQuery({
-    queryKey: ["admin-billing-readiness"],
-    queryFn: getBillingReadiness,
-    enabled: Boolean(accessToken && csrfToken),
-    staleTime: 30_000,
-    retry: false,
   });
 
   const toggleAdmin = useMutation({
@@ -460,66 +422,6 @@ export function AdminDashboard() {
       : latestJobStatus === "RUNNING"
         ? "border-amber-500/35 bg-amber-950/30 text-amber-100"
         : "border-amber-500/35 bg-amber-950/30 text-amber-100";
-  const billing = billingReadinessQuery.data?.billing ?? null;
-  const billingReady = billing?.ready ?? false;
-  const missingTierPrices = billing?.missing.tierPrices ?? [];
-  const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
-  const billingStatusToneClass = billingReady
-    ? "border-amber-500/35 bg-amber-950/20 text-amber-100"
-    : "border-amber-500/35 bg-amber-950/20 text-amber-100";
-
-  const copyBillingEnvKeys = async () => {
-    try {
-      await navigator.clipboard.writeText(billingEnvTemplate);
-      setBillingCopyState("copied");
-      setActionNote("Copied required Stripe env keys to clipboard.");
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-    } catch {
-      setBillingCopyState("failed");
-      setActionNote("Unable to copy env keys automatically. Copy them from apps/server/.env.example.");
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-    }
-  };
-
-  const copyMissingBillingEnvKeys = async () => {
-    if (!billing) {
-      setBillingCopyState("failed");
-      setActionNote("Billing readiness has not loaded yet. Retry in a moment.");
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-      return;
-    }
-
-    const missingLines: string[] = [];
-    if (!billing.configured.stripeSecretKey) {
-      missingLines.push("STRIPE_SECRET_KEY=");
-    }
-
-    for (const entry of missingTierPrices) {
-      missingLines.push(`STRIPE_PRICE_${entry}=`);
-    }
-
-    for (const entry of missingAddOnPrices) {
-      missingLines.push(`STRIPE_PRICE_${entry}=`);
-    }
-
-    if (missingLines.length === 0) {
-      setActionNote("No missing billing keys detected.");
-      setBillingCopyState("copied");
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(missingLines.join("\n"));
-      setBillingCopyState("copied");
-      setActionNote(`Copied ${missingLines.length} missing billing keys to clipboard.`);
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-    } catch {
-      setBillingCopyState("failed");
-      setActionNote("Unable to copy missing billing keys automatically.");
-      window.setTimeout(() => setBillingCopyState("idle"), 3000);
-    }
-  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
@@ -550,7 +452,7 @@ export function AdminDashboard() {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Admin Summary</h2>
-              <p className="mt-2 text-sm text-slate-400">Live governance telemetry, billing posture, and launch-control state for the desktop command surface.</p>
+              <p className="mt-2 text-sm text-slate-400">Live governance telemetry and launch-control state for the desktop command surface.</p>
             </div>
             <div className="rounded-full border border-amber-500/30 bg-amber-950/25 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">
               Hardened
@@ -562,19 +464,6 @@ export function AdminDashboard() {
           <div className="glass-cut rounded-xl border border-white/10 p-3">Messages: {summaryQuery.data?.messages ?? 0}</div>
           <div className="glass-cut rounded-xl border border-white/10 p-3">Notifications: {summaryQuery.data?.notifications ?? 0}</div>
           <div className="glass-cut rounded-xl border border-white/10 p-3">Pending Friend Requests: {summaryQuery.data?.pendingFriends ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3">Active Subscriptions: {revenueQuery.data?.revenue.activeSubscriptions ?? 0}</div>
-        </div>
-
-        <div className="mt-4 grid gap-2 text-sm text-slate-300">
-          <div className="glass-cut rounded-xl border border-white/10 p-3">
-            Revenue 30d: <span className="font-semibold text-amber-200">{formatUsd(revenueQuery.data?.revenue.last30DaysCents ?? 0)}</span>
-          </div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3">
-            Revenue Growth: <span className="font-semibold text-amber-200">{revenueQuery.data?.revenue.growthPct ?? 0}%</span>
-          </div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3">
-            Failed Payments (30d): <span className="font-semibold text-rose-200">{revenueQuery.data?.revenue.failedPayments ?? 0}</span>
-          </div>
         </div>
 
         <div className="mt-4 rounded-[24px] border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-100">
@@ -610,36 +499,6 @@ export function AdminDashboard() {
               {setLaunchMode.isPending ? "Applying..." : "Apply Launch Mode"}
             </Button>
           </div>
-        </div>
-
-        <div className={`mt-4 rounded-[24px] border p-4 text-xs ${billingStatusToneClass}`}>
-          <p className="text-[10px] uppercase tracking-[0.2em]">Billing Setup</p>
-          {billingReadinessQuery.isLoading ? (
-            <p className="mt-1 text-slate-300">Checking billing readiness...</p>
-          ) : billingReady ? (
-            <p className="mt-1 text-amber-100">Billing is ready. Checkout and portal actions are fully enabled.</p>
-          ) : (
-            <>
-              <p className="mt-1 text-slate-300">
-                Billing is in setup mode. Missing tier prices: <span className="font-semibold">{missingTierPrices.length}</span>; missing add-on prices: <span className="font-semibold">{missingAddOnPrices.length}</span>.
-              </p>
-              <div className="mt-2 space-y-1 text-[11px] text-amber-200/90">
-                {!billing?.configured.stripeSecretKey ? <p>Missing STRIPE_SECRET_KEY</p> : null}
-                {missingTierPrices.length ? <p>Missing tier IDs: {missingTierPrices.slice(0, 4).join(", ")}{missingTierPrices.length > 4 ? "..." : ""}</p> : null}
-                {missingAddOnPrices.length ? <p>Missing add-on IDs: {missingAddOnPrices.join(", ")}</p> : null}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button variant="ghost" className="h-8 px-3 text-xs" onClick={() => void copyBillingEnvKeys()}>
-                  Copy Required Env Keys
-                </Button>
-                <Button variant="ghost" className="h-8 px-3 text-xs" onClick={() => void copyMissingBillingEnvKeys()}>
-                  Copy Missing Keys Only
-                </Button>
-                {billingCopyState === "copied" ? <p className="text-[11px] text-amber-200">Copied</p> : null}
-                {billingCopyState === "failed" ? <p className="text-[11px] text-rose-200">Copy failed</p> : null}
-              </div>
-            </>
-          )}
         </div>
         </div>
       </section>
@@ -757,46 +616,6 @@ export function AdminDashboard() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="nexus-panel rounded-[28px] p-5 lg:col-span-2">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xs uppercase tracking-[0.24em] text-amber-300">Billing Mix (Last 30 Days)</h2>
-            <p className="mt-2 text-sm text-slate-400">Revenue concentration, transaction density, and tier-distribution health.</p>
-          </div>
-          <div className="rounded-full border border-amber-500/30 bg-amber-950/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">
-            Finance live
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-slate-300">
-                <th className="py-2 pr-3">Feature</th>
-                <th className="py-2 pr-3">Catalog Price</th>
-                <th className="py-2 pr-3">Revenue</th>
-                <th className="py-2">Transactions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(revenueQuery.data?.featureRevenue ?? []).map((row) => (
-                <tr key={row.featureCode} className="border-b border-slate-900/10/70 text-slate-300 transition-colors hover:bg-[#11151e]">
-                  <td className="py-2 pr-3 font-medium text-white">{row.featureLabel ?? PAID_FEATURE_DISPLAY_LABELS[row.featureCode]}</td>
-                  <td className="py-2 pr-3 text-slate-500">{row.priceLabel ?? "-"}</td>
-                  <td className="py-2 pr-3 text-amber-200">{formatUsd(row.revenueCents)}</td>
-                  <td className="py-2">{row.transactions}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <div className="glass-cut rounded-xl border border-white/10 p-3 text-sm text-slate-300">{CORE_PLUS_TIER_DISPLAY_LABELS.CORE}: {revenueQuery.data?.tierDistribution.CORE ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3 text-sm text-slate-300">{CORE_PLUS_TIER_DISPLAY_LABELS.PLUS}: {revenueQuery.data?.tierDistribution.PLUS ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3 text-sm text-slate-300">{CORE_PLUS_TIER_DISPLAY_LABELS.ELITE}: {revenueQuery.data?.tierDistribution.ELITE ?? 0}</div>
-          <div className="glass-cut rounded-xl border border-white/10 p-3 text-sm text-slate-300">{CORE_PLUS_TIER_DISPLAY_LABELS.INFINITE}: {revenueQuery.data?.tierDistribution.INFINITE ?? 0}</div>
         </div>
       </section>
 

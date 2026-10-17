@@ -25,24 +25,23 @@ function highestTier(tiers: Tier[]): Tier | null {
 }
 
 /**
- * Brings the user's premium fields in line with every source that is still live: an active Stripe subscription
- * (which owns the tier while it runs), or the highest tier among their active store subscriptions. With neither,
- * premium ends. Lifetime members are never changed.
+ * Brings the user's premium fields in line with every source that is still live: active Stripe subscriptions and
+ * active store subscriptions. The user gets the highest tier among them, so a plan change or an upgrade takes effect,
+ * and a cancellation or refund takes effect too. With no live source, premium ends. Lifetime members are never changed.
  */
 export async function syncStorePremium(db: Db, userId: string, now: Date = new Date()): Promise<void> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { lifetimeMember: true } });
   if (!user || user.lifetimeMember) return;
 
-  const stripeActive = await db.billingSubscription.count({
+  const stripeActive = await db.billingSubscription.findMany({
     where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+    select: { tier: true },
   });
-  if (stripeActive > 0) return;
-
   const storeActive = await db.storePurchase.findMany({
     where: { userId, status: "ACTIVE", tier: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
     select: { tier: true },
   });
-  const best = highestTier(storeActive.map((row) => row.tier as Tier));
+  const best = highestTier([...stripeActive.map((row) => row.tier as Tier), ...storeActive.map((row) => row.tier as Tier)]);
 
   if (best) {
     await db.user.updateMany({

@@ -648,29 +648,6 @@ export type BillingReadiness = {
   };
 };
 
-export type AdminRevenue = {
-  revenue: {
-    last30DaysCents: number;
-    previous30DaysCents: number;
-    growthPct: number;
-    activeSubscriptions: number;
-    failedPayments: number;
-  };
-  tierDistribution: {
-    CORE: number;
-    PLUS: number;
-    ELITE: number;
-    INFINITE: number;
-  };
-  featureRevenue: Array<{
-    featureCode: PaidFeatureCode;
-    featureLabel?: string;
-    priceLabel?: string | null;
-    revenueCents: number;
-    transactions: number;
-  }>;
-};
-
 export type AdminAiInsights = {
   insights: {
     pressureScore: number;
@@ -1950,13 +1927,6 @@ export async function requestVoiceToken(accessToken: string, csrfToken: string, 
 }
 
 export type VoiceTokenResponse = Awaited<ReturnType<typeof requestVoiceToken>>;
-
-export async function getAdminRevenue(accessToken: string, csrfToken: string) {
-  const response = await api.get<AdminRevenue>("/api/admin/revenue", {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
 
 export async function getAdminAiInsights(accessToken: string, csrfToken: string) {
   const response = await api.get<AdminAiInsights>("/api/admin/ai-insights", {
@@ -3330,6 +3300,18 @@ export type AppUpdateDraft = { title: string; body: string; version?: string | n
 export async function listUpdates(accessToken: string) {
   return (await api.get<{ updates: AppUpdate[] }>("/api/updates", { headers: authHeaders(accessToken) })).data.updates;
 }
+// Public developer section: published updates and public bots. No sign-in needed; these are read only.
+export type PublicDeveloperUpdate = { id: string; title: string; body: string; version: string | null; publishedAt: string };
+export type PublicDeveloperBot = { id: string; name: string; description: string | null; avatar: string | null; createdAt: string };
+
+export async function listPublicDeveloperUpdates() {
+  return (await api.get<{ updates: PublicDeveloperUpdate[] }>("/api/public/developers/updates")).data.updates;
+}
+
+export async function listPublicDeveloperBots(q?: string) {
+  return (await api.get<{ bots: PublicDeveloperBot[] }>("/api/public/developers/bots", { params: q ? { q } : undefined })).data.bots;
+}
+
 export async function listUnseenUpdates(accessToken: string) {
   return (await api.get<{ updates: AppUpdate[] }>("/api/updates/unseen", { headers: authHeaders(accessToken) })).data.updates;
 }

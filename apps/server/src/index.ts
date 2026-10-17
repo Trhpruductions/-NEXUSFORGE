@@ -35,6 +35,7 @@ import { settingsRouter } from "./routes/settings.routes.js";
 import { accountRouter } from "./routes/account.routes.js";
 import { meRouter } from "./routes/me.routes.js";
 import { updatesRouter } from "./routes/updates.routes.js";
+import { publicDevelopersRouter } from "./routes/public-developers.routes.js";
 import { errorsRouter } from "./routes/errors.routes.js";
 import { problemReportsRouter } from "./routes/problem-reports.routes.js";
 import { recordError } from "./lib/error-log.js";
@@ -180,6 +181,8 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/account", accountRouter);
 app.use("/api/me", meRouter);
 app.use("/api/updates", updatesRouter);
+// Public developer section (published updates, public bots): no sign-in required, read only.
+app.use("/api/public/developers", publicDevelopersRouter);
 app.use("/api/errors", errorsRouter);
 app.use("/api/problem-reports", problemReportsRouter);
 app.use("/api/reports", reportsRouter);

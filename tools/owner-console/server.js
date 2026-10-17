@@ -15,6 +15,7 @@ const { closePool } = require("./lib/appdb");
 const monitor = require("./lib/monitor");
 const { TicketStore } = require("./lib/tickets/store");
 const ops = require("./lib/ops-actions");
+const finance = require("./lib/finance");
 
 const TOKEN = crypto.randomBytes(24).toString("base64url");
 const COOKIE_NAME = "oc_session";
@@ -236,6 +237,13 @@ async function handleGet(req, res, url) {
     res.writeHead(200, { "Content-Type": staticEntry.type, "Content-Length": staticEntry.body.length });
     res.end(req.method === "HEAD" ? undefined : staticEntry.body);
     return;
+  }
+  if (pathname === "/api/finance") {
+    try {
+      return sendJson(res, 200, await finance.buildFinance());
+    } catch (error) {
+      return sendJson(res, 503, { error: scrubText(error && error.message ? error.message : "finance read failed") });
+    }
   }
   if (pathname === "/api/state") return sendJson(res, 200, monitor.buildState(all));
   if (pathname === "/api/logs") return sendJson(res, 200, monitor.buildLogs());

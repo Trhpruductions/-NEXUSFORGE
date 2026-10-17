@@ -36,7 +36,6 @@ const NEXUS_PM2_APPS = [
   "vexora-gateway",
   "vexora-tunnel",
   "vexora-watchdog",
-  "nexusforge-watchdog-workspace",
 ];
 
 // Apps whose pm2 log files are tailed, keyed by the short name used in the UI.

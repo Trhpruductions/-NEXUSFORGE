@@ -85,25 +85,5 @@ module.exports = {
         NODE_ENV: "production",
       },
     },
-    {
-      name: "nexusforge-watchdog-workspace",
-      script: "cmd.exe",
-      args: [
-        "/d",
-        "/s",
-        "/c",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\ops-managed-watchdog.ps1 -Continuous -Silent -IntervalSeconds 300 -MaxRuns 0",
-      ],
-      cwd: "./",
-      instances: 1,
-      exec_mode: "fork",
-      autorestart: true,
-      max_restarts: 1000,
-      restart_delay: 300000,
-      watch: false,
-      env: {
-        NODE_ENV: "production",
-      },
-    },
   ],
 };

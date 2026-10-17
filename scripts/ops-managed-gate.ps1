@@ -22,10 +22,6 @@ try {
   Invoke-CheckedNpm -Label "Desktop splash packaging verification" -Arguments @("run", "desktop:splash:verify:packaged")
   Invoke-CheckedNpm -Label "Desktop artifact integrity report" -Arguments @("run", "desktop:artifact:report")
   Invoke-CheckedNpm -Label "Desktop artifact consistency validation" -Arguments @("run", "desktop:artifact:validate")
-  Invoke-CheckedNpm -Label "Run watchdog once" -Arguments @("run", "pm2:workspace:watchdog:once")
-  Invoke-CheckedNpm -Label "Doctor with watchdog freshness" -Arguments @("run", "pm2:workspace:doctor:watchdog")
-  Invoke-CheckedNpm -Label "Watchdog status" -Arguments @("run", "pm2:workspace:watchdog:status")
-  Invoke-CheckedNpm -Label "Watchdog history threshold guard" -Arguments @("run", "ops:watchdog:summary:guard")
   Invoke-CheckedNpm -Label "Managed runtime validation" -Arguments @("run", "pm2:workspace:validate:managed")
 
   Write-Host "[ops-managed-gate] PASS: managed runtime gate is healthy." -ForegroundColor Green

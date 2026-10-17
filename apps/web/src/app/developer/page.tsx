@@ -5,10 +5,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
-import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp } from "@/lib/api";
+import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp, listPublicDeveloperBots, listPublicDeveloperUpdates } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 import { DeveloperIntro } from "@/components/developer/developer-intro";
+import { DeveloperUpdates, PublicBots } from "@/components/developer/developer-public-sections";
 
 export default function DeveloperPortalPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
@@ -18,6 +19,19 @@ export default function DeveloperPortalPage() {
   const [botName, setBotName] = useState("");
   const [botDescription, setBotDescription] = useState("");
   const [botCopyStatuses, setBotCopyStatuses] = useState<Record<string, CopyStatus>>({});
+
+  // Public: anyone can read the updates and public bots, with or without an account.
+  const updatesQuery = useQuery({
+    queryKey: ["public-developer-updates"],
+    queryFn: () => listPublicDeveloperUpdates(),
+    staleTime: 60_000,
+  });
+  const publicBotsQuery = useQuery({
+    queryKey: ["public-developer-bots"],
+    queryFn: () => listPublicDeveloperBots(),
+    enabled: !isSignedIn,
+    staleTime: 30_000,
+  });
 
   const myBotsQuery = useQuery({
     queryKey: ["developer-my-bots", accessToken],
@@ -100,13 +114,17 @@ export default function DeveloperPortalPage() {
       maxWidthClassName="max-w-5xl"
     >
       <DeveloperIntro />
+      <DeveloperUpdates data={updatesQuery.data} loading={updatesQuery.isLoading} failed={updatesQuery.isError} />
       {!isSignedIn ? (
-        <GuestAuthCallout
-          title="Developer tools require a Nexus Forge Gaming account."
-          description="Sign in to create bots, set up slash commands, register apps for Sign in with Nexus Forge, and manage webhooks."
-          loginHref="/login?redirect=/developer"
-          registerHref="/register?redirect=/developer"
-        />
+        <>
+          <PublicBots data={publicBotsQuery.data} loading={publicBotsQuery.isLoading} failed={publicBotsQuery.isError} />
+          <GuestAuthCallout
+            title="Sign in to build with Nexus Forge Gaming."
+            description="Create bots, set up slash commands, register apps for Sign in with Nexus Forge, and manage webhooks. Reading the updates and public bots needs no account."
+            loginHref="/login?redirect=/developer"
+            registerHref="/register?redirect=/developer"
+          />
+        </>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.25fr_0.9fr]">
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">

@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { AuthGate } from "@/components/layout/auth-gate";
+import { DeveloperAccessGate } from "@/components/developer/developer-access-gate";
 import { DeveloperShell } from "@/components/developer/developer-shell";
 
 export const metadata: Metadata = {
   title: "Developer Portal",
-  description: "Create bots, manage applications, and publish integrations in the Nexus Forge Gaming developer portal.",
+  description: "Read the app updates and browse public bots in the Nexus Forge Gaming developer section. Sign in to create and manage your own.",
 };
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthGate>
+    <DeveloperAccessGate>
       <DeveloperShell>{children}</DeveloperShell>
-    </AuthGate>
+    </DeveloperAccessGate>
   );
 }

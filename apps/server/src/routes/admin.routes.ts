@@ -24,7 +24,6 @@ import {
   resolveEffectiveRole,
 } from "../lib/app-roles.js";
 import { getLaunchMode, setLaunchModeDesktopOnly } from "../lib/launch-mode.js";
-import { getRemotePricingCatalog } from "../lib/pricing-catalog-client.js";
 import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
@@ -387,113 +386,6 @@ adminRouter.get("/live-users", async (req, res) => {
   });
 
   res.json({ users });
-});
-
-adminRouter.get("/revenue", async (_req, res) => {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-
-  const [
-    succeededTransactions,
-    succeededTransactionsPreviousWindow,
-    transactionByFeature,
-    activeSubscriptions,
-    activeUsersByTier,
-    failedPayments,
-  ] = await Promise.all([
-    prisma.paymentTransaction.findMany({
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: {
-        amountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.findMany({
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
-      },
-      select: {
-        amountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.groupBy({
-      by: ["featureCode"],
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      _sum: { amountCents: true },
-      _count: { _all: true },
-    }),
-    prisma.billingSubscription.count({
-      where: {
-        status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
-      },
-    }),
-    prisma.user.groupBy({
-      by: ["premiumTier"],
-      where: {
-        premium: true,
-        premiumTier: { not: "NONE" },
-      },
-      _count: { _all: true },
-    }),
-    prisma.paymentTransaction.count({
-      where: {
-        status: "FAILED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-    }),
-  ]);
-
-  const revenueCents = succeededTransactions.reduce((sum, row) => sum + row.amountCents, 0);
-  const previousRevenueCents = succeededTransactionsPreviousWindow.reduce((sum, row) => sum + row.amountCents, 0);
-
-  const growthPct =
-    previousRevenueCents > 0
-      ? Number((((revenueCents - previousRevenueCents) / previousRevenueCents) * 100).toFixed(2))
-      : revenueCents > 0
-        ? 100
-        : 0;
-
-  const tierDistribution = {
-    CORE: 0,
-    PLUS: 0,
-    ELITE: 0,
-    INFINITE: 0,
-  };
-
-  for (const row of activeUsersByTier) {
-    if (row.premiumTier in tierDistribution) {
-      tierDistribution[row.premiumTier as keyof typeof tierDistribution] = row._count._all;
-    }
-  }
-
-  const pricingCatalog = await getRemotePricingCatalog();
-  const paidFeatureLabels = pricingCatalog?.paidFeatureLabels ?? {};
-  const paidFeaturePrices = pricingCatalog?.paidFeaturePrices ?? {};
-
-  res.json({
-    revenue: {
-      last30DaysCents: revenueCents,
-      previous30DaysCents: previousRevenueCents,
-      growthPct,
-      activeSubscriptions,
-      failedPayments,
-    },
-    tierDistribution,
-    featureRevenue: transactionByFeature.map((row) => ({
-      featureCode: row.featureCode,
-      featureLabel: paidFeatureLabels[row.featureCode] ?? row.featureCode,
-      priceLabel: paidFeaturePrices[row.featureCode] ?? null,
-      revenueCents: row._sum.amountCents ?? 0,
-      transactions: row._count._all,
-    })),
-  });
 });
 
 adminRouter.get("/users", async (req, res) => {

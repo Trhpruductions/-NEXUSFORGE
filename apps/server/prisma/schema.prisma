@@ -1719,6 +1719,20 @@ model PaymentTransaction {
   @@index([featureCode, createdAt])
 }
 
+/// Every Stripe webhook event the app has accepted. The id is Stripe's event id, so a repeated delivery is applied once.
+/// APPLYING while processing, APPLIED once recorded, and the row is removed if processing fails so Stripe's retry runs it.
+model StripeWebhookEvent {
+  id              String   @id @db.VarChar(120)
+  type            String   @db.VarChar(80)
+  livemode        Boolean
+  stripeCreatedAt DateTime
+  status          String   @default("APPLYING") @db.VarChar(16)
+  receivedAt      DateTime @default(now())
+  appliedAt       DateTime?
+
+  @@index([type, receivedAt])
+}
+
 /// A purchase made through an app store (Apple, Google, Microsoft or Amazon). One row per store transaction, so a
 /// receipt that is submitted twice grants once. Written only after the store has confirmed the purchase.
 model StorePurchase {

@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const VIEWS = ["overview", "services", "activity", "logs", "feed", "tickets", "release", "legal", "readiness", "operations"];
+  // "finance" goes last so the number keys 1 to 0 keep their places. It has its own key, F.
+  const VIEWS = ["overview", "services", "activity", "logs", "feed", "tickets", "release", "legal", "readiness", "operations", "finance"];
   const TABS = [
     { key: "inbox", label: "Inbox" },
     { key: "bugs", label: "Bugs" },
@@ -1468,6 +1469,153 @@
     return `<span class="pill pill-${tone}">${esc(text)}</span>`;
   }
 
+  /* Finance: revenue and subscribers from the app database, read only. Shown in this console only. */
+
+  const FINANCE_STALE_MS = 60 * 1000;
+  let financeData = null;
+  let financeError = null;
+  let financeLoadedAt = 0;
+  let financeFetching = false;
+
+  function usd(cents) {
+    return `$${(Number(cents || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  function signedPct(value) {
+    const n = Number(value || 0);
+    return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+  }
+
+  async function refreshFinance() {
+    if (financeFetching) return;
+    financeFetching = true;
+    try {
+      financeData = await api("GET", "/api/finance");
+      financeError = null;
+    } catch (err) {
+      financeError = err.message;
+    } finally {
+      financeFetching = false;
+      financeLoadedAt = Date.now();
+    }
+    if (app.view === "finance") renderFinance();
+  }
+
+  function renderFinance() {
+    const el = $("#view-finance");
+    const head = viewHead("Finance", "Money and memberships from the app database. Read only, and shown in this console only: never on the website.");
+    if (Date.now() - financeLoadedAt > FINANCE_STALE_MS) refreshFinance();
+    if (!financeData) {
+      el.innerHTML = head + `<section class="card">${loading("Reading the finance numbers.")}${errorLine(financeError)}</section>`;
+      return;
+    }
+
+    const f = financeData;
+    const readAt = new Date(f.generatedAt).toLocaleString("en-GB", { hour12: false });
+    const modeLabel = { test: "Stripe test mode (sandbox)", live: "Stripe live mode", "not set": "Stripe not set up", unknown: "Stripe key not recognised" }[f.stripeMode] || f.stripeMode;
+    const connection = financeError
+      ? `<p class="error-line">Stale: the backend did not answer, so these figures are from ${esc(readAt)} and may be out of date. (${esc(financeError)})</p>`
+      : `<p class="card-foot">Connected. Last read ${esc(readAt)}. Refreshes every 30 seconds while this view is open. ${esc(modeLabel)}.</p>`;
+
+    const periods = [
+      ["today", "Today"],
+      ["week", "This week"],
+      ["month", "This month"],
+      ["thirtyDays", "Last 30 days"],
+      ["allTime", "All time"],
+    ];
+    const totalRows = [
+      ["Gross collected", (t) => usd(t.grossCents)],
+      ["Refunds", (t) => usd(t.refundsCents)],
+      ["Net revenue", (t) => usd(t.netCents)],
+      ["Payments counted", (t) => num(t.transactions)],
+    ].map(([label, pick]) => `<tr><td>${esc(label)}</td>${periods.map(([key]) => `<td class="num">${pick(f.totals[key])}</td>`).join("")}</tr>`);
+    const totalsTable = table([{ label: "" }, ...periods.map(([, label]) => ({ label, num: true }))], totalRows, "No payments yet.");
+
+    const tiles = [
+      tile({ label: "Net revenue, all time", value: usd(f.totals.allTime.netCents), sub: "Gross minus refunds" }),
+      tile({ label: "Gross, last 30 days", value: usd(f.totals.thirtyDays.grossCents), sub: `Growth on the previous 30 days: ${signedPct(f.revenue.growthPct)}` }),
+      tile({ label: "Active subscriptions", value: num(f.revenue.activeSubscriptions), sub: "Stripe: active, trialing or past due" }),
+      tile({ label: "Renewals, last 30 days", value: num(f.activity.renewals30), sub: "Charges Stripe made for renewals" }),
+      tile({ label: "Failed payments, 30 days", value: num(f.revenue.failedPayments30), sub: "Payments the card did not make" }),
+      tile({ label: "Lifetime members", value: num(f.membership.lifetimeMembers), sub: "Granted tier; never ends with a subscription" }),
+    ].join("");
+
+    const statusRows = [
+      ["Succeeded", f.statuses.succeeded],
+      ["Refunded", f.statuses.refunded],
+      ["Pending (not counted yet)", f.statuses.pending],
+      ["Failed (not counted)", f.statuses.failed],
+    ].map(([label, s]) => `<tr><td>${esc(label)}</td><td class="num">${num(s.count)}</td><td class="num">${usd(s.cents)}</td></tr>`);
+
+    const planRows = f.plans.map((p) => `<tr><td>${esc(sentence(p.tier))}</td><td class="num">${num(p.activeSubscriptions)}</td><td class="num">${usd(p.grossCents30 - p.refundsCents30)}</td><td class="num">${usd(p.grossCentsAll - p.refundsCentsAll)}</td></tr>`);
+
+    const activity = [
+      ["Renewals charged", f.activity.renewals30],
+      ["Renewals that failed", f.activity.failedRenewals30],
+      ["Stripe subscriptions ended", f.activity.stripeEnded30],
+      ["Store purchases expired or revoked", f.activity.storeEnded30],
+    ].map(([label, n]) => `<tr><td>${esc(label)}</td><td class="num">${num(n)}</td></tr>`);
+
+    const storeRows = f.store.providers.map((p) => `<tr><td>${esc(sentence(p.provider))}</td><td class="num">${num(p.active)}</td><td class="num">${num(p.expired)}</td><td class="num">${num(p.revoked)}</td><td class="num">${num(p.purchasesLast30Days)}</td></tr>`);
+
+    const memberStatus = (m) => {
+      if (m.stripeStatus) return `${sentence(m.stripeStatus)}${m.cancelAtPeriodEnd ? " (ends at period end)" : ""}`;
+      if (m.storeProvider) return "Active in the app store";
+      if (m.lifetime) return "Lifetime";
+      return "No payment on record";
+    };
+    const memberDate = (m) => {
+      const when = m.renewsOrEndsAt || m.storeExpiresAt;
+      return when ? new Date(when).toLocaleDateString("en-GB") : "-";
+    };
+    const memberRows = f.members.map((m) => `<tr><td>${esc(m.username)}</td><td>${esc(sentence(m.tier))}</td><td>${esc(m.source)}</td><td>${esc(memberStatus(m))}</td><td>${esc(memberDate(m))}</td></tr>`);
+
+    const recentRows = f.recent.map((r) => `<tr><td>${esc(new Date(r.createdAt).toLocaleString("en-GB", { hour12: false }))}</td><td>${esc(r.username)}</td><td>${esc(r.featureLabel)}${r.tier ? ` · ${esc(sentence(r.tier))}` : ""}</td><td>${esc(sentence(r.provider))}</td><td>${esc(sentence(r.status))}${r.refundedCents ? ` · refunded ${esc(usd(r.refundedCents))}` : ""}</td><td class="num">${usd(r.amountCents)}</td></tr>`);
+
+    const envRows = [
+      ["Test mode (Stripe test account)", f.environments.allTime.test],
+      ["Not recorded (before the mode was stored)", f.environments.allTime.unrecorded],
+    ].map(([label, bucket]) => `<tr><td>${esc(label)}</td><td class="num">${num(bucket.transactions)}</td><td class="num">${usd(bucket.grossCents)}</td></tr>`);
+    const disputeRows = [
+      ["Open, not deducted", f.disputes.openCents],
+      ["Lost, deducted from net", f.disputes.lostCents],
+    ].map(([label, cents]) => `<tr><td>${esc(label)}</td><td class="num">${usd(cents)}</td></tr>`);
+
+    const b = f.billing;
+    const payments =`<section class="card"><h2 class="card-title">Payments setup</h2>` +
+      `<dl class="detail-grid"><dt>Mode</dt><dd>${esc(modeLabel)}</dd>` +
+      `<dt>Stripe secret key</dt><dd>${b.stripeKeyPresent ? "Set" : "Not set"}</dd>` +
+      `<dt>Webhook secret</dt><dd>${b.webhookSecretPresent ? "Set" : "Not set"}</dd>` +
+      `<dt>Webhook events, last 24 h</dt><dd>${f.webhook.available ? `${num(f.webhook.appliedLast24h)} applied${f.webhook.lastReceivedAt ? `, last ${esc(new Date(f.webhook.lastReceivedAt).toLocaleString("en-GB", { hour12: false }))}` : ""}` : esc(f.webhook.note)}</dd>` +
+      `<dt>Core+ prices</dt><dd>${b.missingTierPrices.length === 0 ? "All set" : `Missing: ${esc(b.missingTierPrices.join(", "))}`}</dd></dl>` +
+      `<p class="card-foot">${b.ready ? "Card payments are ready." : "Card payments are not ready."} Only whether each key is present is shown; no key value is read out.</p></section>`;
+
+    el.innerHTML = head +
+      connection +
+      `<div class="grid">${tiles}</div>` +
+      `<section class="card"><h2 class="card-title">Money collected</h2>${totalsTable}` +
+      `<p class="card-foot">${esc(f.processingFees.note)}</p>` +
+      `<p class="card-foot">These totals are live payments only. Net revenue is gross minus refunds and money lost to disputes. Pending payments are kept out of every total until Stripe confirms them.</p></section>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title">Not counted as revenue</h2>${table([{ label: "Where it came from" }, { label: "Payments, all time", num: true }, { label: "Amount, all time", num: true }], envRows, "No test or unrecorded payments.")}<p class="card-foot">Test-mode payments, and payments recorded before the Stripe mode was stored. Shown so they are never taken for live income.</p></section>` +
+      `<section class="card"><h2 class="card-title">Disputes</h2>${table([{ label: "Disputes, live payments" }, { label: "Amount", num: true }], disputeRows)}<p class="card-foot">${esc(f.disputes.note)}</p></section>` +
+      `</div>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title">Payments by status, all time</h2>${table([{ label: "Status" }, { label: "Payments", num: true }, { label: "Amount", num: true }], statusRows, "No payments yet.")}</section>` +
+      `<section class="card"><h2 class="card-title">Revenue by plan</h2>${table([{ label: "Plan" }, { label: "Active", num: true }, { label: "Net, 30 days", num: true }, { label: "Net, all time", num: true }], planRows, "No plan payments yet.")}</section>` +
+      `</div>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title">Renewals and endings, last 30 days</h2>${table([{ label: "Event" }, { label: "Count", num: true }], activity)}</section>` +
+      `<section class="card"><h2 class="card-title">Store purchases (Apple, Google)</h2>${table([{ label: "Store" }, { label: "Active", num: true }, { label: "Expired", num: true }, { label: "Revoked", num: true }, { label: "Bought, 30 days", num: true }], storeRows, "No store purchases yet.")}<p class="card-foot">${esc(f.store.note)}</p></section>` +
+      `</div>` +
+      `<section class="card"><h2 class="card-title">Memberships (${num(f.members.length)} shown)</h2>` +
+      `${table([{ label: "Member" }, { label: "Tier" }, { label: "Source" }, { label: "Status" }, { label: "Renews or ends" }], memberRows, "No premium members.")}` +
+      `<p class="card-foot">${num(f.membership.premiumUsers)} members have premium: ${num(f.membership.lifetimeMembers)} lifetime, ${num(f.membership.stripeActiveUsers)} paying through an active Stripe subscription, ${num(f.membership.storeActiveUsers)} paying through an active store subscription, and ${num(f.membership.premiumWithoutPayment)} with no payment on record. Premium with no payment on record is granted another way and is not counted as revenue.</p></section>` +
+      `<section class="card"><h2 class="card-title">Most recent payments</h2>${table([{ label: "When" }, { label: "Member" }, { label: "Purchase" }, { label: "Provider" }, { label: "Status" }, { label: "Amount", num: true }], recentRows, "No payments yet.")}</section>` +
+      `<div class="two-col">${payments}</div>`;
+  }
+
   function renderActive() {
     try {
       if (app.view === "overview") renderOverview();
@@ -1480,6 +1628,7 @@
       else if (app.view === "legal") renderLegal();
       else if (app.view === "readiness") renderReadiness();
       else if (app.view === "operations") renderOperations();
+      else if (app.view === "finance") renderFinance();
     } catch (err) {
       console.error("render failed", err);
     }
@@ -1526,6 +1675,10 @@
       if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key === "0") {
         location.hash = VIEWS[9];
+        return;
+      }
+      if (event.key === "f" || event.key === "F") {
+        location.hash = "finance";
         return;
       }
       const n = Number(event.key);
@@ -1580,6 +1733,7 @@
         if (app.view === "tickets") renderTicketList();
         refreshBugs();
         if (app.view === "tickets") refreshActions();
+        if (app.view === "finance") refreshFinance();
       }
     }, 1000);
   }

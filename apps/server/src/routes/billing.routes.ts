@@ -17,7 +17,8 @@ import { requirePaidFeature } from "../middleware/entitlements.js";
 import { consumeFeatureQuantity } from "../lib/feature-consumption.js";
 import { billingEnabled, PLANS, TIER_ORDER } from "../lib/plans.js";
 import { limitsForUser } from "../lib/user-limits.js";
-import { syncStorePremium } from "../lib/store-billing/lifecycle.js";
+import { recordDispute, recordFailedPayment, recordRefund, recordRenewalPayment, subscriptionIdOf, type LooseCharge, type LooseDispute, type LooseInvoice } from "../lib/billing-ledger.js";
+import { applySubscriptionEvent, claimStripeEvent, markStripeEventApplied, readSubscriptionPeriod, releaseStripeEvent, stampSubscriptionFromInvoice } from "../lib/billing-events.js";
 
 const checkoutSchema = z.object({
   featureCode: z.enum([
@@ -116,13 +117,6 @@ function getBillingReadiness(): BillingReadiness {
       addOnPrices: missingAddonPrices,
     },
   };
-}
-
-function readSubscriptionPeriod(subscription: unknown): { start: Date | null; end: Date | null } {
-  const raw = subscription as { current_period_start?: number; current_period_end?: number };
-  const start = typeof raw.current_period_start === "number" ? new Date(raw.current_period_start * 1000) : null;
-  const end = typeof raw.current_period_end === "number" ? new Date(raw.current_period_end * 1000) : null;
-  return { start, end };
 }
 
 billingRouter.get("/status", (_req, res) => {
@@ -444,7 +438,9 @@ async function applyCheckoutSession(session: Stripe.Checkout.Session): Promise<"
             userId,
             provider: "STRIPE",
             providerEventId: recordKey,
-            providerPaymentId: session.payment_intent?.toString() ?? session.id,
+            // The payment intent or invoice is what Stripe's charges and refunds carry, so refunds and reconciliation can
+            // find this payment. The session id is only the fallback.
+            providerPaymentId: session.payment_intent?.toString() ?? (typeof session.invoice === "string" ? session.invoice : session.id),
             amountCents: unitAmount,
             currency: session.currency ?? "usd",
             status: "SUCCEEDED",
@@ -452,6 +448,8 @@ async function applyCheckoutSession(session: Stripe.Checkout.Session): Promise<"
             tier: featureCode === "CORE_PLUS" ? (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE") : null,
             metadata: {
               checkoutSessionId: session.id,
+              invoiceId: typeof session.invoice === "string" ? session.invoice : null,
+              livemode: session.livemode,
               subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
               priceId,
             },
@@ -499,6 +497,55 @@ billingRouter.post("/checkout/confirm", requireAuth, async (req, res) => {
   res.json({ ok: true, result, premium: user?.premium ?? false, premiumTier: user?.premiumTier ?? "NONE" });
 });
 
+/** Reads a charge at Stripe, for a dispute that does not name its payment intent. Read only. */
+async function resolveCharge(chargeId: string): Promise<{ payment_intent?: unknown; invoice?: unknown }> {
+  if (!stripeClient) throw new Error("Stripe is not configured");
+  // The invoice field is read loosely: the SDK's charge type does not declare it in this API version.
+  const charge = (await stripeClient.charges.retrieve(chargeId)) as unknown as { payment_intent?: unknown; invoice?: unknown };
+  return { payment_intent: charge.payment_intent, invoice: charge.invoice };
+}
+
+/**
+ * Applies one verified Stripe event to the app's records. Each event type is idempotent, so a repeated or
+ * out-of-order delivery leaves the records as they should be. Event types the app does not use are ignored.
+ */
+export async function applyBillingEvent(event: Stripe.Event): Promise<void> {
+  switch (event.type) {
+    case "checkout.session.completed":
+      await applyCheckoutSession(event.data.object);
+      return;
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+      await applySubscriptionEvent(event);
+      return;
+    case "invoice.paid": {
+      const invoice = event.data.object as unknown as LooseInvoice;
+      await recordRenewalPayment(invoice);
+      const subscriptionId = subscriptionIdOf(invoice);
+      if (subscriptionId) await stampSubscriptionFromInvoice(subscriptionId, event);
+      return;
+    }
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as unknown as LooseInvoice;
+      await recordFailedPayment(event.id, invoice);
+      const subscriptionId = subscriptionIdOf(invoice);
+      // Marked past due only if no newer event has already been applied to this subscription.
+      if (subscriptionId) await stampSubscriptionFromInvoice(subscriptionId, event, "PAST_DUE");
+      return;
+    }
+    case "charge.refunded":
+      await recordRefund(event.data.object as unknown as LooseCharge);
+      return;
+    case "charge.dispute.created":
+    case "charge.dispute.closed":
+      await recordDispute(event.data.object as unknown as LooseDispute, resolveCharge);
+      return;
+    default:
+      return;
+  }
+}
+
 export async function billingWebhookHandler(req: Request, res: Response): Promise<void> {
   if (!stripeClient || !env.STRIPE_WEBHOOK_SECRET) {
     res.status(503).json({ error: "Webhook unavailable. Configure Stripe webhook secret." });
@@ -511,7 +558,7 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     return;
   }
 
-  let event;
+  let event: Stripe.Event;
   try {
     event = stripeClient.webhooks.constructEvent(req.body, signature, env.STRIPE_WEBHOOK_SECRET);
   } catch {
@@ -519,81 +566,19 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     return;
   }
 
-  // Stripe can deliver the same event more than once; apply each one only once.
-  const alreadyApplied = await prisma.paymentTransaction.findFirst({ where: { providerEventId: event.id }, select: { id: true } });
-  if (alreadyApplied) {
+  // Stripe can deliver the same event more than once: the claim makes sure it is applied once.
+  if ((await claimStripeEvent(event)) === "duplicate") {
     res.status(200).json({ received: true, duplicate: true });
     return;
   }
 
   try {
-    if (event.type === "checkout.session.completed") {
-      await applyCheckoutSession(event.data.object);
-    }
-
-    if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-      const sub = event.data.object;
-      const period = readSubscriptionPeriod(sub);
-      const providerSubscriptionId = sub.id;
-      const providerPriceId = sub.items.data[0]?.price.id;
-      const tier = providerPriceId ? resolveTierFromPriceId(providerPriceId) : null;
-      const interval = providerPriceId ? resolveIntervalFromPriceId(providerPriceId) : null;
-
-      const updateData: {
-        providerPriceId: string | null;
-        status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
-        currentPeriodStart: Date | null;
-        currentPeriodEnd: Date | null;
-        cancelAtPeriodEnd: boolean;
-        tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE";
-        interval?: "MONTHLY" | "YEARLY";
-      } = {
-        providerPriceId,
-        status:
-          sub.status === "active"
-            ? "ACTIVE"
-            : sub.status === "trialing"
-              ? "TRIALING"
-              : sub.status === "canceled"
-                ? "CANCELED"
-                : "PAST_DUE",
-        currentPeriodStart: period.start,
-        currentPeriodEnd: period.end,
-        cancelAtPeriodEnd: sub.cancel_at_period_end,
-      };
-
-      if (tier) updateData.tier = tier;
-      if (interval) updateData.interval = interval;
-
-      const updated = await prisma.billingSubscription.updateMany({
-        where: { providerSubscriptionId },
-        data: updateData,
-      });
-
-      if (updated.count > 0 && sub.status === "canceled") {
-        const localSub = await prisma.billingSubscription.findUnique({
-          where: { providerSubscriptionId },
-          select: { userId: true },
-        });
-
-        // Ends only the Stripe source. A live store subscription keeps the user's premium, and a lifetime membership is never removed.
-        if (localSub?.userId) await syncStorePremium(prisma, localSub.userId);
-      }
-    }
-
-    if (event.type === "invoice.payment_failed") {
-      const invoice = event.data.object as { parent?: { subscription_details?: { subscription?: string } } };
-      const subscriptionId = invoice.parent?.subscription_details?.subscription;
-      if (typeof subscriptionId === "string" && subscriptionId.length > 0) {
-        await prisma.billingSubscription.updateMany({
-          where: { providerSubscriptionId: subscriptionId },
-          data: { status: "PAST_DUE" },
-        });
-      }
-    }
-
+    await applyBillingEvent(event);
+    await markStripeEventApplied(event.id);
     res.status(200).json({ received: true });
   } catch (error) {
+    // Give the claim back, so Stripe's retry of this event applies it.
+    await releaseStripeEvent(event.id).catch(() => undefined);
     console.error("billing webhook error", error);
     res.status(500).json({ error: "Webhook processing failed" });
   }
