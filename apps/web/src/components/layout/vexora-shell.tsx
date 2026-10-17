@@ -60,6 +60,8 @@ import { useVoiceStore } from "@/store/voice-store";
 import { useServerViewStore } from "@/store/server-view-store";
 import { serverLandingHref } from "@/lib/server-routes";
 import { VoiceEngine } from "@/components/chat/voice-engine";
+import { AppearanceRuntime } from "@/components/appearance/appearance-runtime";
+import { playCue } from "@/lib/sound/sound-engine";
 import { useEscapeKey } from "@/lib/use-escape-key";
 
 // The sidebar, grouped so people can find their way: Home, then Community, Create, Shop and Account.
@@ -88,29 +90,6 @@ const railLinks = [
   { label: "Live", href: "/app/live", icon: Radio },
 ];
 
-/** Short two-note chime generated with WebAudio, so no asset is needed. */
-function playNotificationTone() {
-  try {
-    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const context = new Ctor();
-    const now = context.currentTime;
-    [[880, 0], [1174.66, 0.12]].forEach(([frequency, offset]) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.18, now + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.22);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(now + offset);
-      oscillator.stop(now + offset + 0.25);
-    });
-    window.setTimeout(() => void context.close(), 600);
-  } catch {
-    // audio blocked until the user interacts with the page
-  }
-}
 
 function isActive(pathname: string, href: string) {
   return pathname === href || (href !== "/app" && pathname.startsWith(href));
@@ -316,20 +295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     enabled: Boolean(accessToken),
     staleTime: 5 * 60_000,
   });
-  const appearance = settingsQuery.data?.preferences.appearance;
-  const soundsEnabledRef = useRef(true);
-  useEffect(() => {
-    soundsEnabledRef.current = settingsQuery.data?.preferences.notifications.sounds ?? true;
-  }, [settingsQuery.data?.preferences.notifications.sounds]);
-  useEffect(() => {
-    if (!appearance) return;
-    const root = document.documentElement;
-    root.dataset.accent = appearance.accent;
-    root.dataset.density = appearance.density;
-    root.dataset.font = appearance.fontScale;
-    root.dataset.motion = appearance.reduceMotion ? "reduce" : "";
-    root.dataset.chatAvatars = appearance.showAvatarsInChat ? "on" : "off";
-  }, [appearance]);
+  // Applied (with themes, effects, seasonal visuals and sounds) by <AppearanceRuntime> below.
 
   const protection = protectionQuery.data?.protection;
   const showProtectionBanner = Boolean(protection && !protection.complete && !pathname.startsWith("/app/settings"));
@@ -378,8 +344,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     const handleNotification = (payload: { id: string; title: string; quiet?: boolean }) => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       // Quiet hours: the server marks it quiet; it still shows in the inbox, silently.
-      if (soundsEnabledRef.current && !payload.quiet) playNotificationTone();
-      void payload;
+      // The message cue follows Settings → Notifications → Notification sounds (see AppearanceRuntime).
+      if (!payload.quiet) playCue("message");
     };
     const handleVoice = (payload: { channelId: string; count: number }) => {
       setVoiceCounts((current) => ({ ...current, [payload.channelId]: payload.count }));
@@ -839,6 +805,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="absolute right-1/4 top-[-120px] h-[300px] w-[420px] rounded-full bg-amber-500/[0.08] blur-[110px]" />
       </div>
       <VoiceEngine />
+      <AppearanceRuntime preferences={settingsQuery.data?.preferences} userId={user?.id ?? null} />
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
       <SavedPanel open={savedOpen} onClose={() => setSavedOpen(false)} />
@@ -864,7 +831,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
       {/* Forge rail */}
       <div className={cn("hidden w-[60px] shrink-0 flex-col items-center gap-2 border-r border-white/[0.06] bg-[#080b12]/80 py-3 backdrop-blur-xl lg:flex", quietWorkspace && "lg:hidden")}>
-        <Link href="/app" className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
+        <Link href="/app" data-nf-logo className="mb-1 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-amber-500/40 shadow-[0_0_18px_rgba(46,164,255,0.25)]" title="Nexus Forge Gaming">
           <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge" width={40} height={40} className="h-10 w-10 object-cover" />
         </Link>
         <span className="mb-1 h-px w-8 bg-gradient-to-r from-violet-400/40 via-amber-400/50 to-cyan-400/40" />

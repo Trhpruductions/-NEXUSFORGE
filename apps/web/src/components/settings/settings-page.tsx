@@ -42,7 +42,6 @@ import {
   updateLinkedAccounts,
   updatePreferences,
   updatePrivacySettings,
-  type AppearancePreferences,
   type NotificationPreferences,
   type PrivacySettings,
   getCosmeticInventory,
@@ -56,6 +55,7 @@ import { QuietHoursEditor } from "@/components/settings/quiet-hours-editor";
 import { Toggle } from "@/components/settings/toggle";
 import { AgeVerificationCard } from "@/components/settings/age-verification";
 import { VoiceVideoSettings } from "@/components/voice/voice-video-settings";
+import { AppearanceSoundsSettings } from "@/components/settings/appearance-sounds-settings";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { shownUploadBytes } from "@/lib/plan-perks";
@@ -66,7 +66,7 @@ const categories = [
   { key: "avatar", label: "Avatar & Profile", icon: Palette },
   { key: "privacy", label: "Privacy & Safety", icon: Shield },
   { key: "notifications", label: "Notifications", icon: Bell },
-  { key: "appearance", label: "Appearance", icon: Palette },
+  { key: "appearance", label: "Appearance & Sounds", icon: Palette },
   { key: "voice", label: "Voice & Video", icon: Headphones },
   { key: "connections", label: "Connections", icon: Link2 },
   { key: "integrations", label: "Integrations", icon: Puzzle },
@@ -162,7 +162,6 @@ function SettingsInner() {
   const requestedCategory = searchParams?.get("section") as CategoryKey | null;
   const [category, setCategory] = useState<CategoryKey>(requestedCategory && categories.some((entry) => entry.key === requestedCategory) ? requestedCategory : "account");
   const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
-  const [appearance, setAppearance] = useState<AppearancePreferences | null>(null);
 
   useEffect(() => {
     const data = settingsQuery.data;
@@ -175,7 +174,6 @@ function SettingsInner() {
     setPrivacy(data.privacy);
     setLinked(Object.fromEntries(Object.entries(data.linkedAccounts).map(([key, value]) => [key, value ?? ""])));
     setNotifications(data.preferences.notifications);
-    setAppearance(data.preferences.appearance);
     setSeeded(true);
   }, [settingsQuery.data, seeded]);
 
@@ -208,16 +206,6 @@ function SettingsInner() {
     retry: false,
   });
 
-  // Live preview of appearance changes before they are saved.
-  useEffect(() => {
-    if (!appearance) return;
-    const root = document.documentElement;
-    root.dataset.accent = appearance.accent;
-    root.dataset.density = appearance.density;
-    root.dataset.font = appearance.fontScale;
-    root.dataset.motion = appearance.reduceMotion ? "reduce" : "";
-    root.dataset.chatAvatars = appearance.showAvatarsInChat ? "on" : "off";
-  }, [appearance]);
 
   const account = settingsQuery.data?.account;
   const accountDirty = Boolean(account) && (displayName !== (account?.displayName ?? "") || email !== account?.email || bio !== (account?.bio ?? "") || clanTag !== (account?.clanTag ?? ""));
@@ -295,14 +283,12 @@ function SettingsInner() {
     mutationFn: (payload: Parameters<typeof updatePreferences>[2]) => updatePreferences(accessToken!, csrfToken!, payload),
     onSuccess: async (result) => {
       setNotifications(result.preferences.notifications);
-      setAppearance(result.preferences.appearance);
       setNotice({ tone: "ok", text: "Preferences saved." });
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const notificationsDirty = Boolean(notifications && settingsQuery.data) && JSON.stringify(notifications) !== JSON.stringify(settingsQuery.data?.preferences.notifications);
-  const appearanceDirty = Boolean(appearance && settingsQuery.data) && JSON.stringify(appearance) !== JSON.stringify(settingsQuery.data?.preferences.appearance);
 
   const forge = forgeQuery.data?.forge;
   const isOwner = forge?.ownerId === user?.id;
@@ -629,66 +615,16 @@ function SettingsInner() {
             </section>
           ) : null}
 
-          {category === "appearance" && appearance ? (
+          {category === "appearance" && settingsQuery.data ? (
             <section className={`${panel} space-y-5`}>
-              <h2 className={sectionTitle}>Appearance</h2>
-              <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Accent</p>
-                <div className="flex flex-wrap gap-2">
-                  {([
-                    { key: "gold", label: "Nexus Forge Blue", color: "#2ea4ff" },
-                    { key: "ember", label: "Ember", color: "#ff7a2f" },
-                    { key: "ice", label: "Ice", color: "#37c6ff" },
-                    { key: "violet", label: "Violet", color: "#a466ff" },
-                  ] as const).map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setAppearance((current) => (current ? { ...current, accent: option.key } : current))}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${appearance.accent === option.key ? "border-amber-400/60 bg-amber-500/10 text-white" : "border-white/10 text-slate-300 hover:border-white/20"}`}
-                    >
-                      <span className="h-4 w-4 rounded-full" style={{ backgroundColor: option.color }} /> {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="block text-xs text-slate-300">
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Message density</span>
-                  <select className={inputClass} value={appearance.density} onChange={(event) => setAppearance((current) => (current ? { ...current, density: event.target.value as AppearancePreferences["density"] } : current))}>
-                    <option value="cozy">Cozy</option>
-                    <option value="compact">Compact</option>
-                  </select>
-                </label>
-                <label className="block text-xs text-slate-300">
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-slate-500">Text size</span>
-                  <select className={inputClass} value={appearance.fontScale} onChange={(event) => setAppearance((current) => (current ? { ...current, fontScale: event.target.value as AppearancePreferences["fontScale"] } : current))}>
-                    <option value="small">Small</option>
-                    <option value="default">Default</option>
-                    <option value="large">Large</option>
-                  </select>
-                </label>
-              </div>
-              <ul className="space-y-3">
-                <li className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-slate-100">Reduce motion</p>
-                    <p className="text-[11px] text-slate-500">Turn off animations and transitions.</p>
-                  </div>
-                  <Toggle checked={appearance.reduceMotion} label="Reduce motion" onChange={(value) => setAppearance((current) => (current ? { ...current, reduceMotion: value } : current))} />
-                </li>
-                <li className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-slate-100">Show avatars in chat</p>
-                    <p className="text-[11px] text-slate-500">Hide them for a denser message list.</p>
-                  </div>
-                  <Toggle checked={appearance.showAvatarsInChat} label="Show avatars in chat" onChange={(value) => setAppearance((current) => (current ? { ...current, showAvatarsInChat: value } : current))} />
-                </li>
-              </ul>
-              <p className="text-[11px] text-slate-500">Changes preview instantly and apply everywhere once saved.</p>
-              <button type="button" className={goldBtn} disabled={!appearanceDirty || preferencesMutation.isPending} onClick={() => preferencesMutation.mutate({ appearance })}>
-                {preferencesMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save appearance
-              </button>
+              <h2 className={sectionTitle}>Appearance &amp; Sounds</h2>
+              <AppearanceSoundsSettings
+                preferences={settingsQuery.data.preferences}
+                userId={user?.id ?? null}
+                isStaff={settingsQuery.data.account.appRole !== "USER"}
+                saving={preferencesMutation.isPending}
+                onSave={(payload) => preferencesMutation.mutate(payload)}
+              />
             </section>
           ) : null}
 

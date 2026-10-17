@@ -3,6 +3,7 @@ import { Exo_2, Orbitron } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { RouteTransition } from "@/components/layout/route-transition";
 import "./globals.css";
+import "./themes.css";
 
 const exo = Exo_2({
   variable: "--font-exo",

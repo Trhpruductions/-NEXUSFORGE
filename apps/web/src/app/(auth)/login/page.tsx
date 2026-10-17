@@ -122,17 +122,16 @@ export default function LoginPage() {
       hero={
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(46,164,255,0.9)]" />
-            Welcome back
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_var(--color-amber-400)]" />
+            Open beta
           </div>
-          <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
-            Drop back into
-            <span className="block bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_45%,#0b6fe0)] bg-clip-text text-transparent">
-              the squad.
-            </span>
+          <h2 className="nf-heading text-5xl font-bold uppercase leading-[1.02] tracking-tight text-white">
+            Welcome to
+            <span className="nf-auth-heading block">the forge</span>
           </h2>
-          <p className="max-w-md text-base leading-relaxed text-slate-300">
-            Sign in to pick up your forges, voice rooms, friends and rewards right where you left them.
+          <p className="max-w-md text-lg font-semibold leading-relaxed text-slate-200">Your communities. Your games. Your space.</p>
+          <p className="max-w-md text-sm leading-relaxed text-slate-400">
+            Sign in to pick up your forges, voice rooms, screen shares and friends right where you left them.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {highlights.map((item) => (

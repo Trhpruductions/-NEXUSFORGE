@@ -2619,6 +2619,25 @@ export type AppearancePreferences = {
   fontScale: "small" | "default" | "large";
   reduceMotion: boolean;
   showAvatarsInChat: boolean;
+  // Appearance & Sounds. Optional so an older server without them still works; lib/appearance/preferences.ts fills defaults.
+  theme?: "forge-dark" | "midnight-neon" | "cyber-grid" | "ember-forge" | "frost" | "aurora" | "minimal-dark" | "high-contrast";
+  animation?: "full" | "subtle" | "off";
+  decorativeEffects?: boolean;
+  noFlashing?: boolean;
+  seasonal?: boolean;
+  loadingStyle?: "forge" | "pulse" | "minimal";
+  easterEggs?: boolean;
+};
+
+export type SoundPreferences = {
+  enabled: boolean;
+  volume: number;
+  pack: "forge" | "soft";
+  voice: boolean;
+  screenShare: boolean;
+  ui: boolean;
+  seasonal: boolean;
+  easterEggs: boolean;
 };
 
 export type VoicePreferences = {
@@ -2635,6 +2654,8 @@ export type VoicePreferences = {
 export type Preferences = {
   notifications: NotificationPreferences;
   appearance: AppearancePreferences;
+  /** Missing on servers older than Appearance & Sounds. */
+  sounds?: SoundPreferences;
   voice: VoicePreferences;
   home: HomePreferences;
 };
@@ -2683,7 +2704,7 @@ export type HomePreferences = { widgets: Array<{ id: HomeWidgetId; visible: bool
 export async function updatePreferences(
   accessToken: string,
   csrfToken: string,
-  payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; voice?: Partial<VoicePreferences>; home?: HomePreferences },
+  payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; sounds?: Partial<SoundPreferences>; voice?: Partial<VoicePreferences>; home?: HomePreferences },
 ) {
   const response = await api.put<{ preferences: Preferences }>("/api/settings/preferences", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;

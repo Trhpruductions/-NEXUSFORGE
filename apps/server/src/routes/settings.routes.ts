@@ -61,6 +61,11 @@ export type PrivacySettings = z.infer<typeof privacySchema>;
 
 export const HOME_WIDGET_IDS = ["hero", "stats", "event", "activity", "creators", "live", "actions", "posts", "jackpot"] as const;
 
+// Appearance & Sounds. The web app holds the matching theme definitions (apps/web/src/lib/appearance/themes.ts).
+export const THEME_IDS = ["forge-dark", "midnight-neon", "cyber-grid", "ember-forge", "frost", "aurora", "minimal-dark", "high-contrast"] as const;
+export const LOADING_STYLES = ["forge", "pulse", "minimal"] as const;
+export const SOUND_PACKS = ["forge", "soft"] as const;
+
 export const preferencesSchema = z.object({
   notifications: z
     .object({
@@ -89,6 +94,28 @@ export const preferencesSchema = z.object({
       fontScale: z.enum(["small", "default", "large"]).default("default"),
       reduceMotion: z.boolean().default(false),
       showAvatarsInChat: z.boolean().default(true),
+      theme: z.enum(THEME_IDS).default("forge-dark"),
+      // "full" plays every animation, "subtle" stops the looping decorative ones, "off" stops all of them.
+      animation: z.enum(["full", "subtle", "off"]).default("full"),
+      decorativeEffects: z.boolean().default(true),
+      noFlashing: z.boolean().default(false),
+      seasonal: z.boolean().default(true),
+      loadingStyle: z.enum(LOADING_STYLES).default("forge"),
+      easterEggs: z.boolean().default(true),
+    })
+    .prefault({}),
+  // Sound effects. Message and notification sounds stay under notifications.sounds.
+  sounds: z
+    .object({
+      enabled: z.boolean().default(true),
+      volume: z.number().int().min(0).max(100).default(70),
+      pack: z.enum(SOUND_PACKS).default("forge"),
+      voice: z.boolean().default(true),
+      screenShare: z.boolean().default(true),
+      // Clicks and confirmations are off until the person turns them on.
+      ui: z.boolean().default(false),
+      seasonal: z.boolean().default(true),
+      easterEggs: z.boolean().default(true),
     })
     .prefault({}),
   voice: z
@@ -302,6 +329,7 @@ settingsRouter.put("/preferences", async (req, res) => {
   const merged = {
     notifications: { ...base.notifications, ...(incoming.notifications ?? {}) },
     appearance: { ...base.appearance, ...(incoming.appearance ?? {}) },
+    sounds: { ...base.sounds, ...(incoming.sounds ?? {}) },
     voice: { ...base.voice, ...(incoming.voice ?? {}) },
     home: { ...base.home, ...(incoming.home ?? {}) },
     email: { ...base.email, ...(incoming.email ?? {}) },
