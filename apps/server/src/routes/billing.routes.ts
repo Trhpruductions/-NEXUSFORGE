@@ -2,14 +2,8 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import {
-  getAddonPriceId,
-  getTierPriceId,
-  resolveFeatureFromPriceId,
-  resolveIntervalFromPriceId,
-  resolveTierFromPriceId,
-  stripeClient,
-} from "../lib/stripe.js";
+import { getAddonPriceId, getTierPriceId, stripeClient } from "../lib/stripe.js";
+import { processStripeEvent, recordWebhookFailure } from "../lib/billing-webhook.js";
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
@@ -119,13 +113,6 @@ function getBillingReadiness(): BillingReadiness {
       addOnPrices: missingAddonPrices,
     },
   };
-}
-
-function readSubscriptionPeriod(subscription: unknown): { start: Date | null; end: Date | null } {
-  const raw = subscription as { current_period_start?: number; current_period_end?: number };
-  const start = typeof raw.current_period_start === "number" ? new Date(raw.current_period_start * 1000) : null;
-  const end = typeof raw.current_period_end === "number" ? new Date(raw.current_period_end * 1000) : null;
-  return { start, end };
 }
 
 billingRouter.get("/status", (_req, res) => {
@@ -349,209 +336,15 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
   }
 
   try {
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const userId = session.metadata?.userId;
-      const featureCode = session.metadata?.featureCode as
-        | "CORE_PLUS"
-        | "FORGE_BOOST_PACK"
-        | "CREATOR_CAMPAIGN_SLOT"
-        | "EVENT_TICKET_PASS"
-        | "TEAM_BRANDING_KIT"
-        | "ADVANCED_MODERATION_AI"
-        | undefined;
-
-      if (userId && featureCode) {
-        const lineItems = await stripeClient.checkout.sessions.listLineItems(session.id, { limit: 1 });
-        const firstItem = lineItems.data[0];
-        const unitAmount = firstItem?.amount_total ?? 0;
-        const priceId = firstItem?.price?.id ?? null;
-
-        await prisma.paymentTransaction.create({
-          data: {
-            userId,
-            provider: "STRIPE",
-            providerEventId: event.id,
-            providerPaymentId: session.payment_intent?.toString() ?? session.id,
-            amountCents: unitAmount,
-            currency: session.currency ?? "usd",
-            status: "SUCCEEDED",
-            featureCode,
-            tier: featureCode === "CORE_PLUS" ? session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" : null,
-            metadata: {
-              checkoutSessionId: session.id,
-              subscriptionId: typeof session.subscription === "string" ? session.subscription : null,
-              priceId,
-            },
-          },
-        });
-
-        if (featureCode === "CORE_PLUS") {
-          const subscriptionId = session.subscription?.toString();
-          if (subscriptionId) {
-            const subscription = await stripeClient.subscriptions.retrieve(subscriptionId);
-            const period = readSubscriptionPeriod(subscription);
-            const subscriptionPriceId = subscription.items.data[0]?.price.id ?? priceId;
-            const tier = (session.metadata?.tier as "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ??
-              (subscriptionPriceId ? resolveTierFromPriceId(subscriptionPriceId) : null) ??
-              "PLUS";
-            const interval = (session.metadata?.interval as "MONTHLY" | "YEARLY" | undefined) ??
-              (subscriptionPriceId ? resolveIntervalFromPriceId(subscriptionPriceId) : null) ??
-              "MONTHLY";
-
-            await prisma.billingSubscription.upsert({
-              where: {
-                providerSubscriptionId: subscriptionId,
-              },
-              update: {
-                userId,
-                providerCustomerId: subscription.customer.toString(),
-                providerPriceId: subscriptionPriceId,
-                tier,
-                interval,
-                status: subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE",
-                currentPeriodStart: period.start,
-                currentPeriodEnd: period.end,
-                cancelAtPeriodEnd: subscription.cancel_at_period_end,
-              },
-              create: {
-                userId,
-                provider: "STRIPE",
-                providerCustomerId: subscription.customer.toString(),
-                providerSubscriptionId: subscriptionId,
-                providerPriceId: subscriptionPriceId,
-                tier,
-                interval,
-                status: subscription.status === "active" ? "ACTIVE" : subscription.status === "trialing" ? "TRIALING" : "PAST_DUE",
-                currentPeriodStart: period.start,
-                currentPeriodEnd: period.end,
-                cancelAtPeriodEnd: subscription.cancel_at_period_end,
-              },
-            });
-
-            await prisma.user.update({
-              where: { id: userId },
-              data: {
-                premium: true,
-                premiumTier: tier,
-                corePlusActivatedAt: new Date(),
-                corePlusBoostLevel:
-                  tier === "INFINITE"
-                    ? 5
-                    : tier === "ELITE"
-                      ? 3
-                      : tier === "PLUS"
-                        ? 2
-                        : 1,
-              },
-            });
-          }
-        } else {
-          await prisma.featureEntitlement.upsert({
-            where: {
-              userId_featureCode: {
-                userId,
-                featureCode,
-              },
-            },
-            update: {
-              active: true,
-              quantity: {
-                increment: Number(session.metadata?.quantity ?? "1"),
-              },
-            },
-            create: {
-              userId,
-              featureCode,
-              source: "STRIPE",
-              active: true,
-              quantity: Number(session.metadata?.quantity ?? "1"),
-            },
-          });
-        }
-      }
+    const outcome = await processStripeEvent(event);
+    if (outcome.note) {
+      console.warn(`billing webhook ${event.id} (${event.type}): ${outcome.note}`);
     }
-
-    if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-      const sub = event.data.object;
-      const period = readSubscriptionPeriod(sub);
-      const providerSubscriptionId = sub.id;
-      const providerPriceId = sub.items.data[0]?.price.id;
-      const tier = providerPriceId ? resolveTierFromPriceId(providerPriceId) : null;
-      const interval = providerPriceId ? resolveIntervalFromPriceId(providerPriceId) : null;
-
-      const updateData: {
-        providerPriceId: string | null;
-        status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED";
-        currentPeriodStart: Date | null;
-        currentPeriodEnd: Date | null;
-        cancelAtPeriodEnd: boolean;
-        tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE";
-        interval?: "MONTHLY" | "YEARLY";
-      } = {
-        providerPriceId,
-        status:
-          sub.status === "active"
-            ? "ACTIVE"
-            : sub.status === "trialing"
-              ? "TRIALING"
-              : sub.status === "canceled"
-                ? "CANCELED"
-                : "PAST_DUE",
-        currentPeriodStart: period.start,
-        currentPeriodEnd: period.end,
-        cancelAtPeriodEnd: sub.cancel_at_period_end,
-      };
-
-      if (tier) updateData.tier = tier;
-      if (interval) updateData.interval = interval;
-
-      const updated = await prisma.billingSubscription.updateMany({
-        where: { providerSubscriptionId },
-        data: updateData,
-      });
-
-      if (updated.count > 0 && sub.status === "canceled") {
-        const localSub = await prisma.billingSubscription.findUnique({
-          where: { providerSubscriptionId },
-          select: { userId: true },
-        });
-
-        if (localSub?.userId) {
-          const activeCount = await prisma.billingSubscription.count({
-            where: {
-              userId: localSub.userId,
-              status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
-            },
-          });
-
-          if (activeCount === 0) {
-            await prisma.user.update({
-              where: { id: localSub.userId },
-              data: {
-                premium: false,
-                premiumTier: "NONE",
-              },
-            });
-          }
-        }
-      }
-    }
-
-    if (event.type === "invoice.payment_failed") {
-      const invoice = event.data.object as { parent?: { subscription_details?: { subscription?: string } } };
-      const subscriptionId = invoice.parent?.subscription_details?.subscription;
-      if (typeof subscriptionId === "string" && subscriptionId.length > 0) {
-        await prisma.billingSubscription.updateMany({
-          where: { providerSubscriptionId: subscriptionId },
-          data: { status: "PAST_DUE" },
-        });
-      }
-    }
-
-    res.status(200).json({ received: true });
+    res.status(200).json({ received: true, duplicate: outcome.duplicate });
   } catch (error) {
-    console.error("billing webhook error", error);
+    console.error("billing webhook error", event.id, event.type, error);
+    await recordWebhookFailure(event, error);
+    // 500 makes Stripe retry the delivery. The transaction above rolled back, so the retry starts clean.
     res.status(500).json({ error: "Webhook processing failed" });
   }
 }
