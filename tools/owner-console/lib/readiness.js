@@ -18,7 +18,16 @@ const REQUIRED = [
 const OPTIONAL_WEBHOOK = ["EMAIL_WEBHOOK_SECRET"];
 const OPTIONAL_SHOWN = ["STRIPE_SECRET_KEY", "TWILIO_ACCOUNT_SID", "S3_BUCKET_NAME", "LIVEKIT_API_KEY", "DISCORD_BOT_TOKEN"];
 
-function buildReadiness() {
+/**
+ * The NODE_ENV the app is actually running with: the value pm2 reports for the running backend when it has one,
+ * otherwise the value in the env file.
+ */
+function effectiveNodeEnv({ runningValue, fileValue }) {
+  if (typeof runningValue === "string" && runningValue.length > 0) return { value: runningValue, source: "running backend" };
+  return { value: fileValue || "", source: "env file" };
+}
+
+function buildReadiness(options = {}) {
   const env = loadEnvFiles();
   const row = (key, group) => ({ key, group, ...env.describe(key) });
   const checks = [
@@ -28,8 +37,10 @@ function buildReadiness() {
   ];
 
   const nodeEnv = env.describe("NODE_ENV");
-  const nodeEnvValue = nodeEnv.present ? env.valueOf("NODE_ENV") : "";
-  const nodeEnvProduction = nodeEnvValue === "production";
+  const nodeEnvFile = nodeEnv.present ? env.valueOf("NODE_ENV") : "";
+  // The backend's real NODE_ENV is the one pm2 started it with. The env file is only a fallback.
+  const resolvedNodeEnv = effectiveNodeEnv({ runningValue: options.backendNodeEnv, fileValue: nodeEnvFile });
+  const nodeEnvProduction = resolvedNodeEnv.value === "production";
   const testModeValue = env.valueOf("EMAIL_TEST_MODE").toLowerCase();
   const testMode = testModeValue === "true" ? "on" : testModeValue === "" ? "unset" : "off";
   const appUrl = env.valueOf("APP_WEB_URL");
@@ -43,7 +54,7 @@ function buildReadiness() {
         : "EMAIL_TEST_MODE is on. Fine for development; turn it off before production.",
     );
   }
-  if (!nodeEnvProduction) warnings.push("NODE_ENV is not set to production.");
+  if (!nodeEnvProduction) warnings.push(`NODE_ENV is not set to production (read from the ${resolvedNodeEnv.source}).`);
   const missing = checks.filter((c) => c.group === "required" && !c.present).map((c) => c.key);
   if (missing.length > 0) warnings.push(`Required settings missing: ${missing.join(", ")}.`);
 
@@ -55,9 +66,10 @@ function buildReadiness() {
     requiredMissing: missing,
     ready: missing.length === 0,
     nodeEnvProduction,
+    nodeEnvSource: resolvedNodeEnv.source,
     emailWebhookEnabled: env.describe("EMAIL_WEBHOOK_SECRET").present,
     emailTestMode: testMode,
   };
 }
 
-module.exports = { buildReadiness, REQUIRED };
+module.exports = { buildReadiness, effectiveNodeEnv, REQUIRED };

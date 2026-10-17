@@ -92,6 +92,8 @@ function mapApp(raw) {
     cpu: typeof monit.cpu === "number" ? monit.cpu : null,
     memoryBytes: typeof monit.memory === "number" ? monit.memory : null,
     nexus: NEXUS_PM2_APPS.includes(name),
+    // The NODE_ENV pm2 started the process with. Only this value is kept; the rest of pm2_env is not.
+    nodeEnv: typeof env.NODE_ENV === "string" ? env.NODE_ENV : null,
     // Log file paths are used on the server only (for the log tails). They are never sent to the browser.
     logPaths: {
       out: typeof env.pm_out_log_path === "string" ? env.pm_out_log_path : null,

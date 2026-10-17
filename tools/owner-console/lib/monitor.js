@@ -15,6 +15,12 @@ const { collectDb } = require("./collectors/db");
 const { collectRepo } = require("./collectors/repo");
 const { syncFromApp, ingestSecurityHits } = require("./tickets/ingest");
 const { buildReadiness } = require("./readiness");
+
+// The NODE_ENV of the running backend, from the last pm2 read. Null when the backend is not online or not read yet.
+function runningBackendNodeEnv(pm2State) {
+  const backend = pm2State && Array.isArray(pm2State.apps) ? pm2State.apps.find((app) => app.name === "nexusforge-backend-workspace") : null;
+  return backend && backend.status === "online" && typeof backend.nodeEnv === "string" ? backend.nodeEnv : null;
+}
 const { collectEmailStatus, collectLegalVersions } = require("./app-status");
 const { checkPublicHealth, checkDisks } = require("./external");
 const { JobRunner, attachJobAudit } = require("./jobs");
@@ -139,7 +145,7 @@ function createPollers() {
       }
       if (summary.statusChanged > 0) state.feed.add("ticket", "info", `${summary.statusChanged} ticket(s) changed status in the app`);
     })),
-    new Poller("readiness", { intervalMs: 60000, timeoutMs: 15000 }, () => buildReadiness(), handlers("readiness", (next) => {
+    new Poller("readiness", { intervalMs: 60000, timeoutMs: 15000 }, () => buildReadiness({ backendNodeEnv: runningBackendNodeEnv(state.pm2) }), handlers("readiness", (next) => {
       state.readiness = next;
     })),
     new Poller("email", { intervalMs: 30000, timeoutMs: 20000 }, () => collectEmailStatus(state.readiness), handlers("email", (next) => {
