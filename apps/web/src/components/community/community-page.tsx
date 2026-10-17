@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { LoadingNote } from "@/components/ui/loading-note";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
@@ -80,8 +82,15 @@ export function CommunityPage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
-          {forgesQuery.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading forges...</p>
+          {forgesQuery.isError ? (
+            <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+              <p>Your forges could not be loaded right now. The server may be busy.</p>
+              <button type="button" onClick={() => void forgesQuery.refetch()} className="mt-3 rounded-lg border border-rose-300/40 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] hover:bg-rose-400/10">
+                Try again
+              </button>
+            </div>
+          ) : forgesQuery.isLoading ? (
+            <LoadingNote label="Loading forges..." onRetry={() => void forgesQuery.refetch()} />
           ) : forges.length ? (
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
               {forges.map((forge) => {
@@ -89,7 +98,7 @@ export function CommunityPage() {
                 const isOwner = forge.ownerId === user?.id;
                 const active = forge.id === selectedForgeId;
                 return (
-                  <div key={forge.id} className={cn("overflow-hidden rounded-2xl border bg-[#0d1119] transition hover:border-amber-400/50", active ? "border-amber-400/50 shadow-[0_0_24px_rgba(230,179,37,0.15)]" : "border-amber-500/15")}>
+                  <div key={forge.id} className={cn("overflow-hidden rounded-2xl border bg-[#0d1119] transition hover:border-amber-400/50", active ? "border-amber-400/50 shadow-[0_0_24px_rgba(46,164,255,0.15)]" : "border-amber-500/15")}>
                     <div className="relative h-24">
                       {forge.banner ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -117,7 +126,7 @@ export function CommunityPage() {
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => open(forge)} className={goldBtn}>Open <ArrowRight className="h-3.5 w-3.5" /></button>
                         <button type="button" onClick={() => open(forge, "/app/chat")} className={ghostBtn} title="Chat"><MessageSquare className="h-3.5 w-3.5" /></button>
-                        <button type="button" onClick={() => open(forge, "/app/forge-ops")} className={ghostBtn} title="Forge ops"><Settings2 className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => { setSelectedForgeId(forge.id); router.push(`/app/chat?forge=${forge.id}&manage=overview`); }} className={ghostBtn} title="Server settings" aria-label="Server settings"><Settings2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                   </div>
@@ -139,7 +148,7 @@ export function CommunityPage() {
             <h2 className="nf-heading mb-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">Join with invite</h2>
             <p className="mb-3 text-xs text-slate-400">Paste an invite code or link from a friend.</p>
             <div className="flex gap-2">
-              <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="invite-code" className={inputClass} onKeyDown={(event) => { if (event.key === "Enter" && inviteCode.trim()) joinMutation.mutate(); }} />
+              <input aria-label="Invite code or link" value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="invite-code" className={inputClass} onKeyDown={(event) => { if (event.key === "Enter" && inviteCode.trim()) joinMutation.mutate(); }} />
               <button type="button" className={goldBtn} disabled={!inviteCode.trim() || joinMutation.isPending} onClick={() => joinMutation.mutate()}>{joinMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Join"}</button>
             </div>
           </div>
@@ -168,6 +177,7 @@ export function CommunityPage() {
 }
 
 function CreateForgeDialog({ onClose }: { onClose: () => void }) {
+  useEscapeKey(true, onClose);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
@@ -190,7 +200,7 @@ function CreateForgeDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Create a forge" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">

@@ -12,6 +12,7 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
   }
 }
 const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
+const screenPicker = require("./lib/screen-picker");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -19,6 +20,10 @@ const net = require("node:net");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
+const integrity = require("./lib/integrity");
+
+// Shown when a manifest has no valid hash. The update is not downloaded or installed in that case.
+const NO_HASH_MESSAGE = "The update manifest has no valid SHA-256 hash, so this update was refused. Nothing was downloaded or installed.";
 
 const localStartUrl = "http://127.0.0.1:3300/app";
 const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
@@ -96,12 +101,14 @@ const configuredStartUrl =
   configuredDesktopUrl ||
   (configuredPublicBaseUrl ? `${configuredPublicBaseUrl.replace(/\/+$/, "")}/app` : "") ||
   (effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
-const defaultPackagedHostedStartUrl = "https://www.nexusforge.app/app";
-const defaultPackagedHostedFallbackUrl = "https://www.nexusforge.app/download.html";
+const defaultPackagedHostedStartUrl = "https://nfgcord.com/app";
+const defaultPackagedHostedFallbackUrl = "https://nfgcord.com/download";
 const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
 const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
-const defaultHostedCertBypass = app.isPackaged || /(^|\.)nexusforge\.app$/i.test(new URL(configuredStartUrl || "https://www.nexusforge.app/app").hostname);
-const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", defaultHostedCertBypass);
+// Certificate checks stay ON unless someone deliberately sets
+// NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=true (e.g. testing against a self-signed dev host).
+// Turning them off by default let anyone on the network impersonate the server.
+const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", false);
 if (allowHostedCertBypass) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   app.commandLine.appendSwitch("ignore-certificate-errors");
@@ -144,6 +151,11 @@ const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
 const updateDownloadDir = path.join(app.getPath("userData"), "updates");
 const startupLogPath = path.join(app.getPath("userData"), "startup.log");
 const windowStatePath = path.join(app.getPath("userData"), "window-state.json");
+// Small enough for a 1366x768 laptop or a 1080p screen at 150% scaling; the web app's layout handles narrower widths.
+const MAIN_WINDOW_MIN_WIDTH = 960;
+const MAIN_WINDOW_MIN_HEIGHT = 600;
+const MAIN_WINDOW_DEFAULT_WIDTH = 1480;
+const MAIN_WINDOW_DEFAULT_HEIGHT = 920;
 const desktopPreferencesPath = path.join(app.getPath("userData"), "desktop-preferences.json");
 const startupBootEpochMs = Date.now();
 const startupTimingMarks = new Set();
@@ -248,7 +260,7 @@ try {
   fs.mkdirSync(stableCacheDir, { recursive: true });
   fs.mkdirSync(stableCodeCacheDir, { recursive: true });
 } catch (error) {
-  console.warn("[Vexora Gaming Desktop] Unable to initialize stable cache directories:", error);
+  console.warn("[Nexus Forge Gaming Desktop] Unable to initialize stable cache directories:", error);
 }
 
 app.commandLine.appendSwitch("disk-cache-dir", stableCacheDir);
@@ -313,7 +325,7 @@ function readPersistedUpdateState() {
       latestVersion: typeof parsed.latestVersion === "string" ? parsed.latestVersion : null,
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to read update state:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to read update state:", error);
   }
 }
 
@@ -339,7 +351,7 @@ function readDesktopPreferences() {
           : desktopPreferences.startMinimized,
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to read desktop preferences:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to read desktop preferences:", error);
   }
 }
 
@@ -348,7 +360,7 @@ function persistDesktopPreferences() {
     fs.mkdirSync(path.dirname(desktopPreferencesPath), { recursive: true });
     fs.writeFileSync(desktopPreferencesPath, JSON.stringify(desktopPreferences, null, 2), "utf8");
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to persist desktop preferences:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to persist desktop preferences:", error);
   }
 }
 
@@ -370,7 +382,7 @@ function applyLaunchOnStartupPreference() {
       });
     }
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to apply launch-on-startup preference:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to apply launch-on-startup preference:", error);
   }
 }
 
@@ -386,16 +398,33 @@ function readWindowState() {
       return null;
     }
 
-    return {
-      width: Math.max(1100, Math.round(width)),
-      height: Math.max(760, Math.round(height)),
+    const state = {
+      width: Math.max(MAIN_WINDOW_MIN_WIDTH, Math.round(width)),
+      height: Math.max(MAIN_WINDOW_MIN_HEIGHT, Math.round(height)),
       x: Number.isFinite(Number(parsed?.x)) ? Math.round(Number(parsed.x)) : undefined,
       y: Number.isFinite(Number(parsed?.y)) ? Math.round(Number(parsed.y)) : undefined,
       isMaximized: Boolean(parsed?.isMaximized),
     };
+    // 1.0.14 and older opened full screen and saved that size. A saved window that fills a whole display, or that is
+    // no longer on any display, is not a real window position: open maximized instead, with the normal default size.
+    if (state.x !== undefined && state.y !== undefined) {
+      const display = screen.getDisplayMatching({ x: state.x, y: state.y, width: state.width, height: state.height });
+      const { bounds } = display;
+      const fillsDisplay = state.width >= bounds.width && state.height >= bounds.height;
+      const visible = state.x < bounds.x + bounds.width && state.x + state.width > bounds.x && state.y < bounds.y + bounds.height && state.y + state.height > bounds.y;
+      if (fillsDisplay || !visible) {
+        return { width: MAIN_WINDOW_DEFAULT_WIDTH, height: MAIN_WINDOW_DEFAULT_HEIGHT, x: undefined, y: undefined, isMaximized: true };
+      }
+    }
+    return state;
   } catch {
     return null;
   }
+}
+
+/** Opens maximized on first run (no saved window) and whenever the window was last maximized. */
+function shouldStartMaximized(savedState) {
+  return !savedState || savedState.isMaximized;
 }
 
 function saveWindowState() {
@@ -404,7 +433,8 @@ function saveWindowState() {
   }
 
   try {
-    const bounds = mainWindow.getBounds();
+    // The normal (restored) size and position, so maximizing or going full screen does not overwrite them.
+    const bounds = mainWindow.getNormalBounds();
     const payload = {
       x: bounds.x,
       y: bounds.y,
@@ -454,11 +484,11 @@ function createAppTray() {
 
   try {
     appTray = new Tray(appIconPath);
-    appTray.setToolTip("Vexora Gaming Desktop");
+    appTray.setToolTip("Nexus Forge Gaming Desktop");
     appTray.setContextMenu(
       Menu.buildFromTemplate([
         {
-          label: "Open Vexora Gaming",
+          label: "Open Nexus Forge Gaming",
           click: () => {
             showMainWindow();
           },
@@ -489,7 +519,7 @@ function createAppTray() {
       }
     });
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to create tray icon:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to create tray icon:", error);
   }
 }
 
@@ -509,7 +539,7 @@ function persistUpdateState() {
       "utf8",
     );
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to persist update state:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to persist update state:", error);
   }
 }
 
@@ -589,7 +619,7 @@ async function showChangelogWindow() {
   const changelogWindow = new BrowserWindow({
     width: 760,
     height: 560,
-    title: "Vexora Gaming - What's New",
+    title: "Nexus Forge Gaming - What's New",
     autoHideMenuBar: true,
     backgroundColor: "#020617",
     icon: appIconPath,
@@ -616,7 +646,7 @@ async function showChangelogWindow() {
   .close-btn{border:0;border-radius:11px;padding:10px 14px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#1b1207;font-weight:700;cursor:pointer}
   .close-btn:hover{filter:saturate(1.07)}
   </style></head>
-  <body><main class="panel"><p class="eyebrow">Vexora Gaming Desktop Update</p><h1>What is New</h1>
+  <body><main class="panel"><p class="eyebrow">Nexus Forge Gaming Desktop Update</p><h1>What is New</h1>
   <div class="meta"><p class="subtitle">Review the latest desktop improvements before you continue.</p><span class="version-chip">Version ${String(updateRuntime.latestVersion || app.getVersion())}</span></div>
   <ul>${list}</ul><div class="footer"><button class="close-btn" onclick="window.close()">Close</button></div></main></body></html>`;
   await changelogWindow.loadURL(`data:text/html,${encodeURIComponent(html)}`);
@@ -630,7 +660,7 @@ async function showUpdateReadyDialog() {
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
     title: "Desktop Update Ready",
-    message: `Vexora Gaming Desktop update is ready to install (v${updateRuntime.latestVersion || "latest"}).`,
+    message: `Nexus Forge Gaming Desktop update is ready to install (v${updateRuntime.latestVersion || "latest"}).`,
     detail: "Restart now to apply this update, or continue using the current session and install later.",
     buttons: ["Restart To Install", "Install Later"],
     defaultId: 0,
@@ -644,17 +674,8 @@ async function showUpdateReadyDialog() {
 
 function normalizeUpdateFilename(latestVersion, sourceUrl) {
   const parsedPath = sourceUrl ? path.basename(new URL(sourceUrl).pathname) : "";
-  const filename = parsedPath && parsedPath.toLowerCase().endsWith(".exe") ? parsedPath : `Vexora Gaming Desktop Setup ${latestVersion}.exe`;
+  const filename = parsedPath && parsedPath.toLowerCase().endsWith(".exe") ? parsedPath : `Nexus Forge Gaming Desktop Setup ${latestVersion}.exe`;
   return filename.replace(/[^a-zA-Z0-9._\- ()]/g, "_");
-}
-
-async function computeSha256(filePath) {
-  const hash = crypto.createHash("sha256");
-  const stream = fs.createReadStream(filePath);
-  for await (const chunk of stream) {
-    hash.update(chunk);
-  }
-  return hash.digest("hex");
 }
 
 async function downloadUpdateInstaller(downloadUrl, latestVersion) {
@@ -719,14 +740,6 @@ function resolveManifestUrlCandidate(candidateUrl, manifestUrl) {
   }
 }
 
-async function verifyInstallerIntegrity(installerPath, expectedSha256) {
-  if (!expectedSha256) {
-    return true;
-  }
-  const actual = await computeSha256(installerPath);
-  return actual.toLowerCase() === String(expectedSha256).toLowerCase();
-}
-
 async function installDownloadedUpdate() {
   if (installInProgress) {
     return;
@@ -744,19 +757,34 @@ async function installDownloadedUpdate() {
     throw new Error("Downloaded installer does not match the latest available version.");
   }
 
+  // Set before the asynchronous check, so an overlapping call cannot start a second install.
   installInProgress = true;
-
   const launchArgs = process.platform === "win32" ? ["/S"] : [];
-  const child = spawn(installerPath, launchArgs, {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  child.unref();
-
-  setTimeout(() => {
-    app.quit();
-  }, 150);
+  // Checked again right before launch. If it fails, the installer is not run, and a mismatched file is discarded.
+  let gate;
+  try {
+    gate = await integrity.runIfVerified(installerPath, updateRuntime.sha256, () => {
+      const child = spawn(installerPath, launchArgs, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      child.unref();
+      setTimeout(() => {
+        app.quit();
+      }, 150);
+    });
+  } catch (error) {
+    installInProgress = false;
+    throw error;
+  }
+  if (!gate.launched) {
+    installInProgress = false;
+    if (gate.code === "mismatch") integrity.discardOwnedInstaller(installerPath, installerPath);
+    updateRuntime = { ...updateRuntime, downloaded: false, downloadedVersion: null, installerPath: null, lastError: gate.reason };
+    emitUpdateRuntime();
+    throw new Error(gate.reason);
+  }
 }
 
 function canAutoInstallOnClose() {
@@ -844,10 +872,11 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
       throw lastDownloadError || new Error("Unable to download installer from any configured URL.");
     }
 
-    const integrityOk = await verifyInstallerIntegrity(installerPath, updateRuntime.sha256);
-    if (!integrityOk) {
-      fs.rmSync(installerPath, { force: true });
-      throw new Error("Downloaded update failed integrity verification.");
+    // A file that does not match the manifest, or that the manifest gives no valid hash for, is discarded here.
+    const verified = await integrity.verifyInstallerIntegrity(installerPath, updateRuntime.sha256);
+    if (!verified.ok) {
+      integrity.discardOwnedInstaller(installerPath, installerPath);
+      throw new Error(verified.reason);
     }
 
     updateRuntime = {
@@ -886,7 +915,7 @@ async function showUpdateAvailableDialog() {
   const result = await dialog.showMessageBox(mainWindow, {
     type: "info",
     title: "Desktop Update Available",
-    message: `A Vexora Gaming Desktop update is available (v${updateRuntime.latestVersion || "latest"}).`,
+    message: `A Nexus Forge Gaming Desktop update is available (v${updateRuntime.latestVersion || "latest"}).`,
     detail: "Choose how to proceed. You can review changes, start the background download, or postpone this reminder.",
     buttons: ["Start Background Download", "Remind Me Later", "View What Is New"],
     defaultId: 0,
@@ -938,17 +967,21 @@ async function checkForUpdates(trigger = "manual") {
           .map((value) => resolveManifestUrlCandidate(value, updateManifestUrl))
           .filter(Boolean)
       : [];
-    const sha256 = typeof payload?.sha256 === "string" ? payload.sha256.trim() : null;
+    // Only a valid 64-character hash is kept. Anything else is null, and an update with no hash is refused.
+    const sha256 = integrity.normalizeSha256(payload?.sha256);
     const hasUpdate = Boolean(latestVersion) && isVersionGreater(latestVersion, app.getVersion());
+    const refusedNoHash = hasUpdate && !sha256;
     const payloadForceUpdate =
       payload?.forceUpdate === true ||
       payload?.required === true ||
       payload?.mandatory === true ||
       payload?.forceRequired === true;
-    const forceRequired = hasUpdate && (payloadForceUpdate || forceUpdateByDefault);
+    // A required update that cannot be verified is not enforced: the app keeps working, and the refusal is shown instead.
+    const forceRequired = hasUpdate && !refusedNoHash && (payloadForceUpdate || forceUpdateByDefault);
     const sameAvailableVersion = hasUpdate && updateRuntime.latestVersion === latestVersion;
 
-    const promptPending = trigger === "startup" && hasUpdate && !forceRequired;
+    // Updates download and install in the background; nobody is asked to download or click "Update now".
+    const promptPending = false;
     updateRuntime = {
       ...updateRuntime,
       checking: false,
@@ -965,17 +998,15 @@ async function checkForUpdates(trigger = "manual") {
       installerPath: hasUpdate ? (sameAvailableVersion ? updateRuntime.installerPath : null) : null,
       updatePromptPending: promptPending,
       lastCheckedAt: new Date().toISOString(),
-      lastError: null,
+      lastError: refusedNoHash ? NO_HASH_MESSAGE : null,
     };
     if (promptPending && !startupUpdatePromptPromise) {
       createStartupUpdatePromptPromise();
     }
     emitUpdateRuntime();
 
-    if (hasUpdate && !updateRuntime.downloading && !updateRuntime.downloaded) {
-      if (forceRequired || trigger !== "startup") {
-        void beginBackgroundUpdateDownload(forceRequired);
-      }
+    if (hasUpdate && !refusedNoHash && !updateRuntime.downloading && !updateRuntime.downloaded) {
+      void beginBackgroundUpdateDownload(forceRequired);
     }
 
     if (
@@ -990,6 +1021,7 @@ async function checkForUpdates(trigger = "manual") {
 
     if (
       hasUpdate &&
+      !refusedNoHash &&
       !forceRequired &&
       (updateRuntime.remindLaterUntil || 0) <= Date.now() &&
       trigger !== "silent" &&
@@ -1017,21 +1049,20 @@ async function checkForUpdates(trigger = "manual") {
 
 function createSplashWindow() {
   markStartupTiming("splash-window-create");
-  const { workArea } = screen.getPrimaryDisplay();
+  // A small launcher window, not a full-screen takeover: it can be dragged (splash.html marks it as a drag region),
+  // minimized, and closed (which quits), so starting the app never traps the desktop.
   splashWindow = new BrowserWindow({
-    x: workArea.x,
-    y: workArea.y,
-    width: workArea.width,
-    height: workArea.height,
+    width: 560,
+    height: 440,
+    center: true,
     frame: false,
     show: true,
     resizable: false,
-    movable: false,
-    minimizable: false,
+    movable: true,
+    minimizable: true,
     maximizable: false,
-    fullscreenable: true,
-    fullscreen: true,
-    backgroundColor: "#020617",
+    fullscreenable: false,
+    backgroundColor: "#04060c",
     icon: appIconPath,
     autoHideMenuBar: true,
     webPreferences: {
@@ -1086,14 +1117,13 @@ async function revealMainWindow() {
   startupRevealTimer = setTimeout(() => {
     markStartupTiming("handoff-reveal-fire", "from-splash-to-main");
     updateStartupRuntime({
-      stage: "Opening Vexora Gaming Desktop",
+      stage: "Opening Nexus Forge Gaming Desktop",
       detail: "The workspace is ready. Bringing the app forward.",
       progress: 100,
       accent: "ready",
     });
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      const savedState = readWindowState();
-      if (savedState?.isMaximized) {
+      if (shouldStartMaximized(readWindowState())) {
         mainWindow.maximize();
       }
       mainWindow.show();
@@ -1148,7 +1178,7 @@ function getDiscoveredWorkspaceCandidates() {
     discovered.push(path.resolve(seed, "..", ".."));
   }
 
-  // Last-resort scan on the current drive for likely Vexora Gaming workspace folders.
+  // Last-resort scan on the current drive for likely Nexus Forge Gaming workspace folders.
   const driveRoot = path.parse(cwdWorkspace).root || "";
   if (driveRoot && fs.existsSync(driveRoot)) {
     try {
@@ -1447,12 +1477,12 @@ function resolveHostedStartTargets() {
     configuredDesktopUrl,
     configuredStartUrl !== startUrl ? configuredStartUrl : null,
     packagedHostedFallbackUrl,
-    "https://www.nexusforge.app/app",
-    "https://www.nexusforge.app",
-    "https://www.nexusforge.app/download.html",
-    "https://nexusforge.app/app",
-    "https://nexusforge.app",
-    "https://nexusforge.app/download.html",
+    "https://nfgcord.com/app",
+    "https://nfgcord.com",
+    "https://nfgcord.com/download",
+    "https://www.nfgcord.com/app",
+    "https://www.nfgcord.com",
+    "https://www.nfgcord.com/download",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
     "https://trhpruductions.github.io/-NEXUSFORGE",
   ];
@@ -1488,9 +1518,9 @@ function resolveHostedStartTargets() {
 function resolveHostedRecoveryTargets() {
   const recoveryTargets = [
     ...resolveHostedStartTargets(),
-    "https://www.nexusforge.app/login?redirect=/app",
-    "https://nexusforge.app/login?redirect=/app",
-    "https://www.nexusforge.app/download.html",
+    "https://nfgcord.com/login?redirect=/app",
+    "https://www.nfgcord.com/login?redirect=/app",
+    "https://nfgcord.com/download",
     "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
   ];
 
@@ -1617,19 +1647,19 @@ function loadFallbackPage(message) {
   }
 
   if (!fs.existsSync(fallbackPath)) {
-    console.warn("[Vexora Gaming Desktop] Fallback file missing:", fallbackPath);
+    console.warn("[Nexus Forge Gaming Desktop] Fallback file missing:", fallbackPath);
     return;
   }
 
   try {
     void targetWindow.loadFile(fallbackPath).catch((error) => {
       if (!isDestroyedWindowError(error)) {
-        console.warn("[Vexora Gaming Desktop] Unable to load fallback page:", error);
+        console.warn("[Nexus Forge Gaming Desktop] Unable to load fallback page:", error);
       }
     });
   } catch (error) {
     if (!isDestroyedWindowError(error)) {
-      console.warn("[Vexora Gaming Desktop] Fallback load aborted because window was destroyed:", error);
+      console.warn("[Nexus Forge Gaming Desktop] Fallback load aborted because window was destroyed:", error);
     }
     return;
   }
@@ -1674,7 +1704,7 @@ async function startLocalStack(reason) {
   const apiAlreadyRunning = existingPorts.port4000Open || existingPorts.port4001Open;
   const apiConflict = existingPorts.port4000Open === false && existingPorts.port4000Bound && !existingPorts.port4001Open;
   if (apiConflict) {
-    const message = "Local API port 4000 is occupied by a non-Vexora Gaming process and cannot be used. Close the conflicting process or disable the port 4000 listener and retry.";
+    const message = "Local API port 4000 is occupied by a non-Nexus Forge Gaming process and cannot be used. Close the conflicting process or disable the port 4000 listener and retry.";
     updateLocalStackStatus({
       attempted: true,
       started: false,
@@ -1712,7 +1742,7 @@ async function startLocalStack(reason) {
   try {
     fs.mkdirSync(path.dirname(localStackLogPath), { recursive: true });
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to create log directory:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to create log directory:", error);
   }
 
   const logStream = fs.createWriteStream(localStackLogPath, { flags: "a" });
@@ -1868,7 +1898,7 @@ async function ensureAppReachable(trigger) {
   if (!isLocalStartTarget) {
     updateStartupRuntime({
       stage: "Connecting hosted workspace",
-      detail: "Opening the remote Vexora Gaming experience.",
+      detail: "Opening the remote Nexus Forge Gaming experience.",
       progress: 78,
       accent: "opening",
     });
@@ -1936,7 +1966,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://www.nexusforge.app/app, or start local services on http://127.0.0.1:3300/app. If the public production host is not yet published, use your available beta or tunnel URL.",
+        "Hosted app is unreachable. Retry in a moment, set NEXUSFORGE_DESKTOP_URL to a live target such as https://nfgcord.com/app, or start local services on http://127.0.0.1:3300/app. If the public production host is not yet published, use your available beta or tunnel URL.",
       );
     }
     return;
@@ -1944,7 +1974,7 @@ async function ensureAppReachable(trigger) {
 
   updateStartupRuntime({
     stage: "Opening app",
-    detail: "Connecting the desktop shell to Vexora Gaming.",
+    detail: "Connecting the desktop shell to Nexus Forge Gaming.",
     progress: 78,
     accent: "opening",
   });
@@ -1990,7 +2020,7 @@ async function ensureAppReachable(trigger) {
       }
 
       loadFallbackPage(
-        "Local services are not available. Start the web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.",
+        "Local services are not available. Start the web and API servers on http://127.0.0.1:3300 and reopen Nexus Forge Gaming Desktop.",
       );
       return;
     }
@@ -2039,7 +2069,7 @@ async function ensureAppReachable(trigger) {
         loadFallbackPage("Recovery encountered an error and hosted fallback was unavailable. Open stack log for details.");
       }
     } else {
-      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3300 and reopen Vexora Gaming Desktop.");
+      loadFallbackPage("Recovery encountered an error while connecting to local services. Start the local web and API servers on http://127.0.0.1:3300 and reopen Nexus Forge Gaming Desktop.");
     }
   } finally {
     bootRecoveryInFlight = false;
@@ -2066,7 +2096,7 @@ function resetDevQuotaDatabase() {
         fs.rmSync(artifactPath, { force: true });
       }
     } catch (error) {
-      console.warn(`[Vexora Gaming Desktop] Unable to remove ${artifact}:`, error);
+      console.warn(`[Nexus Forge Gaming Desktop] Unable to remove ${artifact}:`, error);
     }
   }
 }
@@ -2081,7 +2111,7 @@ function resetIsolatedDevSession() {
     fs.mkdirSync(isolatedSessionPath, { recursive: true });
     app.setPath("sessionData", isolatedSessionPath);
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to reset isolated dev session:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to reset isolated dev session:", error);
   }
 }
 
@@ -2142,7 +2172,7 @@ async function prepareDevSessionStorage() {
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to clear dev session storage:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to clear dev session storage:", error);
     updateStartupRuntime({
       stage: "Preparing secure session",
       detail: "Storage reset warning detected. Continuing launch.",
@@ -2168,7 +2198,7 @@ if (isLocalStartTarget) {
     fs.mkdirSync(isolatedSessionPath, { recursive: true });
     app.setPath("sessionData", isolatedSessionPath);
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to set isolated dev session path:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to set isolated dev session path:", error);
   }
 }
 
@@ -2193,6 +2223,112 @@ app.on("certificate-error", (event, _webContents, url, error, _certificate, call
   callback(true);
 });
 
+/** Origins the app window may load and keep inside itself. The preload bridge is handed to every page in it. */
+function trustedAppOrigins() {
+  const origins = new Set(["https://nfgcord.com", "https://nexusforge.app"]);
+  try {
+    origins.add(new URL(startUrl).origin);
+  } catch {
+    // A malformed start URL adds nothing; the hosted origins above still apply.
+  }
+  return origins;
+}
+
+/** True for the hosted or local app pages, and for the bundled splash and fallback pages. */
+function isAllowedAppUrl(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "file:") {
+    return [splashPath, fallbackPath].some((localPath) => url.pathname === pathToFileURL(localPath).pathname);
+  }
+  return trustedAppOrigins().has(url.origin);
+}
+
+/** Opens a link in the user's browser. Only web addresses: never file: or other custom protocols. */
+function openExternalSafely(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      void shell.openExternal(url.href);
+    }
+  } catch {
+    // Not a valid address, so there is nothing safe to open.
+  }
+}
+
+/**
+ * Keeps the app window on app pages. Anything else opens in the browser instead, so a link to
+ * another site never gets the desktop bridge (preload) inside the window.
+ */
+function keepAppNavigationInside(contents) {
+  const guard = (event, value) => {
+    if (isAllowedAppUrl(value)) return;
+    event.preventDefault();
+    let origin = "invalid-url";
+    try {
+      origin = new URL(value).origin;
+    } catch {
+      // keep the placeholder; never log the full address, which can carry tokens in its query
+    }
+    appendStartupLog(`[navigation] kept out of the app window: ${origin}`);
+    openExternalSafely(value);
+  };
+  contents.on("will-navigate", guard);
+  contents.on("will-redirect", guard);
+}
+
+/**
+ * Screen share in the hosted app calls getDisplayMedia. Electron refuses every such call (NotSupportedError) unless a
+ * display-media handler is set, which is why desktop 1.0.14 and older could not share at all. This handler answers
+ * trusted app pages only, and shares exactly the screen or window the user picks in the picker window
+ * (lib/screen-picker.js). Cancelling shares nothing, and the page reports that the share was cancelled.
+ */
+function registerScreenShareHandler() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    // Electron must be answered exactly once. Refusing (answering with no video) makes Electron throw by design, and
+    // the page still gets its rejection (AbortError), so that throw is expected and not logged as a failure.
+    let answered = false;
+    const answer = (streams) => {
+      if (answered) return;
+      answered = true;
+      try {
+        callback(streams);
+      } catch (error) {
+        if (streams.video) appendStartupLog(`[screen-share] could not start: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+    try {
+      // One log line per request: the outcome only. Source names (window titles) and screen contents are never logged.
+      if (!isAllowedAppUrl(request.securityOrigin)) {
+        let origin = "(unreadable origin)";
+        try {
+          origin = new URL(request.securityOrigin).origin;
+        } catch {
+          // keep the placeholder
+        }
+        appendStartupLog(`[screen-share] refused: request came from an untrusted page (${origin})`);
+        answer({});
+        return;
+      }
+      const choice = await screenPicker.pick(mainWindow);
+      if (!choice) {
+        appendStartupLog("[screen-share] nothing shared: the picker was cancelled or closed, or there was nothing to share");
+        answer({});
+        return;
+      }
+      appendStartupLog(`[screen-share] sharing a ${choice.kind} picked by the user`);
+      answer({ video: choice.source });
+    } catch (error) {
+      appendStartupLog(`[screen-share] could not start: ${error instanceof Error ? error.message : String(error)}`);
+      answer({});
+    }
+  });
+}
+
 function createWindow() {
   markStartupTiming("main-window-create");
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2207,18 +2343,20 @@ function createWindow() {
   }
 
   const savedState = readWindowState();
+  // A normal Windows window: the native title bar moves it, double-click maximizes, the edges resize it, and the
+  // minimize, maximize/restore and close buttons work. It used to open full screen, which has no title bar and
+  // cannot be moved, resized or minimized. F11 still switches to full screen and back (see below).
   mainWindow = new BrowserWindow({
-    width: savedState?.width ?? 1480,
-    height: savedState?.height ?? 920,
+    width: savedState?.width ?? MAIN_WINDOW_DEFAULT_WIDTH,
+    height: savedState?.height ?? MAIN_WINDOW_DEFAULT_HEIGHT,
     x: savedState?.x,
     y: savedState?.y,
-    minWidth: 1100,
-    minHeight: 760,
-    fullscreen: true,
+    minWidth: MAIN_WINDOW_MIN_WIDTH,
+    minHeight: MAIN_WINDOW_MIN_HEIGHT,
     show: false,
     icon: appIconPath,
     backgroundColor: "#020617",
-    title: "Vexora Gaming Desktop",
+    title: "Nexus Forge Gaming Desktop",
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -2230,9 +2368,10 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalSafely(url);
     return { action: "deny" };
   });
+  keepAppNavigationInside(mainWindow.webContents);
 
   mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
     appendStartupLog(`[renderer-console] level=${level} line=${line} source=${sourceId} msg=${message}`);
@@ -2278,9 +2417,17 @@ function createWindow() {
     saveWindowState();
   });
 
-  if (savedState?.isMaximized) {
-    mainWindow.maximize();
-  }
+  // F11 toggles full screen, and is the way back out of it. Only plain F11; other keys go to the page as usual.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    const keyDown = input.type === "keyDown" || input.type === "rawKeyDown";
+    if (!keyDown || input.key !== "F11" || input.alt || input.control || input.meta || input.shift || input.isAutoRepeat) {
+      return;
+    }
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(!mainWindow.isFullScreen());
+    }
+  });
 
   mainWindow.once("ready-to-show", () => {
     markStartupTiming("main-ready-to-show");
@@ -2317,7 +2464,7 @@ function stopSpawnedLocalStack() {
     }
     appendLocalStackHistory("Spawned local stack process terminated at app shutdown.");
   } catch (error) {
-    console.warn("[Vexora Gaming Desktop] Unable to stop local stack process:", error);
+    console.warn("[Nexus Forge Gaming Desktop] Unable to stop local stack process:", error);
   }
 }
 
@@ -2340,6 +2487,7 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   markStartupTiming("app-when-ready");
+  registerScreenShareHandler();
   appendStartupLog(`[startup-timing] log-path="${startupLogPath}"`);
   appendStartupLog(
     updateManifestUrl
@@ -2348,7 +2496,7 @@ app.whenReady().then(async () => {
   );
   updateStartupRuntime({
     stage: "Booting desktop shell",
-    detail: "Starting Vexora Gaming Desktop.",
+    detail: "Starting Nexus Forge Gaming Desktop.",
     progress: 4,
     accent: "warmup",
   });
@@ -2376,7 +2524,7 @@ app.whenReady().then(async () => {
   } else {
     updateStartupRuntime({
       stage: "Connecting hosted workspace",
-      detail: "Opening the remote Vexora Gaming experience.",
+      detail: "Opening the remote Nexus Forge Gaming experience.",
       progress: 32,
       accent: "opening",
     });
@@ -2388,6 +2536,17 @@ app.whenReady().then(async () => {
     timestamp: new Date().toISOString(),
   };
 
+  // The splash's own minimize and close buttons. Accepted from the splash window only; close quits the app.
+  ipcMain.on("nexusforge-desktop:splash-control", (event, action) => {
+    if (!splashWindow || splashWindow.isDestroyed() || event.sender !== splashWindow.webContents) return;
+    if (action === "minimize") {
+      splashWindow.minimize();
+    } else if (action === "close") {
+      appendStartupLog("[startup] closed from the splash screen");
+      isQuitting = true;
+      app.quit();
+    }
+  });
   ipcMain.handle("nexusforge-desktop:get-startup-health", () => startupHealth);
   ipcMain.handle("nexusforge-desktop:get-local-stack-status", async () => {
     await refreshLocalPortStatus();
@@ -2455,7 +2614,7 @@ app.whenReady().then(async () => {
 
     const resolvedPath = path.resolve(normalizedCandidate);
     if (!isWorkspaceRoot(resolvedPath)) {
-      return { success: false, reason: "Provided path is not a valid Vexora Gaming workspace root." };
+      return { success: false, reason: "Provided path is not a valid Nexus Forge Gaming workspace root." };
     }
 
     updateLocalStackStatus({
@@ -2624,6 +2783,7 @@ app.on("will-quit", () => {
     startupRevealTimer = null;
   }
   stopSpawnedLocalStack();
+  ipcMain.removeAllListeners("nexusforge-desktop:splash-control");
   ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
   ipcMain.removeHandler("nexusforge-desktop:get-local-stack-status");
   ipcMain.removeHandler("nexusforge-desktop:get-update-state");

@@ -1,144 +1,68 @@
-# NexusForge Beta Testing Runbook
+# Nexus Forge Gaming: beta runbook
 
-## Purpose
-Use this runbook to start beta services, expose public links, and onboard testers with consistent flows.
+The site is live at **https://nfgcord.com**. Testers need nothing from you except the link; everything below is for whoever runs the beta.
 
-## Fast Path (One Command)
-From repository root:
-
-```bash
-npm run beta:share
-```
-
-This script will:
-- clean conflicting ports
-- start web + API services
-- expose both through public Cloudflare Tunnel URLs
-- configure server CORS and web API settings for remote access
-- restart web once the public API URL is known
-- write `apps/web/.env.local` with public API URL
-- print the final tester link
-- write all links to `BETA_LINKS.txt`
-
-To stop all beta processes from the saved PID list:
-
-```bash
-npm run beta:stop
-```
-
-## 1) Start Beta Services
-From repository root:
-
-```bash
-npm run beta:start
-```
-
-This starts:
-- Web on `http://localhost:3100`
-- API on `http://localhost:4000`
-
-When you need a publicly shared tunnel, use `npm run beta:share`, which starts the tunneled API on `http://127.0.0.1:4001` and exposes it through Cloudflare Tunnel.
-
-## 2) Start Public Tunnels (Two Terminals)
-Terminal A (web):
-
-```bash
-npm run beta:tunnel:web
-```
-
-Terminal B (api):
-
-```bash
-npm run beta:tunnel:api
-```
-
-Copy the generated tunnel URLs.
-
-## 3) Web Environment for Public API
-Set `apps/web/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=<your api tunnel url>
-NEXUSFORGE_DESKTOP_ONLY=false
-```
-
-Restart web after editing env values.
-
-## 4) Primary Tester Entry URL
-Send testers to:
-
-- `<your web tunnel url>/beta`
-
-From there they can access:
-- `/beta/checklist`
-- `/beta/feedback`
-
-If you want desktop testers to use the remote app, set `NEXUSFORGE_DESKTOP_URL` to `https://<your web tunnel url>/app` when launching the desktop client.
-
-For local desktop development, use hosted mode so the app can load the tunnel URL safely:
-
-```powershell
-$env:NEXUSFORGE_DESKTOP_URL = 'https://<your web tunnel url>/app'
-npm run desktop:open:hosted
-```
-
-> The beta page now displays the computed desktop launch target and PowerShell commands directly, and includes a copy button so testers can copy the launch commands from `/beta`.
-
-## 5) Suggested Message To Testers
-Use this template:
+## Send testers here
 
 ```text
-NexusForge Beta is live.
-Start here: <your web tunnel url>/beta
-
-Please run the checklist and submit findings using the built-in feedback page.
-When reporting issues, include route URL, timestamp, and repro steps.
+Nexus Forge Gaming beta is open.
+Start here: https://nfgcord.com/beta
+It explains how to get in (browser, Windows app, phone or Xbox), what to try and how to report problems.
+Payments are in test mode (nothing is charged) and codes come by email only for now.
 ```
 
-## 6) Stability Notes
-- Keep all beta and tunnel terminals running.
-- Quick tunnel URLs rotate if restarted.
-- If links fail, restart tunnel commands and resend new URLs.
+Tester pages:
 
-## Latest Validation Snapshot (2026-05-12)
+- `https://nfgcord.com/beta`: ways in, checklist, what's switched off during the beta.
+- `https://nfgcord.com/download`: Windows installer, phone and Xbox install steps.
+- `https://nfgcord.com/support`: help center, live status card, "Report a problem" (no sign-in needed).
 
-End-to-end validation was executed from repository root and completed with all checks passing.
+## Where feedback lands
 
-- `npm run build` -> PASS
-- `npm run lint` -> PASS
-- `npm run test -w @nexusforge/server` -> PASS (15/15)
-- `npm run smoke:local` -> PASS (includes API probes)
-- `npm run desktop:release:checklist` -> PASS (build/package + launch checks)
-- `npm run admin:badge:smoke` -> PASS (grant/revoke verified and state restored)
+| Source | Where to look |
+| --- | --- |
+| Report a problem form | `/admin/problem-reports` in the app, plus a post in Discord `#bot-alerts` |
+| Support tickets | `/app/support` (staff view) |
+| Server errors (500s) | `/admin/errors` (grouped, with reference codes shown to users), plus Discord `#bot-alerts` |
+| Outages | Watchdog posts to Discord `#bot-alerts` when something is down and when it recovers |
 
-Notes:
-- Admin badge smoke used seeded local admin credentials for validation in local environment.
-- Temporary credential environment variables were cleared after the run.
+## Daily checks (two minutes)
 
-## Desktop QA Pass/Fail Sheet (Release 6bbbcf2)
+```bash
+node scripts/vexora-watchdog.mjs --once
+```
 
-Use this sheet to validate desktop recovery routing and beta launch UX changes.
+All five lines should say `ok`. Then glance at `/admin/errors` and `/admin/problem-reports`.
 
-| Test ID | Area | Environment | Steps | Expected Result | Actual Result | Verdict | Notes |
-|---|---|---|---|---|---|---|---|
-| DQ-01 | Hosted startup success | Hosted target reachable | Launch desktop in hosted mode | App opens hosted target directly; diagnostics action opens same hosted URL |  |  |  |
-| DQ-02 | Hosted fallback to local | Hosted down, local web/api up | Launch desktop with unreachable hosted target | Recovery connects to local app; status target switches to local URL |  |  |  |
-| DQ-03 | Local startup success | Local web/api up | Launch desktop in local mode | App opens local target; diagnostics action label shows local mode |  |  |  |
-| DQ-04 | Local fallback to hosted | Local web/api down, hosted reachable | Launch desktop in local mode | Recovery connects to hosted target; status target switches to hosted URL |  |  |  |
-| DQ-05 | Diagnostics open-target accuracy | Any mode | Open fallback diagnostics; click open-target action | Action opens current runtime target (no stale URL) |  |  |  |
-| DQ-06 | URL hardening | Inject invalid/non-http target value | Trigger diagnostics open-target action | Invalid target ignored; safe fallback URL used; no script errors |  |  |  |
-| DQ-07 | Mode-aware label | Mode switch during recovery | Observe open-target button label | Label updates to hosted/local based on active launch mode |  |  |  |
-| DQ-08 | Retry behavior | Any degraded mode | Use Retry Connection action | Retry attempts connection without loop or freeze; status updates correctly |  |  |  |
-| DQ-09 | Beta onboarding links | Beta web route | Walk /beta actions for register/login/open app/checklist/feedback | Links route correctly and preserve expected redirect behavior |  |  |  |
-| DQ-10 | Desktop launch instructions | Beta web route | Check launch target and PowerShell snippet on /beta | Launch target reflects configured context and is copy-ready |  |  |  |
-| DQ-11 | Update banner gating | Desktop runtime | Check idle state then simulate actionable update state | Banner hidden when non-actionable; visible with actionable update states |  |  |  |
-| DQ-12 | Regression sweep | Post-change validation | Run smoke flow and quick UI sanity pass | No regressions in startup, fallback, or beta launch flows |  |  |  |
+## When something is down
 
-### Execution Metadata
+1. `pm2 list`: `nexusforge-backend-workspace`, `nexusforge-web-workspace`, `vexora-gateway`, `vexora-tunnel` and `vexora-watchdog` should all be `online`.
+2. Restart one piece: `pm2 restart <name> --update-env`. If it is missing: `pm2 start ecosystem.config.cjs --only <name> --update-env`.
+3. Database down: `scripts/vexora-autostart.cmd` starts Postgres (port 5433) and re-checks the pm2 apps; it also runs by itself at logon.
+4. Never run `pm2 save` on this PC.
 
-- Build/Version:
-- Tester:
-- Date:
-- OS:
-- Network Mode:
-- Result Summary:
+## Shipping a fix
+
+```bash
+npm run build -w @nexusforge/server && pm2 restart nexusforge-backend-workspace --update-env
+npm run build -w web && pm2 restart nexusforge-web-workspace --update-env
+```
+
+Open pages reload themselves once after a web release. Schema changes: run Prisma `db push` and `generate` from `apps/server` first.
+
+## Accounts and perks
+
+- Lifetime membership: `node scripts/grant-lifetime.mjs <username> [core|plus|elite|infinite|--revoke]`.
+- Test logins live in `D:\NexusForgeDB\test-account.txt` (never paste them anywhere).
+- Stripe is in sandbox mode: test card `4242 4242 4242 4242`. Going live needs the live key and `npm run stripe:setup -- --live`.
+
+## Backups
+
+A Windows task runs `scripts/run-daily-backup.cmd` at 4 AM (database dump + uploads, newest 14 kept) into `D:\NexusForgeDB\backups`; the log is `backup-task.log` there.
+
+## Still switched off during the beta
+
+- Text-message codes (needs Twilio credentials).
+- A dedicated sending mailbox (mail currently goes out through Gmail SMTP).
+- Code signing for the Windows installer (SmartScreen warning).
+- Live payments (Stripe business verification pending).

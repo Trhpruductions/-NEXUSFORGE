@@ -5,28 +5,20 @@ const root = process.cwd();
 
 const checks = [
   {
+    // Add-on prices are not shown here on purpose: no add-on Stripe price IDs are configured yet, so a price shown
+    // would advertise something that cannot be charged. Tier prices must still come from the catalog, and the
+    // forbidden price literals below still fail if an add-on price is typed into this page. When add-ons go on sale,
+    // add "PAID_FEATURE_PRICE_LABELS" back here so they show catalog prices.
     path: "apps/web/src/components/brand/pricing-and-payments.tsx",
-    requires: ["from \"@/lib/pricing-catalog\"", "CORE_PLUS_TIER_PRICING", "PAID_FEATURE_PRICE_LABELS"],
+    requires: ["from \"@/lib/pricing-catalog\"", "CORE_PLUS_TIER_PRICING"],
   },
   {
     path: "apps/web/src/components/brand/core-plus-experience.tsx",
     requires: ["from \"@/lib/pricing-catalog\"", "CORE_PLUS_TIER_PRICING"],
   },
   {
-    path: "apps/web/src/components/admin/admin-dashboard.tsx",
-    requires: ["from \"@/lib/pricing-catalog\"", "PAID_FEATURE_DISPLAY_LABELS", "CORE_PLUS_TIER_DISPLAY_LABELS"],
-  },
-  {
     path: "apps/web/src/app/api/pricing/catalog/route.ts",
     requires: ["from \"@/lib/pricing-catalog\"", "CORE_PLUS_TIER_PRICING", "PAID_FEATURE_PRICE_LABELS"],
-  },
-  {
-    path: "apps/server/src/lib/pricing-catalog-client.ts",
-    requires: ["/api/pricing/catalog", "getRemotePricingCatalog", "resolveCatalogUrl"],
-  },
-  {
-    path: "apps/server/src/routes/admin.routes.ts",
-    requires: ["getRemotePricingCatalog", "featureLabel", "priceLabel"],
   },
   {
     path: "apps/desktop/main.js",

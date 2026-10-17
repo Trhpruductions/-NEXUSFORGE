@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { env } from "../config/env.js";
 
 export type FeatureCode =
   | "CORE_PLUS"
@@ -22,24 +23,49 @@ function hasMinimumTier(currentTier: string, minimumTier: "CORE" | "PLUS" | "ELI
   return tierRank[current] >= tierRank[minimumTier];
 }
 
-export async function hasActiveFeatureEntitlement(userId: string, featureCode: Exclude<FeatureCode, "CORE_PLUS">) {
-  // Industrial Directive: High-tier community features gated by entitlements are now accessible via industrial bypass.
-  // This unblocks Forge branding, advanced moderation, and campaign slots for all operators.
-  return true;
+/**
+ * Paid features are enforced when billing is connected (STRIPE_SECRET_KEY set), and always in production.
+ * A production server with no billing key must not open every paid feature for free, so it fails closed.
+ * Development and test servers with no key stay open, so they can be used without a payment setup.
+ */
+export function billingEnforcedFor(input: { stripeSecretKey?: string | undefined; nodeEnv: string }): boolean {
+  return Boolean(input.stripeSecretKey) || input.nodeEnv === "production";
 }
 
+export function billingEnforced() {
+  return billingEnforcedFor({ stripeSecretKey: env.STRIPE_SECRET_KEY, nodeEnv: env.NODE_ENV });
+}
+
+export async function hasActiveFeatureEntitlement(userId: string, featureCode: Exclude<FeatureCode, "CORE_PLUS">) {
+  if (!billingEnforced()) return true;
+  const entitlement = await prisma.featureEntitlement.findFirst({
+    where: { userId, featureCode, active: true, quantity: { gt: 0 }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    select: { id: true },
+  });
+  return Boolean(entitlement);
+}
 
 export function requireMinimumPremiumTier(minimumTier: "CORE" | "PLUS" | "ELITE" | "INFINITE") {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Industrial Directive: Premium tier requirements are currently suspended to maximize cluster growth.
+    if (!billingEnforced()) {
+      next();
+      return;
+    }
+    const user = req.user ? await prisma.user.findUnique({ where: { id: req.user.id }, select: { premiumTier: true } }) : null;
+    if (!user || !hasMinimumTier(user.premiumTier, minimumTier)) {
+      res.status(402).json({ error: `This needs Core+ ${minimumTier} or higher.`, code: "UPGRADE_REQUIRED", minimumTier });
+      return;
+    }
     next();
   };
 }
 
 export function requirePaidFeature(featureCode: Exclude<FeatureCode, "CORE_PLUS">) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Industrial Directive: All paid features are temporarily operational for all users.
+    if (!req.user || !(await hasActiveFeatureEntitlement(req.user.id, featureCode))) {
+      res.status(402).json({ error: "This is a paid feature. Get it from the Pricing page.", code: "PAYMENT_REQUIRED", featureCode });
+      return;
+    }
     next();
   };
 }
-

@@ -21,6 +21,8 @@ export type User = {
   corePlusStreakDays?: number;
   createdAt: string;
   emailVerified?: boolean;
+  /** Set while the account is scheduled for deletion (ISO date it happens). */
+  deletionScheduledFor?: string | null;
   appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
   isAdmin?: boolean;
   ageVerificationLevel?: AgeVerificationLevel;
@@ -74,8 +76,26 @@ export type Channel = {
   forgeId: string;
   name: string;
   topic?: string | null;
-  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE";
+  type: "TEXT" | "VOICE" | "ANNOUNCEMENT" | "STAGE" | "CATEGORY" | "FORUM";
   position: number;
+  /** The CATEGORY this channel is grouped under. */
+  parentId?: string | null;
+  slowmodeSeconds?: number;
+  isPrivate?: boolean;
+  allowedRoleIds?: string[];
+  allowedUserIds?: string[];
+  /** Forum channels: tags posts can be labelled with. */
+  forumTags?: string[];
+};
+
+/** Channel fields a manager can set on create/update. */
+export type ChannelSettings = {
+  parentId?: string | null;
+  slowmodeSeconds?: number;
+  isPrivate?: boolean;
+  allowedRoleIds?: string[];
+  allowedUserIds?: string[];
+  forumTags?: string[];
 };
 
 export type Forge = {
@@ -85,6 +105,8 @@ export type Forge = {
   description?: string | null;
   icon?: string | null;
   banner?: string | null;
+  /** Public servers are listed on Discover, where anyone can search for them and join without an invite. */
+  isPublic?: boolean;
   inviteCode: string;
   inviteViewCount?: number;
   inviteJoinCount?: number;
@@ -261,14 +283,6 @@ export type BotApp = {
   createdAt: string;
 };
 
-export type DeveloperApiKey = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  lastUsedAt?: string | null;
-  createdAt: string;
-};
-
 export type DeveloperOAuthClient = {
   id: string;
   name: string;
@@ -311,6 +325,178 @@ export type MessageReaction = {
   createdAt?: string;
 };
 
+export type ChannelWebhook = { id: string; channelId: string; name: string; avatarUrl: string | null; creatorId: string; lastUsedAt: string | null; createdAt: string };
+
+export async function listWebhooks(accessToken: string, forgeId: string) {
+  const response = await api.get<{ webhooks: ChannelWebhook[] }>(`/api/forges/${forgeId}/webhooks`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createWebhook(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; channelId: string; avatarUrl?: string | null }) {
+  const response = await api.post<{ webhook: ChannelWebhook; url: string }>(`/api/forges/${forgeId}/webhooks`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updateWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string, payload: { name?: string; channelId?: string; avatarUrl?: string | null }) {
+  const response = await api.patch<{ webhook: ChannelWebhook }>(`/api/forges/${forgeId}/webhooks/${webhookId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function resetWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string) {
+  const response = await api.post<{ url: string }>(`/api/forges/${forgeId}/webhooks/${webhookId}/reset`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteWebhook(accessToken: string, csrfToken: string, forgeId: string, webhookId: string) {
+  await api.delete(`/api/forges/${forgeId}/webhooks/${webhookId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type ForgeEmoji = { id: string; name: string; imageUrl: string; creatorId: string; createdAt: string };
+
+export async function listForgeEmojis(accessToken: string, forgeId: string) {
+  const response = await api.get<{ emojis: ForgeEmoji[]; max: number }>(`/api/forges/${forgeId}/emojis`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function addForgeEmoji(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; imageUrl: string }) {
+  const response = await api.post<{ emoji: ForgeEmoji }>(`/api/forges/${forgeId}/emojis`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteForgeEmoji(accessToken: string, csrfToken: string, forgeId: string, emojiId: string) {
+  await api.delete(`/api/forges/${forgeId}/emojis/${emojiId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type ForgeSticker = { id: string; name: string; description: string | null; imageUrl: string; creatorId: string; createdAt: string };
+export type ForgeSound = { id: string; name: string; emoji: string | null; soundUrl: string; volume: number; creatorId: string; createdAt: string };
+
+export async function listForgeStickers(accessToken: string, forgeId: string) {
+  return (await api.get<{ stickers: ForgeSticker[]; max: number }>(`/api/forges/${forgeId}/stickers`, { headers: authHeaders(accessToken) })).data;
+}
+export async function addForgeSticker(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; description?: string; imageUrl: string }) {
+  return (await api.post<{ sticker: ForgeSticker }>(`/api/forges/${forgeId}/stickers`, payload, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+export async function deleteForgeSticker(accessToken: string, csrfToken: string, forgeId: string, stickerId: string) {
+  await api.delete(`/api/forges/${forgeId}/stickers/${stickerId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+export async function listForgeSounds(accessToken: string, forgeId: string) {
+  return (await api.get<{ sounds: ForgeSound[]; max: number }>(`/api/forges/${forgeId}/sounds`, { headers: authHeaders(accessToken) })).data;
+}
+export async function addForgeSound(accessToken: string, csrfToken: string, forgeId: string, payload: { name: string; emoji?: string; soundUrl: string; volume: number }) {
+  return (await api.post<{ sound: ForgeSound }>(`/api/forges/${forgeId}/sounds`, payload, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+export async function deleteForgeSound(accessToken: string, csrfToken: string, forgeId: string, soundId: string) {
+  await api.delete(`/api/forges/${forgeId}/sounds/${soundId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type AutoModRule = {
+  id: string;
+  forgeId: string;
+  name: string;
+  enabled: boolean;
+  type: "KEYWORDS" | "LINKS" | "INVITES" | "MENTION_SPAM";
+  keywords: string[];
+  allowList: string[];
+  mentionLimit: number | null;
+  blockMessage: boolean;
+  alertModerators: boolean;
+  timeoutMinutes: 1 | 5 | 10 | 60 | 1440 | 10080 | null;
+  customMessage: string | null;
+  exemptRoleIds: string[];
+  exemptChannelIds: string[];
+  position: number;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+};
+type AutoModInput = Partial<Omit<AutoModRule, "id" | "forgeId" | "position" | "createdById" | "createdAt" | "updatedAt">>;
+
+const autoModFields = ["name", "enabled", "type", "keywords", "allowList", "mentionLimit", "blockMessage", "alertModerators", "timeoutMinutes", "customMessage", "exemptRoleIds", "exemptChannelIds"] as const;
+/** Only the fields the server accepts (a rule loaded for editing carries ids and dates too). */
+function autoModBody(rule: AutoModInput) {
+  return Object.fromEntries(autoModFields.filter((field) => field in rule).map((field) => [field, rule[field]]));
+}
+
+export async function listAutoModRules(accessToken: string, forgeId: string) {
+  const response = await api.get<{ rules: AutoModRule[] }>(`/api/forges/${forgeId}/automod`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createAutoModRule(accessToken: string, csrfToken: string, forgeId: string, rule: AutoModInput) {
+  const body = autoModBody(rule);
+  const response = await api.post<{ rule: AutoModRule }>(`/api/forges/${forgeId}/automod`, body, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function updateAutoModRule(accessToken: string, csrfToken: string, forgeId: string, ruleId: string, rule: AutoModInput) {
+  const body = autoModBody(rule);
+  const response = await api.patch<{ rule: AutoModRule }>(`/api/forges/${forgeId}/automod/${ruleId}`, body, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteAutoModRule(accessToken: string, csrfToken: string, forgeId: string, ruleId: string) {
+  await api.delete(`/api/forges/${forgeId}/automod/${ruleId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type ThreadSummary = {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastMessageAt: string | null;
+  archived: boolean;
+  creatorId?: string | null;
+  starterPostId?: string | null;
+  createdAt?: string;
+  tags?: string[];
+};
+
+/** A thread as listed for a channel (forum cards show who posted and the start of the post). */
+export type ThreadListEntry = ThreadSummary & {
+  starterMessage?: { content: string; createdAt: string; author: { id: string; username: string; avatar?: string | null } | null } | null;
+};
+
+export async function createThread(accessToken: string, csrfToken: string, payload: { messageId: string; title: string }) {
+  const response = await api.post<{ thread: ThreadSummary & { channelId: string } }>("/api/threads", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function listThreads(accessToken: string, channelId: string) {
+  const response = await api.get<{ threads: ThreadListEntry[] }>(`/api/threads/channel/${channelId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function getThread(accessToken: string, threadId: string) {
+  const response = await api.get<{ thread: ThreadSummary & { channelId: string; starterMessage: Message | null }; messages: Message[] }>(`/api/threads/${threadId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function updateThread(accessToken: string, csrfToken: string, threadId: string, payload: { title?: string; archived?: boolean }) {
+  const response = await api.patch<{ thread: ThreadSummary }>(`/api/threads/${threadId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export type MessagePoll = {
+  id: string;
+  options: Array<{ id: string; text: string }>;
+  allowMultiple: boolean;
+  endsAt: string;
+  closedAt: string | null;
+  /** Polls aren't anonymous: who picked what. */
+  votes: Array<{ optionId: string; userId: string }>;
+};
+
+export type PollDraft = { options: string[]; allowMultiple: boolean; durationHours: number };
+
+export async function votePoll(accessToken: string, csrfToken: string, messageId: string, optionIds: string[]) {
+  const response = await api.put<{ message: Message }>(`/api/messages/${messageId}/poll/votes`, { optionIds }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function endPoll(accessToken: string, csrfToken: string, messageId: string) {
+  const response = await api.post<{ message: Message }>(`/api/messages/${messageId}/poll/end`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
 export type Message = {
   id: string;
   channelId: string;
@@ -327,6 +513,16 @@ export type Message = {
   replyToId?: string | null;
   pinnedAt?: string | null;
   pinnedById?: string | null;
+  /** Set on replies inside a thread. */
+  threadId?: string | null;
+  /** Set when the message came in through a channel webhook. */
+  webhookId?: string | null;
+  /** Set on the message a thread was started from. */
+  startedThread?: ThreadSummary | null;
+  /** A poll; the message content is its question. */
+  poll?: MessagePoll | null;
+  /** A sticker sent as the message. */
+  sticker?: { id: string; name: string; imageUrl: string } | null;
   replyTo?: {
     id: string;
     content: string;
@@ -379,6 +575,7 @@ export type DmMessage = {
   authorId: string;
   content: string;
   attachments?: string[];
+  edited?: boolean;
   createdAt: string;
   author: {
     id: string;
@@ -449,29 +646,6 @@ export type BillingReadiness = {
     tierPrices: string[];
     addOnPrices: string[];
   };
-};
-
-export type AdminRevenue = {
-  revenue: {
-    last30DaysCents: number;
-    previous30DaysCents: number;
-    growthPct: number;
-    activeSubscriptions: number;
-    failedPayments: number;
-  };
-  tierDistribution: {
-    CORE: number;
-    PLUS: number;
-    ELITE: number;
-    INFINITE: number;
-  };
-  featureRevenue: Array<{
-    featureCode: PaidFeatureCode;
-    featureLabel?: string;
-    priceLabel?: string | null;
-    revenueCents: number;
-    transactions: number;
-  }>;
 };
 
 export type AdminAiInsights = {
@@ -612,12 +786,14 @@ export type LaunchModeState = {
   source: "env" | "runtime";
 };
 
-const LOCAL_API_BASE_URL = "http://127.0.0.1:4000";
-const LOCAL_API_FALLBACK_URL = "http://127.0.0.1:4001";
+import { handleSuspended, isSuspensionInfo } from "./suspension";
+import { isUpgradePrompt, usePaywallStore } from "@/store/paywall-store";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  // A request that never answers should fail, so the page can show an error and a retry instead of spinning forever.
+  timeout: 20000,
 });
 
 api.interceptors.request.use((config) => {
@@ -629,7 +805,6 @@ api.interceptors.request.use((config) => {
 });
 
 interface RetriableRequestConfig extends AxiosRequestConfig {
-  __retriedOnFallbackPort?: boolean;
   __retriedAfterRefresh?: boolean;
 }
 
@@ -648,24 +823,45 @@ function isNonRefreshableAuthUrl(url?: string) {
 
 /**
  * Exchange the httpOnly refresh cookie for a new access token. Concurrent 401s share one refresh call.
- * Returns null when the refresh cookie is missing, expired or revoked.
+ * Resolves null only when the server rejects the cookie (missing, expired, revoked or suspended).
+ * Rejects on network or server errors, which are not a verdict on the session.
  */
 export function refreshAccessToken(): Promise<RefreshedSession | null> {
   if (!refreshInFlight) {
     refreshInFlight = axios
-      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true, timeout: 20000 })
       .then((response) => {
         const data = response.data;
         if (!data?.accessToken) return null;
         useAuthStore.setState({ accessToken: data.accessToken, csrfToken: data.csrfToken ?? null });
         return { accessToken: data.accessToken, csrfToken: data.csrfToken };
       })
-      .catch(() => null)
+      .catch((error: unknown) => {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        if (status === 401 || status === 403) return null;
+        throw error;
+      })
       .finally(() => {
         refreshInFlight = null;
       });
   }
   return refreshInFlight;
+}
+
+/**
+ * Revoke this browser's sign-in on the server (the refresh cookie), so the cookie cannot bring the
+ * session back. Fire-and-forget; keepalive lets it finish while the page navigates to /login.
+ */
+export function revokeServerSession(): void {
+  try {
+    void fetch(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Offline or blocked: the cookie still expires on its own schedule.
+  }
 }
 
 export function setApiUnauthorizedHandler(handler: (() => void) | null) {
@@ -677,17 +873,18 @@ api.interceptors.response.use(
   async (error) => {
     const config = error.config as RetriableRequestConfig | undefined;
 
-    if (
-      axios.isAxiosError(error) &&
-      !error.response &&
-      config?.baseURL === LOCAL_API_BASE_URL &&
-      !config.__retriedOnFallbackPort
-    ) {
-      return api.request({
-        ...(config as RetriableRequestConfig),
-        __retriedOnFallbackPort: true,
-        baseURL: LOCAL_API_FALLBACK_URL,
-      } as RetriableRequestConfig);
+    // Needs a higher plan: show the upgrade prompt (the caller still gets the error).
+    if (axios.isAxiosError(error) && error.response?.status === 402) {
+      const body = error.response.data as unknown;
+      if (isUpgradePrompt(body)) {
+        usePaywallStore.getState().show({ message: body.error, feature: body.feature, requiredTier: body.requiredTier, requiredTierLabel: body.requiredTierLabel });
+      }
+    }
+
+    // Suspended by Nexus Forge staff (sign-in or any request): leave the app and explain why.
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const suspended = (error.response.data as { suspended?: unknown } | undefined)?.suspended;
+      if (isSuspensionInfo(suspended)) handleSuspended(suspended);
     }
 
     if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -712,9 +909,13 @@ api.interceptors.response.use(
         }
       }
 
+      // Only a request that carried a session can end it; an anonymous 401 is just a refusal.
       const now = Date.now();
-      if (unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
+      if (hadSession && unauthorizedHandler && now - lastUnauthorizedHandledAt > 500) {
         lastUnauthorizedHandledAt = now;
+        // Drop the session locally before the handler runs, so its clearSession does not revoke the
+        // cookie: a sibling tab may have just rotated it, and this 401 is not the user signing out.
+        useAuthStore.getState().expireSession();
         unauthorizedHandler();
       }
     }
@@ -755,7 +956,7 @@ export function authHeaders(
   };
 }
 
-export async function register(payload: { username: string; email: string; password: string; birthdate: string }) {
+export async function register(payload: { username: string; email: string; password: string; birthdate: string; acceptedPolicyVersionIds?: string[] }) {
   const response = await api.post<{
     accessToken: string;
     csrfToken: string;
@@ -770,7 +971,7 @@ export async function register(payload: { username: string; email: string; passw
 
 export type LoginResponse =
   | { requiresTwoFactor?: false; accessToken: string; csrfToken: string; user: User }
-  | { requiresTwoFactor: true; challengeToken: string; channels: string[]; devCode?: string };
+  | { requiresTwoFactor: true; challengeToken: string; channels: string[]; devCode?: string; method?: "totp" };
 
 export async function login(payload: { email: string; password: string }) {
   const response = await api.post<LoginResponse>("/api/auth/login", payload);
@@ -790,6 +991,19 @@ export async function resendTwoFactorLogin(challengeToken: string) {
 export async function forgotPassword(payload: { email: string }) {
   const response = await api.post<{ message: string; token?: string }>("/api/auth/forgot-password", payload);
   return response.data;
+}
+
+export async function forgotPasswordByPhone(phone: string) {
+  return (await api.post<{ message: string }>("/api/auth/forgot-password", { phone })).data;
+}
+
+export async function resetPasswordByPhone(payload: { phone: string; code: string; newPassword: string }) {
+  return (await api.post<{ message: string }>("/api/auth/reset-password/phone", payload)).data;
+}
+
+/** Which ways of reaching people the server can use right now (email, text messages). */
+export async function getDeliveryOptions() {
+  return (await api.get<{ email: boolean; sms: boolean }>("/api/auth/delivery")).data;
 }
 
 export async function verifyEmail(token: string) {
@@ -822,28 +1036,6 @@ export async function updateMe(
   return response.data;
 }
 
-export async function savePushSubscription(
-  accessToken: string,
-  csrfToken: string,
-  payload: { endpoint: string; p256dh: string; auth: string; deviceName?: string; platform?: string },
-) {
-  const response = await api.post<{ subscription: unknown }>("/api/auth/push-subscriptions", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function activateCorePlus(
-  accessToken: string,
-  csrfToken: string,
-  payload?: { tier?: "CORE" | "PLUS" | "ELITE" | "INFINITE" },
-) {
-  const response = await api.post<{ user: User }>("/api/auth/core-plus/activate", payload ?? {}, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
 export async function createCheckoutSession(
   accessToken: string,
   csrfToken: string,
@@ -862,6 +1054,17 @@ export async function createCheckoutSession(
     },
   );
   return response.data;
+}
+
+/** Back from Stripe checkout: the server asks Stripe and switches the plan on if it's paid. */
+export async function confirmCheckout(accessToken: string, csrfToken: string, sessionId: string) {
+  return (
+    await api.post<{ ok: true; result: "applied" | "duplicate"; premium: boolean; premiumTier: string }>(
+      "/api/billing/checkout/confirm",
+      { sessionId },
+      { headers: authHeaders(accessToken, csrfToken) },
+    )
+  ).data;
 }
 
 export async function createPortalSession(accessToken: string, csrfToken: string) {
@@ -884,57 +1087,6 @@ export async function getBillingEntitlements(accessToken: string) {
 
 export async function getBillingReadiness() {
   const response = await api.get<{ billing: BillingReadiness }>("/api/billing/status");
-  return response.data;
-}
-
-export async function consumeCreatorCampaignSlot(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/creator-campaign-slot/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeAdvancedModerationAI(accessToken: string, csrfToken: string) {
-  const response = await api.post<{ ok: true; message: string }>(
-    "/api/billing/features/advanced-moderation-ai/consume",
-    {},
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeForgeBoostPack(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/forge-boost-pack/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function consumeEventTicketPass(accessToken: string, csrfToken: string, quantity = 1) {
-  const response = await api.post<{ ok: true; consumed: number; remaining: number }>(
-    "/api/billing/features/event-ticket-pass/consume",
-    { quantity },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
-export async function getCorePlusTelemetry(accessToken: string) {
-  const response = await api.get<{ telemetry: CorePlusTelemetry }>("/api/auth/core-plus/telemetry", {
-    headers: authHeaders(accessToken),
-  });
   return response.data;
 }
 
@@ -990,24 +1142,6 @@ export async function joinForge(accessToken: string, csrfToken: string, inviteCo
   return response.data;
 }
 
-export async function joinForgeFromSource(
-  accessToken: string,
-  csrfToken: string,
-  payload: { inviteCode: string; source?: string },
-) {
-  const response = await api.post<{ forgeId: string; inviteCode: string }>("/api/forges/join", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function getForgeInviteAvailability(inviteCode: string, currentForgeId?: string) {
-  const response = await api.get<ForgeInviteAvailability>(`/api/forges/availability/${encodeURIComponent(inviteCode)}`, {
-    params: currentForgeId ? { currentForgeId } : {},
-  });
-  return response.data;
-}
-
 export async function getPublicForgeInvite(inviteCode: string, source?: string) {
   try {
     const response = await api.get<{ forge: PublicForgeInvite }>(`/api/forges/public/${encodeURIComponent(inviteCode)}`, {
@@ -1059,6 +1193,8 @@ export type ForgeMemberEntry = {
   userId: string;
   nickname?: string | null;
   joinedAt: string;
+  /** Timed out until this moment (ISO), or null. */
+  timeoutUntil?: string | null;
   roleLinks: Array<{ roleId: string }>;
   user: {
     id: string;
@@ -1124,7 +1260,7 @@ export async function updateForge(
   accessToken: string,
   csrfToken: string,
   forgeId: string,
-  payload: { name?: string; description?: string | null; icon?: string | null; banner?: string | null },
+  payload: { name?: string; description?: string | null; icon?: string | null; banner?: string | null; isPublic?: boolean },
 ) {
   const response = await api.patch<{ forge: Forge & { ownerId: string } }>(`/api/forges/${forgeId}`, payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1150,7 +1286,7 @@ export async function createForgeChannel(
   accessToken: string,
   csrfToken: string,
   forgeId: string,
-  payload: { name: string; type: Channel["type"]; topic?: string },
+  payload: { name: string; type: Channel["type"]; topic?: string } & ChannelSettings,
 ) {
   const response = await api.post<{ channel: Channel }>(`/api/forges/${forgeId}/channels`, payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1163,7 +1299,7 @@ export async function updateForgeChannel(
   csrfToken: string,
   forgeId: string,
   channelId: string,
-  payload: { name?: string; topic?: string | null; position?: number },
+  payload: { name?: string; topic?: string | null; position?: number } & ChannelSettings,
 ) {
   const response = await api.patch<{ channel: Channel }>(`/api/forges/${forgeId}/channels/${channelId}`, payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1273,33 +1409,103 @@ export async function unbanForgeUser(accessToken: string, csrfToken: string, for
   return response.data;
 }
 
-export async function getForgeInviteAnalytics(accessToken: string, forgeId: string) {
-  const response = await api.get<{ analytics: ForgeInviteAnalytics }>(`/api/forges/${forgeId}/invite-analytics`, {
+/** minutes: null lifts the timeout. */
+export type DeletionStatus = {
+  scheduledFor: string | null;
+  requestedAt: string | null;
+  graceDays: number;
+  blockers: Array<{ kind: "forges" | "bots" | "billing"; message: string; items: Array<{ id: string; name: string }> }>;
+};
+
+export async function getDeletionStatus(accessToken: string) {
+  const response = await api.get<DeletionStatus>("/api/account/deletion", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function requestAccountDeletion(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.post<{ ok: true; scheduledFor: string }>("/api/account/deletion", { password }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function cancelAccountDeletion(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true }>("/api/account/deletion", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** Downloads the JSON export and returns it as a Blob plus the server-chosen filename. */
+export async function downloadAccountData(accessToken: string) {
+  const response = await api.get<Blob>("/api/account/export", { headers: authHeaders(accessToken), responseType: "blob" });
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "nexus-forge-data.json";
+  return { blob: response.data, filename };
+}
+
+export async function timeoutForgeMember(accessToken: string, csrfToken: string, forgeId: string, userId: string, payload: { minutes: number | null; reason?: string }) {
+  const response = await api.put<{ userId: string; timeoutUntil: string | null }>(`/api/forges/${forgeId}/members/${userId}/timeout`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export type ForgeInvite = {
+  id: string;
+  code: string;
+  forgeId: string;
+  creatorId: string;
+  maxUses: number | null;
+  uses: number;
+  expiresAt: string | null;
+  createdAt: string;
+  creator: { id: string; username: string } | null;
+};
+
+export async function listForgeInvites(accessToken: string, forgeId: string) {
+  const response = await api.get<{ invites: ForgeInvite[]; canManageAll: boolean }>(`/api/forges/${forgeId}/invites`, {
     headers: authHeaders(accessToken),
   });
   return response.data;
 }
 
-export async function getForgeOnboardingHealth(accessToken: string, forgeId: string) {
-  const response = await api.get<{ health: ForgeOnboardingHealth }>(`/api/forges/${forgeId}/onboarding-health`, {
-    headers: authHeaders(accessToken),
+/** maxAgeSeconds 0 = never expires; maxUses 0 = unlimited. */
+export async function createForgeInvite(accessToken: string, csrfToken: string, forgeId: string, payload: { maxAgeSeconds: number; maxUses: number }) {
+  const response = await api.post<{ invite: ForgeInvite }>(`/api/forges/${forgeId}/invites`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;
 }
 
-export async function runForgeOnboardingAction(
-  accessToken: string,
-  csrfToken: string,
-  forgeId: string,
-  action: ForgeOnboardingAction,
-) {
-  const response = await api.post<{ ok: boolean; action: ForgeOnboardingAction; message: string }>(
-    `/api/forges/${forgeId}/onboarding-actions`,
-    { action },
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
+export async function revokeForgeInvite(accessToken: string, csrfToken: string, forgeId: string, inviteId: string) {
+  const response = await api.delete<{ ok: true; inviteId: string }>(`/api/forges/${forgeId}/invites/${inviteId}`, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
+  return response.data;
+}
+
+export type ForgeAuditEntry = {
+  id: string;
+  forgeId: string;
+  actorId: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; username: string; avatar?: string | null };
+};
+
+export async function getForgeAuditLog(accessToken: string, forgeId: string, params: { before?: string; action?: string } = {}) {
+  const response = await api.get<{ entries: ForgeAuditEntry[]; nextBefore: string | null }>(`/api/forges/${forgeId}/audit-log`, {
+    headers: authHeaders(accessToken),
+    params,
+  });
+  return response.data;
+}
+
+export async function transferForgeOwnership(accessToken: string, csrfToken: string, forgeId: string, payload: { userId: string; confirmName: string }) {
+  const response = await api.post<{ ok: true; ownerId: string }>(`/api/forges/${forgeId}/transfer`, payload, {
+    headers: authHeaders(accessToken, csrfToken),
+  });
   return response.data;
 }
 
@@ -1358,39 +1564,6 @@ export async function updateBotApp(
 
 export async function deleteBotApp(accessToken: string, csrfToken: string, botId: string) {
   const response = await api.delete(`/api/bots/${botId}`, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function listDeveloperApiKeys(accessToken: string) {
-  const response = await api.get<{ keys: DeveloperApiKey[] }>("/api/developer/keys", {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function createDeveloperApiKey(accessToken: string, csrfToken: string, payload: { name: string }) {
-  const response = await api.post<{ apiKey: DeveloperApiKey; secret: string }>("/api/developer/keys", payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function updateDeveloperApiKey(
-  accessToken: string,
-  csrfToken: string,
-  keyId: string,
-  payload: { name?: string; enabled?: boolean },
-) {
-  const response = await api.patch<{ apiKey: DeveloperApiKey }>(`/api/developer/keys/${keyId}`, payload, {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function revokeDeveloperApiKey(accessToken: string, csrfToken: string, keyId: string) {
-  const response = await api.delete(`/api/developer/keys/${keyId}`, {
     headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;
@@ -1585,21 +1758,6 @@ export async function updateBotCommand(
   return response.data;
 }
 
-export async function executeBotCommand(
-  accessToken: string,
-  csrfToken: string,
-  payload: { forgeId: string; name: string },
-) {
-  const response = await api.post<{ ok: true; output: { command: string; botName: string; intents: string[]; response: string } }>(
-    "/api/bots/commands/execute",
-    payload,
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
 export async function getMessages(accessToken: string, channelId: string, cursor?: string | null) {
   const response = await api.get<{ messages: Message[]; nextCursor: string | null }>(`/api/messages/${channelId}`, {
     headers: authHeaders(accessToken),
@@ -1629,7 +1787,7 @@ export async function toggleReaction(accessToken: string, csrfToken: string, mes
 export async function postMessage(
   accessToken: string,
   csrfToken: string,
-  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string },
+  payload: { channelId: string; content: string; optimisticId?: string; attachments?: string[]; replyToId?: string; threadId?: string; forumTitle?: string; forumTags?: string[]; poll?: PollDraft; stickerId?: string },
 ) {
   const response = await api.post<{ message: Message }>("/api/messages", payload, {
     headers: authHeaders(accessToken, csrfToken),
@@ -1721,6 +1879,15 @@ export async function getDmMessages(accessToken: string, threadId: string) {
   return response.data;
 }
 
+export async function editDmMessage(accessToken: string, csrfToken: string, messageId: string, content: string) {
+  const response = await api.patch<{ message: DmMessage }>(`/api/dms/messages/${messageId}`, { content }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function deleteDmMessage(accessToken: string, csrfToken: string, messageId: string) {
+  await api.delete(`/api/dms/messages/${messageId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
 export async function postDmMessage(
   accessToken: string,
   csrfToken: string,
@@ -1760,13 +1927,6 @@ export async function requestVoiceToken(accessToken: string, csrfToken: string, 
 }
 
 export type VoiceTokenResponse = Awaited<ReturnType<typeof requestVoiceToken>>;
-
-export async function getAdminRevenue(accessToken: string, csrfToken: string) {
-  const response = await api.get<AdminRevenue>("/api/admin/revenue", {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
 
 export async function getAdminAiInsights(accessToken: string, csrfToken: string) {
   const response = await api.get<AdminAiInsights>("/api/admin/ai-insights", {
@@ -1809,18 +1969,6 @@ export async function adminGenerateSampleProfiles(
 
 export async function getLiveCreators(accessToken: string, csrfToken: string) {
   const response = await api.get<User[]>("/api/profiles/creators/live", {
-    headers: authHeaders(accessToken, csrfToken),
-  });
-  return response.data;
-}
-
-export async function updateActivity(accessToken: string, csrfToken: string, data: {
-  activityType: "GAME" | "MUSIC" | "STREAMING" | "SOCIAL" | "CLEAR";
-  activityStatus?: string;
-  activityMetadata?: any;
-  showActivity?: boolean;
-}) {
-  const response = await api.post("/api/profiles/activity", data, {
     headers: authHeaders(accessToken, csrfToken),
   });
   return response.data;
@@ -2027,60 +2175,6 @@ export type LeaderboardEntry = {
   createdAt: string;
 };
 
-export async function searchProfiles(accessToken: string, query: string, limit = 20, offset = 0) {
-  const response = await api.get<{
-    users: Array<{
-      id: string;
-      username: string;
-      avatar?: string | null;
-      clanTag?: string | null;
-      premium: boolean;
-      premiumTier: string;
-      reputation: number;
-      createdAt: string;
-    }>;
-    total: number;
-    limit: number;
-    offset: number;
-  }>("/api/profiles/users/search", {
-    params: { q: query, limit, offset },
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getUserGroups(accessToken: string) {
-  const response = await api.get<{
-    groups: Array<{
-      tag: string;
-      name: string;
-      description: string;
-      totalUsers: number;
-      onlineUsers: number;
-      premiumUsers: number;
-      avgReputation: number;
-      sampleUsers: Array<{
-        id: string;
-        username: string;
-        avatar?: string | null;
-        status: User["status"];
-        premiumTier?: User["premiumTier"];
-        reputation: number;
-      }>;
-    }>;
-  }>("/api/profiles/users/groups", {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getPublicProfile(accessToken: string, userId: string) {
-  const response = await api.get<PublicProfile>(`/api/profiles/users/${userId}`, {
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
 export async function getLeaderboard(accessToken: string, type: "reputation" | "streaks" | "medals", limit = 20, offset = 0) {
   const response = await api.get<{
     leaderboard: LeaderboardEntry[];
@@ -2089,19 +2183,6 @@ export async function getLeaderboard(accessToken: string, type: "reputation" | "
     limit: number;
     offset: number;
   }>(`/api/profiles/leaderboards/${type}`, {
-    params: { limit, offset },
-    headers: authHeaders(accessToken),
-  });
-  return response.data;
-}
-
-export async function getUserActivity(accessToken: string, userId: string, limit = 20, offset = 0) {
-  const response = await api.get<{
-    activities: UserActivity[];
-    total: number;
-    limit: number;
-    offset: number;
-  }>(`/api/profiles/users/${userId}/activity`, {
     params: { limit, offset },
     headers: authHeaders(accessToken),
   });
@@ -2118,26 +2199,12 @@ export async function getUserMedals(accessToken: string, userId: string) {
   return response.data;
 }
 
-export async function grantMedal(accessToken: string, csrfToken: string, userId: string, medalKey: string) {
-  const response = await api.post<{
-    message: string;
-    medal: Medal;
-  }>(
-    `/api/profiles/users/${userId}/medals/${medalKey}`,
-    {},
-    {
-      headers: authHeaders(accessToken, csrfToken),
-    },
-  );
-  return response.data;
-}
-
 // ===========================================================================
-// Vexora workspace: unreads, home, events, social, cosmetics, avatar, discover, settings
+// Nexus Forge workspace: unreads, home, events, social, cosmetics, avatar, discover, settings
 // ===========================================================================
 
 export type ChannelUnread = { channelId: string; unread: number; mentions: number; lastReadAt: string | null };
-export type ForgeUnreadSummary = { forgeId: string; unread: number; mentions: number };
+export type ForgeUnreadSummary = { forgeId: string; unread: number; mentions: number; muted?: boolean };
 
 export async function getUnreadSummary(accessToken: string) {
   const response = await api.get<{ forges: ForgeUnreadSummary[] }>("/api/reads/summary", { headers: authHeaders(accessToken) });
@@ -2147,6 +2214,16 @@ export async function getUnreadSummary(accessToken: string) {
 export async function getForgeUnreads(accessToken: string, forgeId: string) {
   const response = await api.get<{ forgeId: string; channels: ChannelUnread[] }>(`/api/reads/forge/${forgeId}`, { headers: authHeaders(accessToken) });
   return response.data;
+}
+
+/** Clear every unread dot and mention badge in one server. */
+export async function markForgeRead(accessToken: string, csrfToken: string, forgeId: string) {
+  return (await api.post<{ forgeId: string; channels: number }>(`/api/reads/forge/${forgeId}`, {}, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
+/** Clear unread dots and mention badges in every server you're in. */
+export async function markAllForgesRead(accessToken: string, csrfToken: string) {
+  return (await api.post<{ forges: number; channels: number }>("/api/reads/all", {}, { headers: authHeaders(accessToken, csrfToken) })).data;
 }
 
 export async function markChannelRead(accessToken: string, csrfToken: string, channelId: string) {
@@ -2309,6 +2386,8 @@ export type ProfileSummary = {
   isFollowing: boolean;
   followsYou: boolean;
   friendship?: { id: string; status: "PENDING" | "ACCEPTED" | "BLOCKED"; incoming: boolean } | null;
+  /** You blocked this person. */
+  blockedByMe?: boolean;
 };
 
 export async function getProfileSummary(accessToken: string, userId: string | "me") {
@@ -2336,11 +2415,15 @@ export type Post = {
   createdAt: string;
   liked: boolean;
   author: { id: string; username: string; displayName?: string | null; avatar?: string | null; isStaff: boolean; isPartner: boolean; isCreator: boolean };
-  _count: { likes: number };
+  _count: { likes: number; comments?: number };
 };
 
-export async function listPosts(accessToken: string, params: { authorId?: string | "me"; kind?: "POST" | "CLIP"; scope?: "following" | "all" } = {}) {
-  const response = await api.get<{ posts: Post[] }>("/api/social/posts", { headers: authHeaders(accessToken), params });
+export async function listPosts(
+  accessToken: string,
+  params: { authorId?: string | "me"; kind?: "POST" | "CLIP"; scope?: "following" | "all"; cursor?: string | null; limit?: number } = {},
+) {
+  const { cursor, ...rest } = params;
+  const response = await api.get<{ posts: Post[]; nextCursor: string | null }>("/api/social/posts", { headers: authHeaders(accessToken), params: cursor ? { ...rest, cursor } : rest });
   return response.data;
 }
 
@@ -2351,6 +2434,29 @@ export async function createPost(accessToken: string, csrfToken: string, payload
 
 export async function deletePost(accessToken: string, csrfToken: string, postId: string) {
   await api.delete(`/api/social/posts/${postId}`, { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export type PostComment = {
+  id: string;
+  postId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  author: { id: string; username: string; displayName?: string | null; avatar?: string | null; isStaff: boolean };
+};
+
+export async function listPostComments(accessToken: string, postId: string) {
+  const response = await api.get<{ comments: PostComment[] }>(`/api/social/posts/${postId}/comments`, { headers: authHeaders(accessToken) });
+  return response.data.comments;
+}
+
+export async function addPostComment(accessToken: string, csrfToken: string, postId: string, content: string) {
+  const response = await api.post<{ comment: PostComment }>(`/api/social/posts/${postId}/comments`, { content }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.comment;
+}
+
+export async function deletePostComment(accessToken: string, csrfToken: string, commentId: string) {
+  await api.delete(`/api/social/comments/${commentId}`, { headers: authHeaders(accessToken, csrfToken) });
 }
 
 export async function togglePostLike(accessToken: string, csrfToken: string, postId: string) {
@@ -2415,12 +2521,15 @@ export type AvatarConfig = {
   shoeColor: string;
   accent: string;
   background: "city" | "forge" | "void" | "arena";
+  outfit: "base" | "cyber" | "shadow" | "knight" | "street" | "sorceress" | "nomad";
+  /** The 3D design (see components/avatar3d/design.ts). Normalised by the builder when loaded. */
+  design?: unknown;
 };
 
-export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string };
+export type AvatarPreset = { id: string; name: string; tagline?: string | null; config: AvatarConfig; createdAt: string; isPublic: boolean; previewUrl?: string | null };
 
 export async function getAvatar(accessToken: string) {
-  const response = await api.get<{ config: AvatarConfig; presets: AvatarPreset[]; maxPresets: number }>("/api/avatar", { headers: authHeaders(accessToken) });
+  const response = await api.get<{ config: AvatarConfig; presets: AvatarPreset[]; maxPresets: number; mainPresetId: string | null }>("/api/avatar", { headers: authHeaders(accessToken) });
   return response.data;
 }
 
@@ -2431,6 +2540,17 @@ export async function saveAvatar(accessToken: string, csrfToken: string, config:
 
 export async function createAvatarPreset(accessToken: string, csrfToken: string, payload: { name: string; tagline?: string; config: AvatarConfig }) {
   const response = await api.post<{ preset: AvatarPreset }>("/api/avatar/presets", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** Renames, changes the privacy setting, or replaces the design of a saved avatar. */
+export async function updateAvatarPreset(
+  accessToken: string,
+  csrfToken: string,
+  presetId: string,
+  payload: { name?: string; tagline?: string; config?: AvatarConfig; isPublic?: boolean; previewUrl?: string | null },
+) {
+  const response = await api.patch<{ preset: AvatarPreset }>(`/api/avatar/presets/${presetId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
@@ -2489,6 +2609,8 @@ export type NotificationPreferences = {
   system: boolean;
   sounds: boolean;
   push: boolean;
+  /** Inbox only (no push, no sound) during this daily window, in timeZone. */
+  quietHours: { enabled: boolean; start: string; end: string; timeZone: string };
 };
 
 export type AppearancePreferences = {
@@ -2497,6 +2619,25 @@ export type AppearancePreferences = {
   fontScale: "small" | "default" | "large";
   reduceMotion: boolean;
   showAvatarsInChat: boolean;
+  // Appearance & Sounds. Optional so an older server without them still works; lib/appearance/preferences.ts fills defaults.
+  theme?: "forge-dark" | "midnight-neon" | "cyber-grid" | "ember-forge" | "frost" | "aurora" | "minimal-dark" | "high-contrast";
+  animation?: "full" | "subtle" | "off";
+  decorativeEffects?: boolean;
+  noFlashing?: boolean;
+  seasonal?: boolean;
+  loadingStyle?: "forge" | "pulse" | "minimal";
+  easterEggs?: boolean;
+};
+
+export type SoundPreferences = {
+  enabled: boolean;
+  volume: number;
+  pack: "forge" | "soft";
+  voice: boolean;
+  screenShare: boolean;
+  ui: boolean;
+  seasonal: boolean;
+  easterEggs: boolean;
 };
 
 export type VoicePreferences = {
@@ -2513,7 +2654,10 @@ export type VoicePreferences = {
 export type Preferences = {
   notifications: NotificationPreferences;
   appearance: AppearancePreferences;
+  /** Missing on servers older than Appearance & Sounds. */
+  sounds?: SoundPreferences;
   voice: VoicePreferences;
+  home: HomePreferences;
 };
 
 export type SettingsPayload = {
@@ -2534,7 +2678,7 @@ export type SettingsPayload = {
   privacy: PrivacySettings;
   preferences: Preferences;
   linkedAccounts: Record<string, string | null>;
-  sessions: Array<{ id: string; createdAt: string; expiresAt: string }>;
+  sessions: ActiveSession[];
   twoFactor: { enabled: boolean; available: boolean };
 };
 
@@ -2543,7 +2687,7 @@ export async function getSettings(accessToken: string) {
   return response.data;
 }
 
-export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null; code?: string }) {
+export async function updateAccountSettings(accessToken: string, csrfToken: string, payload: { displayName?: string | null; email?: string; bio?: string | null; clanTag?: string | null; code?: string; password?: string }) {
   const response = await api.patch<{ account: SettingsPayload["account"] }>("/api/settings/account", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
@@ -2553,7 +2697,15 @@ export async function updatePrivacySettings(accessToken: string, csrfToken: stri
   return response.data;
 }
 
-export async function updatePreferences(accessToken: string, csrfToken: string, payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; voice?: Partial<VoicePreferences> }) {
+export type HomeWidgetId = "hero" | "stats" | "event" | "activity" | "creators" | "live" | "actions" | "posts" | "jackpot" | "shop";
+/** Saved Home layout. Empty = default; widgets missing from the list are appended. */
+export type HomePreferences = { widgets: Array<{ id: HomeWidgetId; visible: boolean }> };
+
+export async function updatePreferences(
+  accessToken: string,
+  csrfToken: string,
+  payload: { notifications?: Partial<NotificationPreferences>; appearance?: Partial<AppearancePreferences>; sounds?: Partial<SoundPreferences>; voice?: Partial<VoicePreferences>; home?: HomePreferences },
+) {
   const response = await api.put<{ preferences: Preferences }>("/api/settings/preferences", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
@@ -2572,6 +2724,24 @@ export async function revokeSession(accessToken: string, csrfToken: string, sess
   await api.delete(`/api/settings/sessions/${sessionId}`, { headers: authHeaders(accessToken, csrfToken) });
 }
 
+export type ActiveSession = {
+  id: string;
+  /** True for the session this browser is using. */
+  current: boolean;
+  deviceLabel: string;
+  ipPrefix: string | null;
+  signedInAt: string;
+  lastUsedAt: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+/** Signs out every session except this one. */
+export async function revokeOtherSessions(accessToken: string, csrfToken: string) {
+  const response = await api.delete<{ ok: true; signedOut: number }>("/api/settings/sessions", { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
 // ===========================================================================
 // Account protection: email + phone verification, two-factor
 // ===========================================================================
@@ -2583,8 +2753,135 @@ export type ProtectionStatus = {
   email: string;
   twoFactorEnabled: boolean;
   twoFactorChannels: string[];
+  /** Authenticator-app two-factor is on. */
+  totpEnabled?: boolean;
+  recoveryCodesLeft?: number;
   complete: boolean;
 };
+
+export async function startTotpSetup(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.post<{ secret: string; otpauthUrl: string }>("/api/verification/two-factor/totp/setup", { password }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function enableTotp(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; recoveryCodes: string[]; protection: ProtectionStatus }>("/api/verification/two-factor/totp/enable", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function disableTotp(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; protection: ProtectionStatus }>("/api/verification/two-factor/totp/disable", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function regenerateRecoveryCodes(accessToken: string, csrfToken: string, code: string) {
+  const response = await api.post<{ ok: true; recoveryCodes: string[]; protection: ProtectionStatus }>("/api/verification/two-factor/totp/recovery-codes", { code }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+// --- message reports --------------------------------------------------------
+
+export type ReportReason = "SPAM" | "HARASSMENT" | "HATE" | "SEXUAL" | "VIOLENCE" | "SELF_HARM" | "SCAM" | "OTHER";
+export type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
+
+export type MessageReport = {
+  id: string;
+  kind: "CHANNEL" | "DM";
+  messageId: string;
+  forgeId: string | null;
+  channelId: string | null;
+  channelName?: string | null;
+  threadId: string | null;
+  authorId: string | null;
+  authorUsername: string | null;
+  contentSnapshot: string;
+  attachmentsSnapshot: string[];
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  resolutionNote: string | null;
+  handledAt: string | null;
+  createdAt: string;
+  reporter: { id: string; username: string } | null;
+  handledBy: { id: string; username: string } | null;
+};
+
+export async function reportMessage(accessToken: string, csrfToken: string, payload: { kind: "CHANNEL" | "DM"; messageId: string; reason: ReportReason; details?: string }) {
+  const response = await api.post<{ ok: true; reportId: string; duplicate?: boolean }>("/api/reports", payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function listForgeReports(accessToken: string, forgeId: string, status: ReportStatus | "ALL" = "OPEN") {
+  const response = await api.get<{ reports: MessageReport[]; openCount: number }>(`/api/reports/forge/${forgeId}`, { headers: authHeaders(accessToken), params: { status } });
+  return response.data;
+}
+
+export async function listStaffReports(accessToken: string, params: { status?: ReportStatus | "ALL"; kind?: "CHANNEL" | "DM" } = {}) {
+  const response = await api.get<{ reports: MessageReport[]; openCount: number }>("/api/reports/staff", { headers: authHeaders(accessToken), params });
+  return response.data;
+}
+
+export type VacBanRow = {
+  id: string;
+  userId: string;
+  reason: string;
+  category: string | null;
+  source: "STAFF" | "AUTO";
+  evidence: string | null;
+  until: string | null;
+  createdAt: string;
+  needsReview: boolean;
+  appealedAt: string | null;
+  appealNote: string | null;
+  user: { username: string };
+};
+
+export async function listVacBans(accessToken: string) {
+  const response = await api.get<{ bans: VacBanRow[] }>("/api/admin/vac-bans", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function reviewVacBan(accessToken: string, csrfToken: string, banId: string, payload: { decision: "CONFIRM" | "LIFT"; note?: string }) {
+  const response = await api.post<{ ok: boolean; decision: string }>(`/api/admin/vac-bans/${banId}/review`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** A banned person's appeal. Sent without signing in; the reply never says whether the account exists or is banned. */
+export async function submitVacAppeal(payload: { email: string; password: string; note: string }) {
+  const response = await api.post<{ ok: boolean; message: string }>("/api/auth/vac-appeal", payload);
+  return response.data;
+}
+
+export async function handleReport(accessToken: string, csrfToken: string, reportId: string, payload: { status: ReportStatus; note?: string; deleteMessage?: boolean }) {
+  const response = await api.patch<{ report: MessageReport; messageDeleted: boolean }>(`/api/reports/${reportId}`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+// --- per-server notification settings ----------------------------------------
+
+export type ForgeNotificationSettings = {
+  notifyLevel: "ALL" | "MENTIONS" | "NONE";
+  suppressEveryone: boolean;
+  muted: boolean;
+  mutedUntil: string | null;
+  mutedForever: boolean;
+};
+
+export async function getForgeNotificationSettings(accessToken: string, forgeId: string) {
+  const response = await api.get<ForgeNotificationSettings>(`/api/forges/${forgeId}/notification-settings`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+/** muteMinutes: 0 unmutes, -1 mutes until turned back on. */
+export async function updateForgeNotificationSettings(
+  accessToken: string,
+  csrfToken: string,
+  forgeId: string,
+  payload: { notifyLevel?: ForgeNotificationSettings["notifyLevel"]; muteMinutes?: -1 | 0 | 15 | 60 | 180 | 480 | 1440; suppressEveryone?: boolean },
+) {
+  const response = await api.put<ForgeNotificationSettings>(`/api/forges/${forgeId}/notification-settings`, payload, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
 
 export type SendCodeResult = { ok: true; sentTo?: string; transport?: string; devCode?: string; alreadyVerified?: boolean };
 
@@ -2603,8 +2900,8 @@ export async function confirmEmailCode(accessToken: string, csrfToken: string, c
   return response.data;
 }
 
-export async function sendPhoneCode(accessToken: string, csrfToken: string, phoneNumber: string) {
-  const response = await api.post<SendCodeResult>("/api/verification/phone/send", { phoneNumber }, { headers: authHeaders(accessToken, csrfToken) });
+export async function sendPhoneCode(accessToken: string, csrfToken: string, phoneNumber: string, password: string) {
+  const response = await api.post<SendCodeResult>("/api/verification/phone/send", { phoneNumber, password }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
@@ -2613,8 +2910,8 @@ export async function confirmPhoneCode(accessToken: string, csrfToken: string, c
   return response.data;
 }
 
-export async function removePhone(accessToken: string, csrfToken: string) {
-  const response = await api.delete<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone", { headers: authHeaders(accessToken, csrfToken) });
+export async function removePhone(accessToken: string, csrfToken: string, password: string) {
+  const response = await api.delete<{ ok: true; protection: ProtectionStatus }>("/api/verification/phone", { headers: authHeaders(accessToken, csrfToken), data: { password } });
   return response.data;
 }
 
@@ -2639,8 +2936,10 @@ export async function removeFriend(accessToken: string, csrfToken: string, frien
 
 export type SearchMessage = Message & { channel: { id: string; name: string; forgeId: string } };
 
+export type SearchFilters = { text: string; from: string[]; in: string[]; has: string[]; mentions: string[]; before: string | null; after: string | null; pinned: boolean | null };
+
 export async function searchMessages(accessToken: string, q: string, forgeId?: string) {
-  const response = await api.get<{ messages: SearchMessage[] }>("/api/search/messages", { headers: authHeaders(accessToken), params: { q, forgeId } });
+  const response = await api.get<{ messages: SearchMessage[]; filters?: SearchFilters }>("/api/search/messages", { headers: authHeaders(accessToken), params: { q, forgeId } });
   return response.data;
 }
 
@@ -2649,13 +2948,13 @@ export async function searchForges(accessToken: string, q: string) {
   return response.data;
 }
 
-export async function setLiveStatus(accessToken: string, csrfToken: string, payload: { live: boolean; platform?: "Twitch" | "Kick" | "YouTube" | "TikTok" | "Vexora"; title?: string; url?: string; game?: string }) {
+export async function setLiveStatus(accessToken: string, csrfToken: string, payload: { live: boolean; platform?: "Twitch" | "Kick" | "YouTube" | "TikTok" | "Nexus Forge"; title?: string; url?: string; game?: string }) {
   const response = await api.put<{ live: { creatorStatus: "LIVE" | "OFFLINE"; livePlatform?: string | null; liveStreamTitle?: string | null; liveStreamUrl?: string | null; liveGameCategory?: string | null; liveStartedAt?: string | null } }>("/api/social/live", payload, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
-export async function setPresenceStatus(accessToken: string, csrfToken: string, status: "ONLINE" | "IDLE" | "DND") {
-  const response = await api.put<{ status: "ONLINE" | "IDLE" | "DND" }>("/api/social/status", { status }, { headers: authHeaders(accessToken, csrfToken) });
+export async function setPresenceStatus(accessToken: string, csrfToken: string, status: "ONLINE" | "IDLE" | "DND" | "INVISIBLE") {
+  const response = await api.put<{ status: "ONLINE" | "IDLE" | "DND" | "OFFLINE"; chosen: string }>("/api/social/status", { status }, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
@@ -2891,4 +3190,194 @@ export async function sendCoins(accessToken: string, csrfToken: string, input: {
     { headers: authHeaders(accessToken, csrfToken) },
   );
   return response.data;
+}
+
+// ===========================================================================
+// Support tickets
+// ===========================================================================
+
+export type SupportCategory = "ACCOUNT" | "BILLING" | "BUG" | "REPORT_USER" | "FORGE" | "OTHER";
+export type SupportStatus = "OPEN" | "WAITING_ON_USER" | "RESOLVED" | "CLOSED";
+type SupportPerson = { id: string; username: string; displayName: string | null; avatar: string | null; email?: string };
+
+export type SupportTicketSummary = {
+  id: string;
+  number: number;
+  subject: string;
+  category: SupportCategory;
+  status: SupportStatus;
+  createdAt: string;
+  lastActivityAt: string;
+  user: SupportPerson;
+  lastMessage: { body: string; fromStaff: boolean; createdAt: string } | null;
+  messageCount: number;
+};
+
+export type SupportMessage = { id: string; body: string; fromStaff: boolean; createdAt: string; author: SupportPerson };
+export type SupportTicketDetail = Omit<SupportTicketSummary, "lastMessage" | "messageCount"> & { messages: SupportMessage[] };
+
+export async function getSupportMe(accessToken: string) {
+  const response = await api.get<{ staff: boolean; maxOpen: number }>("/api/support/me", { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function listSupportTickets(accessToken: string, scope: "mine" | "all", status: SupportStatus | "unresolved" | "any" = "any") {
+  const response = await api.get<{ tickets: SupportTicketSummary[] }>(`/api/support/tickets?scope=${scope}&status=${status}`, { headers: authHeaders(accessToken) });
+  return response.data.tickets;
+}
+
+export async function getSupportTicket(accessToken: string, ticketId: string) {
+  const response = await api.get<{ ticket: SupportTicketDetail; staff: boolean }>(`/api/support/tickets/${ticketId}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+export async function createSupportTicket(accessToken: string, csrfToken: string, input: { subject: string; category: SupportCategory; body: string }) {
+  const response = await api.post<{ ticket: { id: string; number: number } }>("/api/support/tickets", input, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.ticket;
+}
+
+export async function replySupportTicket(accessToken: string, csrfToken: string, ticketId: string, body: string) {
+  const response = await api.post<{ message: SupportMessage; status: SupportStatus }>(`/api/support/tickets/${ticketId}/messages`, { body }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+export async function setSupportTicketStatus(accessToken: string, csrfToken: string, ticketId: string, status: SupportStatus) {
+  const response = await api.patch<{ ticket: { id: string; status: SupportStatus } }>(`/api/support/tickets/${ticketId}`, { status }, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data.ticket;
+}
+
+export type AdminAnalytics = {
+  rangeDays: 7 | 30 | 90;
+  /** UTC days, oldest first; every series has one value per day. */
+  days: string[];
+  series: { signups: number[]; activeUsers: number[]; messages: number[]; posts: number[]; forges: number[]; coinsMinted: number[]; coinsBurned: number[] };
+  totals: { signups: number; messages: number; posts: number; forges: number; coinsMinted: number; coinsBurned: number; activeUsersPeak: number; activeUsersToday: number };
+  topForges: Array<{ id: string; name: string; messages: number; members: number }>;
+};
+
+export async function getAdminAnalytics(accessToken: string, days: 7 | 30 | 90) {
+  const response = await api.get<AdminAnalytics>(`/api/admin/analytics?days=${days}`, { headers: authHeaders(accessToken) });
+  return response.data;
+}
+
+// ---------------------------------------------------------------- saved messages & notes (only you see these)
+export type SavedKind = "CHANNEL" | "DM";
+export type SavedItem = {
+  id: string;
+  kind: SavedKind;
+  savedAt: string;
+  message: { id: string; content: string; createdAt: string; attachments: number; author: { id: string | null; username: string; avatar?: string | null } | null };
+  where: { forgeId?: string; forgeName?: string; forgeIcon?: string | null; channelId?: string; channelName?: string; threadId?: string | null; dmThreadId?: string; label?: string };
+};
+
+export async function listSaved(accessToken: string) {
+  return (await api.get<{ items: SavedItem[] }>("/api/me/saved", { headers: authHeaders(accessToken) })).data;
+}
+
+export async function listSavedIds(accessToken: string) {
+  return (await api.get<{ channel: string[]; dm: string[] }>("/api/me/saved/ids", { headers: authHeaders(accessToken) })).data;
+}
+
+export async function setSaved(accessToken: string, csrfToken: string, kind: SavedKind, messageId: string, saved: boolean) {
+  if (saved) await api.put("/api/me/saved", { kind, messageId }, { headers: authHeaders(accessToken, csrfToken) });
+  else await api.delete(`/api/me/saved/${kind}/${messageId}`, { headers: authHeaders(accessToken, csrfToken) });
+  return saved;
+}
+
+export async function getUserNote(accessToken: string, userId: string) {
+  return (await api.get<{ note: string; updatedAt: string | null }>(`/api/me/notes/${userId}`, { headers: authHeaders(accessToken) })).data;
+}
+
+export async function saveUserNote(accessToken: string, csrfToken: string, userId: string, note: string) {
+  return (await api.put<{ note: string }>(`/api/me/notes/${userId}`, { note }, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
+// ---------------------------------------------------------------- plans (what each Core+ tier unlocks)
+export type PlanTierCode = "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE";
+export type PlanInfo = {
+  tier: PlanTierCode;
+  label: string;
+  uploadBytes: number;
+  messageLength: number;
+  maxServers: number;
+  profileBanner: boolean;
+  animatedAvatar: boolean;
+  ultraVideo: boolean;
+};
+export type MyLimits = Omit<PlanInfo, "tier"> & { tier: PlanTierCode; enforced: boolean };
+
+export async function getBillingPlans() {
+  return (await api.get<{ enforced: boolean; plans: PlanInfo[] }>("/api/billing/plans")).data;
+}
+
+export async function getMyLimits(accessToken: string) {
+  return (await api.get<{ limits: MyLimits }>("/api/billing/me/limits", { headers: authHeaders(accessToken) })).data.limits;
+}
+
+// ---------------------------------------------------------------- what's new (release notes)
+export type AppUpdate = { id: string; title: string; body: string; version: string | null; publishedAt: string | null; unseen?: boolean };
+export type AppUpdateDraft = { title: string; body: string; version?: string | null };
+
+export async function listUpdates(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates", { headers: authHeaders(accessToken) })).data.updates;
+}
+// Public developer section: published updates and public bots. No sign-in needed; these are read only.
+export type PublicDeveloperUpdate = { id: string; title: string; body: string; version: string | null; publishedAt: string };
+export type PublicDeveloperBot = { id: string; name: string; description: string | null; avatar: string | null; createdAt: string };
+
+export async function listPublicDeveloperUpdates() {
+  return (await api.get<{ updates: PublicDeveloperUpdate[] }>("/api/public/developers/updates")).data.updates;
+}
+
+export async function listPublicDeveloperBots(q?: string) {
+  return (await api.get<{ bots: PublicDeveloperBot[] }>("/api/public/developers/bots", { params: q ? { q } : undefined })).data.bots;
+}
+
+export async function listUnseenUpdates(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates/unseen", { headers: authHeaders(accessToken) })).data.updates;
+}
+export async function markUpdatesSeen(accessToken: string, csrfToken: string) {
+  await api.post("/api/updates/seen", {}, { headers: authHeaders(accessToken, csrfToken) });
+}
+export type ProblemKind = "BUG" | "SIGN_IN" | "BILLING" | "SAFETY" | "OTHER";
+export type ProblemReportRow = {
+  id: string; kind: ProblemKind; message: string; contactEmail: string | null; pageUrl: string | null; userAgent: string | null;
+  status: "OPEN" | "RESOLVED"; createdAt: string; resolvedAt: string | null;
+  user: { id: string; username: string; email: string } | null;
+};
+
+/** "Report a problem" (signed in or out). */
+export async function sendProblemReport(payload: { kind: ProblemKind; message: string; contactEmail?: string; pageUrl?: string; website?: string }) {
+  return (await api.post<{ ok: true; reference?: string }>("/api/problem-reports", payload)).data;
+}
+export async function listProblemReports(accessToken: string, status: "OPEN" | "RESOLVED" | "ALL") {
+  return (await api.get<{ reports: ProblemReportRow[]; open: number }>("/api/problem-reports", { headers: authHeaders(accessToken), params: { status } })).data;
+}
+export async function setProblemReportStatus(accessToken: string, csrfToken: string, id: string, status: "OPEN" | "RESOLVED") {
+  return (await api.patch<{ ok: true }>(`/api/problem-reports/${id}`, { status }, { headers: authHeaders(accessToken, csrfToken) })).data;
+}
+
+export type ErrorEventRow = { id: string; source: "server" | "web"; message: string; detail: string | null; path: string | null; count: number; firstSeenAt: string; lastSeenAt: string };
+
+export async function listErrorEvents(accessToken: string) {
+  return (await api.get<{ errors: ErrorEventRow[]; total: number }>("/api/errors", { headers: authHeaders(accessToken) })).data;
+}
+export async function resolveErrorEvent(accessToken: string, csrfToken: string, id?: string) {
+  await api.delete(id ? `/api/errors/${id}` : "/api/errors", { headers: authHeaders(accessToken, csrfToken) });
+}
+
+export async function listAllUpdatesForStaff(accessToken: string) {
+  return (await api.get<{ updates: AppUpdate[] }>("/api/updates/admin", { headers: authHeaders(accessToken) })).data.updates;
+}
+export async function saveUpdate(accessToken: string, csrfToken: string, draft: AppUpdateDraft, id?: string) {
+  const headers = { headers: authHeaders(accessToken, csrfToken) };
+  return id
+    ? (await api.patch<{ update: AppUpdate }>(`/api/updates/admin/${id}`, draft, headers)).data.update
+    : (await api.post<{ update: AppUpdate }>("/api/updates/admin", draft, headers)).data.update;
+}
+export async function publishUpdate(accessToken: string, csrfToken: string, id: string) {
+  return (await api.post<{ update: AppUpdate }>(`/api/updates/admin/${id}/publish`, {}, { headers: authHeaders(accessToken, csrfToken) })).data.update;
+}
+export async function deleteUpdate(accessToken: string, csrfToken: string, id: string) {
+  await api.delete(`/api/updates/admin/${id}`, { headers: authHeaders(accessToken, csrfToken) });
 }

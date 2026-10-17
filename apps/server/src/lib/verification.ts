@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import type { VerificationChannel, VerificationPurpose } from "@prisma/client";
 import { prisma } from "./prisma.js";
-import { sendEmail, sendSms, type DeliveryResult } from "./delivery.js";
+import { duplicateWaitSeconds, sendEmail, sendSms, type DeliveryResult } from "./delivery.js";
+import { emailContextFromEnv, renderCodeEmail } from "./email-templates.js";
 import { env } from "../config/env.js";
 
 export const CODE_TTL_MS = 10 * 60 * 1000;
@@ -35,13 +36,6 @@ export function maskPhone(phone: string) {
   return `${phone.slice(0, 3)}${"•".repeat(Math.max(3, phone.length - 5))}${phone.slice(-2)}`;
 }
 
-const purposeCopy: Record<VerificationPurpose, { subject: string; intro: string }> = {
-  VERIFY_EMAIL: { subject: "Verify your Vexora Gaming email", intro: "Use this code to verify your email address." },
-  VERIFY_PHONE: { subject: "Verify your Vexora Gaming phone", intro: "Use this code to verify your phone number." },
-  LOGIN: { subject: "Your Vexora Gaming sign-in code", intro: "Someone is signing in to your account. If this is you, enter this code." },
-  SENSITIVE_CHANGE: { subject: "Confirm a change to your Vexora Gaming account", intro: "Use this code to confirm the change to your account." },
-};
-
 export type IssueResult = {
   ok: boolean;
   delivery?: DeliveryResult;
@@ -68,6 +62,16 @@ export async function issueCode(params: {
   }
 
   const code = generateCode();
+  // The email is rendered before anything is written. An identical email that went out moments ago
+  // (inside the duplicate window) is refused here, so the code the person already has stays valid.
+  const email = params.channel === "EMAIL" ? renderCodeEmail(params.purpose, code, emailContextFromEnv()) : null;
+  if (email) {
+    const wait = await duplicateWaitSeconds(params.userId, email.kind, email.rendered.subject);
+    if (wait > 0) {
+      return { ok: false, retryAfterSeconds: wait, error: "Please wait before requesting another code" };
+    }
+  }
+
   await prisma.$transaction([
     prisma.verificationCode.updateMany({
       where: { userId: params.userId, channel: params.channel, purpose: params.purpose, consumedAt: null },
@@ -85,21 +89,24 @@ export async function issueCode(params: {
     }),
   ]);
 
-  const copy = purposeCopy[params.purpose];
-  const body = `${copy.intro}\n\nYour Vexora Gaming code: ${code}\n\nIt expires in 10 minutes. Never share this code with anyone; Vexora staff will never ask for it.`;
-  const delivery =
-    params.channel === "EMAIL"
-      ? await sendEmail(params.target, copy.subject, body)
-      : await sendSms(params.target, `Vexora Gaming code: ${code}. Expires in 10 min. Never share it.`);
+  // Email: the template keeps the code in a styled box, and its plain-text part carries the same words.
+  const delivery = email
+    ? await sendEmail(params.target, email.rendered.subject, email.rendered.text, email.rendered.html, {
+        kind: email.kind,
+        category: "ESSENTIAL",
+        userId: params.userId,
+      })
+    : await sendSms(params.target, `Nexus Forge code: ${code}. It expires in 10 minutes. Don't share it, not even with Nexus Forge staff.`);
 
   if (!delivery.delivered) {
     return { ok: false, delivery, error: delivery.error };
   }
 
+  // Outside production, a test-mode or console send returns the code so the flow can be tried locally.
   return {
     ok: true,
     delivery,
-    ...(delivery.transport === "console" && env.NODE_ENV !== "production" ? { devCode: code } : {}),
+    ...((delivery.transport === "console" || delivery.transport === "test") && env.NODE_ENV !== "production" ? { devCode: code } : {}),
   };
 }
 
@@ -124,7 +131,12 @@ export async function verifyCode(params: { userId: string; purpose: Verification
   const hash = hashCode(params.userId, params.code.trim());
   const match = candidates.find((entry) => entry.codeHash === hash && entry.attempts < MAX_ATTEMPTS);
   if (match) {
-    await prisma.verificationCode.update({ where: { id: match.id }, data: { consumedAt: new Date() } });
+    // One confirmation is one use: the copy sent to the other channel (email vs text) is used
+    // up too, so it can't be replayed and doesn't block the next request with "please wait".
+    await prisma.verificationCode.updateMany({
+      where: { id: { in: candidates.map((entry) => entry.id) } },
+      data: { consumedAt: new Date() },
+    });
     return { ok: true, channel: match.channel, target: match.target };
   }
 
@@ -142,7 +154,17 @@ export async function verifyCode(params: { userId: string; purpose: Verification
 }
 
 /** Whether the user has completed the account-protection checklist. */
-export function protectionSummary(user: { emailVerified: boolean; phoneVerified: boolean; twoFactorEnabled: boolean; phoneNumber?: string | null; email: string; twoFactorChannels: string[] }) {
+export function protectionSummary(user: {
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  twoFactorEnabled: boolean;
+  phoneNumber?: string | null;
+  email: string;
+  twoFactorChannels: string[];
+  totpEnabledAt?: Date | null;
+  totpRecoveryHashes?: string[];
+}) {
+  const totpEnabled = Boolean(user.totpEnabledAt);
   return {
     emailVerified: user.emailVerified,
     phoneVerified: user.phoneVerified,
@@ -150,6 +172,10 @@ export function protectionSummary(user: { emailVerified: boolean; phoneVerified:
     email: maskEmail(user.email),
     twoFactorEnabled: user.twoFactorEnabled,
     twoFactorChannels: user.twoFactorChannels,
-    complete: user.emailVerified && user.phoneVerified && user.twoFactorEnabled,
+    totpEnabled,
+    recoveryCodesLeft: totpEnabled ? user.totpRecoveryHashes?.length ?? 0 : 0,
+    // Verified email plus a second step at sign-in (authenticator app, or codes by email/text).
+    // A phone is a welcome extra but not required, since texts aren't available everywhere.
+    complete: user.emailVerified && (totpEnabled || user.twoFactorEnabled),
   };
 }

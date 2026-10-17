@@ -1,0 +1,482 @@
+/*
+ * Themes, effects and seasonal accents (Settings -> Appearance & Sounds). Applied as attributes on <html>:
+ *   data-theme      one of lib/appearance/themes.ts (forge-dark has no overrides: it is the brand default)
+ *   data-effects    "off" hides decorative glow, grid and particles
+ *   data-animation  "subtle" stops looping decorative animation, "off" stops all animation
+ *   data-no-flashing "on" stops blinking and pulsing
+ *   data-season     the seasonal event, when seasonal visuals are on
+ * Selectors use [data-theme] (lower specificity than html[data-accent]) so an accent picked in settings still wins
+ * over the theme's own accent. The app draws from these variables (Tailwind slate and amber ramps, surfaces, borders,
+ * moods), so each theme recolours every screen without per-component colours.
+ */
+
+[data-theme="midnight-neon"] {
+  --background: #030308;
+  --surface: rgba(10, 10, 24, 0.78);
+  --surface-strong: rgba(6, 6, 16, 0.94);
+  --surface-soft: rgba(16, 16, 36, 0.56);
+  --border-soft: rgba(165, 180, 252, 0.18);
+  --border-strong: rgba(129, 140, 248, 0.4);
+  --nexus-cyan: #5ad8ff;
+  --nexus-gold: #6f7dff;
+  --nexus-purple: #b066ff;
+  --mood-a: rgba(111, 125, 255, 0.22);
+  --mood-b: rgba(176, 102, 255, 0.18);
+  --mood-c: rgba(61, 67, 214, 0.12);
+  --color-slate-50: #f5f6ff; --color-slate-100: #eceefe; --color-slate-200: #d6daf5; --color-slate-300: #b4bae6;
+  --color-slate-400: #8b92c4; --color-slate-500: #666c9c; --color-slate-600: #4b507a; --color-slate-700: #34385a;
+  --color-slate-800: #20223b; --color-slate-900: #121327; --color-slate-950: #08081a;
+  --color-amber-50: #eef0ff; --color-amber-100: #dfe3ff; --color-amber-200: #c2c9ff; --color-amber-300: #9aa6ff;
+  --color-amber-400: #6f7dff; --color-amber-500: #4f5bf5; --color-amber-600: #3d43d6; --color-amber-700: #3134aa;
+  --color-amber-800: #292b84; --color-amber-900: #22235f; --color-amber-950: #15153a;
+}
+
+[data-theme="cyber-grid"] {
+  --background: #040a10;
+  --surface: rgba(6, 18, 28, 0.78);
+  --surface-strong: rgba(4, 12, 20, 0.94);
+  --surface-soft: rgba(10, 26, 38, 0.56);
+  --border-soft: rgba(103, 232, 249, 0.16);
+  --border-strong: rgba(34, 211, 238, 0.4);
+  --nexus-cyan: #22d3ee;
+  --nexus-gold: #22d3ee;
+  --mood-a: rgba(34, 211, 238, 0.2);
+  --mood-b: rgba(56, 189, 248, 0.14);
+  --mood-c: rgba(14, 116, 144, 0.12);
+  --color-amber-50: #ecfeff; --color-amber-100: #cffafe; --color-amber-200: #a5f3fc; --color-amber-300: #67e8f9;
+  --color-amber-400: #22d3ee; --color-amber-500: #06b6d4; --color-amber-600: #0891b2; --color-amber-700: #0e7490;
+  --color-amber-800: #155e75; --color-amber-900: #164e63; --color-amber-950: #083344;
+}
+
+[data-theme="ember-forge"] {
+  --background: #0d0907;
+  --surface: rgba(26, 18, 13, 0.8);
+  --surface-strong: rgba(16, 11, 8, 0.94);
+  --surface-soft: rgba(34, 24, 18, 0.56);
+  --border-soft: rgba(251, 191, 146, 0.16);
+  --border-strong: rgba(255, 122, 47, 0.38);
+  --nexus-cyan: #ffb347;
+  --nexus-gold: #ff7a2f;
+  --nexus-purple: #f97316;
+  --mood-a: rgba(255, 122, 47, 0.2);
+  --mood-b: rgba(245, 158, 11, 0.14);
+  --mood-c: rgba(147, 58, 11, 0.12);
+  --color-slate-50: #fafaf9; --color-slate-100: #f5f5f4; --color-slate-200: #e7e5e4; --color-slate-300: #d6d3d1;
+  --color-slate-400: #a8a29e; --color-slate-500: #78716c; --color-slate-600: #57534e; --color-slate-700: #44403c;
+  --color-slate-800: #292524; --color-slate-900: #1c1917; --color-slate-950: #0c0a09;
+  --color-amber-50: #fff4ec; --color-amber-100: #ffe4d1; --color-amber-200: #ffc9a3; --color-amber-300: #ffa86b;
+  --color-amber-400: #ff7a2f; --color-amber-500: #e8621a; --color-amber-600: #bf4c0f; --color-amber-700: #933a0b;
+  --color-amber-800: #6e2c0a; --color-amber-900: #4a1e08; --color-amber-950: #2b1105;
+}
+
+[data-theme="frost"] {
+  --background: #0b111b;
+  --surface: rgba(21, 33, 49, 0.78);
+  --surface-strong: rgba(14, 22, 34, 0.94);
+  --surface-soft: rgba(30, 44, 64, 0.56);
+  --border-soft: rgba(199, 210, 254, 0.18);
+  --border-strong: rgba(125, 211, 252, 0.4);
+  --nexus-cyan: #bae6fd;
+  --nexus-gold: #7dd3fc;
+  --mood-a: rgba(125, 211, 252, 0.18);
+  --mood-b: rgba(199, 210, 254, 0.14);
+  --mood-c: rgba(3, 105, 161, 0.1);
+  --color-slate-50: #f8fafc; --color-slate-100: #f1f5f9; --color-slate-200: #e2e8f0; --color-slate-300: #cbd5e1;
+  --color-slate-400: #a3b1c6; --color-slate-500: #7c8aa3; --color-slate-600: #5b6880; --color-slate-700: #435069;
+  --color-slate-800: #2c3a52; --color-slate-900: #1b273b; --color-slate-950: #111a2a;
+  --color-amber-50: #f0f9ff; --color-amber-100: #e0f2fe; --color-amber-200: #bae6fd; --color-amber-300: #7dd3fc;
+  --color-amber-400: #38bdf8; --color-amber-500: #0ea5e9; --color-amber-600: #0284c7; --color-amber-700: #0369a1;
+  --color-amber-800: #075985; --color-amber-900: #0c4a6e; --color-amber-950: #082f49;
+}
+
+[data-theme="aurora"] {
+  --background: #050b10;
+  --surface: rgba(12, 24, 32, 0.78);
+  --surface-strong: rgba(7, 15, 21, 0.94);
+  --surface-soft: rgba(16, 32, 42, 0.56);
+  --border-soft: rgba(153, 246, 228, 0.16);
+  --border-strong: rgba(45, 212, 191, 0.38);
+  --nexus-cyan: #5eead4;
+  --nexus-gold: #2dd4bf;
+  --nexus-purple: #a78bfa;
+  --mood-a: rgba(45, 212, 191, 0.2);
+  --mood-b: rgba(167, 139, 250, 0.18);
+  --mood-c: rgba(15, 118, 110, 0.12);
+  --color-amber-50: #f0fdfa; --color-amber-100: #ccfbf1; --color-amber-200: #99f6e4; --color-amber-300: #5eead4;
+  --color-amber-400: #2dd4bf; --color-amber-500: #14b8a6; --color-amber-600: #0d9488; --color-amber-700: #0f766e;
+  --color-amber-800: #115e59; --color-amber-900: #134e4a; --color-amber-950: #042f2e;
+}
+
+[data-theme="minimal-dark"] {
+  --background: #0e0f11;
+  --surface: rgba(23, 24, 27, 0.92);
+  --surface-strong: rgba(17, 18, 20, 0.98);
+  --surface-soft: rgba(30, 31, 35, 0.7);
+  --border-soft: rgba(212, 216, 222, 0.12);
+  --border-strong: rgba(154, 167, 184, 0.32);
+  --nexus-cyan: #9aa7b8;
+  --nexus-gold: #9aa7b8;
+  --nexus-purple: #9aa7b8;
+  --mood-a: transparent;
+  --mood-b: transparent;
+  --mood-c: transparent;
+  --color-slate-50: #fafafa; --color-slate-100: #f4f4f5; --color-slate-200: #e4e4e7; --color-slate-300: #d4d4d8;
+  --color-slate-400: #a1a1aa; --color-slate-500: #71717a; --color-slate-600: #52525b; --color-slate-700: #3f3f46;
+  --color-slate-800: #27272a; --color-slate-900: #18181b; --color-slate-950: #0b0b0d;
+  --color-amber-50: #f3f6f9; --color-amber-100: #e5ebf1; --color-amber-200: #ccd6e0; --color-amber-300: #aab8c8;
+  --color-amber-400: #8698ad; --color-amber-500: #6b7d93; --color-amber-600: #556477; --color-amber-700: #455162;
+  --color-amber-800: #394351; --color-amber-900: #2c333d; --color-amber-950: #1b2027;
+}
+
+[data-theme="high-contrast"] {
+  --background: #000000;
+  --foreground: #ffffff;
+  --surface: rgba(0, 0, 0, 0.96);
+  --surface-strong: #000000;
+  --surface-soft: rgba(10, 10, 10, 0.96);
+  --border-soft: rgba(255, 255, 255, 0.55);
+  --border-strong: #ffd60a;
+  --nexus-cyan: #ffffff;
+  --nexus-gold: #ffd60a;
+  --nexus-purple: #ffd60a;
+  --mood-a: transparent;
+  --mood-b: transparent;
+  --mood-c: transparent;
+  --color-slate-50: #ffffff; --color-slate-100: #ffffff; --color-slate-200: #f5f5f5; --color-slate-300: #ebebeb;
+  --color-slate-400: #dedede; --color-slate-500: #c8c8c8; --color-slate-600: #8a8a8a; --color-slate-700: #5c5c5c;
+  --color-slate-800: #262626; --color-slate-900: #0f0f0f; --color-slate-950: #000000;
+  --color-amber-50: #fffbe6; --color-amber-100: #fff3b0; --color-amber-200: #ffe866; --color-amber-300: #ffdd33;
+  --color-amber-400: #ffd60a; --color-amber-500: #e6bf00; --color-amber-600: #b39500; --color-amber-700: #806a00;
+  --color-amber-800: #594a00; --color-amber-900: #332a00; --color-amber-950: #1a1500;
+}
+/* High contrast: strong, unmistakable focus and stronger faint borders. */
+[data-theme="high-contrast"] :focus-visible {
+  outline: 3px solid #ffd60a !important;
+  outline-offset: 2px !important;
+}
+
+/* The page background follows the theme. */
+[data-theme] body {
+  background-color: var(--background);
+}
+
+/* Ambient layer (components/appearance/ambient-layer.tsx): theme decoration and seasonal particles, never interactive. */
+.nf-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+[data-theme="cyber-grid"] .nf-ambient {
+  background-image:
+    linear-gradient(to right, rgba(34, 211, 238, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.nf-particle {
+  position: absolute;
+  top: -12px;
+  border-radius: 9999px;
+  opacity: 0;
+  animation: nf-fall linear infinite;
+}
+.nf-particle-snow {
+  width: 6px;
+  height: 6px;
+  background: rgba(240, 249, 255, 0.75);
+}
+.nf-particle-ember {
+  width: 4px;
+  height: 4px;
+  background: #ff9a3c;
+  box-shadow: 0 0 8px rgba(255, 122, 47, 0.8);
+  animation-name: nf-rise;
+  top: auto;
+  bottom: -12px;
+}
+.nf-particle-sparkle {
+  width: 5px;
+  height: 5px;
+  background: var(--nexus-cyan);
+  box-shadow: 0 0 10px var(--nexus-cyan);
+}
+@keyframes nf-fall {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  10% { opacity: 0.8; }
+  100% { transform: translate3d(24px, 105vh, 0); opacity: 0; }
+}
+@keyframes nf-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translate3d(-18px, -90vh, 0); opacity: 0; }
+}
+
+/* Seasonal accents: a tint on the mood glows only. The layout and readability never change. */
+[data-season="halloween"] { --mood-a: rgba(147, 51, 234, 0.22); --mood-b: rgba(249, 115, 22, 0.16); }
+[data-season="winter"] { --mood-a: rgba(186, 230, 253, 0.18); --mood-b: rgba(147, 197, 253, 0.14); }
+[data-season="new-year"], [data-season="nfg-anniversary"] { --mood-a: rgba(250, 204, 21, 0.16); --mood-b: rgba(46, 164, 255, 0.2); }
+[data-season="valentines"] { --mood-a: rgba(244, 114, 182, 0.18); --mood-b: rgba(251, 113, 133, 0.14); }
+[data-season="spring"] { --mood-a: rgba(134, 239, 172, 0.16); --mood-b: rgba(253, 224, 71, 0.1); }
+[data-season="summer"] { --mood-a: rgba(253, 186, 116, 0.16); --mood-b: rgba(56, 189, 248, 0.16); }
+
+/* Effects and motion switches. */
+[data-effects="off"] {
+  --mood-a: transparent;
+  --mood-b: transparent;
+  --mood-c: transparent;
+}
+[data-effects="off"] .nf-ambient,
+[data-effects="off"] .nf-decor {
+  display: none !important;
+}
+[data-animation="subtle"] .nf-particle,
+[data-animation="subtle"] .nf-decor,
+[data-animation="subtle"] .nf-decor *,
+[data-animation="subtle"] .animate-ping,
+[data-animation="subtle"] .animate-bounce {
+  animation: none !important;
+}
+[data-animation="subtle"] .nf-particle {
+  display: none;
+}
+[data-animation="off"] *,
+[data-animation="off"] *::before,
+[data-animation="off"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+[data-animation="off"] .nf-particle,
+html[data-motion="reduce"] .nf-particle {
+  display: none;
+}
+[data-no-flashing="on"] .animate-ping,
+[data-no-flashing="on"] .animate-pulse,
+[data-no-flashing="on"] .nf-flash {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-particle,
+  .nf-flash {
+    display: none;
+  }
+}
+
+/* Easter egg: forge spark burst (components/appearance/easter-eggs.tsx). */
+.nf-spark-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+.nf-spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #ffb347;
+  box-shadow: 0 0 12px #ff7a2f;
+  animation: nf-spark 900ms ease-out forwards;
+}
+@keyframes nf-spark {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+}
+[data-secret="neon"] {
+  --nexus-cyan: #ff4fd8;
+  --mood-a: rgba(255, 79, 216, 0.22);
+  --mood-b: rgba(79, 216, 255, 0.2);
+}
+
+/* Sign-in, registration and recovery screens (components/auth/auth-page-shell.tsx): a slow forge glow, a faint grid
+   and a few rising sparks. All decorative (.nf-decor): off with effects off, still with animation subtle/off. */
+.nf-auth-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+  animation: nf-auth-drift 22s ease-in-out infinite alternate;
+}
+.nf-auth-glow-a {
+  left: -10%;
+  top: -15%;
+  width: 55vmax;
+  height: 55vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nexus-gold) 55%, transparent), transparent 65%);
+}
+.nf-auth-glow-b {
+  right: -15%;
+  bottom: -20%;
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nexus-purple) 40%, transparent), transparent 65%);
+  animation-duration: 28s;
+  animation-direction: alternate-reverse;
+}
+.nf-auth-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+@keyframes nf-auth-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(6vmax, 4vmax, 0) scale(1.12); }
+}
+.nf-auth-heading {
+  background: linear-gradient(120deg, var(--color-amber-200), var(--color-amber-400) 50%, var(--nexus-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* App loading screen (components/appearance/branded-loading.tsx). Three styles: forge, pulse, minimal. */
+.nf-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-exo), "Segoe UI Variable", sans-serif;
+}
+.nf-loading-glow {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nexus-gold) 30%, transparent), transparent 62%);
+  filter: blur(40px);
+  animation: nf-auth-drift 18s ease-in-out infinite alternate;
+}
+.nf-loading-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(380px, calc(100vw - 40px));
+  padding: 28px 24px 22px;
+  text-align: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+  background: var(--surface-strong);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+}
+.nf-loading-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  margin-bottom: 6px;
+}
+.nf-loading-mark img {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  user-select: none;
+  filter: drop-shadow(0 10px 26px color-mix(in srgb, var(--nexus-gold) 40%, transparent));
+}
+.nf-loading-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  border-top-color: var(--nexus-gold);
+  border-right-color: color-mix(in srgb, var(--nexus-cyan) 60%, transparent);
+  animation: nf-loading-spin 1.6s linear infinite;
+}
+.nf-loading-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--color-amber-300);
+}
+.nf-loading-status {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.nf-loading-bar {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+.nf-loading-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-amber-400), var(--nexus-cyan));
+  animation: nf-loading-sweep 1.4s ease-in-out infinite;
+}
+.nf-loading-season,
+.nf-loading-tip {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--color-slate-400);
+}
+.nf-loading-season {
+  color: var(--color-amber-200);
+}
+/* Pulse: the mark breathes instead of a spinning ring. */
+.nf-loading-pulse .nf-loading-ring {
+  border: 0;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nexus-gold) 35%, transparent), transparent 70%);
+  animation: nf-loading-breathe 2.2s ease-in-out infinite;
+}
+/* Minimal: no mark, no glow, just the name, the status and a thin bar. */
+.nf-loading-minimal .nf-loading-glow {
+  display: none;
+}
+.nf-loading-minimal .nf-loading-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+/* Still: reduced motion or animation off. Nothing moves; the bar shows as a steady line. */
+.nf-loading-still *,
+.nf-loading-still .nf-loading-glow {
+  animation: none !important;
+}
+.nf-loading-still .nf-loading-bar span {
+  width: 100%;
+  opacity: 0.6;
+}
+@keyframes nf-loading-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes nf-loading-breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@keyframes nf-loading-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(290%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nf-loading * {
+    animation: none !important;
+  }
+  .nf-loading-bar span {
+    width: 100%;
+    opacity: 0.6;
+  }
+}

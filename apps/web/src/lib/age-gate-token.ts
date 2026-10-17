@@ -11,11 +11,20 @@ function normalizeUserAgent(value: string | null | undefined) {
   return normalized || "unknown-agent";
 }
 
+/** A value that is obviously a sample ("change-me", "placeholder", too short) isn't a secret. */
+function usableSecret(value: string | undefined) {
+  const trimmed = (value ?? "").trim();
+  if (trimmed.length < 32 || /change[-_ ]?me|replace|placeholder|example/i.test(trimmed)) return "";
+  return trimmed;
+}
+
 function getAgeGateSecret() {
-  const secret = process.env.NEXUSFORGE_AGE_GATE_SECRET || process.env.JWT_ACCESS_SECRET || "";
-  const normalized = secret.trim();
-  if (normalized) {
-    return normalized;
+  // VEXORA_AGE_GATE_SECRET lives in apps/web/.env.local (not in git). The older
+  // NEXUSFORGE_AGE_GATE_SECRET is still honoured, but never a sample value: one was
+  // committed to the pm2 config, and anyone with it could forge "18+ confirmed" passes.
+  const secret = usableSecret(process.env.VEXORA_AGE_GATE_SECRET) || usableSecret(process.env.NEXUSFORGE_AGE_GATE_SECRET) || usableSecret(process.env.JWT_ACCESS_SECRET);
+  if (secret) {
+    return secret;
   }
 
   if (process.env.NODE_ENV !== "production") {

@@ -58,9 +58,9 @@ test("processDiscordCommand returns ops-summary with Manage Guild permission", a
   });
 
   assert.equal(typeof response.data?.content, "string");
-  assert.equal(response.data?.content?.includes("Vexora Gaming API: online"), true);
+  assert.equal(response.data?.content?.includes("Nexus Forge Gaming API: online"), true);
   assert.equal(Array.isArray(response.data?.embeds), true);
-  assert.equal(response.data?.embeds?.[0]?.title, "Vexora Gaming Operations Summary");
+  assert.equal(response.data?.embeds?.[0]?.title, "Nexus Forge Gaming Operations Summary");
 });
 
 test("processDiscordCommand can publish ops-summary with Manage Guild permission", async () => {
@@ -89,7 +89,7 @@ test("processDiscordCommand returns embedded snapshot for status", async () => {
   });
 
   assert.equal(typeof response.data?.content, "string");
-  assert.equal(response.data?.content?.includes("Vexora Gaming API: online"), true);
+  assert.equal(response.data?.content?.includes("Nexus Forge Gaming API: online"), true);
   assert.equal(Array.isArray(response.data?.embeds), true);
-  assert.equal(response.data?.embeds?.[0]?.title, "Vexora Gaming Operations Summary");
+  assert.equal(response.data?.embeds?.[0]?.title, "Nexus Forge Gaming Operations Summary");
 });

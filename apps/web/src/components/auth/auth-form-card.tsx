@@ -11,7 +11,7 @@ type AuthFormCardProps = {
   children: ReactNode;
 };
 
-export function AuthFormCard({ title, subtitle, eyebrow = "Vexora Gaming", footer, children }: AuthFormCardProps) {
+export function AuthFormCard({ title, subtitle, eyebrow = "Nexus Forge Gaming", footer, children }: AuthFormCardProps) {
   const titleId = useId();
 
   return (
@@ -20,10 +20,10 @@ export function AuthFormCard({ title, subtitle, eyebrow = "Vexora Gaming", foote
       aria-labelledby={titleId}
       // overflow-clip, not overflow-hidden: the glow below pokes 80px past the edge, and a "hidden" box is still
       // scrollable, so focusing an input slid the whole form sideways and cut off its left side.
-      className="relative w-full max-w-[480px] overflow-clip rounded-[28px] border border-amber-400/25 bg-slate-950/80 p-8 text-slate-100 shadow-[0_30px_90px_rgba(230,179,37,0.2)] backdrop-blur-xl sm:p-10"
+      className="relative w-full max-w-[460px] overflow-clip rounded-[26px] border border-white/10 bg-slate-950/75 p-6 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.55),0_0_0_1px_color-mix(in_srgb,var(--color-amber-400)_14%,transparent)] backdrop-blur-xl sm:p-9"
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#f8df8a,#e6b325,#b0820f,transparent)]" />
-      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_65%)] blur-2xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--color-amber-200),var(--color-amber-400),var(--color-amber-600),transparent)]" />
+      <div className="nf-decor pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--nexus-gold)_30%,transparent),transparent_65%)] blur-2xl" />
 
       <div className="relative mb-8 flex items-start justify-between gap-4">
         <div>

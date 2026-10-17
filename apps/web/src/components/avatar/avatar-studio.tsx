@@ -9,13 +9,23 @@ import { applyAvatarPreset, createAvatarPreset, deleteAvatarPreset, getAvatar, g
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
+import { Avatar3D, canUseWebGL } from "@/components/avatar/avatar-3d";
+import { LOOK_IDS, LOOKS } from "@/components/avatar/characters-3d";
 import { useAuthStore } from "@/store/auth-store";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
-type Category = "body" | "head" | "hair" | "face" | "eyes" | "shirts" | "pants" | "shoes" | "accessories" | "background";
+type Category = "look" | "body" | "head" | "hair" | "face" | "eyes" | "shirts" | "pants" | "shoes" | "accessories" | "background";
 type Tab = "studio" | "collection" | "animations";
 
 // Category column from the design reference (Avatar Studio panel).
+/** The Looks picker: Base (the layered avatar) and the six mockup looks. */
+const LOOK_CHOICES: Array<{ id: AvatarConfig["outfit"]; label: string; tier?: string }> = [
+  { id: "base", label: "Base" },
+  ...LOOK_IDS.map((id) => ({ id, label: LOOKS[id].label, tier: LOOKS[id].tier })),
+];
+
 const categories: Array<{ id: Category; label: string; icon: typeof User }> = [
+  { id: "look", label: "Looks", icon: Sparkles },
   { id: "body", label: "Body", icon: User },
   { id: "head", label: "Head", icon: CircleUser },
   { id: "hair", label: "Hair", icon: Scissors },
@@ -40,16 +50,16 @@ const hairLabels: Record<AvatarConfig["hair"], string> = { spiky: "Spiky", fade:
 const accessoryLabels: Record<AvatarConfig["accessory"], string> = { none: "None", shades: "Shades", headset: "Headset", mask: "Mask", bandana: "Bandana" };
 
 const hairStyles: AvatarConfig["hair"][] = ["spiky", "fade", "curls", "long", "bun", "buzz", "mohawk", "none"];
-const hairColors = ["#22d3ee", "#e6b325", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a", "#7c2d12", "#fde68a"];
+const hairColors = ["#22d3ee", "#2ea4ff", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a", "#7c2d12", "#9fd8ff"];
 const skinTones = ["#f5d0b0", "#e8b894", "#d9a577", "#c48a5a", "#a66a3f", "#7a4a2b", "#5b3520", "#3f2417"];
 const eyeStyles: AvatarConfig["eyes"][] = ["sharp", "round", "calm", "visor"];
-const eyeColors = ["#38bdf8", "#22c55e", "#a855f7", "#e6b325", "#ef4444", "#f8fafc", "#1e293b"];
+const eyeColors = ["#38bdf8", "#22c55e", "#a855f7", "#2ea4ff", "#ef4444", "#f8fafc", "#1e293b"];
 const faces: AvatarConfig["face"][] = ["focused", "neutral", "smirk", "grin"];
 const accessories: AvatarConfig["accessory"][] = ["none", "shades", "headset", "mask", "bandana"];
-const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#3f3f46", "#4c1d95", "#e6b325", "#e2e8f0", "#0f766e", "#9a3412"];
+const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#3f3f46", "#4c1d95", "#2ea4ff", "#e2e8f0", "#0f766e", "#9a3412"];
 const backgrounds: AvatarConfig["background"][] = ["city", "forge", "void", "arena"];
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 
@@ -63,7 +73,7 @@ function pick<T>(list: readonly T[]): T {
 }
 
 function randomConfig(): AvatarConfig {
-  const accent = pick(["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]);
+  const accent = pick(["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]);
   return {
     body: pick(["slim", "athletic", "broad"] as const),
     skin: pick(skinTones),
@@ -79,6 +89,7 @@ function randomConfig(): AvatarConfig {
     shoeColor: pick(outfitColors),
     accent,
     background: pick(backgrounds),
+    outfit: "base",
   };
 }
 
@@ -91,12 +102,14 @@ function Swatches({ colors, value, onPick }: { colors: string[]; value: string; 
           type="button"
           onClick={() => onPick(color)}
           title={color}
+          aria-label={`Colour ${color}`}
+          aria-pressed={value.toLowerCase() === color.toLowerCase()}
           style={{ backgroundColor: color }}
           className={`h-7 w-7 rounded-full border-2 transition ${value.toLowerCase() === color.toLowerCase() ? "border-amber-300 scale-110" : "border-white/10 hover:border-white/40"}`}
         />
       ))}
       <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-white/20" title="Custom color">
-        <input type="color" value={value} onChange={(event) => onPick(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+        <input type="color" aria-label="Custom colour" value={value} onChange={(event) => onPick(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
         <span className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">+</span>
       </label>
     </div>
@@ -111,6 +124,7 @@ function Options<T extends string>({ options, value, onPick, render }: { options
           key={option}
           type="button"
           onClick={() => onPick(option)}
+          aria-pressed={value === option}
           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold capitalize transition ${value === option ? "border-amber-400 bg-amber-500/10 text-amber-100" : "border-white/10 bg-[#11151e] text-slate-300 hover:border-white/30"}`}
         >
           {render ? render(option) : option}
@@ -147,7 +161,8 @@ function ThumbOptions<T extends string>({
           type="button"
           onClick={() => onPick(option)}
           title={label ? label(option) : option}
-          className={`overflow-hidden rounded-lg border bg-[#11151e] transition ${value === option ? "border-amber-400 shadow-[0_0_14px_rgba(230,179,37,0.35)]" : "border-white/10 hover:border-white/30"}`}
+          aria-pressed={value === option}
+          className={`overflow-hidden rounded-lg border bg-[#11151e] transition ${value === option ? "border-amber-400 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 hover:border-white/30"}`}
         >
           <div className="flex h-14 items-start justify-center overflow-hidden">
             <AvatarRenderer config={{ ...config, ...patch(option) }} size={64} showBackground={false} className={offset} />
@@ -170,11 +185,18 @@ export function AvatarStudio() {
   const [presetName, setPresetName] = useState("");
   const [presetTagline, setPresetTagline] = useState("");
   const [presetDialog, setPresetDialog] = useState(false);
+  useEscapeKey(presetDialog, () => setPresetDialog(false));
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [playing, setPlaying] = useState<CosmeticItem | null>(null);
+  // The live 3D view needs WebGL; the flat view is the fallback and can be picked by hand.
+  const [threeD, setThreeD] = useState(false);
+  const [view3d, setView3d] = useState(true);
+  useEffect(() => {
+    setThreeD(canUseWebGL());
+  }, []);
 
   const avatarQuery = useQuery({
     queryKey: ["avatar", accessToken],
@@ -232,6 +254,11 @@ export function AvatarStudio() {
     setHistory((stack) => [...stack, config]);
     setConfig(next);
   };
+  /** Puts back the look that's saved on the account. Undo can still bring the edits back. */
+  const discard = () => {
+    if (!saved) return;
+    update(saved);
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => saveAvatar(accessToken!, csrfToken!, config),
@@ -281,17 +308,17 @@ export function AvatarStudio() {
           <h1 className="nf-heading text-xl font-bold text-white">Avatar Studio</h1>
           <p className="text-xs text-slate-400">Create. Customize. Be you.</p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-white/5 bg-[#0d1119] p-1">
+        <div className="no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-xl border border-white/5 bg-[#0d1119] p-1">
           {([
             { id: "studio", label: "Studio" },
             { id: "collection", label: "Collection" },
           ] as Array<{ id: Tab; label: string }>).map((entry) => (
-            <button key={entry.id} type="button" onClick={() => setTab(entry.id)} className={`rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === entry.id ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+            <button key={entry.id} type="button" onClick={() => setTab(entry.id)} aria-pressed={tab === entry.id} className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === entry.id ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
               {entry.label}
             </button>
           ))}
-          <Link href="/app/wardrobe" className="rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">Wardrobe</Link>
-          <button type="button" onClick={() => setTab("animations")} className={`rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === "animations" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+          <Link href="/app/wardrobe" className="shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:text-white">Wardrobe</Link>
+          <button type="button" onClick={() => setTab("animations")} aria-pressed={tab === "animations"} className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${tab === "animations" ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
             Animations
           </button>
         </div>
@@ -305,7 +332,7 @@ export function AvatarStudio() {
       ) : null}
 
       {tab === "studio" ? (
-        <div className="grid gap-4 lg:grid-cols-[124px_minmax(0,1fr)_340px]">
+        <div className="grid gap-4 lg:grid-cols-[148px_minmax(0,1fr)_340px]">
           {/* Category column */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:flex-col lg:overflow-visible">
             {categories.map((entry) => (
@@ -313,7 +340,8 @@ export function AvatarStudio() {
                 key={entry.id}
                 type="button"
                 onClick={() => setCategory(entry.id)}
-                className={`flex min-w-[110px] items-center gap-2 rounded-xl border px-2 py-1.5 text-left text-[9.5px] font-semibold uppercase tracking-[0.08em] transition ${
+                aria-pressed={category === entry.id}
+                className={`flex min-w-[118px] items-center gap-2 whitespace-nowrap rounded-xl border px-2 py-1.5 text-left text-[9.5px] font-semibold uppercase tracking-[0.08em] transition ${
                   category === entry.id ? "border-amber-400 bg-amber-500/10 text-amber-100" : "border-white/5 bg-[#0d1119] text-slate-400 hover:border-white/20 hover:text-white"
                 }`}
               >
@@ -327,11 +355,30 @@ export function AvatarStudio() {
 
           {/* Preview */}
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(230,179,37,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(230,179,37,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
-            <div className="relative flex min-h-[480px] items-center justify-center p-4">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(46,164,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(46,164,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50" />
+            <div className="relative flex min-h-[380px] items-center justify-center p-4 lg:min-h-[480px]">
+              {threeD ? (
+                <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg border border-white/10 bg-[#0d1119]/90 p-1" role="group" aria-label="Avatar view">
+                  {([true, false] as const).map((is3d) => (
+                    <button key={is3d ? "3d" : "flat"} type="button" aria-pressed={view3d === is3d} disabled={!is3d && config.outfit !== "base"} title={!is3d && config.outfit !== "base" ? "Looks are only drawn in 3D" : undefined} onClick={() => setView3d(is3d)} className={`rounded-md px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition ${view3d === is3d ? "bg-amber-400 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                      {is3d ? "3D" : "Flat"}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {avatarQuery.isLoading ? (
                 <div className="flex h-[480px] items-center justify-center text-slate-400"><Loader2 className="h-6 w-6 animate-spin" /></div>
+              ) : threeD && (view3d || config.outfit !== "base") ? (
+                <Avatar3D
+                  config={config}
+                  equipped={equippedGear}
+                  emote={playing?.key ?? null}
+                  flipped={flipped}
+                  zoomed={zoomed}
+                  onUnavailable={() => setThreeD(false)}
+                  className="h-[380px] w-full max-w-[460px] lg:h-[460px]"
+                />
               ) : (
                 <div className="transition-transform duration-300" style={{ transform: `${flipped ? "scaleX(-1)" : ""} ${zoomed ? "scale(1.35) translateY(12%)" : ""}` }}>
                   <div className={playing ? emoteAnimation(playing.key) : undefined}>
@@ -340,22 +387,56 @@ export function AvatarStudio() {
                 </div>
               )}
             </div>
-            <div className="relative flex flex-wrap items-center justify-center gap-2 border-t border-white/5 p-3">
-              <button type="button" onClick={() => setFlipped((value) => !value)} className={ghostBtn} title="Rotate"><RotateCcw className="h-3.5 w-3.5" /> Rotate</button>
-              <button type="button" onClick={() => setZoomed((value) => !value)} className={`${ghostBtn} ${zoomed ? "border-amber-400/60 text-amber-200" : ""}`} title="Zoom"><ZoomIn className="h-3.5 w-3.5" /> Zoom</button>
-              <button type="button" onClick={redo} disabled={!future.length} className={ghostBtn} title="Redo"><Redo2 className="h-3.5 w-3.5" /> Redo</button>
+            <div className="relative flex flex-wrap items-center justify-between gap-3 border-t border-white/5 p-3">
+              <div role="status" aria-live="polite" className="flex items-center gap-2 text-[11px] text-slate-300">
+                <span className={`h-2 w-2 rounded-full ${dirty ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]" : "bg-emerald-400"}`} />
+                {dirty ? "Unsaved changes" : "All changes saved"}
+                {dirty ? (
+                  <button type="button" onClick={discard} className="ml-1 text-amber-300 underline underline-offset-2 hover:text-amber-200">Discard</button>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button type="button" onClick={() => setFlipped((value) => !value)} className={ghostBtn} title="Rotate"><RotateCcw className="h-3.5 w-3.5" /> Rotate</button>
+                <button type="button" onClick={() => setZoomed((value) => !value)} aria-pressed={zoomed} className={`${ghostBtn} ${zoomed ? "border-amber-400/60 text-amber-200" : ""}`} title="Zoom"><ZoomIn className="h-3.5 w-3.5" /> Zoom</button>
+                <button type="button" onClick={redo} disabled={!future.length} className={ghostBtn} title="Redo"><Redo2 className="h-3.5 w-3.5" /> Redo</button>
+              </div>
             </div>
           </div>
 
           {/* Controls */}
           <div className={`${panel} space-y-5`}>
+            {config.outfit !== "base" && category !== "look" && category !== "background" ? (
+              <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-100">This look wears its own outfit and colours. Choose Base under Looks to change the body, clothes and colours.</p>
+            ) : null}
+
+            {category === "look" ? (
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Looks from the mockups</p>
+                <p className="mb-3 text-[11px] leading-relaxed text-slate-500">A look is a complete outfit with its own colours. Base keeps the layered avatar you build with the other tabs.</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {LOOK_CHOICES.map((choice) => (
+                    <button key={choice.id} type="button" aria-pressed={config.outfit === choice.id} onClick={() => update({ outfit: choice.id })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-left transition ${config.outfit === choice.id ? "border-amber-400 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 hover:border-white/30"}`}>
+                      {choice.id === "base" ? (
+                        <div className="flex h-28 items-center justify-center bg-[radial-gradient(circle_at_50%_40%,rgba(46,164,255,0.2),transparent_65%)]"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300">Layered</span></div>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={`/avatar-looks/${choice.id}-thumb.png`} alt="" className="h-28 w-full object-cover object-top" />
+                      )}
+                      <p className="px-2 pt-1.5 text-[10px] font-semibold uppercase leading-tight tracking-[0.08em] text-white">{choice.label}</p>
+                      <p className="px-2 pb-1.5 text-[9px] uppercase tracking-[0.14em] text-slate-500">{choice.tier ?? "Your custom build"}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {category === "body" ? (
               <>
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Build</p>
                   <div className="grid grid-cols-3 gap-2">
                     {(["slim", "athletic", "broad"] as const).map((body) => (
-                      <button key={body} type="button" onClick={() => update({ body })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-[10px] font-semibold uppercase tracking-[0.1em] ${config.body === body ? "border-amber-400 text-amber-100 shadow-[0_0_14px_rgba(230,179,37,0.35)]" : "border-white/10 text-slate-300"}`}>
+                      <button key={body} type="button" onClick={() => update({ body })} className={`overflow-hidden rounded-lg border bg-[#11151e] text-[10px] font-semibold uppercase tracking-[0.1em] ${config.body === body ? "border-amber-400 text-amber-100 shadow-[0_0_14px_rgba(46,164,255,0.35)]" : "border-white/10 text-slate-300"}`}>
                         <div className="flex h-20 items-start justify-center overflow-hidden"><AvatarRenderer config={{ ...config, body }} size={56} showBackground={false} className="-mt-1" /></div>
                         <p className="pb-1">{body}</p>
                       </button>
@@ -416,7 +497,7 @@ export function AvatarStudio() {
                 </div>
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Accent color</p>
-                  <Swatches colors={["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
+                  <Swatches colors={["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
                 </div>
               </>
             ) : null}
@@ -444,7 +525,7 @@ export function AvatarStudio() {
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Custom color</p>
                   <Swatches colors={outfitColors} value={config.topColor} onPick={(topColor) => update({ topColor })} />
                 </div>
-                <p className="text-[11px] text-slate-500">Owned cosmetics from the <Link href="/app/wardrobe" className="text-amber-300">Wardrobe</Link> apply their colors here when equipped.</p>
+                <p className="text-[11px] text-slate-500">Owned cosmetics from the <Link href="/app/wardrobe" className="text-amber-300">Wardrobe</Link>{" "}apply their colors here when equipped.</p>
               </>
             ) : null}
 
@@ -482,7 +563,7 @@ export function AvatarStudio() {
                 </div>
                 <div>
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Accent color</p>
-                  <Swatches colors={["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
+                  <Swatches colors={["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e", "#ef4444", "#f8fafc"]} value={config.accent} onPick={(accent) => update({ accent })} />
                 </div>
               </>
             ) : null}
@@ -502,7 +583,7 @@ export function AvatarStudio() {
               <div className="grid grid-cols-2 gap-2">
                 {presets.slice(0, 6).map((preset) => (
                   <button key={preset.id} type="button" onClick={() => applyMutation.mutate(preset.id)} className="overflow-hidden rounded-lg border border-white/5 bg-[#11151e] text-left transition hover:border-amber-400/50" title={`Apply ${preset.name}`}>
-                    <div className="flex h-20 items-start justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(230,179,37,0.15),transparent_60%)]"><AvatarRenderer config={preset.config} size={80} showBackground={false} className="-mt-1" /></div>
+                    <div className="flex h-20 items-start justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(46,164,255,0.15),transparent_60%)]"><AvatarRenderer config={preset.config} size={80} showBackground={false} className="-mt-1" /></div>
                     <div className="px-2 py-1.5">
                       <p className="truncate text-[11px] font-semibold text-white">{preset.name}</p>
                       <p className="truncate text-[10px] text-amber-200/70">{preset.tagline || new Date(preset.createdAt).toLocaleDateString()}</p>
@@ -522,6 +603,18 @@ export function AvatarStudio() {
               </button>
               <button type="button" onClick={() => setPresetDialog(true)} disabled={presets.length >= maxPresets} className="col-span-2 text-center text-[11px] uppercase tracking-[0.16em] text-amber-300 hover:text-amber-200 disabled:opacity-50">Save as new preset</button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "studio" && dirty ? (
+        <div role="region" aria-label="Unsaved avatar changes" className="fixed inset-x-3 bottom-3 z-40 flex items-center justify-between gap-3 rounded-2xl border border-amber-400/40 bg-[#0d1119]/95 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.5)] backdrop-blur lg:hidden">
+          <p className="text-xs font-semibold text-amber-100">Unsaved changes</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={discard} className={ghostBtn}>Discard</button>
+            <button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className={goldBtn}>
+              {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
+            </button>
           </div>
         </div>
       ) : null}
@@ -557,7 +650,7 @@ export function AvatarStudio() {
       {tab === "animations" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-[#0d1119]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(230,179,37,0.18),transparent_55%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(46,164,255,0.18),transparent_55%)]" />
             <div className="relative flex min-h-[420px] items-center justify-center p-4">
               <div className={playing ? emoteAnimation(playing.key) : undefined}>
                 <AvatarRenderer config={config} size={260} equipped={equippedGear} />
@@ -599,7 +692,7 @@ export function AvatarStudio() {
       ) : null}
 
       {presetDialog ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Save avatar preset" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPresetDialog(false)} />
           <div className="relative w-full max-w-sm rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Save avatar preset</h3>

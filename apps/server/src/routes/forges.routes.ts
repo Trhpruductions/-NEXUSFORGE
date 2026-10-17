@@ -3,10 +3,13 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { serverLimitProblem } from "../lib/user-limits.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
+import { consumeInvite, resolveInviteCode } from "../lib/forge-invites.js";
+import { canViewChannel, loadMemberContext } from "../lib/channel-access.js";
 
 const inviteCodeSchema = z
   .string()
@@ -246,10 +249,14 @@ forgesRouter.get("/availability/:inviteCode", async (req, res) => {
 });
 
 forgesRouter.get("/public/:inviteCode", async (req, res) => {
-  const inviteCode = normalizeInviteCode(req.params.inviteCode);
+  const resolved = await resolveInviteCode(normalizeInviteCode(req.params.inviteCode));
+  if (!resolved.ok) {
+    res.status(resolved.status).json({ error: resolved.status === 410 ? resolved.error : "Invite link not found" });
+    return;
+  }
   const inviteSource = normalizeInviteSource(typeof req.query.src === "string" ? req.query.src : undefined);
   const forge = await prisma.forge.update({
-    where: { inviteCode },
+    where: { id: resolved.forgeId },
     data: {
       inviteViewCount: {
         increment: 1,
@@ -357,10 +364,11 @@ forgesRouter.post("/", async (req, res) => {
     return;
   }
 
-  const requestedBranding = Boolean(parsed.data.icon || parsed.data.banner);
-  if (requestedBranding) {
-    // Industrial Directive: Forge Branding (Icons/Banners) is now free for all users to promote community growth.
-    // Safeguard check bypassed.
+  // Server icons and banners are free for everyone (as on Discord).
+  const atServerLimit = await serverLimitProblem(req.user!.id);
+  if (atServerLimit) {
+    res.status(402).json(atServerLimit);
+    return;
   }
 
   const inviteCode = normalizeInviteCode(parsed.data.inviteCode ?? randomUUID().slice(0, 8));
@@ -386,6 +394,8 @@ forgesRouter.post("/", async (req, res) => {
           banner: parsed.data.banner,
           inviteCode,
           ownerId: req.user!.id,
+          // New servers start private; the owner makes one public from Overview, which lists it on Discover.
+          isPublic: false,
         },
       });
 
@@ -508,7 +518,12 @@ forgesRouter.post("/join", async (req, res) => {
     return;
   }
 
-  const forge = await prisma.forge.findUnique({ where: { inviteCode: normalizeInviteCode(parsed.data.inviteCode) } });
+  const resolved = await resolveInviteCode(normalizeInviteCode(parsed.data.inviteCode));
+  if (!resolved.ok) {
+    res.status(resolved.status).json({ error: resolved.error });
+    return;
+  }
+  const forge = await prisma.forge.findUnique({ where: { id: resolved.forgeId } });
   if (!forge) {
     res.status(404).json({ error: "Invalid invite code" });
     return;
@@ -536,6 +551,16 @@ forgesRouter.post("/join", async (req, res) => {
   });
 
   if (!existingMembership) {
+    const atServerLimit = await serverLimitProblem(req.user!.id);
+    if (atServerLimit) {
+      res.status(402).json(atServerLimit);
+      return;
+    }
+    // Limited invites: only a new member uses up a slot, and the last slot can't be taken twice.
+    if (resolved.inviteId && !(await consumeInvite(resolved.inviteId))) {
+      res.status(410).json({ error: "This invite has expired" });
+      return;
+    }
     await prisma.forgeMember.create({
       data: {
         userId: req.user!.id,
@@ -1540,7 +1565,7 @@ forgesRouter.post("/:id/onboarding-actions", async (req, res) => {
     return;
   }
 
-  const starterBotName = "Vexora Gaming Ops Bot";
+  const starterBotName = "Nexus Forge Gaming Ops Bot";
   const starterCommandName = "ops-pulse";
 
   let bot = await prisma.botApp.findFirst({
@@ -1655,6 +1680,7 @@ forgesRouter.get("/:id", async (req, res) => {
           userId: true,
           nickname: true,
           joinedAt: true,
+          timeoutUntil: true,
           roleLinks: {
             select: { roleId: true },
           },
@@ -1702,5 +1728,7 @@ forgesRouter.get("/:id", async (req, res) => {
     return;
   }
 
-  res.json({ forge });
+  const viewer = await loadMemberContext(req.user!.id, forge.id);
+  const channels = forge.channels.filter((channel) => canViewChannel(viewer, channel));
+  res.json({ forge: { ...forge, channels } });
 });

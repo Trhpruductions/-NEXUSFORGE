@@ -2,10 +2,13 @@ import { Router } from "express";
 import { AccessToken } from "livekit-server-sdk";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { buildIceServers } from "../lib/ice-servers.js";
 import { getIo } from "../lib/realtime.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { isTimedOut, userCanViewChannel } from "../lib/channel-access.js";
+import { voiceMembers } from "../lib/voice-occupancy.js";
 
 const tokenSchema = z.object({
   channelId: z.string().uuid(),
@@ -49,17 +52,17 @@ voiceRouter.post("/token", async (req, res) => {
     return;
   }
 
-  const member = await prisma.forgeMember.findUnique({
-    where: {
-      userId_forgeId: {
-        userId: req.user!.id,
-        forgeId: channel.forgeId,
-      },
-    },
-  });
-
-  if (!member) {
+  const view = await userCanViewChannel(req.user!.id, channel.id);
+  if (!view.member) {
     res.status(403).json({ error: "Not a member of this Forge" });
+    return;
+  }
+  if (!view.ok) {
+    res.status(404).json({ error: "Channel not found" });
+    return;
+  }
+  if (isTimedOut(view.member)) {
+    res.status(403).json({ error: "You're timed out and can't join voice right now", code: "TIMED_OUT", timeoutUntil: view.member.timeoutUntil });
     return;
   }
 
@@ -69,7 +72,13 @@ voiceRouter.post("/token", async (req, res) => {
 
   if (!livekitConfigured) {
     // Built-in voice: peers connect directly over WebRTC, signaled through the realtime gateway.
-    res.json({ mode: "mesh" as const, token: "", wsUrl: "", roomName, iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] });
+    res.json({
+      mode: "mesh" as const,
+      token: "",
+      wsUrl: "",
+      roomName,
+      iceServers: buildIceServers(req.user!.id, { turnUrls: env.TURN_URLS, turnSharedSecret: env.TURN_SHARED_SECRET, turnCredentialTtlSeconds: env.TURN_CREDENTIAL_TTL_SECONDS }),
+    });
     return;
   }
 
@@ -129,6 +138,12 @@ voiceRouter.post("/state", async (req, res) => {
 
   if (!member) {
     res.status(403).json({ error: "Not a member of this Forge" });
+    return;
+  }
+  // Only someone actually in the call can announce their state to it (this used to let
+  // any member push fake state into any room, private ones included).
+  if (!voiceMembers(parsed.data.channelId).includes(req.user!.id)) {
+    res.status(403).json({ error: "You're not in this voice channel" });
     return;
   }
 

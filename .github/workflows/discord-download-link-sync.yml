@@ -21,6 +21,9 @@ concurrency:
 jobs:
   post-download-link:
     runs-on: ubuntu-latest
+    # Runs only after the owner approves the "release-approval" environment (set its required reviewers in
+    # GitHub: Settings > Environments). A merge that changes the release manifest waits here until then.
+    environment: release-approval
     env:
       SECRETS_JSON: ${{ toJSON(secrets) }}
       VARS_JSON: ${{ toJSON(vars) }}

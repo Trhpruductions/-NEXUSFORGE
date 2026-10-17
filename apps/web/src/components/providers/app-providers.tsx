@@ -1,8 +1,10 @@
 "use client";
 
+import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { setApiUnauthorizedHandler } from "@/lib/api";
+import { installErrorReporting } from "@/lib/report-error";
 import { useAuthStore } from "@/store/auth-store";
 import { GlobalNotificationProvider } from "@/context/global-notifications";
 import { GlobalNotificationCenter } from "@/components/notifications/global-notification-center";
@@ -31,6 +33,9 @@ export function AppProviders({ children }: AppProvidersProps) {
         },
       }),
   );
+
+  // Crashes nothing else caught are reported to staff (/admin/errors).
+  useEffect(() => installErrorReporting(), []);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
@@ -71,6 +76,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <DesktopUpdateBanner />
         <DesktopLaunchModeBadge />
         <GlobalNotificationCenter />
+        <UpgradeDialog />
         {children}
       </GlobalNotificationProvider>
     </QueryClientProvider>

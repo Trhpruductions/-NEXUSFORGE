@@ -1,19 +1,20 @@
 {
   "name": "@nexusforge/desktop",
-  "version": "1.0.11",
+  "version": "1.0.15",
   "private": true,
-  "description": "Vexora Gaming Desktop",
-  "author": "Vexora Gaming",
+  "description": "Nexus Forge Gaming Desktop",
+  "author": "Nexus Forge Gaming",
   "main": "main.js",
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
     "dev:full": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
-    "dev:hosted": "powershell -NoProfile -Command \"$env:NEXUSFORGE_ALLOW_HOSTED_DEV='true'; $env:NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS='true'; if (-not $env:NEXUSFORGE_DESKTOP_URL -or [string]::IsNullOrWhiteSpace($env:NEXUSFORGE_DESKTOP_URL)) { $env:NEXUSFORGE_DESKTOP_URL='https://www.nexusforge.app/app' }; npx --yes electron --user-data-dir=\"$PWD\\.electron-profile\" --disk-cache-dir=\"$PWD\\.electron-cache\" --disable-gpu-shader-disk-cache .\"",
-    "package:win": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; if (Test-Path 'release\\Vexora Gaming Desktop-win32-x64') { Remove-Item 'release\\Vexora Gaming Desktop-win32-x64' -Recurse -Force }; if (Test-Path 'release\\win-unpacked') { Remove-Item 'release\\win-unpacked' -Recurse -Force }; exit 0\" && set \"PATH=%CD%\\node_modules\\7zip-bin\\win\\x64;%PATH%\" && npx electron-builder --win nsis --publish never"
+    "dev:hosted": "powershell -NoProfile -Command \"$env:NEXUSFORGE_ALLOW_HOSTED_DEV='true'; $env:NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS='true'; if (-not $env:NEXUSFORGE_DESKTOP_URL -or [string]::IsNullOrWhiteSpace($env:NEXUSFORGE_DESKTOP_URL)) { $env:NEXUSFORGE_DESKTOP_URL='https://nfgcord.com/app' }; npx --yes electron --user-data-dir=\"$PWD\\.electron-profile\" --disk-cache-dir=\"$PWD\\.electron-cache\" --disable-gpu-shader-disk-cache .\"",
+    "test": "node --test \"test/*.test.js\"",
+    "package:win": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; if (Test-Path 'release\\Nexus Forge Gaming Desktop-win32-x64') { Remove-Item 'release\\Nexus Forge Gaming Desktop-win32-x64' -Recurse -Force }; if (Test-Path 'release\\win-unpacked') { Remove-Item 'release\\win-unpacked' -Recurse -Force }; exit 0\" && set \"PATH=%CD%\\node_modules\\7zip-bin\\win\\x64;%PATH%\" && npx electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "com.nexusforge.desktop",
-    "productName": "Vexora Gaming Desktop",
+    "productName": "Nexus Forge Gaming Desktop",
     "electronVersion": "42.3.0",
     "directories": {
       "output": "release"
@@ -24,6 +25,7 @@
       "splash.html",
       "fallback.html",
       "assets/**/*",
+      "lib/**/*",
       "package.json"
     ],
     "win": {
@@ -36,7 +38,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Vexora Gaming Desktop"
+      "shortcutName": "Nexus Forge Gaming Desktop"
     }
   },
   "devDependencies": {

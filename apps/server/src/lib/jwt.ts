@@ -17,7 +17,14 @@ export function signAccessToken(payload: AccessTokenPayload): string {
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+  const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
+  // Two-factor challenge tokens are signed with this same key (purpose: "2fa"). They only prove
+  // the password, so they must never be accepted as a bearer credential. Real access tokens
+  // always carry a subject and a token id, and never a purpose.
+  if (typeof payload === "string" || "purpose" in payload || typeof payload.sub !== "string" || typeof payload.jti !== "string") {
+    throw new jwt.JsonWebTokenError("Not an access token");
+  }
+  return payload as AccessTokenPayload;
 }
 
 export function randomToken(size = 48): string {

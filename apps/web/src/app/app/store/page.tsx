@@ -3,7 +3,7 @@ import { WardrobePage } from "@/components/wardrobe/wardrobe-page";
 
 export const metadata: Metadata = {
   title: "Store",
-  description: "Outfits, cosmetics and emotes for Vexora Coins.",
+  description: "Outfits, cosmetics and emotes for Nexus Forge Coins.",
 };
 
 export default function AppStorePage() {

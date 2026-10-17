@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, Check, Loader2, MessageSquare, Radio, Sparkles, UserPlus, UserRound, X } from "lucide-react";
+import { UserNote } from "@/components/social/user-note";
+import { UserSafetyActions } from "@/components/social/user-safety-actions";
 import { createDmThread, followUser, getApiErrorMessage, getProfileSummary, sendFriendRequest, unfollowUser, updateFriendStatus } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
@@ -88,7 +90,7 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
 
   return (
     <div ref={ref} className={`absolute z-40 mt-1 w-72 overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${align === "right" ? "right-0" : "left-0"}`}>
-      <div className="relative h-16 bg-[radial-gradient(circle_at_30%_40%,rgba(230,179,37,0.35),transparent_60%),linear-gradient(160deg,#141a26,#0b0e15)]">
+      <div className="relative h-16 bg-[radial-gradient(circle_at_30%_40%,rgba(46,164,255,0.35),transparent_60%),linear-gradient(160deg,#141a26,#0b0e15)]">
         {person?.banner ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={person.banner} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -151,6 +153,8 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
                 </button>
               </div>
             ) : null}
+            {profile && !profile.isSelf ? <UserNote userId={userId} /> : null}
+            {profile && !profile.isSelf && person ? <UserSafetyActions userId={userId} username={person.username} blockedByMe={Boolean(profile.blockedByMe)} /> : null}
             <Link href={profile?.isSelf ? "/app/profile" : `/app/profile?user=${userId}`} onClick={onClose} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200 hover:border-amber-400/50">
               <UserRound className="h-3.5 w-3.5" /> View profile
             </Link>

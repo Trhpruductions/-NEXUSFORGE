@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Maximize2, Plus, Trophy, Users, X, Play, Crown, Trash2 } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import {
   createEvent,
   deleteEvent,
@@ -21,10 +22,11 @@ import {
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Scope = "upcoming" | "live" | "past";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60 [color-scheme:dark]";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50";
@@ -144,7 +146,7 @@ export function EventsPage() {
     onError: (error) => setNotice(errorText(error)),
   });
 
-  const events = eventsQuery.data?.events ?? [];
+  const events = useMemo(() => eventsQuery.data?.events ?? [], [eventsQuery.data]);
   const calendarEvents = useMemo(() => [...(upcomingAllQuery.data?.events ?? []), ...(liveQuery.data?.events ?? [])], [upcomingAllQuery.data, liveQuery.data]);
   const liveTournament = liveQuery.data?.events.find((event) => event.type === "TOURNAMENT") ?? null;
   const nextTournament = upcomingAllQuery.data?.events.find((event) => event.type === "TOURNAMENT") ?? null;
@@ -254,7 +256,7 @@ export function EventsPage() {
               <span className="text-[11px] text-slate-500">{visibleEvents.length} listed</span>
             </div>
             {eventsQuery.isLoading ? (
-              <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading events...</p>
+              <LoadingNote label="Loading events..." onRetry={() => void eventsQuery.refetch()} />
             ) : visibleEvents.length ? (
               <ul className="space-y-2">
                 {visibleEvents.map((event) => {
@@ -263,7 +265,7 @@ export function EventsPage() {
                   return (
                     <li key={event.id} className={`rounded-xl border p-3 transition ${activeEventId === event.id ? "border-amber-400/60 bg-amber-500/5" : "border-white/5 bg-[#11151e]"}`}>
                       <div className="flex gap-3">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-[radial-gradient(circle,rgba(230,179,37,0.3),transparent_70%)] text-amber-300">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-[radial-gradient(circle,rgba(46,164,255,0.3),transparent_70%)] text-amber-300">
                           {event.type === "TOURNAMENT" ? <Trophy className="h-6 w-6" /> : <Calendar className="h-6 w-6" />}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -312,7 +314,7 @@ export function EventsPage() {
       {/* Right column */}
       <aside className="space-y-4">
         <div className={`${panel} relative overflow-hidden`}>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(230,179,37,0.25),transparent_50%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(46,164,255,0.25),transparent_50%)]" />
           <div className="relative">
             <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-rose-400">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> {liveTournament ? "Live tournament" : "Next tournament"}
@@ -530,7 +532,7 @@ function BracketModal({
   const rounds = event.bracket?.rounds?.length ?? 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+    <div role="dialog" aria-modal="true" aria-label="Event details" className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
       <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
         <header className="flex items-start justify-between gap-3 border-b border-white/5 px-5 py-4">
@@ -562,6 +564,7 @@ function BracketModal({
 }
 
 function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForgeId: string | null; onClose: () => void; onCreated: (event: VexoraEvent) => void }) {
+  useEscapeKey(true, onClose);
   const { accessToken, csrfToken } = useAuthStore();
   const forgesQuery = useQuery({ queryKey: ["forges", accessToken], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
   const [type, setType] = useState<"EVENT" | "TOURNAMENT">("EVENT");
@@ -595,7 +598,7 @@ function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForg
   });
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Create an event" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">

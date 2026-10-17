@@ -3,7 +3,7 @@ import { EconomyAuthority } from "./economy-authority.js";
 import { transferInReference, transferOutReference } from "./economy-references.js";
 import { prisma } from "./prisma.js";
 
-// Player-to-player Vexora Coin (NC) transfers.
+// Player-to-player Nexus Forge Coin (NC) transfers.
 //
 // Coins can only be earned in-app (they are never sold or cashed out), so the limits
 // below exist to stop farm accounts funnelling coins into one account, not to protect

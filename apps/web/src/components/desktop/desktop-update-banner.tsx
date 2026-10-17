@@ -139,7 +139,7 @@ export function DesktopUpdateBanner() {
                 void bridge.restartForUpdate();
               }
             }}
-            className="h-8 rounded-full border border-amber-300 bg-amber-500 px-3 text-xs text-slate-950 shadow-[0_10px_24px_rgba(245,158,11,0.2)]"
+            className="h-8 rounded-full border border-amber-300 bg-amber-500 px-3 text-xs text-slate-950 shadow-[0_10px_24px_rgba(30,139,255,0.2)]"
           >
             Install update now
           </Button>

@@ -48,7 +48,7 @@ export async function claimDaily(userId: string) {
 }
 
 export async function grantWelcomeBonus(userId: string) {
-  await EconomyAuthority.adjustBalance({ userId, amount: WELCOME_BONUS, currencyType: "NC", reason: "Welcome to Vexora", referenceId: welcomeBonusReference(userId) });
+  await EconomyAuthority.adjustBalance({ userId, amount: WELCOME_BONUS, currencyType: "NC", reason: "Welcome to Nexus Forge", referenceId: welcomeBonusReference(userId) });
 }
 
 export async function grantAchievementReward(userId: string, medalKey: string) {

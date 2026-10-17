@@ -1,18 +1,34 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { comparePassword, hashPassword } from "../lib/password.js";
+import { APPEAL_REPLY, submitVacAppeal } from "../lib/vac-bans.js";
+import { VAC_APPEAL_MAX, VAC_APPEAL_MIN } from "../lib/account-suspension.js";
 import { randomToken, sha256, signAccessToken } from "../lib/jwt.js";
 import { env } from "../config/env.js";
 import { requireAuth } from "../middleware/auth.js";
-import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
+import { billingEnforced, hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
 import { csrfCookieName } from "../middleware/csrf.js";
 import { anonymizeIP } from "../lib/ip-security.js";
+import { deliveryStatus, duplicateWaitSeconds, sendEmail, sendTemplateEmail } from "../lib/delivery.js";
+import { emailContextFromEnv, renderEmail } from "../lib/email-templates.js";
+import { dispatchPushNotification, pushConfigured } from "../lib/push.js";
+import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
+import { upgradeRequired } from "../lib/plans.js";
 import { AuditOperation, AuditStatus } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
-import { issueCode, verifyCode, maskEmail, maskPhone } from "../lib/verification.js";
+import { issueCode, verifyCode, maskEmail, maskPhone, normalizePhone } from "../lib/verification.js";
+import { checkSecondFactor } from "../lib/second-factor.js";
+import { currentRequiredPolicies, recordAcceptances } from "../lib/legal-policies.js";
+import { missingSignupAcceptances } from "../lib/legal-rules.js";
 import { isAdult as isAdultBirthdate } from "../lib/age-verification.js";
+import { alertIfNewDevice, deviceContext, type DeviceContext } from "../lib/sessions.js";
+import { currentSuspension, suspendedResponse } from "../lib/account-suspension.js";
+import { disconnectUserSockets } from "../lib/realtime.js";
+import { USERNAME_CHANGE_COOLDOWN_MS, usernameProblem, usernameTaken } from "../lib/usernames.js";
+import { ownedProfileImageKey } from "../lib/storage.js";
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
@@ -21,16 +37,40 @@ const registerSchema = z.object({
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
+  /** Exact published versions of the required policies the person ticked to accept. */
+  acceptedPolicyVersionIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  /** An email address or a verified phone number. */
+  email: z.string().trim().min(3).max(254),
   password: z.string().min(8).max(72),
 });
 
-const forgotSchema = z.object({
-  email: z.string().email(),
+const forgotSchema = z.union([
+  z.object({ email: z.string().email() }),
+  z.object({ phone: z.string().min(7).max(32) }),
+]);
+
+const phoneResetSchema = z.object({
+  phone: z.string().min(7).max(32),
+  code: z.string().regex(/^\d{6}$/),
+  newPassword: z.string().min(8).max(72),
 });
+
+/** Who is signing in: by email, or by a phone number they've verified (an unverified number never works). */
+async function findLoginUser(identifier: string) {
+  if (identifier.includes("@")) return prisma.user.findUnique({ where: { email: identifier.toLowerCase() } });
+  const phone = normalizePhone(identifier);
+  if (!phone) return null;
+  return prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true } });
+}
+
+/** Which ways of reaching people work right now, so the app only offers those. */
+function deliveryAvailable() {
+  const status = deliveryStatus();
+  return { email: status.email !== "unconfigured", sms: status.sms !== "unconfigured" };
+}
 
 const resetSchema = z.object({
   token: z.string().min(20),
@@ -60,7 +100,9 @@ const activateCorePlusSchema = z.object({
   tier: z.enum(["CORE", "PLUS", "ELITE", "INFINITE"]).optional(),
 });
 
-const REFRESH_COOKIE_NAME = "nf_refresh";
+export const REFRESH_COOKIE_NAME = "nf_refresh";
+/** Two tabs refreshing at the same moment both present the same token; that is not theft. */
+const REFRESH_REUSE_GRACE_MS = 30_000;
 
 export const authRouter = Router();
 
@@ -90,7 +132,17 @@ function csrfCookieOptions() {
   };
 }
 
-async function issueTokens(user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" }) {
+type SessionCarry = { sessionId: string; signedInAt: Date; deviceLabel: string | null; userAgent: string | null };
+
+/**
+ * Issues an access token and a refresh token. Without `carry` this starts a new session
+ * (sign-in); with it, the new refresh token continues an existing session (rotation).
+ */
+async function issueTokens(
+  user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" },
+  ctx: DeviceContext,
+  carry?: SessionCarry,
+) {
   const accessToken = signAccessToken({
     sub: user.id,
     username: user.username,
@@ -102,15 +154,24 @@ async function issueTokens(user: { id: string; username: string; email: string; 
   const refreshToken = randomToken();
   const tokenHash = sha256(refreshToken);
 
+  const now = new Date();
+  const sessionId = carry?.sessionId ?? randomUUID();
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
       tokenHash,
       expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000),
+      sessionId,
+      signedInAt: carry?.signedInAt ?? now,
+      lastUsedAt: now,
+      // A session keeps the device it signed in on; the network can change.
+      deviceLabel: carry?.deviceLabel ?? ctx.deviceLabel,
+      userAgent: carry?.userAgent ?? ctx.userAgent,
+      ipPrefix: ctx.ipPrefix,
     },
   });
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, sessionId };
 }
 
 async function logSessionRevocation(input: {
@@ -152,6 +213,11 @@ authRouter.post("/register", async (req, res) => {
 
   const email = parsed.data.email.toLowerCase();
   const username = parsed.data.username.trim();
+  const nameProblem = usernameProblem(username);
+  if (nameProblem) {
+    res.status(400).json({ error: nameProblem });
+    return;
+  }
 
   // Age Verification Logic
   const birthDate = new Date(parsed.data.birthdate);
@@ -169,12 +235,21 @@ authRouter.post("/register", async (req, res) => {
 
   const existing = await prisma.user.findFirst({
     where: {
-      OR: [{ email }, { username }],
+      OR: [{ email }, { username: { equals: username, mode: "insensitive" } }],
     },
   });
 
   if (existing) {
     res.status(409).json({ error: "Email or username already in use" });
+    return;
+  }
+
+  // Every published policy that's required at sign-up must have been explicitly accepted,
+  // by its exact current version (a stale page can't accept an outdated version).
+  const requiredPolicies = await currentRequiredPolicies();
+  const missingPolicies = missingSignupAcceptances(requiredPolicies, parsed.data.acceptedPolicyVersionIds ?? []);
+  if (missingPolicies.length) {
+    res.status(400).json({ error: "Please read and accept the Terms of Service and Privacy Policy to continue.", missingPolicies, required: requiredPolicies });
     return;
   }
 
@@ -211,8 +286,12 @@ authRouter.post("/register", async (req, res) => {
     },
   });
 
+  if (requiredPolicies.length) {
+    await recordAcceptances(user.id, requiredPolicies.map((policy) => policy.versionId), "SIGNUP");
+  }
+
   const emailCode = await issueCode({ userId: user.id, channel: "EMAIL", purpose: "VERIFY_EMAIL", target: user.email });
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, deviceContext(req));
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
@@ -233,6 +312,26 @@ authRouter.post("/register", async (req, res) => {
   });
 });
 
+const vacAppealSchema = z.object({
+  email: z.string().trim().email().max(254),
+  password: z.string().min(1).max(200),
+  note: z.string().trim().min(VAC_APPEAL_MIN).max(VAC_APPEAL_MAX),
+});
+
+/**
+ * A banned person appeals without signing in: email, password and a note. The reply never says whether the account
+ * exists or is banned, so it can't be used to check who is banned.
+ */
+authRouter.post("/vac-appeal", async (req, res) => {
+  const parsed = vacAppealSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: `Give your email, password and an appeal of ${VAC_APPEAL_MIN} to ${VAC_APPEAL_MAX} characters.` });
+    return;
+  }
+  await submitVacAppeal(parsed.data);
+  res.json({ ok: true, message: APPEAL_REPLY });
+});
+
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -240,8 +339,7 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const email = parsed.data.email.toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await findLoginUser(parsed.data.email);
 
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -259,6 +357,18 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
+  const suspension = await currentSuspension(user.id);
+  if (suspension) {
+    res.status(403).json(suspendedResponse(suspension));
+    return;
+  }
+
+  if (user.totpEnabledAt) {
+    const token = jwt.sign({ sub: user.id, purpose: "2fa", method: "totp" }, env.JWT_ACCESS_SECRET, { expiresIn: "10m" });
+    res.json({ requiresTwoFactor: true, challengeToken: token, method: "totp", channels: ["Authenticator app"] });
+    return;
+  }
+
   if (user.twoFactorEnabled) {
     const challenge = await startTwoFactorChallenge(user);
     if (!challenge.ok) {
@@ -269,7 +379,9 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const tokens = await issueTokens(user);
+  const ctx = deviceContext(req);
+  const tokens = await issueTokens(user, ctx);
+  void alertIfNewDevice(user, ctx, tokens.sessionId).catch((error) => console.error("[AUTH] new-device alert failed", error));
   const csrfToken = randomToken(16);
 
   // Auditing: Log anonymized IP (Unreversible protection)
@@ -298,6 +410,7 @@ authRouter.post("/login", async (req, res) => {
       appRole: user.appRole,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
+      deletionScheduledFor: user.deletionScheduledFor,
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   })
@@ -339,7 +452,8 @@ function readChallenge(token: unknown): string | null {
 
 const twoFactorVerifySchema = z.object({
   challengeToken: z.string().min(10),
-  code: z.string().trim().regex(/^\d{6}$/),
+  // 6 digits, or an authenticator recovery code like "k7xm-q2pd".
+  code: z.string().trim().regex(/^(\d{6}|[a-z0-9]{4}-?[a-z0-9]{4})$/i),
 });
 
 authRouter.post("/2fa/verify", async (req, res) => {
@@ -353,18 +467,36 @@ authRouter.post("/2fa/verify", async (req, res) => {
     res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
     return;
   }
-  const check = await verifyCode({ userId, purpose: "LOGIN", code: parsed.data.code });
-  if (!check.ok) {
-    res.status(400).json({ error: check.error, attemptsLeft: check.attemptsLeft });
-    return;
+  const pending = await prisma.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true } });
+  let recoveryCodesLeft: number | undefined;
+  if (pending?.totpEnabledAt) {
+    const factor = await checkSecondFactor(userId, parsed.data.code);
+    if (!factor.ok) {
+      res.status(factor.status).json({ error: factor.error });
+      return;
+    }
+    if (factor.usedRecoveryCode) recoveryCodesLeft = factor.recoveryCodesLeft;
+  } else {
+    const check = await verifyCode({ userId, purpose: "LOGIN", code: parsed.data.code });
+    if (!check.ok) {
+      res.status(400).json({ error: check.error, attemptsLeft: check.attemptsLeft });
+      return;
+    }
   }
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
+  const suspension = await currentSuspension(user.id);
+  if (suspension) {
+    res.status(403).json(suspendedResponse(suspension));
+    return;
+  }
 
-  const tokens = await issueTokens(user);
+  const ctx = deviceContext(req);
+  const tokens = await issueTokens(user, ctx);
+  void alertIfNewDevice(user, ctx, tokens.sessionId).catch((error) => console.error("[AUTH] new-device alert failed", error));
   const csrfToken = randomToken(16);
   console.log(`[AUTH] User ${user.id} completed two-factor sign-in. Secure-IP: ${anonymizeIP(req.ip || "unknown")}`);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
@@ -372,6 +504,7 @@ authRouter.post("/2fa/verify", async (req, res) => {
   res.json({
     accessToken: tokens.accessToken,
     csrfToken,
+    ...(recoveryCodesLeft !== undefined ? { recoveryCodesLeft } : {}),
     user: {
       id: user.id,
       username: user.username,
@@ -388,6 +521,7 @@ authRouter.post("/2fa/verify", async (req, res) => {
       appRole: user.appRole,
       createdAt: user.createdAt,
       emailVerified: user.emailVerified,
+      deletionScheduledFor: user.deletionScheduledFor,
       isAdmin: hasAdminAccess(user.appRole, user.isAdmin),
     },
   });
@@ -399,9 +533,13 @@ authRouter.post("/2fa/resend", async (req, res) => {
     res.status(401).json({ error: "Your sign-in window expired. Sign in again." });
     return;
   }
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, phoneNumber: true, twoFactorChannels: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, phoneNumber: true, twoFactorChannels: true, totpEnabledAt: true } });
   if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+  if (user.totpEnabledAt) {
+    res.status(400).json({ error: "Open your authenticator app for the code, or use one of your recovery codes." });
     return;
   }
   const challenge = await startTwoFactorChallenge(user);
@@ -425,9 +563,30 @@ authRouter.post("/refresh", async (req, res) => {
     include: { user: true },
   });
 
+  // Reuse detection: every refresh replaces the token, so an old (already replaced) token
+  // turning up again means it was copied. End that whole session on every device. A reuse
+  // within a few seconds is just two tabs refreshing at once, so that only gets a 401.
+  if (session?.revokedAt && Date.now() - session.revokedAt.getTime() > REFRESH_REUSE_GRACE_MS) {
+    const family = session.sessionId ?? session.id;
+    const ended = await prisma.refreshToken.updateMany({
+      where: { userId: session.userId, OR: [{ sessionId: family }, { id: family }], revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (ended.count) console.warn(`[AUTH] Reused refresh token for user ${session.userId}: session ${family} ended (${ended.count} token(s) revoked).`);
+  }
+
   if (!session || session.revokedAt || session.expiresAt < new Date()) {
-    res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    // A token replaced a moment ago is the other tab of the same sign-in refreshing at once. The
+    // cookie jar is shared, so the newer cookie may already be set; leave it alone in that case.
+    const replacedMomentsAgo = Boolean(session?.revokedAt && Date.now() - session.revokedAt.getTime() <= REFRESH_REUSE_GRACE_MS);
+    if (!replacedMomentsAgo) res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
     res.status(401).json({ error: "Invalid refresh token" });
+    return;
+  }
+  const suspension = await currentSuspension(session.userId);
+  if (suspension) {
+    res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
+    res.status(403).json(suspendedResponse(suspension));
     return;
   }
 
@@ -447,7 +606,13 @@ authRouter.post("/refresh", async (req, res) => {
     },
   });
 
-  const tokens = await issueTokens(session.user);
+  // Same session, new token. Rows from before sessions were tracked start their chain here.
+  const tokens = await issueTokens(session.user, deviceContext(req), {
+    sessionId: session.sessionId ?? session.id,
+    signedInAt: session.signedInAt ?? session.createdAt,
+    deviceLabel: session.deviceLabel,
+    userAgent: session.userAgent,
+  });
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
@@ -546,6 +711,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       birthdate: true,
       ageVerificationLevel: true,
       onboardedAt: true,
+      deletionScheduledFor: true,
       economyAccounts: {
         select: {
           currencyType: true,
@@ -586,28 +752,50 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   });
   const isBetaCosmeticsBypass = requester ? betaCosmeticsBypassUsers.has(requester.username.toLowerCase()) : false;
 
-  const requestedPremiumCosmetics = parsed.data.avatar !== undefined || parsed.data.banner !== undefined;
-  if (requestedPremiumCosmetics && !isBetaCosmeticsBypass) {
-    const hasBrandingKit = await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT");
-    if (!hasBrandingKit) {
-      res.status(402).json({
-        error: "Payment required",
-        feature: "TEAM_BRANDING_KIT",
-        message: "Custom avatar and banner cosmetics require the Team Branding Kit.",
-      });
+  const wantsBanner = Boolean(parsed.data.banner);
+  const wantsAnimatedAvatar = typeof parsed.data.avatar === "string" && /\.gif(\?|$)/i.test(parsed.data.avatar);
+  if ((wantsBanner || wantsAnimatedAvatar) && !isBetaCosmeticsBypass) {
+    const limits = await limitsForUser(req.user!.id);
+    const allowed = (wantsBanner ? limits.profileBanner : true) && (wantsAnimatedAvatar ? limits.animatedAvatar : true);
+    if (!allowed && !(await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT"))) {
+      res.status(402).json(upgradeRequired(
+        wantsBanner ? "A profile banner is a Core+ perk." : "Animated avatars are a Core+ perk.",
+        wantsBanner ? "PROFILE_BANNER" : "ANIMATED_AVATAR",
+        "CORE",
+      ));
       return;
     }
   }
 
-  if (parsed.data.username) {
-    const taken = await prisma.user.findFirst({
-      where: {
-        username: parsed.data.username.trim(),
-        id: { not: req.user!.id },
-      },
-    });
+  // Sending your current name back (forms often do) isn't a rename.
+  const current = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { username: true, usernameChangedAt: true, avatar: true, banner: true } });
 
-    if (taken) {
+  // Pictures are checked when they are uploaded (lib/image-validation.ts). Here only an address
+  // that is already this account's picture, or one of our own uploads, is accepted. Anything
+  // else would let people point their picture at any outside site.
+  for (const field of ["avatar", "banner"] as const) {
+    const value = parsed.data[field];
+    if (typeof value === "string" && current && value !== current[field] && !ownedProfileImageKey(value, req.user!.id)) {
+      res.status(400).json({ error: "Upload a picture to change it. Links to other sites aren't accepted." });
+      return;
+    }
+  }
+
+  const newUsername = parsed.data.username?.trim();
+  const renaming = Boolean(newUsername && current && newUsername !== current.username);
+  if (renaming && newUsername) {
+    const problem = usernameProblem(newUsername);
+    if (problem) {
+      res.status(400).json({ error: problem });
+      return;
+    }
+    const caseOnly = newUsername.toLowerCase() === current!.username.toLowerCase();
+    const nextAllowed = current!.usernameChangedAt ? current!.usernameChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_MS : 0;
+    if (!caseOnly && nextAllowed > Date.now()) {
+      res.status(429).json({ error: "You can change your username once a day.", retryAt: new Date(nextAllowed).toISOString() });
+      return;
+    }
+    if (await usernameTaken(newUsername, req.user!.id)) {
       res.status(409).json({ error: "Username already in use" });
       return;
     }
@@ -616,7 +804,7 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   const updated = await prisma.user.update({
     where: { id: req.user!.id },
     data: {
-      ...(parsed.data.username ? { username: parsed.data.username.trim() } : {}),
+      ...(renaming ? { username: newUsername, usernameChangedAt: new Date() } : {}),
       ...(parsed.data.avatar !== undefined ? { avatar: parsed.data.avatar } : {}),
       ...(parsed.data.banner !== undefined ? { banner: parsed.data.banner } : {}),
       ...(parsed.data.bio !== undefined ? { bio: parsed.data.bio } : {}),
@@ -696,11 +884,47 @@ authRouter.post("/forgot-password", async (req, res) => {
     return;
   }
 
-  const email = parsed.data.email.toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  // Same answer whether or not the address has an account, and the reset link only ever
+  // goes to the inbox. (It used to be returned in this response, so knowing someone's
+  // email was enough to take over their account.)
+  if ("phone" in parsed.data) {
+    if (!deliveryAvailable().sms) {
+      res.status(503).json({ error: "Password reset by text isn't available yet. Use your email instead." });
+      return;
+    }
+    const phone = normalizePhone(parsed.data.phone);
+    if (!phone) {
+      res.status(400).json({ error: "Enter a valid phone number with country code, e.g. +1 555 123 4567" });
+      return;
+    }
+    // Same answer whether or not the number is on an account.
+    const phoneAnswer = { message: "If that number is verified on an account, we've texted it a 6-digit code. It works for 10 minutes." };
+    const owner = await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } });
+    if (owner) {
+      void issueCode({ userId: owner.id, channel: "SMS", purpose: "RESET_PASSWORD", target: phone })
+        .then((result) => {
+          if (!result.ok && !result.retryAfterSeconds) console.error("[AUTH] reset text failed", result.error);
+          if (result.devCode) console.log(`[DEV SMS] reset code for ${maskPhone(phone)}: ${result.devCode}`);
+        })
+        .catch((error) => console.error("[AUTH] reset text failed", error));
+    }
+    res.status(200).json(phoneAnswer);
+    return;
+  }
 
-  if (!user) {
-    res.status(200).json({ message: "If the email exists, a reset token has been issued" });
+  const answer = { message: "If that email has an account, we've sent a link to reset the password. It works for 30 minutes." };
+  const email = parsed.data.email.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, username: true, email: true, deletedAt: true } });
+
+  if (!user || user.deletedAt) {
+    res.status(200).json(answer);
+    return;
+  }
+
+  // One reset email per window: a repeated request gets the same answer and no new link.
+  const resetSubject = renderEmail("password-reset", { username: user.username, link: env.APP_WEB_URL, expiresIn: "30 minutes" }, emailContextFromEnv()).subject;
+  if ((await duplicateWaitSeconds(user.id, "password-reset", resetSubject)) > 0) {
+    res.status(200).json(answer);
     return;
   }
 
@@ -713,10 +937,12 @@ authRouter.post("/forgot-password", async (req, res) => {
     },
   });
 
-  res.status(200).json({
-    message: "Password reset token generated for integration",
-    token: resetToken,
-  });
+  const link = `${env.APP_WEB_URL.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(resetToken)}`;
+  void sendTemplateEmail("password-reset", user.email, { username: user.username, link, expiresIn: "30 minutes" }, { userId: user.id }).catch((error) =>
+    console.error("[AUTH] reset email failed", error),
+  );
+
+  res.status(200).json(answer);
 });
 
 authRouter.post("/reset-password", async (req, res) => {
@@ -738,14 +964,56 @@ authRouter.post("/reset-password", async (req, res) => {
     return;
   }
 
+  await setNewPassword(user.id, parsed.data.newPassword, req, "reset-password");
+  res.status(200).json({ message: "Password reset successful" });
+});
+
+/** Reset with the code texted to a verified phone. */
+authRouter.post("/reset-password/phone", async (req, res) => {
+  const parsed = phoneResetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter your phone number, the 6-digit code and a new password (8+ characters)." });
+    return;
+  }
+  const phone = normalizePhone(parsed.data.phone);
+  const user = phone ? await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } }) : null;
+  if (!user) {
+    res.status(400).json({ error: "That code is wrong or has expired. Request a new one." });
+    return;
+  }
+  const check = await verifyCode({ userId: user.id, purpose: "RESET_PASSWORD", code: parsed.data.code, channel: "SMS" });
+  if (!check.ok || check.target !== phone) {
+    res.status(400).json({ error: check.ok ? "That code is wrong or has expired. Request a new one." : check.error, attemptsLeft: check.ok ? undefined : check.attemptsLeft });
+    return;
+  }
+  await setNewPassword(user.id, parsed.data.newPassword, req, "reset-password-phone");
+  res.status(200).json({ message: "Password reset successful" });
+});
+
+/** Which ways of reaching people work (the sign-in and reset pages only offer these). */
+authRouter.get("/delivery", (_req, res) => {
+  res.json(deliveryAvailable());
+});
+
+async function setNewPassword(userId: string, newPassword: string, req: Parameters<typeof logSessionRevocation>[0]["req"], flow: string) {
+  const user = { id: userId };
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      password: await hashPassword(parsed.data.newPassword),
+      password: await hashPassword(newPassword),
       resetToken: null,
       resetTokenExpires: null,
     },
   });
+
+  // Security notice to the account's address, whichever flow changed the password.
+  const account = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true, username: true } });
+  if (account) {
+    const when = `${new Date().toLocaleString("en-GB", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC`;
+    void sendTemplateEmail("password-changed", account.email, { username: account.username, when }, { userId: user.id }).catch((error) =>
+      console.error("[AUTH] password changed notice failed", error),
+    );
+  }
 
   const revokedSessions = await prisma.refreshToken.findMany({
     where: { userId: user.id, revokedAt: null },
@@ -756,6 +1024,8 @@ authRouter.post("/reset-password", async (req, res) => {
     where: { userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  // Live sockets from the old sessions go too, so a signed-in tab can't keep receiving data after a reset.
+  void disconnectUserSockets(user.id, { reason: "password_changed" }).catch((error) => console.error("[AUTH] socket revocation failed", error));
 
   await Promise.all(
     revokedSessions.map((session) =>
@@ -765,14 +1035,45 @@ authRouter.post("/reset-password", async (req, res) => {
         reason: "password_reset",
         req,
         metadata: {
-          flow: "reset-password",
+          flow,
           batchInvalidation: true,
         },
       }),
     ),
   );
+}
 
-  res.status(200).json({ message: "Password reset successful" });
+/** Turn push off for one device (the browser's own subscription endpoint). */
+authRouter.delete("/push-subscriptions", requireAuth, async (req, res) => {
+  const endpoint = typeof req.body?.endpoint === "string" ? req.body.endpoint : "";
+  if (!endpoint) {
+    res.status(400).json({ error: "Missing endpoint" });
+    return;
+  }
+  const removed = await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: req.user!.id } });
+  res.json({ removed: removed.count });
+});
+
+const lastTestPush = new Map<string, number>();
+/** Send a test notification to every device this account has push on. */
+authRouter.post("/push-subscriptions/test", requireAuth, async (req, res) => {
+  if (!pushConfigured()) {
+    res.status(503).json({ error: "Push isn't set up on this server." });
+    return;
+  }
+  const last = lastTestPush.get(req.user!.id) ?? 0;
+  if (Date.now() - last < 10_000) {
+    res.status(429).json({ error: "Wait a few seconds before sending another test." });
+    return;
+  }
+  lastTestPush.set(req.user!.id, Date.now());
+  const devices = await prisma.pushSubscription.count({ where: { userId: req.user!.id } });
+  if (!devices) {
+    res.status(400).json({ error: "Push isn't on for any of your devices yet." });
+    return;
+  }
+  await dispatchPushNotification({ userId: req.user!.id, title: "Nexus Forge Gaming", body: "Push notifications are working on this device.", notificationId: `test-${Date.now()}` });
+  res.json({ sent: devices });
 });
 
 authRouter.post("/push-subscriptions", requireAuth, async (req, res) => {
@@ -809,6 +1110,15 @@ authRouter.post("/core-plus/activate", requireAuth, async (req, res) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
+  }
+  // With billing connected, Core+ comes from checkout (the Stripe webhook sets the tier).
+  // Only staff may switch it on directly, for testing.
+  if (billingEnforced()) {
+    const actor = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { appRole: true, isAdmin: true } });
+    if (!actor || !hasAdminAccess(actor.appRole, actor.isAdmin)) {
+      res.status(402).json({ error: "Core+ is activated through checkout on the Pricing page.", code: "PAYMENT_REQUIRED" });
+      return;
+    }
   }
 
   const user = await prisma.user.findUnique({
@@ -875,7 +1185,13 @@ authRouter.post("/core-plus/activate", requireAuth, async (req, res) => {
   });
 });
 
-authRouter.get("/core-plus/telemetry", requireAuth, async (_req, res) => {
+authRouter.get("/core-plus/telemetry", requireAuth, async (req, res) => {
+  // Platform-wide subscription numbers are business data: staff only.
+  const viewer = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { appRole: true, isAdmin: true } });
+  if (!viewer || !hasAdminAccess(viewer.appRole, viewer.isAdmin)) {
+    res.status(403).json({ error: "Staff only" });
+    return;
+  }
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 

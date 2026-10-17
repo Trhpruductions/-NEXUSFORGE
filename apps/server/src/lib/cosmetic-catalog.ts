@@ -13,7 +13,7 @@ type CatalogEntry = {
 
 /** Starter cosmetic catalog. Colors drive the layered avatar renderer; imageUrl can be added later. */
 export const cosmeticCatalog: CatalogEntry[] = [
-  { key: "top-vexora-hoodie", name: "Vexora Hoodie", description: "Black hoodie with the gold V.", slot: "TOP", rarity: "EPIC", priceCoins: 1200, color: "#111318", metadata: { accent: "#e6b325" } },
+  { key: "top-vexora-hoodie", name: "Nexus Forge Hoodie", description: "Black hoodie with the gold V.", slot: "TOP", rarity: "EPIC", priceCoins: 1200, color: "#111318", metadata: { accent: "#e6b325" } },
   { key: "top-neon-drift-jacket", name: "Neon Drift Jacket", description: "Layered street jacket with neon trim.", slot: "TOP", rarity: "LEGENDARY", priceCoins: 2400, color: "#1d4ed8", metadata: { accent: "#22d3ee" } },
   { key: "top-squad-tee", name: "Squad Tee", description: "Everyday tee in forge colors.", slot: "TOP", rarity: "COMMON", priceCoins: 150, color: "#334155" },
   { key: "top-esports-jersey", name: "Esports Jersey", description: "Tournament-cut jersey.", slot: "TOP", rarity: "RARE", priceCoins: 600, color: "#7f1d1d", metadata: { accent: "#f8fafc" } },
@@ -24,7 +24,7 @@ export const cosmeticCatalog: CatalogEntry[] = [
   { key: "shoes-court-classic", name: "Court Classics", description: "Clean white high tops.", slot: "SHOES", rarity: "COMMON", priceCoins: 100, color: "#e2e8f0" },
   { key: "shoes-gold-runners", name: "Gold Runners", description: "Trainers dipped in forge gold.", slot: "SHOES", rarity: "EPIC", priceCoins: 1100, color: "#e6b325" },
   { key: "head-rogue-mask", name: "Rogue Mask", description: "Half mask with a glowing visor.", slot: "HEAD", rarity: "EPIC", priceCoins: 1300, color: "#111827", metadata: { accent: "#ef4444" } },
-  { key: "head-snapback", name: "Vexora Snapback", description: "Flat brim with the emblem.", slot: "HEAD", rarity: "RARE", priceCoins: 400, color: "#0b0f19", metadata: { accent: "#e6b325" } },
+  { key: "head-snapback", name: "Nexus Forge Snapback", description: "Flat brim with the emblem.", slot: "HEAD", rarity: "RARE", priceCoins: 400, color: "#0b0f19", metadata: { accent: "#e6b325" } },
   { key: "head-crown", name: "Founder Crown", description: "Reserved for the first wave.", slot: "HEAD", rarity: "MYTHIC", priceCoins: 9000, color: "#e6b325" },
   { key: "face-cyber-shades", name: "Cyber Shades", description: "Wraparound lenses.", slot: "FACE", rarity: "RARE", priceCoins: 350, color: "#0ea5e9" },
   { key: "face-war-paint", name: "War Paint", description: "Two-stripe camo streaks.", slot: "FACE", rarity: "COMMON", priceCoins: 80, color: "#dc2626" },
@@ -61,4 +61,12 @@ export async function ensureCosmeticCatalog(): Promise<void> {
     });
   }
   ensured = true;
+}
+
+/**
+ * Free items (priceCoins 0) are always available. A paid item is available only when the account owns it,
+ * which means a UserCosmetic row exists. Equipping, applying and the "available" flag all use this rule.
+ */
+export function isCatalogItemAvailable(item: { priceCoins: number }, owned: boolean): boolean {
+  return item.priceCoins <= 0 || owned;
 }

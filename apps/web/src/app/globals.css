@@ -11,36 +11,36 @@
   
   /* VIBRANT NEXUS PALETTE */
   --nexus-cyan: #00f2ff;
-  --nexus-gold: #fbbf24;
+  --nexus-gold: #63c0ff;
   --nexus-crimson: #ff2e4d;
   --nexus-purple: #a855f7;
   --nexus-vibrant-glow: rgba(0, 242, 255, 0.5);
 
   --button-top: rgba(248, 223, 138, 0.98);
-  --button-mid: rgba(230, 179, 37, 0.96);
+  --button-mid: rgba(46,164,255, 0.96);
   --button-bottom: rgba(176, 130, 15, 0.94);
   --button-ink: #1a1203;
-  --mood-a: rgba(230, 179, 37, 0.18);
-  --mood-b: rgba(212, 160, 23, 0.14);
-  --mood-c: rgba(138, 101, 12, 0.1);
+  --mood-a: rgba(46,164,255, 0.18);
+  --mood-b: rgba(30,139,255, 0.14);
+  --mood-c: rgba(10,86,176, 0.1);
 }
 
 html[data-theme-mode="command"] {
   --button-top: rgba(248, 223, 138, 0.98);
-  --button-mid: rgba(230, 179, 37, 0.96);
+  --button-mid: rgba(46,164,255, 0.96);
   --button-bottom: rgba(176, 130, 15, 0.94);
   --button-ink: #1a1203;
-  --mood-a: rgba(230, 179, 37, 0.24);
-  --mood-b: rgba(212, 160, 23, 0.18);
-  --mood-c: rgba(138, 101, 12, 0.1);
+  --mood-a: rgba(46,164,255, 0.24);
+  --mood-b: rgba(30,139,255, 0.18);
+  --mood-c: rgba(10,86,176, 0.1);
 }
 
 html[data-theme-mode="premium"] {
   --button-top: rgba(253, 224, 71, 0.98);
-  --button-mid: rgba(251, 191, 36, 0.94);
+  --button-mid: rgba(99,192,255, 0.94);
   --button-bottom: rgba(217, 119, 6, 0.94);
   --button-ink: #1f1402;
-  --mood-a: rgba(251, 191, 36, 0.26);
+  --mood-a: rgba(99,192,255, 0.26);
   --mood-b: rgba(251, 113, 133, 0.2);
   --mood-c: rgba(217, 119, 6, 0.12);
 }
@@ -75,20 +75,21 @@ html[data-theme-mode="admin"] {
   --font-sans: var(--font-exo);
 }
 
-/* Vexora Gaming brand ramp: gold accent on deep navy, matching the product mockup. */
+/* Nexus Forge Gaming brand ramp: electric blue on navy-black, from the logo
+   (steel silver comes from the slate greys). */
 @theme {
-  --color-amber-50: #fff9e6;
-  --color-amber-100: #fdf0c2;
-  --color-amber-200: #f8df8a;
-  --color-amber-300: #f2c94c;
-  --color-amber-400: #e6b325;
-  --color-amber-500: #d4a017;
-  --color-amber-600: #b0820f;
-  --color-amber-700: #8a650c;
-  --color-amber-800: #634808;
-  --color-amber-900: #3f2e05;
-  --color-amber-950: #241a02;
-  --nexus-gold: #e6b325;
+  --color-amber-50: #eaf6ff;
+  --color-amber-100: #cdeaff;
+  --color-amber-200: #9fd8ff;
+  --color-amber-300: #63c0ff;
+  --color-amber-400: #2ea4ff;
+  --color-amber-500: #1e8bff;
+  --color-amber-600: #0b6fe0;
+  --color-amber-700: #0a56b0;
+  --color-amber-800: #0b4285;
+  --color-amber-900: #0c2f5c;
+  --color-amber-950: #071a36;
+  --nexus-gold: #2ea4ff;
 }
 
 /* Appearance preferences (Settings → Appearance) are applied as attributes on <html>. */
@@ -144,7 +145,7 @@ html[data-chat-avatars="off"] .nf-message-avatar { display: none; }
 }
 
 .nexus-text-gold {
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+  text-shadow: 0 0 8px rgba(99,192,255, 0.4);
   color: var(--nexus-gold);
 }
 
@@ -285,12 +286,12 @@ body::after {
   position: absolute;
   inset: 0;
   border-radius: 0;
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  border: 1px solid rgba(99,192,255, 0.35);
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: xor;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.4));
+  filter: drop-shadow(0 0 4px rgba(99,192,255, 0.4));
 }
 
 .nexus-text-glitch-hover:hover {
@@ -398,7 +399,7 @@ select:focus-visible {
   pointer-events: none;
   background-image:
     radial-gradient(circle at 18% 22%, rgba(255, 184, 108, 0.08), transparent 28%),
-    radial-gradient(circle at 82% 16%, rgba(251, 191, 36, 0.08), transparent 24%);
+    radial-gradient(circle at 82% 16%, rgba(99,192,255, 0.08), transparent 24%);
   opacity: 0.55;
   z-index: 0;
 }
@@ -411,6 +412,8 @@ select:focus-visible {
 .nf-heading {
   font-family: var(--font-orbitron), var(--font-exo), sans-serif;
   letter-spacing: 0.04em;
+  /* Spread the words evenly, so a heading never ends on a single orphaned word. */
+  text-wrap: balance;
 }
 
 .nf-nav-label {
@@ -682,7 +685,7 @@ body::before {
 .discord-dock-item.active .discord-dock-pill {
   transform: scaleY(5); /* 40px approx */
   height: 48px;
-  background: #fbbf24;
+  background: #63c0ff;
 }
 
 .discord-dock-icon {
@@ -717,7 +720,7 @@ body::before {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(251, 191, 36, 0.4);
+  background: rgba(99,192,255, 0.4);
   background-clip: content-box;
 }
 
@@ -751,7 +754,7 @@ body::before {
 }
 
 .channel-item.active .channel-item-tag {
-  color: #fbbf24;
+  color: #63c0ff;
 }
 
 body::after {
@@ -915,7 +918,7 @@ body::after {
   pointer-events: none;
   border-radius: 0;
   background: radial-gradient(circle at 20% 20%, rgba(255, 184, 108, 0.12), transparent 35%),
-    radial-gradient(circle at 80% 75%, rgba(251, 191, 36, 0.08), transparent 32%);
+    radial-gradient(circle at 80% 75%, rgba(99,192,255, 0.08), transparent 32%);
   opacity: 0.95;
   transform: translateZ(-14px) scale(1.01);
   filter: blur(0.8px);
@@ -945,7 +948,7 @@ body::after {
   position: absolute;
   inset: -18px -18px;
   border-radius: 0;
-  background: radial-gradient(circle at top left, rgba(245, 158, 11, 0.18), transparent 42%),
+  background: radial-gradient(circle at top left, rgba(30,139,255, 0.18), transparent 42%),
     radial-gradient(circle at 90% 10%, rgba(255, 234, 167, 0.08), transparent 32%);
   opacity: 0.8;
   filter: blur(2px);
@@ -1173,14 +1176,14 @@ body::after,
 .nexus-button-primary {
   position: relative;
   overflow: hidden;
-  border: 2px solid rgba(251, 191, 36, 0.6);
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%);
+  border: 2px solid rgba(99,192,255, 0.6);
+  background: linear-gradient(135deg, #63c0ff 0%, #1e8bff 40%, #d97706 100%);
   background-size: 200% 200%;
   color: #0c0800;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  box-shadow: 0 0 40px rgba(245, 158, 11, 0.4), 0 0 80px rgba(255, 120, 65, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 40px rgba(30,139,255, 0.4), 0 0 80px rgba(255, 120, 65, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   transition: all 300ms cubic-bezier(0.23, 1, 0.32, 1);
   transform-origin: center;
 }
@@ -1198,7 +1201,7 @@ body::after,
   content: "";
   position: absolute;
   inset: -2px;
-  background: linear-gradient(45deg, #fbbf24, #ff7841, #fbbf24);
+  background: linear-gradient(45deg, #63c0ff, #ff7841, #63c0ff);
   border-radius: inherit;
   opacity: 0;
   z-index: -1;
@@ -1208,7 +1211,7 @@ body::after,
 
 .nexus-button-primary:hover {
   transform: translateY(-4px) scale(1.08);
-  box-shadow: 0 0 60px rgba(245, 158, 11, 0.6), 0 0 120px rgba(255, 120, 65, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 60px rgba(30,139,255, 0.6), 0 0 120px rgba(255, 120, 65, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   background-position: right center;
 }
 
@@ -1225,15 +1228,15 @@ body::after,
 }
 
 .nexus-badge {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(255, 120, 65, 0.1));
-  border: 2px solid rgba(251, 191, 36, 0.4);
-  color: #fbbf24;
+  background: linear-gradient(135deg, rgba(99,192,255, 0.15), rgba(255, 120, 65, 0.1));
+  border: 2px solid rgba(99,192,255, 0.4);
+  color: #63c0ff;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.15em;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(99,192,255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 300ms ease;
 }
 
@@ -1366,7 +1369,7 @@ body::after,
 }
 
 .nexus-gradient-text {
-  background: linear-gradient(90deg, #f2c94c, #ff8a3d, #df4fe0);
+  background: linear-gradient(90deg, #63c0ff, #ff8a3d, #df4fe0);
   -webkit-background-clip: text;
   color: transparent;
   display: inline-block;
@@ -1529,7 +1532,7 @@ body::after,
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle at 20% 10%, rgba(255, 184, 108, 0.12), transparent 28%),
-    radial-gradient(circle at 80% 90%, rgba(251, 191, 36, 0.1), transparent 32%);
+    radial-gradient(circle at 80% 90%, rgba(99,192,255, 0.1), transparent 32%);
   opacity: 0.7;
 }
 
@@ -1620,7 +1623,7 @@ body::after,
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle at 16% 18%, rgba(255, 184, 108, 0.14), transparent 26%),
-    radial-gradient(circle at 82% 78%, rgba(251, 191, 36, 0.1), transparent 32%);
+    radial-gradient(circle at 82% 78%, rgba(99,192,255, 0.1), transparent 32%);
   opacity: 0.8;
 }
 
@@ -1645,7 +1648,7 @@ body::after,
   height: 8rem;
   bottom: 12%;
   right: 16%;
-  background: rgba(251, 191, 36, 0.12);
+  background: rgba(99,192,255, 0.12);
   animation-delay: -3s;
 }
 
@@ -2029,7 +2032,7 @@ body::after,
 .solar-grid {
   background:
     radial-gradient(circle at 16% 10%, rgba(255, 184, 108, 0.14), transparent 36%),
-    radial-gradient(circle at 84% 84%, rgba(251, 191, 36, 0.12), transparent 34%),
+    radial-gradient(circle at 84% 84%, rgba(99,192,255, 0.12), transparent 34%),
     linear-gradient(164deg, #040b16 0%, #070f1d 56%, #091726 100%);
 }
 
@@ -2144,7 +2147,7 @@ body::after,
 .command-halo {
   background:
     radial-gradient(circle at 20% 22%, rgba(255, 184, 108, 0.1), transparent 40%),
-    radial-gradient(circle at 78% 30%, rgba(251, 191, 36, 0.1), transparent 40%);
+    radial-gradient(circle at 78% 30%, rgba(99,192,255, 0.1), transparent 40%);
 }
 
 .command-section-title {
@@ -2347,7 +2350,7 @@ picture {
   pointer-events: none;
   background-image:
     radial-gradient(circle at 12% 18%, rgba(255, 184, 108, 0.08), transparent 32%),
-    radial-gradient(circle at 82% 24%, rgba(251, 191, 36, 0.08), transparent 30%),
+    radial-gradient(circle at 82% 24%, rgba(99,192,255, 0.08), transparent 30%),
     radial-gradient(circle at 48% 86%, rgba(255, 121, 63, 0.06), transparent 28%);
   opacity: 0.45;
   filter: blur(18px);
@@ -2390,7 +2393,7 @@ picture {
   position: absolute;
   inset: -35% -10% auto;
   height: 45%;
-  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.38), transparent);
+  background: linear-gradient(90deg, transparent, rgba(99,192,255, 0.38), transparent);
   transform: rotate(8deg);
   animation: emberSweep 4.5s linear infinite;
   pointer-events: none;
@@ -2554,14 +2557,14 @@ picture {
 .nexus-button-primary {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  border: 1px solid rgba(99,192,255, 0.4);
+  background: linear-gradient(135deg, #63c0ff 0%, #1e8bff 50%, #d97706 100%);
   background-size: 200% 200%;
   color: #0c0800;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(30,139,255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -2593,7 +2596,7 @@ picture {
 
 .nexus-shell-header {
   background: rgba(10, 14, 20, 0.95);
-  border-color: rgba(251, 191, 36, 0.2);
+  border-color: rgba(99,192,255, 0.2);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -2628,7 +2631,7 @@ picture {
 
 /* High-End Cinematic Effects */
 .nexus-shell {
-  background: radial-gradient(circle at 50% 0%, rgba(251, 191, 36, 0.08), transparent 40%),
+  background: radial-gradient(circle at 50% 0%, rgba(99,192,255, 0.08), transparent 40%),
               radial-gradient(circle at 0% 100%, rgba(227, 27, 35, 0.05), transparent 30%),
               #06080f;
 }
@@ -2646,8 +2649,8 @@ picture {
 
 .nexus-button-secondary:hover {
   background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(251, 191, 36, 0.4);
-  box-shadow: 0 0 25px rgba(251, 191, 36, 0.1);
+  border-color: rgba(99,192,255, 0.4);
+  box-shadow: 0 0 25px rgba(99,192,255, 0.1);
   color: #fff;
   transform: translateY(-1px);
 }
@@ -2753,7 +2756,7 @@ body::after {
   background:
     linear-gradient(160deg, rgba(6, 10, 20, 0.92) 0%, rgba(10, 14, 27, 0.9) 52%, rgba(6, 9, 18, 0.94) 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(251, 191, 36, 0.07),
+    inset 0 0 0 1px rgba(99,192,255, 0.07),
     0 20px 44px rgba(2, 6, 23, 0.52),
     0 0 30px rgba(251, 113, 133, 0.14);
 }
@@ -2765,7 +2768,7 @@ body::after {
   pointer-events: none;
   background:
     radial-gradient(circle at 14% 12%, rgba(251, 113, 133, 0.16), transparent 36%),
-    radial-gradient(circle at 84% 8%, rgba(251, 191, 36, 0.12), transparent 30%),
+    radial-gradient(circle at 84% 8%, rgba(99,192,255, 0.12), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 32%);
 }
 
@@ -2789,15 +2792,15 @@ body::after {
 }
 
 .forge-chip {
-  border: 1px solid rgba(251, 191, 36, 0.34);
+  border: 1px solid rgba(99,192,255, 0.34);
   background: linear-gradient(140deg, rgba(251, 146, 60, 0.24), rgba(244, 63, 94, 0.2));
   color: #ffe9cf;
-  text-shadow: 0 0 10px rgba(251, 191, 36, 0.26);
+  text-shadow: 0 0 10px rgba(99,192,255, 0.26);
 }
 
 .forge-btn-primary {
-  border: 1px solid rgba(251, 191, 36, 0.56);
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 60%, #b91c1c 100%);
+  border: 1px solid rgba(99,192,255, 0.56);
+  background: linear-gradient(135deg, #1e8bff 0%, #ef4444 60%, #b91c1c 100%);
   color: #fff8ea;
   box-shadow: 0 14px 30px rgba(239, 68, 68, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -2855,7 +2858,7 @@ body::after {
   z-index: 0;
   background:
     radial-gradient(circle at 15% 6%, rgba(244, 63, 94, 0.16), transparent 30%),
-    radial-gradient(circle at 82% 8%, rgba(251, 191, 36, 0.13), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(99,192,255, 0.13), transparent 28%),
     radial-gradient(circle at 50% 92%, rgba(56, 189, 248, 0.08), transparent 38%);
 }
 
@@ -2877,10 +2880,10 @@ body::after {
   z-index: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(circle at 14% 20%, rgba(251, 191, 36, 0.45) 1px, transparent 2px),
+    radial-gradient(circle at 14% 20%, rgba(99,192,255, 0.45) 1px, transparent 2px),
     radial-gradient(circle at 70% 24%, rgba(248, 113, 113, 0.44) 1px, transparent 2px),
     radial-gradient(circle at 40% 75%, rgba(56, 189, 248, 0.32) 1px, transparent 2px),
-    radial-gradient(circle at 88% 68%, rgba(251, 191, 36, 0.35) 1px, transparent 2px);
+    radial-gradient(circle at 88% 68%, rgba(99,192,255, 0.35) 1px, transparent 2px);
   background-size: 280px 240px, 260px 260px, 320px 300px, 300px 280px;
   animation: particleDrift 12s ease-in-out infinite;
   opacity: 0.55;
@@ -2897,7 +2900,7 @@ body::after {
   width: 44px;
   height: 44px;
   pointer-events: none;
-  border-color: rgba(251, 191, 36, 0.56);
+  border-color: rgba(99,192,255, 0.56);
   filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.35));
 }
 
@@ -2947,9 +2950,9 @@ body::after {
 
 .nexus-card-interactive:hover {
   background: rgba(18, 24, 40, 0.6);
-  border-color: rgba(251, 191, 36, 0.35);
+  border-color: rgba(99,192,255, 0.35);
   transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 15px rgba(251, 191, 36, 0.1);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 15px rgba(99,192,255, 0.1);
 }
 
 .nexus-panel,
@@ -2969,8 +2972,8 @@ body::after {
 .nexus-panel:hover,
 .nexus-panel-strong:hover,
 .nexus-interactive-card:hover {
-  border-color: rgba(251, 191, 36, 0.35);
-  box-shadow: 0 24px 70px rgba(251, 191, 36, 0.1);
+  border-color: rgba(99,192,255, 0.35);
+  box-shadow: 0 24px 70px rgba(99,192,255, 0.1);
   transform: translateY(-2px) scale(1.005);
 }
 
@@ -3139,12 +3142,12 @@ body::after {
 
 .industrial-sidebar-item.active {
   @apply bg-amber-500/10 border-amber-500/20 text-amber-400 font-bold;
-  @apply shadow-[inset_0_0_10px_rgba(251,191,36,0.05)];
+  @apply shadow-[inset_0_0_10px_rgba(99,192,255,0.05)];
 }
 
 .industrial-hero-title {
   @apply text-6xl font-black uppercase tracking-tighter text-white/90;
-  text-shadow: 0 0 40px rgba(251, 191, 36, 0.15);
+  text-shadow: 0 0 40px rgba(99,192,255, 0.15);
 }
 
 .integrity-readout {
@@ -3198,7 +3201,7 @@ body::after {
   left: 0;
   width: 100%;
   height: 1px;
-  background: rgba(251, 191, 36, 0.4);
+  background: rgba(99,192,255, 0.4);
   animation: scanline-horizontal 2s infinite linear;
   transform-origin: left;
 }
@@ -3241,3 +3244,126 @@ body::after {
 .nf-emote-flex { animation: nf-emote-flex 1.6s ease-in-out; transform-origin: 50% 90%; }
 .nf-emote-drop { animation: nf-emote-drop 1.4s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
 .nf-emote-bounce { animation: nf-emote-bounce 1.2s ease-in-out; }
+
+/* Grid items default to min-width: auto, so one long unbroken line (a message, a URL,
+   a truncated title) widens its column past the screen on phones, where these layouts
+   collapse to a single implicit column. Let them shrink; truncate/wrap does the rest. */
+@layer base {
+  /* In the base layer so a utility like min-w-[200px] on a grid item still wins. */
+  .grid > * {
+    min-width: 0;
+  }
+}
+
+
+/* Cards on app pages. --page-accent is set by the app shell from the section you're in
+   (Events green, Store orange, Feed blue...), so each page gets its own color. */
+.vx-panel {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background:
+    radial-gradient(120% 90px at 0% 0%, color-mix(in srgb, var(--page-accent, #f5b83d) 13%, transparent), transparent 70%),
+    rgba(13, 17, 25, 0.86);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--page-accent, #f5b83d) 50%, transparent);
+  backdrop-filter: blur(8px);
+}
+.vx-accent {
+  color: var(--page-accent-light, #fcd77f);
+}
+
+/* ===== Visual refresh =====
+   One calmer look across the app: readable type, quieter borders and glows,
+   one card radius, sentence-case buttons. Unlayered on purpose, so these beat
+   Tailwind utilities (which sit in a layer) and the older rules above. */
+:root {
+  --radius-card: 16px;
+  --card-top: rgba(20, 27, 41, 0.94);
+  --card-bottom: rgba(11, 15, 24, 0.94);
+  --card-line: rgba(255, 255, 255, 0.085);
+  --card-line-hover: rgba(255, 255, 255, 0.17);
+  --card-shadow: 0 18px 40px -26px rgba(0, 0, 0, 0.8);
+}
+
+/* Small text was 10-12px and hard to read on the dark background. */
+.text-\[10px\] { font-size: 0.6875rem; line-height: 1rem; }
+.text-\[11px\] { font-size: 0.75rem; line-height: 1.1rem; }
+.text-xs { font-size: 0.8125rem; line-height: 1.25rem; }
+.text-sm { font-size: 0.9375rem; line-height: 1.45rem; }
+
+/* Muted text was too dim to read comfortably. */
+.text-slate-500 { color: #8390a5; }
+.text-slate-600 { color: #6e7a8f; }
+::placeholder { color: #6e7a8f; opacity: 1; }
+
+/* Wide tracking on all-caps labels hurts scanning; keep a little. Buttons and tabs read better in sentence case. */
+.uppercase { letter-spacing: 0.08em; }
+button.uppercase,
+a.uppercase { text-transform: none; letter-spacing: 0.01em; }
+
+h1.nf-heading { font-size: 1.5rem; line-height: 1.2; letter-spacing: 0.03em; }
+
+/* Cards: one radius, one border, one shadow. */
+.vx-panel,
+.nexus-panel,
+.nexus-panel-strong,
+.nexus-display-panel,
+.nexus-feature-card,
+.nexus-hero,
+.nexus-metric-card,
+.nexus-value-card,
+.nexus-release-strip,
+.nexus-shell-header,
+.hero-highlight-card,
+.nexus-radar-card {
+  border-radius: var(--radius-card);
+}
+
+.nexus-panel,
+.nexus-panel-strong,
+.nexus-display-panel,
+.nexus-feature-card,
+.nexus-hero,
+.nexus-metric-card {
+  border: 1px solid var(--card-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--card-shadow);
+}
+
+.vx-panel {
+  border: 1px solid var(--card-line);
+  background:
+    radial-gradient(120% 90px at 0% 0%, color-mix(in srgb, var(--page-accent, #f5b83d) 10%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--card-top), var(--card-bottom));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--page-accent, #f5b83d) 40%, transparent), var(--card-shadow);
+  backdrop-filter: none;
+}
+
+/* Panels are containers, not buttons: no floating lift on hover, just a brighter edge. */
+.nexus-display-panel:hover,
+.nexus-panel:hover,
+.nexus-panel-strong:hover,
+.nexus-hero:hover,
+.nexus-feature-card:hover {
+  transform: none;
+  border-color: var(--card-line-hover);
+}
+
+/* Primary buttons: solid accent with a soft glow that lifts slightly on hover. */
+button.bg-amber-400 {
+  box-shadow: 0 10px 24px -14px var(--color-amber-400), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+button.bg-amber-400:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -12px var(--color-amber-400), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+button.bg-amber-400:active:not(:disabled) { transform: translateY(0); }
+button.bg-amber-400:disabled { box-shadow: none; }
+
+/* Inputs: a clear accent ring instead of a thick outline. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-amber-400) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-amber-400) 32%, transparent);
+}

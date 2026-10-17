@@ -5,12 +5,15 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Backpack, Check, Coins, Crown, Footprints, Glasses, HardHat, Loader2, Save, Search, Shirt, ShoppingBag, Sparkles, Sword, Trash2, X } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { applyLoadoutPreset, deleteLoadoutPreset, getCosmeticCatalog, getCosmeticInventory, purchaseCosmetic, saveLoadoutPreset, setLoadoutSlot, type CosmeticItem, type CosmeticRarity, type CosmeticSlot, type LoadoutPreset } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { getAvatar } from "@/lib/api";
+import { useEscapeKey } from "@/lib/use-escape-key";
+import { MINING_ENABLED } from "@/lib/held-features";
 
 type Filter = "all" | "outfits" | "accessories" | "cosmetics" | "emotes";
 
@@ -37,11 +40,11 @@ const rarityMeta: Record<CosmeticRarity, { label: string; tone: string; glow: st
   COMMON: { label: "Common", tone: "text-slate-300 border-slate-500/40 bg-slate-500/10", glow: "rgba(148,163,184,0.25)", border: "rgba(148,163,184,0.35)" },
   RARE: { label: "Rare", tone: "text-sky-300 border-sky-400/40 bg-sky-500/10", glow: "rgba(56,189,248,0.3)", border: "rgba(56,189,248,0.45)" },
   EPIC: { label: "Epic", tone: "text-fuchsia-300 border-fuchsia-400/40 bg-fuchsia-500/10", glow: "rgba(217,70,239,0.3)", border: "rgba(217,70,239,0.45)" },
-  LEGENDARY: { label: "Legendary", tone: "text-amber-300 border-amber-400/50 bg-amber-500/10", glow: "rgba(230,179,37,0.35)", border: "rgba(230,179,37,0.55)" },
+  LEGENDARY: { label: "Legendary", tone: "text-amber-300 border-amber-400/50 bg-amber-500/10", glow: "rgba(46,164,255,0.35)", border: "rgba(46,164,255,0.55)" },
   MYTHIC: { label: "Mythic", tone: "text-rose-300 border-rose-400/50 bg-rose-500/10", glow: "rgba(244,63,94,0.35)", border: "rgba(244,63,94,0.55)" },
 };
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 
 function errorText(error: unknown) {
@@ -61,6 +64,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [presetName, setPresetName] = useState("");
   const [presetDialog, setPresetDialog] = useState(false);
+  useEscapeKey(presetDialog, () => setPresetDialog(false));
 
   const query = useQuery({
     queryKey: ["cosmetics", mode, accessToken],
@@ -135,11 +139,11 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading text-xl font-bold text-white">{mode === "store" ? "Store" : "Wardrobe & Inventory"}</h1>
-          <p className="text-xs text-slate-400">{mode === "store" ? "Outfits, cosmetics and emotes. Spend Vexora Coins." : "Outfits. Cosmetics. Collectibles."}</p>
+          <p className="text-xs text-slate-400">{mode === "store" ? "Outfits, cosmetics and emotes. Spend Nexus Forge Coins." : "Outfits. Cosmetics. Collectibles."}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-100">
-            <Coins className="h-4 w-4 text-amber-300" /> {coins.toLocaleString()} <span className="text-[10px] uppercase tracking-[0.16em] text-amber-300/80">Vexora Coins</span>
+            <Coins className="h-4 w-4 text-amber-300" /> {coins.toLocaleString()} <span className="text-[10px] uppercase tracking-[0.16em] text-amber-300/80">Nexus Forge Coins</span>
           </span>
           <Link href={mode === "store" ? "/app/wardrobe" : "/app/store"} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">
             {mode === "store" ? <><Shirt className="h-3.5 w-3.5" /> Wardrobe</> : <><ShoppingBag className="h-3.5 w-3.5" /> Store</>}
@@ -171,7 +175,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           </div>
 
           {query.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading items...</p>
+            <LoadingNote label="Loading items..." onRetry={() => void query.refetch()} />
           ) : items.length ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {items.map((item) => {
@@ -217,7 +221,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           ) : (
             <div className={`${panel} text-sm text-slate-500`}>
               {mode === "store" ? "No items match." : (
-                <>Nothing here yet. Browse the <Link href="/app/store" className="text-amber-300">Store</Link> to pick up your first pieces.</>
+                <>Nothing here yet. Browse the <Link href="/app/store" className="text-amber-300">Store</Link>{" "}to pick up your first pieces.</>
               )}
             </div>
           )}
@@ -226,7 +230,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
         <aside className="space-y-4">
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-3`}>Current Loadout</h2>
-            <div className="mb-3 flex items-end justify-center overflow-hidden rounded-xl border border-white/5 bg-[radial-gradient(circle_at_50%_30%,rgba(230,179,37,0.12),transparent_65%)]">
+            <div className="mb-3 flex items-end justify-center overflow-hidden rounded-xl border border-white/5 bg-[radial-gradient(circle_at_50%_30%,rgba(46,164,255,0.12),transparent_65%)]">
               <AvatarRenderer
                 config={avatarQuery.data?.config ?? defaultAvatarConfig}
                 size={150}
@@ -290,9 +294,11 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
           ) : null}
           <div className={panel}>
             <h2 className={`${sectionTitle} mb-2`}>Earn coins</h2>
-            <p className="text-sm text-slate-400">Vexora Coins come from mining rigs, jackpots and community rewards.</p>
+            <p className="text-sm text-slate-400">Nexus Forge Coins come from daily and community rewards.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href="/app/mining" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mining</Link>
+              {MINING_ENABLED && (
+                <Link href="/app/mining" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Mining</Link>
+              )}
               <Link href="/app/rewards" className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Rewards</Link>
             </div>
           </div>
@@ -300,7 +306,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
       </div>
 
       {presetDialog ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Save outfit" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPresetDialog(false)} />
           <div className="relative w-full max-w-sm rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Save outfit</h3>

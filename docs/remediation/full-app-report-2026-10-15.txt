@@ -1,0 +1,83 @@
+NEXUS FORGE GAMING - FULL APP REPORT
+As of 2026-10-15, about 12:55 CDT
+Branch feat/community-feed, HEAD e03bc6c. All work below is uncommitted. Nothing has been committed, pushed, or released.
+
+1. STATUS NOW
+- Public site nfgcord.com: HTTP 200.
+- API health: ok, database ok.
+- pm2: 14 apps online (5 Nexus Forge apps, 8 other bots, pm2-logrotate).
+- Backend: running a build of the current working tree, not the last commit.
+- Web app: the live build is from before today's changes. Site copy, SEO and held-feature changes are not live yet.
+- Desktop: published version is still 1.0.14. No new release.
+
+2. WHAT HAPPENED TODAY
+- 11:21 outage: a Windows restart request killed the app's Postgres (D:\NexusForgeDB, port 5433) and the pm2 daemon. The PC did not reboot, and Postgres is not a Windows service, so nothing restarted it.
+- Recovery: started the database, ran scripts\vexora-autostart.cmd, restored 8 other bots from a filtered copy of the pm2 dump, then put the original dump back unchanged. Free City stayed off.
+- Webhook fix deployed: webhook header names contained spaces, so every webhook test and delivery failed. Fixed in one shared helper, smoke-tested as a staging build, swapped in, backend restarted.
+- Test email: Gmail accepted it (250 OK). Please check the inbox at hankharrell0@gmail.com, and the spam folder.
+- Desktop test: downloaded the published installer, hash matched the manifest, installed into a test folder, launched and closed it, then uninstalled it. The earlier test copy (NexusForgeUpdateTest) was removed by the installer's previous-version step.
+
+3. RISKS TO ACT ON
+1. Production database may be missing the EmailMessage table. The email pipeline writes to it. The reviewed SQL (docs\remediation\email-schema-proposal.sql) is not applied, per my notes. Not checked on production. No errors seen in the logs so far. Needs your approval to check or apply.
+2. Free City at logon: the logon script runs pm2 resurrect, which restarts saved apps that are not running. freecity-crash-watch is saved as online and would restart. freecity-txadmin may too. Not changed.
+3. Mining and jackpot are hidden in the web app only. They are still active on the server and in Discord.
+4. Live site copy is out of date. The server enforces a 95 MB upload cap (local storage). The live site may show old numbers until the web app is deployed.
+5. The desktop installer is not code-signed.
+6. Voice: TURN is not configured, so calls across some networks may fail.
+7. The backend runs uncommitted code.
+
+4. FEATURE STATUS
+Verified this session in the isolated test environment unless noted.
+- Sign-in, 2FA, password reset: reset verified over the API (new password works, old password refused). Browser flow not checked.
+- Forges and invites: rejoin by invite works. Audit log: owner 200 (13 entries), member 403.
+- Messages and AutoMod: keyword rule blocks the message (400, names the rule). Clean message 201.
+- Events: RSVP join and cancel 200. Event create 201.
+- Support: ticket create 201. Staff reply 201, status WAITING_ON_USER, member sees the reply.
+- Shop and inventory: purchase with test coins 201. Inventory updates.
+- Bots: bot create 201.
+- OAuth clients: create 201. Authorization info 200. Approve and token exchange not run.
+- Live streams: creators-live list 200. Go-live not tested.
+- Voice: token 200, mesh mode. A real call was not tested.
+- Webhooks: headers fixed and unit-tested. Live delivery not tested.
+- Email: SMTP connection ok. Test email accepted by Gmail. The in-app email pipeline is not verified on production.
+- Desktop: integrity check, silent install, launch (sign-in screen), close and uninstall verified. The in-app updater is not tested end to end.
+- Web pages and UI: not browser-tested this session.
+- Earlier work (isolated tests): account, forge, messaging, moderation, support, shop, feed and voice-token journeys were run.
+
+5. TEST RESULTS
+- Server: 308 of 308 pass against the test database (this session, after the webhook fix).
+- Owner Console: 54 of 54 pass (this session).
+- Desktop: 16 integrity tests pass (last run earlier in the session).
+- Web: tests pass; typecheck and lint clean (last run earlier in the session).
+
+6. CODE CHANGES (UNCOMMITTED)
+- Owner Console: every ticket change records owner or system. Migration for existing stores. The UI shows the actor.
+- Webhooks: header names fixed in lib\webhooks.ts (webhookHeaders helper), used by the developer routes. Regression tests added.
+- Earlier work: upload cap copy at 95 MB; mining and jackpot hidden in the web app; SEO metadata on nine public pages; billing fails closed in production; desktop installer hash check before install; email-table tests and proposed SQL; reduced-motion page transitions; Owner Console hardening (job verdicts, stuck jobs, pm2 limits, SSE, read-only schema role); staged commit plan (docs\remediation\git-stage-plan.md).
+- Git: 110 tracked files modified; 80 untracked entries.
+
+7. OWNER CONSOLE
+- Not running. Not launched.
+- Open items: automatic stuck-job flags are recorded as the owner, not the system. The 403-vs-404 public-domain choice is undecided. Contact-data masking and retention are undecided.
+
+8. LEGAL
+- Drafts are unpublished. Placeholders await attorney review. Nothing has been published.
+
+9. HOUSEKEEPING
+- Test API log: contains dev-mail text, including reset links and codes for test accounts. Can be deleted.
+- pm2 dump backup: C:\Users\TRHDEVELOPMENT\.pm2\dump.pm2.before-restore-*.bak. Holds the same secrets as the dump. Can be deleted.
+- Old server build backup: D:\NexusForgeDB\backups\server-dist-before-webhook-fix-20261015-124419.
+- Test data exists only in nexusforge_test: test accounts, a test forge, and an AutoMod rule named "Journey keyword".
+
+10. DECISIONS NEEDED
+1. EmailMessage: may I check production read-only for the table, and apply the reviewed additive SQL if it is missing?
+2. Free City at logon: remove the Free City entries from the logon restore?
+3. Disable mining and jackpot on the server and in Discord?
+4. Deploy the web app so today's site changes go live?
+5. Commit using the Option A staged plan, and when?
+6. Desktop: release a new version, and sign the installer?
+7. Uploads: keep the 95 MB cap, or set up S3 for larger files?
+8. Voice: configure TURN, or add LiveKit keys?
+9. Did the test email arrive at hankharrell0@gmail.com?
+10. Owner Console: the 403-vs-404 choice, and the masking and retention rules.
+11. Legal: send the drafts to an attorney before anything is published.

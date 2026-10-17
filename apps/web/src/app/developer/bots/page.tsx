@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
-import { listBotCatalog } from "@/lib/api";
+import { listBotCatalog, listPublicDeveloperBots } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+import { PublicBots } from "@/components/developer/developer-public-sections";
 
 export default function DeveloperBotsPage() {
   const { user, accessToken } = useAuthStore();
@@ -16,6 +17,14 @@ export default function DeveloperBotsPage() {
     queryKey: ["developer-bot-catalog", accessToken],
     queryFn: () => listBotCatalog(accessToken!, undefined),
     enabled: isSignedIn,
+    staleTime: 30_000,
+  });
+
+  // Guests see the public bots, with no invite codes; the full list with codes is for signed-in people.
+  const publicBotsQuery = useQuery({
+    queryKey: ["public-developer-bots"],
+    queryFn: () => listPublicDeveloperBots(),
+    enabled: !isSignedIn,
     staleTime: 30_000,
   });
 
@@ -34,13 +43,15 @@ export default function DeveloperBotsPage() {
     <ExperienceShell
       eyebrow="Marketplace"
       title="Integration marketplace"
-      subtitle="Browse public Vexora Gaming bots and get inspiration for your next integration."
+      subtitle="Browse public Nexus Forge Gaming bots and get inspiration for your next integration."
       metrics={isSignedIn ? [{ label: "Bot listings", value: String(catalogQuery.data?.bots.length ?? 0), tone: "emerald" }] : []}
       actions={[]}
       maxWidthClassName="max-w-5xl"
     >
       {!isSignedIn ? (
-        <div className="rounded-[28px] border border-white/10 bg-[#11151e] p-8 text-slate-400 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">Sign in to view marketplace integrations.</div>
+        <div className="space-y-4">
+          <PublicBots data={publicBotsQuery.data} loading={publicBotsQuery.isLoading} failed={publicBotsQuery.isError} />
+        </div>
       ) : (
         <div className="grid gap-4">
           {catalogQuery.isLoading ? (

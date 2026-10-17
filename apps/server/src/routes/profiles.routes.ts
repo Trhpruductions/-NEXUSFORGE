@@ -1,10 +1,23 @@
-import { Router } from "express";
+import express, { Router, type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { safeUser } from "../lib/safe-user.js";
 import { achievementProgress, evaluateAchievements } from "../lib/achievements.js";
 import { hasAdminAccess } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireCsrf } from "../middleware/csrf.js";
+import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
+import { limitsForUser } from "../lib/user-limits.js";
+import { upgradeRequired } from "../lib/plans.js";
+import { checkProfileImage, PROFILE_IMAGE_LIMITS, type ProfileImageKind } from "../lib/image-validation.js";
+import { ownedProfileImageKey, storeProfileImage, swapStoredImage } from "../lib/storage.js";
+import {
+  isUniqueViolation,
+  usernameCooldownEndsAt,
+  usernameIssue,
+  usernameTaken,
+} from "../lib/usernames.js";
 
 export const profilesRouter = Router();
 const userIdParamSchema = z.string().uuid();
@@ -36,7 +49,7 @@ profilesRouter.get("/users/groups", requireAuth, async (_req, res) => {
     const groups = await Promise.all(
       Object.entries(userGroupDefinitions).map(async ([tag, meta]) => {
         const users = await prisma.user.findMany({
-          where: { clanTag: tag },
+          where: { clanTag: tag, deletedAt: null },
           select: {
             id: true,
             username: true,
@@ -144,7 +157,7 @@ profilesRouter.post("/activity", requireAuth, async (req, res) => {
           currentActivity: null,
         },
       });
-      res.json(updated);
+      res.json(safeUser(updated));
       return;
     }
 
@@ -159,7 +172,7 @@ profilesRouter.post("/activity", requireAuth, async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     res.status(400).json({ error: "Failed to update activity" });
   }
@@ -189,6 +202,7 @@ profilesRouter.get("/users/search", requireAuth, async (req, res) => {
 
     const users = await prisma.user.findMany({
       where: {
+        deletedAt: null,
         OR: [
           { username: { contains: q, mode: "insensitive" } },
           { clanTag: { contains: q, mode: "insensitive" } },
@@ -244,7 +258,7 @@ profilesRouter.get("/users/:userId", requireAuth, async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: validatedUserId.data },
+      where: { id: validatedUserId.data, deletedAt: null },
       select: {
         id: true,
         username: true,
@@ -353,6 +367,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
 
     if (type === "reputation") {
       users = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -369,6 +384,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
       });
     } else if (type === "streaks") {
       users = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -389,6 +405,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
       });
     } else if (type === "medals") {
       const usersWithMedalCount = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -689,3 +706,421 @@ export async function updateUserReputation(userId: string, delta: number) {
     console.error("Update reputation error:", error);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Profile editor: the signed-in user's own name, username, bio, links, privacy and pictures.
+// Every write targets req.user.id. No user id is read from the URL or the body, and unknown
+// fields are rejected (strict schemas).
+// ---------------------------------------------------------------------------
+
+const DISPLAY_NAME_MAX = 40;
+const BIO_MAX = 512;
+const SOCIAL_LINK_MAX_LENGTH = 200;
+const PICTURE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** One link per platform, each on that platform's own domain. The list also sets the count limit. */
+const SOCIAL_PLATFORMS = {
+  discord: { label: "Discord", domains: ["discord.gg", "discord.com"] },
+  x: { label: "X", domains: ["x.com", "twitter.com"] },
+  instagram: { label: "Instagram", domains: ["instagram.com"] },
+  kick: { label: "Kick", domains: ["kick.com"] },
+  youtube: { label: "YouTube", domains: ["youtube.com", "youtu.be"] },
+  twitch: { label: "Twitch", domains: ["twitch.tv"] },
+} as const;
+type SocialPlatform = keyof typeof SOCIAL_PLATFORMS;
+const SOCIAL_PLATFORM_KEYS = Object.keys(SOCIAL_PLATFORMS) as SocialPlatform[];
+const SOCIAL_LINKS_MAX = SOCIAL_PLATFORM_KEYS.length;
+
+type SocialLinkResult = { ok: true; href: string } | { ok: false; error: string };
+
+/** Checks a social link is an https address on the platform's own domain, and returns it normalised. */
+export function parseSocialLink(platform: SocialPlatform, raw: string): SocialLinkResult {
+  const value = raw.trim();
+  const { label, domains } = SOCIAL_PLATFORMS[platform];
+  if (value.length > SOCIAL_LINK_MAX_LENGTH) return { ok: false, error: `${label} link can be up to ${SOCIAL_LINK_MAX_LENGTH} characters.` };
+  if (/\s/.test(value)) return { ok: false, error: `${label} link can't contain spaces.` };
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return { ok: false, error: `${label} link must be a full address that starts with https://` };
+  }
+  if (url.protocol !== "https:") return { ok: false, error: `${label} link must start with https://` };
+  if (url.username || url.password || url.port) return { ok: false, error: `${label} link can't include a login or a port number.` };
+  const host = url.hostname.toLowerCase();
+  if (!domains.some((domain) => host === domain || host.endsWith(`.${domain}`))) {
+    return { ok: false, error: `${label} links must be on ${domains[0]}.` };
+  }
+  return { ok: true, href: url.href };
+}
+
+const noControlChars = (value: string) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value);
+
+const displayNameField = z
+  .string()
+  .trim()
+  .max(DISPLAY_NAME_MAX)
+  .refine(noControlChars, "Display names can't contain control characters.");
+
+const bioField = z
+  .string()
+  .transform((value) => value.replace(/\r\n?/g, "\n").trim())
+  .refine((value) => Array.from(value).length <= BIO_MAX, `Bio can be up to ${BIO_MAX} characters.`)
+  .refine(noControlChars, "Bio can't contain control characters.");
+
+const socialField = (platform: SocialPlatform) =>
+  z
+    .string()
+    .max(SOCIAL_LINK_MAX_LENGTH)
+    .nullable()
+    .optional()
+    .superRefine((value, ctx) => {
+      if (!value || !value.trim()) return;
+      const result = parseSocialLink(platform, value);
+      if (!result.ok) ctx.addIssue({ code: "custom", message: result.error });
+    });
+
+const socialLinksField = z
+  .strictObject({
+    discord: socialField("discord"),
+    x: socialField("x"),
+    instagram: socialField("instagram"),
+    kick: socialField("kick"),
+    youtube: socialField("youtube"),
+    twitch: socialField("twitch"),
+  })
+  .refine(
+    (value) => Object.values(value).filter((link) => typeof link === "string" && link.trim()).length <= SOCIAL_LINKS_MAX,
+    `You can add up to ${SOCIAL_LINKS_MAX} links.`,
+  );
+
+export const profileUpdateSchema = z
+  .strictObject({
+    displayName: displayNameField.nullable().optional(),
+    username: z.string().trim().min(1).max(64).optional(),
+    bio: bioField.nullable().optional(),
+    socialLinks: socialLinksField.optional(),
+    privacy: z
+      .strictObject({
+        showOnlineStatus: z.boolean().optional(),
+        showActivity: z.boolean().optional(),
+        showJoinedServers: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, "No changes supplied.");
+
+const editorUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  bio: true,
+  avatar: true,
+  banner: true,
+  socialLinks: true,
+  privacySettings: true,
+  usernameChangedAt: true,
+} as const;
+
+type EditorRow = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  avatar: string | null;
+  banner: string | null;
+  socialLinks: Prisma.JsonValue | null;
+  privacySettings: Prisma.JsonValue | null;
+  usernameChangedAt: Date | null;
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Privacy toggles for the optional parts of a profile. Missing values take the settings defaults. */
+function readPrivacy(raw: unknown) {
+  const stored = isPlainObject(raw) ? raw : {};
+  return {
+    showOnlineStatus: typeof stored.showOnlineStatus === "boolean" ? stored.showOnlineStatus : true,
+    showActivity: typeof stored.showActivity === "boolean" ? stored.showActivity : true,
+    showJoinedServers: typeof stored.showJoinedServers === "boolean" ? stored.showJoinedServers : false,
+  };
+}
+
+function readSocialLinks(raw: unknown): Partial<Record<SocialPlatform, string>> {
+  const stored = isPlainObject(raw) ? raw : {};
+  const links: Partial<Record<SocialPlatform, string>> = {};
+  for (const platform of SOCIAL_PLATFORM_KEYS) {
+    const value = stored[platform];
+    if (typeof value === "string" && value.trim()) links[platform] = value.trim();
+  }
+  return links;
+}
+
+function editorState(row: EditorRow) {
+  const cooldownEnds = usernameCooldownEndsAt(row.usernameChangedAt);
+  return {
+    profile: {
+      id: row.id,
+      username: row.username,
+      displayName: row.displayName,
+      bio: row.bio,
+      avatar: row.avatar,
+      banner: row.banner,
+      socialLinks: readSocialLinks(row.socialLinks),
+      privacy: readPrivacy(row.privacySettings),
+      usernameChangeAvailableAt: cooldownEnds ? cooldownEnds.toISOString() : null,
+    },
+    limits: {
+      displayNameMax: DISPLAY_NAME_MAX,
+      bioMax: BIO_MAX,
+      socialLinkMaxLength: SOCIAL_LINK_MAX_LENGTH,
+      socialLinksMax: SOCIAL_LINKS_MAX,
+      socialPlatforms: SOCIAL_PLATFORM_KEYS.map((key) => ({ key, label: SOCIAL_PLATFORMS[key].label, domains: [...SOCIAL_PLATFORMS[key].domains] })),
+      usernameMin: 3,
+      usernameMax: 32,
+      pictures: { ...PROFILE_IMAGE_LIMITS, types: PICTURE_TYPES },
+    },
+  };
+}
+
+async function editorStateFor(userId: string) {
+  const row = await prisma.user.findFirst({ where: { id: userId, deletedAt: null }, select: editorUserSelect });
+  return row ? editorState(row) : null;
+}
+
+/** Full editor state for the signed-in user: what the form is filled from, and the limits it enforces. */
+profilesRouter.get("/me", requireAuth, async (req, res) => {
+  try {
+    const state = await editorStateFor(req.user!.id);
+    if (!state) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+    res.json(state);
+  } catch (error) {
+    console.error("Get profile editor error:", error);
+    res.status(500).json({ error: "Couldn't load your profile." });
+  }
+});
+
+/**
+ * Advisory only: the form shows it while typing, but the save is authoritative and the database's
+ * unique username constraint decides any race.
+ */
+profilesRouter.get("/me/username-availability", requireAuth, async (req, res) => {
+  const parsed = z.object({ username: z.string().trim().min(1).max(64) }).safeParse({ username: req.query.username });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a username to check." });
+    return;
+  }
+  try {
+    const userId = req.user!.id;
+    const me = await prisma.user.findFirst({ where: { id: userId, deletedAt: null }, select: { username: true, usernameChangedAt: true } });
+    if (!me) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+    const name = parsed.data.username;
+    const issue = usernameIssue(name);
+    if (issue) {
+      res.json({ available: false, reason: issue.reason, message: issue.message });
+      return;
+    }
+    if (name === me.username) {
+      res.json({ available: true, reason: "current", message: "This is your current username." });
+      return;
+    }
+    const caseOnly = name.toLowerCase() === me.username.toLowerCase();
+    const cooldownEnds = caseOnly ? null : usernameCooldownEndsAt(me.usernameChangedAt);
+    if (cooldownEnds) {
+      res.json({ available: false, reason: "cooldown", message: "You can change your username once a day.", availableAt: cooldownEnds.toISOString() });
+      return;
+    }
+    if (await usernameTaken(name, userId)) {
+      res.json({ available: false, reason: "taken", message: "That username is already taken." });
+      return;
+    }
+    res.json({ available: true, reason: "free", message: "That username is available." });
+  } catch (error) {
+    console.error("Username availability error:", error);
+    res.status(500).json({ error: "Couldn't check that username. Try again." });
+  }
+});
+
+/** Saves the text fields in one write. Pictures are sent separately (see the picture routes). */
+profilesRouter.patch("/me", requireAuth, requireCsrf, async (req, res) => {
+  const parsed = profileUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const userId = req.user!.id;
+  const input = parsed.data;
+  try {
+    const current = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { username: true, usernameChangedAt: true, socialLinks: true, privacySettings: true },
+    });
+    if (!current) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (input.displayName !== undefined) data.displayName = input.displayName || null;
+    if (input.bio !== undefined) data.bio = input.bio || null;
+
+    if (input.socialLinks !== undefined) {
+      const links = readSocialLinks(current.socialLinks);
+      for (const platform of SOCIAL_PLATFORM_KEYS) {
+        const value = input.socialLinks[platform];
+        if (value === undefined) continue;
+        if (!value || !value.trim()) {
+          delete links[platform];
+          continue;
+        }
+        const result = parseSocialLink(platform, value);
+        if (!result.ok) {
+          res.status(400).json({ error: result.error });
+          return;
+        }
+        links[platform] = result.href;
+      }
+      data.socialLinks = links as Prisma.InputJsonObject;
+    }
+
+    if (input.username !== undefined && input.username !== current.username) {
+      const issue = usernameIssue(input.username);
+      if (issue) {
+        res.status(400).json({ error: issue.message });
+        return;
+      }
+      // Changing only the letter case is allowed at any time; a real rename waits out the cooldown.
+      const caseOnly = input.username.toLowerCase() === current.username.toLowerCase();
+      const cooldownEnds = caseOnly ? null : usernameCooldownEndsAt(current.usernameChangedAt);
+      if (cooldownEnds) {
+        res.status(429).json({ error: "You can change your username once a day.", retryAt: cooldownEnds.toISOString() });
+        return;
+      }
+      if (await usernameTaken(input.username, userId)) {
+        res.status(409).json({ error: "That username is already taken." });
+        return;
+      }
+      data.username = input.username;
+      data.usernameChangedAt = new Date();
+    }
+
+    if (input.privacy) {
+      const stored = isPlainObject(current.privacySettings) ? current.privacySettings : {};
+      // Merge into what is already stored, so toggles saved elsewhere are kept.
+      data.privacySettings = { ...stored, ...input.privacy } as Prisma.InputJsonObject;
+    }
+
+    const updated = await prisma.user.update({ where: { id: userId }, data, select: editorUserSelect });
+    res.json(editorState(updated));
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "That username is already taken." });
+      return;
+    }
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Couldn't save your profile. Nothing was changed." });
+  }
+});
+
+class ProfileAccountMissing extends Error {}
+
+/** Points the user's avatar or banner at `url` (null clears it) and returns the URL it held before. */
+async function commitPicture(userId: string, kind: ProfileImageKind, url: string | null): Promise<string | null> {
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.user.findFirst({ where: { id: userId, deletedAt: null }, select: { avatar: true, banner: true } });
+    if (!row) throw new ProfileAccountMissing();
+    await tx.user.update({ where: { id: userId }, data: kind === "avatar" ? { avatar: url } : { banner: url } });
+    return kind === "avatar" ? row.avatar : row.banner;
+  });
+}
+
+async function bannerAllowed(userId: string) {
+  const limits = await limitsForUser(userId);
+  return limits.profileBanner || (await hasActiveFeatureEntitlement(userId, "TEAM_BRANDING_KIT"));
+}
+
+/** Reads the raw picture bytes (PNG, JPEG or WebP only, size-capped, no compressed bodies). */
+function pictureUploadParsers(kind: ProfileImageKind): [RequestHandler, ErrorRequestHandler] {
+  const parser = express.raw({ type: PICTURE_TYPES, limit: PROFILE_IMAGE_LIMITS[kind].maxBytes, inflate: false });
+  const parserError: ErrorRequestHandler = (error, _req, res, next) => {
+    const status = (error as { status?: unknown } | null)?.status;
+    if (status === 413) {
+      res.status(413).json({ error: `${kind === "avatar" ? "Avatar" : "Banner"} pictures can be up to ${PROFILE_IMAGE_LIMITS[kind].maxBytes / (1024 * 1024)} MB.` });
+      return;
+    }
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      res.status(415).json({ error: "Only plain PNG, JPEG and WebP pictures are accepted." });
+      return;
+    }
+    next(error);
+  };
+  return [parser, parserError];
+}
+
+async function uploadPicture(kind: ProfileImageKind, req: Request, res: Response) {
+  const userId = req.user!.id;
+  try {
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(415).json({ error: "Send the picture file itself as PNG, JPEG or WebP." });
+      return;
+    }
+    if (kind === "banner" && !(await bannerAllowed(userId))) {
+      res.status(402).json(upgradeRequired("A profile banner is a Core+ perk.", "PROFILE_BANNER", "CORE"));
+      return;
+    }
+    const contentType = req.headers["content-type"];
+    const declared = typeof contentType === "string" ? contentType.split(";")[0].trim().toLowerCase() : null;
+    const picture = checkProfileImage(req.body, kind, declared);
+    if (!picture.ok) {
+      res.status(picture.status).json({ error: picture.error });
+      return;
+    }
+    // Write the new file, switch the database to it, and only then remove the old one (lib/storage.ts).
+    const result = await swapStoredImage({
+      write: () => storeProfileImage({ userId, kind, bytes: picture.bytes, ext: picture.ext, mime: picture.mime }),
+      commit: (url) => commitPicture(userId, kind, url),
+      keyForOwnedUrl: (url) => ownedProfileImageKey(url, userId),
+      onCleanupError: (error, key) => console.error("Profile picture cleanup failed:", key, error),
+    });
+    res.json({ [kind]: result.url });
+  } catch (error) {
+    if (error instanceof ProfileAccountMissing) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+    console.error("Profile picture upload error:", error);
+    res.status(500).json({ error: "Couldn't save that picture. Your current picture is unchanged." });
+  }
+}
+
+async function removePicture(kind: ProfileImageKind, req: Request, res: Response) {
+  const userId = req.user!.id;
+  try {
+    await swapStoredImage({
+      commit: (url) => commitPicture(userId, kind, url),
+      keyForOwnedUrl: (url) => ownedProfileImageKey(url, userId),
+      onCleanupError: (error, key) => console.error("Profile picture cleanup failed:", key, error),
+    });
+    res.json({ [kind]: null });
+  } catch (error) {
+    if (error instanceof ProfileAccountMissing) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+    console.error("Profile picture remove error:", error);
+    res.status(500).json({ error: "Couldn't remove that picture. Your current picture is unchanged." });
+  }
+}
+
+profilesRouter.post("/me/avatar", requireAuth, requireCsrf, ...pictureUploadParsers("avatar"), (req, res) => uploadPicture("avatar", req, res));
+profilesRouter.post("/me/banner", requireAuth, requireCsrf, ...pictureUploadParsers("banner"), (req, res) => uploadPicture("banner", req, res));
+profilesRouter.delete("/me/avatar", requireAuth, requireCsrf, (req, res) => removePicture("avatar", req, res));
+profilesRouter.delete("/me/banner", requireAuth, requireCsrf, (req, res) => removePicture("banner", req, res));

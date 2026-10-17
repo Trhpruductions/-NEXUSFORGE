@@ -1,20 +1,17 @@
 {
-    "version":  "1.0.11",
-    "notes":  [
-                  "Deterministic window handoff from splash to full app",
-                  "Automatic local URL recovery retry before fallback",
-                  "Version-aware cinematic launch screen enhancements",
-                  "Premium diagnostics panel redesign for recovery mode",
-                  "Installed-launch resolver and startup telemetry hardening"
-              ],
-    "downloadUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-    "downloadUrls":  [
-                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-                         "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.11.exe",
-                         "https://github.com/Trhpructions/-NEXUSFORGE/releases/download/v1.0.11/NexusForge%20Desktop%20Setup%201.0.11.exe",
-                         "https://raw.githubusercontent.com/Trhpructions/-NEXUSFORGE/gh-pages/NexusForge%20Desktop%20Setup%20Latest.exe"
-                     ],
-    "downloadFolderUrl":  "https://trhpruductions.github.io/-NEXUSFORGE/",
-    "sha256":  "353248d343b2f6f3f92c2f0d9e0ad96b3a3c271c18ea5f1ecdbc02d6a3234c1a",
-    "forceUpdate":  true
+  "version": "1.0.15",
+  "notes": [
+    "Screen sharing now works in the desktop app: pick a screen or a window to share in any voice channel",
+    "The app opens as a normal window you can move, resize, minimize and maximize; F11 switches to full screen",
+    "New opening screen you can move, minimize or close",
+    "Known limitations in this beta: computer sound is not shared with the screen yet, and some strict networks may need a relay server that is not set up yet"
+  ],
+  "downloadUrl": "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+  "downloadUrls": [
+    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
+    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.15.exe"
+  ],
+  "downloadFolderUrl": "https://nfgcord.com/download",
+  "sha256": "c0c59104a78f59256ea9c0358612820c80683a87c098ba9ee641bfc473fb6d61",
+  "forceUpdate": false
 }

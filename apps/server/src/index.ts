@@ -13,6 +13,10 @@ import { createServer } from "node:http";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { setIo } from "./lib/realtime.js";
+import { allowedOriginList, LOCAL_ORIGIN_PATTERN } from "./lib/origins.js";
+import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
+import { hasForgePermission } from "./lib/forge-permissions.js";
+import { stageJoin, stageRaise, stageSetSpeaker, stageSnapshot, stageSync } from "./lib/stage.js";
 import { verifyAccessToken } from "./lib/jwt.js";
 import { globalRateLimit, authRateLimit } from "./middleware/rate-limit.js";
 import { authRouter } from "./routes/auth.routes.js";
@@ -28,9 +32,31 @@ import { avatarRouter } from "./routes/avatar.routes.js";
 import { discoverRouter } from "./routes/discover.routes.js";
 import { homeRouter } from "./routes/home.routes.js";
 import { settingsRouter } from "./routes/settings.routes.js";
+import { accountRouter } from "./routes/account.routes.js";
+import { meRouter } from "./routes/me.routes.js";
+import { updatesRouter } from "./routes/updates.routes.js";
+import { publicDevelopersRouter } from "./routes/public-developers.routes.js";
+import { errorsRouter } from "./routes/errors.routes.js";
+import { problemReportsRouter } from "./routes/problem-reports.routes.js";
+import { recordError } from "./lib/error-log.js";
+import { reportsRouter } from "./routes/reports.routes.js";
+import { legalRouter } from "./routes/legal.routes.js";
+import { linkPreviewRouter } from "./routes/link-preview.routes.js";
+import { threadsRouter } from "./routes/threads.routes.js";
+import { webhookExecuteRouter } from "./routes/webhooks.routes.js";
+import { ensureLegalPolicies } from "./lib/legal-policies.js";
+import { cachedSuspension, loadActiveSuspensions } from "./lib/account-suspension.js";
+import { runStartupTask } from "./lib/startup.js";
+import { startCleanup } from "./lib/cleanup.js";
+import { startStoreBillingSweep } from "./lib/store-billing/sweep.js";
+import { warmUpEmailDelivery } from "./lib/delivery.js";
+import { startDeletionSweeper } from "./lib/account-deletion.js";
+import { startDailyPulse } from "./lib/daily-pulse.js";
 import { verificationRouter } from "./routes/verification.routes.js";
 import { ageVerificationRouter } from "./routes/age-verification.routes.js";
 import { adminAgeRouter } from "./routes/admin-age.routes.js";
+import { adminEmailRouter } from "./routes/admin-email.routes.js";
+import { emailRouter, emailWebhookHandler } from "./routes/email.routes.js";
 import { requireAge, requireAuth } from "./middleware/auth.js";
 import { joinVoice, leaveAllVoice, leaveVoice, voiceMembers, voiceOccupancyFor } from "./lib/voice-occupancy.js";
 import { startEventReminders } from "./lib/event-reminders.js";
@@ -47,8 +73,10 @@ import { adminRouter } from "./routes/admin.routes.js";
 import { profilesRouter } from "./routes/profiles.routes.js";
 import { runtimeRouter } from "./routes/runtime.routes.js";
 import { developerRouter } from "./routes/developer.routes.js";
+import { supportRouter } from "./routes/support.routes.js";
 import { oauthRouter } from "./routes/oauth.routes.js";
 import { billingRouter, billingWebhookHandler } from "./routes/billing.routes.js";
+import { storeBillingRouter } from "./routes/store-billing.routes.js";
 import economyRouter from "./routes/economy-routes.js";
 import miningRouter from "./routes/mining-routes.js";
 import jackpotRouter from "./routes/jackpot.routes.js";
@@ -67,30 +95,17 @@ morgan.token('remote-addr-masked', (req: any) => {
 });
 
 const app = express();
+// Behind a tunnel or reverse proxy on this machine (cloudflared, nginx), every request
+// arrives from 127.0.0.1. Trust X-Forwarded-For only from loopback so req.ip is the real
+// visitor (rate limits, session IP prefixes); remote clients can't spoof it.
+app.set("trust proxy", "loopback");
 const httpServer = createServer(app);
 
 initializeAuditLogger(prisma);
 
-const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const localOriginPattern = LOCAL_ORIGIN_PATTERN;
 
-const configuredOrigins = env.CLIENT_ORIGIN.split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
-
-let appWebOrigin = "";
-try {
-  appWebOrigin = new URL(env.APP_WEB_URL).origin;
-} catch {
-  appWebOrigin = "";
-}
-
-const allowedOrigins = Array.from(
-  new Set(
-    env.NODE_ENV === "production"
-      ? [...configuredOrigins, appWebOrigin].filter(Boolean)
-      : [...configuredOrigins, "http://localhost:3300", "http://localhost:3001", "http://127.0.0.1:3300", "http://127.0.0.1:3001"],
-  ),
-);
+const allowedOrigins = allowedOriginList({ clientOrigin: env.CLIENT_ORIGIN, appWebUrl: env.APP_WEB_URL, nodeEnv: env.NODE_ENV });
 
 const hasOnlyLocalConfiguredOrigins =
   allowedOrigins.length > 0 && allowedOrigins.every((origin) => localOriginPattern.test(origin));
@@ -108,14 +123,20 @@ function isOriginAllowed(origin?: string) {
     return true;
   }
 
-  if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
-    return /^https:\/\//i.test(origin);
-  }
-
+  // There used to be a fallback here that let ANY https:// site in when only local
+  // origins were configured. With credentialed CORS that lets any website read a signed-in
+  // user's API responses. Public addresses (a domain, a tunnel) go in CLIENT_ORIGIN.
   return false;
 }
 
+if (env.NODE_ENV === "production" && hasOnlyLocalConfiguredOrigins) {
+  console.warn("[cors] Only local origins are allowed. To serve the app from a public address, add it to CLIENT_ORIGIN (comma-separated).");
+}
+
 const io = new Server(httpServer, {
+  // Largest legitimate message is a WebRTC offer with video (a few KB). The 1 MB default
+  // let a client push huge payloads through the relay.
+  maxHttpBufferSize: 128 * 1024,
   cors: {
     origin(origin, callback) {
       callback(null, isOriginAllowed(origin));
@@ -136,6 +157,8 @@ app.use(helmet());
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms [GHOST-IP: :remote-addr-masked]'));
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
 app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
+// Email provider webhook: needs the raw bytes for its HMAC signature, so it sits ahead of express.json().
+app.post("/api/email/webhooks", express.raw({ type: "application/json", limit: "64kb" }), emailWebhookHandler);
 // Local (no-S3) uploads: the presigned token is the credential, so these sit ahead of the JSON parser and auth.
 app.put("/api/uploads/local", ...localUploadPutHandler);
 app.use("/uploads", ...localUploadsStatic);
@@ -155,6 +178,18 @@ app.use("/api/avatar", avatarRouter);
 app.use("/api/discover", discoverRouter);
 app.use("/api/home", homeRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/account", accountRouter);
+app.use("/api/me", meRouter);
+app.use("/api/updates", updatesRouter);
+// Public developer section (published updates, public bots): no sign-in required, read only.
+app.use("/api/public/developers", publicDevelopersRouter);
+app.use("/api/errors", errorsRouter);
+app.use("/api/problem-reports", problemReportsRouter);
+app.use("/api/reports", reportsRouter);
+app.use("/api/legal", legalRouter);
+app.use("/api/link-preview", linkPreviewRouter);
+app.use("/api/threads", threadsRouter);
+app.use("/api/webhooks", webhookExecuteRouter);
 app.use("/api/verification", verificationRouter);
 app.use("/api/age-verification", ageVerificationRouter);
 app.use("/api/admin/age-verification", adminAgeRouter);
@@ -167,11 +202,15 @@ app.use("/api/voice", voiceRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/bots", botsRouter);
 app.use("/api/developer", developerRouter);
+app.use("/api/support", supportRouter);
 app.use("/api/oauth", express.urlencoded({ extended: true }), oauthRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/runtime", runtimeRouter);
+app.use("/api/email", emailRouter);
+app.use("/api/admin/email", adminEmailRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/billing", storeBillingRouter);
 app.use("/api/economy", requireAuth, requireAge, economyRouter);
 app.use("/api/mining", requireAuth, requireAge, miningRouter);
 app.use("/api/jackpot", requireAuth, requireAge, jackpotRouter);
@@ -189,6 +228,8 @@ io.use((socket, next) => {
   const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
   try {
     const payload = verifyAccessToken(token);
+    if (cachedSuspension(payload.sub)) return next(new Error("Account suspended"));
+    socket.data.jti = payload.jti;
     socket.data.user = {
       id: payload.sub,
       // Username and Email removed from realtime context for security.
@@ -213,6 +254,22 @@ function unwatch(creatorId: string, socketId: string) {
   socketWatching.get(socketId)?.delete(creatorId);
 }
 
+const STALE_LIVE_MS = 10 * 60 * 1000;
+async function endStaleLive(userId: string) {
+  try {
+    const ended = await prisma.user.updateMany({
+      where: { id: userId, creatorStatus: "LIVE" },
+      data: { creatorStatus: "OFFLINE", liveViewerCount: 0, liveStartedAt: null },
+    });
+    if (ended.count) {
+      await prisma.streamSession.updateMany({ where: { userId, endedAt: null }, data: { endedAt: new Date() } });
+      io.emit("live:viewers", { creatorId: userId, count: 0 });
+    }
+  } catch (error) {
+    console.error("[live] ending a stale stream failed", error);
+  }
+}
+
 async function publishViewerCount(creatorId: string) {
   const count = streamViewers.get(creatorId)?.size ?? 0;
   try {
@@ -233,12 +290,41 @@ async function forgeIdForChannel(channelId: string) {
   return channel?.forgeId ?? null;
 }
 
+const LIVEKIT_CONFIGURED = Boolean(env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVEKIT_WS_URL);
+const MESH_VOICE_LIMIT = 10;
+
+/**
+ * Can this user see the channel (member of its forge, and allowed in if it's private)?
+ * Voice also requires a voice-type channel and no active timeout.
+ */
+async function canAccessChannel(userId: string, channelId: unknown, options: { voice?: boolean } = {}) {
+  if (typeof channelId !== "string" || !channelId) return false;
+  const view = await userCanViewChannel(userId, channelId).catch(() => null);
+  if (!view?.ok || !view.channel) return false;
+  if (options.voice && view.channel.type !== "VOICE" && view.channel.type !== "STAGE") return false;
+  if (options.voice && isTimedOut(view.member)) return false;
+  return true;
+}
+
 /** Tell the whole forge how many people are in a voice channel now. */
 async function broadcastVoiceOccupancy(channelId: string) {
   const forgeId = await forgeIdForChannel(channelId);
   if (!forgeId) return;
   const userIds = voiceMembers(channelId);
   io.to(`forge:${forgeId}`).emit("voice:occupancy", { forgeId, channelId, userIds, count: userIds.length });
+  if (stageChannels.has(channelId)) {
+    stageSync(channelId, userIds);
+    broadcastStage(channelId);
+  }
+}
+
+const SOUNDBOARD_COOLDOWN_MS = 2500;
+const soundboardLastPlayed = new Map<string, number>();
+
+/** Stage channels seen so far (their type never changes). */
+const stageChannels = new Set<string>();
+function broadcastStage(channelId: string) {
+  io.to(`voice:${channelId}`).emit("stage:state", { channelId, ...stageSnapshot(channelId) });
 }
 
 /** Current occupancy of every voice channel in a forge (seeds the sidebar). */
@@ -252,11 +338,18 @@ app.get("/api/forges/:forgeId/voice-occupancy", requireAuth, async (req, res) =>
   res.json({ channels: voiceOccupancyFor(channels.map((channel) => channel.id)) });
 });
 
-async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
+async function setPresence(userId: string, connection: "ONLINE" | "OFFLINE") {
   try {
-    // Coming online only lifts an OFFLINE user; a chosen Idle/DND status is kept.
+    // Connecting shows the status the user picked (Online/Idle/DND, or stays offline when
+    // they chose Invisible); disconnecting shows offline. The choice itself is kept in
+    // chosenStatus, so it survives reconnects and refreshes.
+    let status: "ONLINE" | "IDLE" | "DND" | "OFFLINE" = "OFFLINE";
+    if (connection === "ONLINE") {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { chosenStatus: true } });
+      status = user?.chosenStatus ?? "ONLINE";
+    }
     const result = await prisma.user.updateMany({
-      where: status === "ONLINE" ? { id: userId, status: "OFFLINE" } : { id: userId },
+      where: { id: userId, NOT: { status } },
       data: { status, lastSeenAt: new Date() },
     });
     if (!result.count) return;
@@ -269,8 +362,39 @@ async function setPresence(userId: string, status: "ONLINE" | "OFFLINE") {
   }
 }
 
+/**
+ * Per-connection rate limits (token buckets). Call signalling gets its own, bigger budget:
+ * connecting to a room sends a burst of ICE candidates per person. Anything over budget is
+ * dropped quietly; a well-behaved app never gets near these numbers.
+ */
+function socketBucket(capacity: number, refillPerSecond: number) {
+  let tokens = capacity;
+  let last = Date.now();
+  return () => {
+    const now = Date.now();
+    tokens = Math.min(capacity, tokens + ((now - last) / 1000) * refillPerSecond);
+    last = now;
+    if (tokens < 1) return false;
+    tokens -= 1;
+    return true;
+  };
+}
+const SIGNAL_MAX_BYTES = 64 * 1024;
+
 io.on("connection", (socket) => {
-  socket.emit("welcome", { message: "Connected to Vexora Gaming realtime gateway" });
+  const generalBudget = socketBucket(60, 10);
+  const signalBudget = socketBucket(600, 60);
+  let throttledLogged = false;
+  socket.use(([event], next) => {
+    const allowed = event === "voice:signal" ? signalBudget() : generalBudget();
+    if (allowed) return next();
+    if (!throttledLogged) {
+      throttledLogged = true;
+      console.warn(`[realtime] throttling socket of user ${socket.data.user?.id} (event ${String(event)})`);
+    }
+  });
+
+  socket.emit("welcome", { message: "Connected to Nexus Forge Gaming realtime gateway" });
   socket.join(`user:${socket.data.user.id}`);
 
   const presenceUserId: string = socket.data.user.id;
@@ -292,6 +416,11 @@ io.on("connection", (socket) => {
       setTimeout(() => {
         if (!onlineSockets.has(presenceUserId)) void setPresence(presenceUserId, "OFFLINE");
       }, 8000);
+      // Gone for 10 minutes while marked LIVE: end the stream, so the live list doesn't
+      // keep showing people who closed the app without pressing "End stream".
+      setTimeout(() => {
+        if (!onlineSockets.has(presenceUserId)) void endStaleLive(presenceUserId);
+      }, STALE_LIVE_MS).unref();
     } else {
       onlineSockets.set(presenceUserId, remaining);
     }
@@ -315,27 +444,90 @@ io.on("connection", (socket) => {
     socket.leave(`forge:${forgeId}`);
   });
 
-  socket.on("channel:join", (channelId: string) => {
-    socket.join(`channel:${channelId}`);
+  // Rooms carry live messages, typing and voice signalling, so joining one needs the
+  // same access as the REST routes: membership of the channel's forge (or the DM thread).
+  socket.on("channel:join", async (channelId: string) => {
+    if (await canAccessChannel(socket.data.user.id, channelId)) socket.join(`channel:${channelId}`);
   });
 
   socket.on("channel:leave", (channelId: string) => {
     socket.leave(`channel:${channelId}`);
   });
 
-  socket.on("voice:join", (channelId: string) => {
+  socket.on("voice:join", async (channelId: string) => {
     if (typeof channelId !== "string" || !channelId) return;
+    if (!(await canAccessChannel(socket.data.user.id, channelId, { voice: true }))) return;
+    // Peer-to-peer voice sends every voice to every listener, so it degrades fast past
+    // a handful of people. LiveKit (an SFU) has no such limit.
+    const alreadyIn = voiceMembers(channelId).includes(socket.data.user.id);
+    if (!LIVEKIT_CONFIGURED && !alreadyIn && voiceMembers(channelId).length >= MESH_VOICE_LIMIT) {
+      socket.emit("voice:full", { channelId, limit: MESH_VOICE_LIMIT });
+      return;
+    }
     // Tell the joiner who is already here so it can open peer connections (built-in WebRTC voice).
     const peers = voiceMembers(channelId).filter((userId) => userId !== socket.data.user.id);
     socket.emit("voice:peers", { channelId, userIds: peers });
     socket.join(`voice:${channelId}`);
     joinVoice(channelId, socket.data.user.id, socket.id);
+    // Stage: owners, chat moderators and channel managers go straight on stage.
+    const joinedChannel = await prisma.channel.findUnique({ where: { id: channelId }, select: { type: true, forgeId: true } }).catch(() => null);
+    if (joinedChannel?.type === "STAGE") {
+      stageChannels.add(channelId);
+      const member = await loadMemberContext(socket.data.user.id, joinedChannel.forgeId).catch(() => null);
+      const moderator = Boolean(member && (member.access.isOwner || hasForgePermission(member.access, "moderateChat") || hasForgePermission(member.access, "manageChannels")));
+      stageJoin(channelId, socket.data.user.id, moderator);
+    }
     void broadcastVoiceOccupancy(channelId);
     socket.to(`voice:${channelId}`).emit("voice:presence", {
       channelId,
       userId: socket.data.user.id,
       action: "joined",
     });
+  });
+
+  // Stage: raise/lower a hand, and moderators bring people up or move them down.
+  // Soundboard: play one of the forge's sounds for everyone in your voice channel.
+  socket.on("soundboard:play", async (payload: { channelId?: string; soundId?: string }) => {
+    try {
+      await playSound(payload);
+    } catch (error) {
+      console.error("[soundboard] play failed", error);
+    }
+  });
+  const playSound = async (payload: { channelId?: string; soundId?: string }) => {
+    if (!payload || typeof payload.channelId !== "string" || typeof payload.soundId !== "string") return;
+    const userId = socket.data.user.id;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    const now = Date.now();
+    if (now - (soundboardLastPlayed.get(userId) ?? 0) < SOUNDBOARD_COOLDOWN_MS) {
+      socket.emit("soundboard:error", { error: "Slow down a little before playing another sound." });
+      return;
+    }
+    const channel = await prisma.channel.findUnique({ where: { id: payload.channelId }, select: { forgeId: true } }).catch(() => null);
+    if (!channel) return;
+    const sound = await prisma.forgeSound.findFirst({ where: { id: payload.soundId, forgeId: channel.forgeId }, select: { id: true, name: true, emoji: true, soundUrl: true, volume: true } });
+    if (!sound) return;
+    const member = await loadMemberContext(userId, channel.forgeId);
+    if (!member || isTimedOut(member)) return;
+    // On a stage, only the people on stage can play sounds.
+    if (stageChannels.has(payload.channelId) && !stageSnapshot(payload.channelId).speakers.includes(userId)) {
+      socket.emit("soundboard:error", { error: "Only people on stage can play sounds." });
+      return;
+    }
+    soundboardLastPlayed.set(userId, now);
+    io.to(`voice:${payload.channelId}`).emit("soundboard:played", { channelId: payload.channelId, userId, ...sound, soundId: sound.id });
+  };
+
+  socket.on("stage:raise", (payload: { channelId?: string; raised?: boolean }) => {
+    if (!payload || typeof payload.channelId !== "string" || !stageChannels.has(payload.channelId)) return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    if (stageRaise(payload.channelId, socket.data.user.id, Boolean(payload.raised))) broadcastStage(payload.channelId);
+  });
+  socket.on("stage:speaker", (payload: { channelId?: string; userId?: string; speaker?: boolean }) => {
+    if (!payload || typeof payload.channelId !== "string" || typeof payload.userId !== "string" || !stageChannels.has(payload.channelId)) return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    if (!voiceMembers(payload.channelId).includes(payload.userId)) return;
+    if (stageSetSpeaker(payload.channelId, socket.data.user.id, payload.userId, Boolean(payload.speaker))) broadcastStage(payload.channelId);
   });
 
   socket.on("voice:leave", (channelId: string) => {
@@ -350,9 +542,12 @@ io.on("connection", (socket) => {
     });
   });
 
-  /** In-app stream viewers: real viewer counts for creators watched inside Vexora. */
-  socket.on("stream:watch", (creatorId: string) => {
+  /** In-app stream viewers: real viewer counts for creators watched inside Nexus Forge. */
+  socket.on("stream:watch", async (creatorId: string) => {
     if (typeof creatorId !== "string" || !creatorId) return;
+    // Only count viewers for someone who is actually live (this broadcasts to everyone).
+    const creator = await prisma.user.findUnique({ where: { id: creatorId }, select: { creatorStatus: true } }).catch(() => null);
+    if (creator?.creatorStatus !== "LIVE") return;
     for (const previous of socketWatching.get(socket.id) ?? []) unwatch(previous, socket.id);
     let viewers = streamViewers.get(creatorId);
     if (!viewers) {
@@ -373,14 +568,37 @@ io.on("connection", (socket) => {
   /** WebRTC signaling relay for the built-in voice mode: offers, answers and ICE candidates between two users in a voice channel. */
   socket.on("voice:signal", (payload: { channelId?: string; to?: string; data?: unknown }) => {
     if (!payload || typeof payload.channelId !== "string" || typeof payload.to !== "string" || !payload.data) return;
+    if (JSON.stringify(payload.data).length > SIGNAL_MAX_BYTES) return;
     const channelId = payload.channelId;
     const members = voiceMembers(channelId);
     if (!members.includes(socket.data.user.id) || !members.includes(payload.to)) return;
+    // Someone kicked or banned mid-call has been pulled out of the voice room; stop relaying for them.
+    if (!socket.rooms.has(`voice:${channelId}`)) return;
     io.to(`user:${payload.to}`).emit("voice:signal", { channelId, from: socket.data.user.id, data: payload.data });
   });
 
-  socket.on("dm:join", (threadId: string) => {
-    socket.join(`dm:${threadId}`);
+  /** Mute/deafen state, so everyone in the room sees each other's icons. */
+  socket.on("voice:state", (payload: { channelId?: string; muted?: boolean; deafened?: boolean; cameraStreamId?: unknown; screenStreamId?: unknown }) => {
+    if (!payload || typeof payload.channelId !== "string") return;
+    if (!socket.rooms.has(`voice:${payload.channelId}`)) return;
+    // Media stream ids (so others can tell camera from screen share); short opaque strings only.
+    const streamId = (value: unknown) => (typeof value === "string" && /^[\w{}-]{1,100}$/.test(value) ? value : null);
+    socket.to(`voice:${payload.channelId}`).emit("voice:state", {
+      channelId: payload.channelId,
+      userId: socket.data.user.id,
+      muted: Boolean(payload.muted),
+      deafened: Boolean(payload.deafened),
+      cameraStreamId: streamId(payload.cameraStreamId),
+      screenStreamId: streamId(payload.screenStreamId),
+    });
+  });
+
+  socket.on("dm:join", async (threadId: string) => {
+    if (typeof threadId !== "string" || !threadId) return;
+    const participant = await prisma.directMessageParticipant
+      .findUnique({ where: { threadId_userId: { threadId, userId: socket.data.user.id } }, select: { id: true } })
+      .catch(() => null);
+    if (participant) socket.join(`dm:${threadId}`);
   });
 
   socket.on("dm:leave", (threadId: string) => {
@@ -388,6 +606,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing:start", (channelId: string) => {
+    if (!socket.rooms.has(`channel:${channelId}`)) return;
     socket.to(`channel:${channelId}`).emit("typing:start", {
       channelId,
       userId: socket.data.user.id,
@@ -395,13 +614,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing:stop", (channelId: string) => {
+    if (!socket.rooms.has(`channel:${channelId}`)) return;
     socket.to(`channel:${channelId}`).emit("typing:stop", {
       channelId,
       userId: socket.data.user.id,
     });
   });
 
-  socket.on("dm:typing:start", (threadId: string) => {
+  socket.on("dm:typing:start", async (threadId: string) => {
+    if (!socket.rooms.has(`dm:${threadId}`)) return;
+    // The handshake only carries the user id; look the name up once per socket.
+    if (!socket.data.user.username) {
+      const me = await prisma.user.findUnique({ where: { id: socket.data.user.id }, select: { username: true } }).catch(() => null);
+      socket.data.user.username = me?.username;
+    }
     socket.to(`dm:${threadId}`).emit("dm:typing:start", {
       threadId,
       userId: socket.data.user.id,
@@ -410,6 +636,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("dm:typing:stop", (threadId: string) => {
+    if (!socket.rooms.has(`dm:${threadId}`)) return;
     socket.to(`dm:${threadId}`).emit("dm:typing:stop", {
       threadId,
       userId: socket.data.user.id,
@@ -418,35 +645,43 @@ io.on("connection", (socket) => {
 });
 
 setIo(io);
-void ensureCosmeticCatalog().catch((error) => console.warn("[cosmetics] catalog seed failed", error));
+// Startup tasks retry on their own if the database isn't reachable yet.
+void runStartupTask("cosmetics catalog", ensureCosmeticCatalog);
+void runStartupTask("legal policies", ensureLegalPolicies);
+void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 });
 startEventReminders();
-void ensureAchievementCatalog().catch((error) => console.warn("[achievements] catalog seed failed", error));
+startDeletionSweeper();
+startCleanup();
+startStoreBillingSweep();
+startDailyPulse();
+void runStartupTask("achievements catalog", ensureAchievementCatalog);
 
 httpServer.on("error", (error: NodeJS.ErrnoException) => {
   if (error.code === "EADDRINUSE") {
     console.error(
-      `Vexora Gaming API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
+      `Nexus Forge Gaming API failed to start: port ${env.PORT} is already in use. Stop the existing process or run cleanup before restarting.`,
     );
     process.exit(1);
     return;
   }
 
   if (error.code === "EACCES") {
-    console.error(`Vexora Gaming API failed to start: insufficient permissions to bind port ${env.PORT}.`);
+    console.error(`Nexus Forge Gaming API failed to start: insufficient permissions to bind port ${env.PORT}.`);
     process.exit(1);
     return;
   }
 
-  console.error("Vexora Gaming API failed to start due to an unexpected server error.", error);
+  console.error("Nexus Forge Gaming API failed to start due to an unexpected server error.", error);
   process.exit(1);
 });
 
 httpServer.listen(env.PORT, () => {
-  console.log(`Vexora Gaming API running on http://localhost:${env.PORT}`);
+  console.log(`Nexus Forge Gaming API running on http://localhost:${env.PORT}`);
   
   // Engage Industrial Engines
   JackpotEngine.start();
-  
+  void warmUpEmailDelivery();
+
   void startDiscordBot().catch((error) => {
     console.error("[discord] Failed to start bot:", error);
     const message = error instanceof Error ? error.message : String(error);
@@ -466,4 +701,13 @@ process.on("SIGINT", () => {
 
 process.on("SIGTERM", () => {
   void gracefulShutdown();
+});
+
+// A forgotten .catch() somewhere shouldn't take the whole server (and everyone's calls)
+// down; log it so it can be fixed. Uncaught exceptions still exit and pm2 restarts us,
+// because the process may be in a broken state after one.
+process.on("unhandledRejection", (reason) => {
+  console.error("[process] unhandled promise rejection:", reason);
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  void recordError({ source: "server", message: `Unhandled rejection: ${error.message}`, stack: error.stack });
 });

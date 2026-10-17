@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, MessageSquare, Search, UserMinus, UserPlus, Users, X, Eye } from "lucide-react";
-import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus, type Friendship } from "@/lib/api";
+import { LoadingNote } from "@/components/ui/loading-note";
+import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
 type Tab = "online" | "all" | "pending" | "add";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 
@@ -150,13 +151,13 @@ export function FriendsPage() {
             {tab === "online" || tab === "all" ? (
               <div className="relative ml-auto w-full max-w-xs">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter friends" className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60" />
+                <input aria-label="Filter friends" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter friends" className="h-9 w-full rounded-full border border-white/10 bg-[#11151e] pl-9 pr-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60" />
               </div>
             ) : null}
           </div>
 
           {friendsQuery.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading friends...</p>
+            <LoadingNote label="Loading friends..." onRetry={() => void friendsQuery.refetch()} />
           ) : tab === "online" || tab === "all" ? (
             visible.length ? (
               <div className="grid gap-2 md:grid-cols-2">{visible.map((row) => <FriendCard key={row.friendship.id} row={row} />)}</div>

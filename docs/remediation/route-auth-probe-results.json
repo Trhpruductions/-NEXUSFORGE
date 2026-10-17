@@ -1,0 +1,2882 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "file": "health.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/health",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/ready",
+    "file": "health.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/health/ready",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/health/discord",
+    "file": "health.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/health/discord",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/register",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/register",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/vac-appeal",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/vac-appeal",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/login",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/2fa/verify",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/2fa/verify",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/2fa/resend",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/2fa/resend",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/refresh",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/logout",
+    "status": 204
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/verify-email",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/verify-email",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/me",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/auth/me",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/me",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/verify-email",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/verify-email",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/forgot-password",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/forgot-password",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/reset-password",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/reset-password",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/reset-password/phone",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/reset-password/phone",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/delivery",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/delivery",
+    "status": 200
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/auth/push-subscriptions",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/push-subscriptions",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/push-subscriptions/test",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/push-subscriptions/test",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/push-subscriptions",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/push-subscriptions",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/core-plus/activate",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/core-plus/activate",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/core-plus/telemetry",
+    "file": "auth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/auth/core-plus/telemetry",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/availability/:inviteCode",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/availability/:inviteCode",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/public/:inviteCode",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/public/:inviteCode",
+    "status": 404
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/invite",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/invite",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/join",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/join",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/invite-analytics",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/invite-analytics",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/onboarding-health",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/onboarding-health",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/onboarding-actions",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/onboarding-actions",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id",
+    "file": "forges.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/permissions",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/permissions",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/icon",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/icon",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/banner",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/banner",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/icon",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/icon",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/banner",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/banner",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/notification-settings",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/notification-settings",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/forges/:id/notification-settings",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/notification-settings",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/webhooks",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/webhooks",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/webhooks",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/webhooks",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/webhooks/:webhookId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/webhooks/:webhookId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/webhooks/:webhookId/reset",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/webhooks/:webhookId/reset",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/webhooks/:webhookId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/webhooks/:webhookId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/emojis",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/emojis",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/emojis",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/emojis",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/emojis/:emojiId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/emojis/:emojiId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/stickers",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/stickers",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/stickers",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/stickers",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/stickers/:stickerId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/stickers/:stickerId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/sounds",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/sounds",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/sounds",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/sounds",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/sounds/:soundId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/sounds/:soundId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/automod",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/automod",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/automod",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/automod",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/automod/:ruleId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/automod/:ruleId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/automod/:ruleId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/automod/:ruleId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/audit-log",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/audit-log",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/transfer",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/transfer",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/invites",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/invites",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/invites",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/invites",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/invites/:inviteId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/invites/:inviteId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/leave",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/leave",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/channels",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/channels",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/channels/:channelId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/channels/:channelId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/channels/:channelId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/channels/:channelId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/roles",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/roles",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/roles/:roleId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/roles/:roleId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/roles/:roleId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/roles/:roleId",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/forges/:id/members/:userId/roles",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/members/:userId/roles",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/forges/:id/members/:userId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/members/:userId",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/forges/:id/members/:userId/timeout",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/members/:userId/timeout",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/members/:userId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/members/:userId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/forges/:id/bans",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/bans",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/forges/:id/bans",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/bans",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/forges/:id/bans/:userId",
+    "file": "forge-management.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/forges/:id/bans/:userId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/reads/summary",
+    "file": "reads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reads/summary",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/reads/forge/:forgeId",
+    "file": "reads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reads/forge/:forgeId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/reads/channel/:channelId",
+    "file": "reads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reads/channel/:channelId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/reads/forge/:forgeId",
+    "file": "reads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reads/forge/:forgeId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/reads/all",
+    "file": "reads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reads/all",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/events",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/events",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/events/:id",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/events/:id",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/events/:id",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/rsvp",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id/rsvp",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/events/:id/rsvp",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id/rsvp",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/start",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id/start",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/matches",
+    "file": "events.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/events/:id/matches",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/users/:userId/summary",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/users/:userId/summary",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/users/:userId/streams",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/users/:userId/streams",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/social/follow/:userId",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/follow/:userId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/social/follow/:userId",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/follow/:userId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/users/:userId/followers",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/users/:userId/followers",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/users/:userId/following",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/users/:userId/following",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/posts",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/social/posts",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/social/posts/:id",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/social/posts/:id/like",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts/:id/like",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/social/posts/:id/comments",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts/:id/comments",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/social/posts/:id/comments",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/posts/:id/comments",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/social/comments/:id",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/comments/:id",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/social/status",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/status",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/social/live",
+    "file": "social.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/social/live",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/cosmetics/catalog",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/catalog",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/cosmetics/inventory",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/inventory",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/cosmetics/presets",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/presets",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/cosmetics/presets/:id/apply",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/presets/:id/apply",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/cosmetics/presets/:id",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/presets/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/cosmetics/:itemId/purchase",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/:itemId/purchase",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cosmetics/loadout",
+    "file": "cosmetics.routes",
+    "mountAuth": true,
+    "routerWideAuth": true,
+    "url": "/api/cosmetics/loadout",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/avatar",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/avatar",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/avatar/presets",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar/presets",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/avatar/presets/:id",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar/presets/:id",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/avatar/presets/:id",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar/presets/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/avatar/presets/:id/duplicate",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar/presets/:id/duplicate",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/avatar/presets/:id/apply",
+    "file": "avatar.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/avatar/presets/:id/apply",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/discover",
+    "file": "discover.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/discover",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/home/summary",
+    "file": "home.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/home/summary",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/sensitive-challenge",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/sensitive-challenge",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/settings/account",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/account",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/privacy",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/privacy",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/onboarded",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/onboarded",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/preferences",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/preferences",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/linked-accounts",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/linked-accounts",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/password",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/password",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/sessions",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/sessions",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/sessions/:id",
+    "file": "settings.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/settings/sessions/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/account/deletion",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/deletion",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/account/deletion",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/deletion",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/account/deletion",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/deletion",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/account/export",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/export",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/account/email/change",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/email/change",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/account/email/confirm",
+    "file": "account.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/account/email/confirm",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/me/saved",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/saved",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/me/saved/ids",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/saved/ids",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/me/saved",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/saved",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/me/saved/:kind/:messageId",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/saved/:kind/:messageId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/me/discord",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/discord",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/me/discord/link-code",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/discord/link-code",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/me/discord",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/discord",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/me/notes/:userId",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/notes/:userId",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/me/notes/:userId",
+    "file": "me.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/me/notes/:userId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/updates",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/updates/unseen",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/unseen",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/updates/seen",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/seen",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/updates/admin",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/admin",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/updates/admin",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/admin",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/updates/admin/:id",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/admin/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/updates/admin/:id/publish",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/admin/:id/publish",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/updates/admin/:id",
+    "file": "updates.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/updates/admin/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/errors/client",
+    "file": "errors.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/errors/client",
+    "status": 204
+  },
+  {
+    "method": "GET",
+    "path": "/api/errors",
+    "file": "errors.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/errors",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/errors/:id",
+    "file": "errors.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/errors/:id",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/errors",
+    "file": "errors.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/errors",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/problem-reports",
+    "file": "problem-reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/problem-reports",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "path": "/api/problem-reports",
+    "file": "problem-reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/problem-reports",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/problem-reports/:id",
+    "file": "problem-reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/problem-reports/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/reports",
+    "file": "reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reports",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/forge/:forgeId",
+    "file": "reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reports/forge/:forgeId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/staff",
+    "file": "reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reports/staff",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/reports/:id",
+    "file": "reports.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/reports/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/legal/policies",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/policies",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/legal/policies/:slug",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/policies/:slug",
+    "status": 404
+  },
+  {
+    "method": "GET",
+    "path": "/api/legal/required",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/required",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/legal/me/pending",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/me/pending",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/legal/me/acceptances",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/me/acceptances",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/legal/me/accept",
+    "file": "legal.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/legal/me/accept",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/link-preview",
+    "file": "link-preview.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/link-preview",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/link-preview/image",
+    "file": "link-preview.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/link-preview/image",
+    "status": 403
+  },
+  {
+    "method": "POST",
+    "path": "/api/threads",
+    "file": "threads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/threads",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/threads/channel/:channelId",
+    "file": "threads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/threads/channel/:channelId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/threads/:id",
+    "file": "threads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/threads/:id",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/threads/:id",
+    "file": "threads.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/threads/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/webhooks/:id/:token",
+    "file": "webhooks.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/webhooks/:id/:token",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/verification/status",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/status",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/email/send",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/email/send",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/email/confirm",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/email/confirm",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/phone/send",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/phone/send",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/phone/confirm",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/phone/confirm",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/verification/phone",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/phone",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/two-factor/challenge",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor/challenge",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/verification/two-factor",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/two-factor/totp/setup",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor/totp/setup",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/two-factor/totp/enable",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor/totp/enable",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/two-factor/totp/disable",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor/totp/disable",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/verification/two-factor/totp/recovery-codes",
+    "file": "verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/verification/two-factor/totp/recovery-codes",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/age-verification",
+    "file": "age-verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/age-verification",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/age-verification/attest",
+    "file": "age-verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/age-verification/attest",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/age-verification/submit",
+    "file": "age-verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/age-verification/submit",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/age-verification/submit",
+    "file": "age-verification.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/age-verification/submit",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/age-verification",
+    "file": "admin-age.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-verification",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/age-verification/:id/file/:kind",
+    "file": "admin-age.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-verification/:id/file/:kind",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/age-verification/:id/approve",
+    "file": "admin-age.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-verification/:id/approve",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/age-verification/:id/reject",
+    "file": "admin-age.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-verification/:id/reject",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/messages/:channelId",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:channelId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/messages",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages",
+    "status": 401
+  },
+  {
+    "method": "PUT",
+    "path": "/api/messages/:id/poll/votes",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id/poll/votes",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/messages/:id/poll/end",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id/poll/end",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/messages/:id",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/messages/:channelId/pins",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:channelId/pins",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/messages/:id/pin",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id/pin",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/messages/:id/pin",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id/pin",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/messages/:id",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/messages/:id/reactions",
+    "file": "messages.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/messages/:id/reactions",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/friends",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/friends/request",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends/request",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/friends/block/:userId",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends/block/:userId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/friends/block/:userId",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends/block/:userId",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/friends/:id",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends/:id",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/friends/:id",
+    "file": "friends.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/friends/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/dms/threads",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/threads",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/dms/unread",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/unread",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/dms/threads/:threadId/read",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/threads/:threadId/read",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/dms/threads",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/threads",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/dms/groups",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/groups",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/dms/threads/:threadId/messages",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/threads/:threadId/messages",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/dms/threads/:threadId/messages",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/threads/:threadId/messages",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/dms/messages/:messageId",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/messages/:messageId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/dms/messages/:messageId",
+    "file": "dms.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/dms/messages/:messageId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/search/messages",
+    "file": "search.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/search/messages",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/search/users",
+    "file": "search.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/search/users",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/search/forges",
+    "file": "search.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/search/forges",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/voice/token",
+    "file": "voice.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/voice/token",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/voice/state",
+    "file": "voice.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/voice/state",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/notifications",
+    "file": "notifications.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/notifications",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/notifications/read",
+    "file": "notifications.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/notifications/read",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/notifications/:id",
+    "file": "notifications.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/notifications/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/bots/my",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/my",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/bots/catalog",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/catalog",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/bots",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/bots/:botId",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/:botId",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/bots/:botId",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/:botId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/bots/install",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/install",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/bots/installations/:installationId",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/installations/:installationId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/bots/commands",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/commands",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/bots/commands/:commandId",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/commands/:commandId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/bots/commands/execute",
+    "file": "bots.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/bots/commands/execute",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/developer/oauth-clients",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/oauth-clients",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/developer/oauth-clients",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/oauth-clients",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/developer/oauth-clients/:clientId",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/oauth-clients/:clientId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/developer/oauth-clients/:clientId/rotate-secret",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/oauth-clients/:clientId/rotate-secret",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/developer/oauth-clients/:clientId",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/oauth-clients/:clientId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/developer/webhooks",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/webhooks",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/developer/webhooks",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/webhooks",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/developer/webhooks/:webhookId",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/webhooks/:webhookId",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/developer/webhooks/:webhookId/test",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/webhooks/:webhookId/test",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/developer/webhooks/:webhookId",
+    "file": "developer.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/developer/webhooks/:webhookId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/support/me",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/me",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/support/tickets",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/tickets",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/support/tickets",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/tickets",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/support/tickets/:id",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/tickets/:id",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/support/tickets/:id/messages",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/tickets/:id/messages",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/support/tickets/:id",
+    "file": "support.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/support/tickets/:id",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/oauth/authorize",
+    "file": "oauth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/oauth/authorize",
+    "status": "error:ECONNREFUSED"
+  },
+  {
+    "method": "GET",
+    "path": "/api/oauth/authorize/info",
+    "file": "oauth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/oauth/authorize/info",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/authorize/approve",
+    "file": "oauth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/oauth/authorize/approve",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/authorize/deny",
+    "file": "oauth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/oauth/authorize/deny",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/oauth/token",
+    "file": "oauth.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/oauth/token",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/groups",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/groups",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/creators/live",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/creators/live",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/profiles/activity",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/activity",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/search",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/search",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/:userId",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/:userId",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/leaderboards/:type",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/leaderboards/:type",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/:userId/activity",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/:userId/activity",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/:userId/achievements",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/:userId/achievements",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/users/:userId/medals",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/:userId/medals",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/profiles/users/:userId/medals/:medalKey",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/users/:userId/medals/:medalKey",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/me",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/profiles/me/username-availability",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me/username-availability",
+    "status": 401
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/profiles/me",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/profiles/me/avatar",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me/avatar",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/profiles/me/banner",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me/banner",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/profiles/me/avatar",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me/avatar",
+    "status": 401
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/profiles/me/banner",
+    "file": "profiles.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/profiles/me/banner",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/runtime/launch-mode",
+    "file": "runtime.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/runtime/launch-mode",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/email/status",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/status",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/email/messages",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/messages",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/email/stats",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/stats",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/email/templates",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/templates",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/email/templates/:kind",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/templates/:kind",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/email/test",
+    "file": "admin-email.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/email/test",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/summary",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/summary",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/analytics",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/analytics",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/live-users",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/live-users",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/revenue",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/revenue",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/suspend",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/suspend",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/vac-bans",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/vac-bans",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/vac-ban",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/vac-ban",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/vac-bans/:id/review",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/vac-bans/:id/review",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/unsuspend",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/unsuspend",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users/:id/suspensions",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/suspensions",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/badges/grant",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/badges/grant",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/badges/revoke",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/badges/revoke",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/profile-tools/status",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/status",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/profile-tools/seed-medals",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/seed-medals",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/profile-tools/reset-generation-lock",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/reset-generation-lock",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/profile-tools/generate-sample-data",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/generate-sample-data",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/profile-tools/reputation",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/reputation",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/profile-tools/audit",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/profile-tools/audit",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/age-gate/audit",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-gate/audit",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/age-gate/audit/:id/approve",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-gate/audit/:id/approve",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/age-gate/audit/:id/reject",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/age-gate/audit/:id/reject",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/toggle-admin",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/toggle-admin",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/set-role",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:id/set-role",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:userId/creator-config",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:userId/creator-config",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:userId/live-status",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/users/:userId/live-status",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/ai-insights",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/ai-insights",
+    "status": 401
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/launch-mode",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/launch-mode",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/launch-mode",
+    "file": "admin.routes",
+    "mountAuth": false,
+    "routerWideAuth": true,
+    "url": "/api/admin/launch-mode",
+    "status": 401
+  },
+  {
+    "method": "POST",
+    "path": "/api/age/verify",
+    "file": "age.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/age/verify",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "path": "/api/age/reject",
+    "file": "age.routes",
+    "mountAuth": false,
+    "routerWideAuth": false,
+    "url": "/api/age/reject",
+    "status": 200
+  }
+]

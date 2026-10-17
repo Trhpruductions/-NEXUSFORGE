@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { EconomyAuthority } from "../lib/economy-authority.js";
+import { EconomyAuthority, InsufficientBalanceError } from "../lib/economy-authority.js";
 import { MiningAuthority, RIG_PRICING } from "../lib/mining-authority.js";
 
 const router = Router();
@@ -49,7 +49,7 @@ router.post("/rigs", requireAuth, requireCsrf, async (req, res) => {
 
     res.status(201).json({ rig });
   } catch (error: any) {
-    if (error.message.includes("Insufficient balance")) {
+    if (error instanceof InsufficientBalanceError || error.message.includes("Insufficient balance")) {
       res.status(402).json({ error: error.message });
     } else {
       console.error(`[MINING_CREATE_ERROR] User=${req.user!.id} Error=${error.message}`);
@@ -149,43 +149,12 @@ router.get("/stats", requireAuth, async (req, res) => {
  */
 router.post("/harvest/:rigId", requireAuth, requireCsrf, async (req, res) => {
   try {
-    const rig = await prisma.miningRig.findUnique({
-      where: { id: req.params.rigId, userId: req.user?.id },
-    });
-
-    if (!rig) {
-      return res.status(404).json({ error: "Rig not found" });
-    }
-
-    if (rig.status !== "ACTIVE") {
-      return res.status(400).json({ error: "Rig is not active" });
-    }
-
-    const yieldAmount = MiningAuthority.calculatePendingYield(rig);
-
-    if (yieldAmount <= 0n) {
-      return res.status(400).json({ error: "No yield to harvest yet" });
-    }
-
-    const now = new Date();
-    await prisma.$transaction(async (tx) => {
-      await tx.miningRig.update({
-        where: { id: rig.id },
-        data: { 
-          lastHarvestAt: now,
-          totalYield: { increment: yieldAmount },
-        },
-      });
-
-      await EconomyAuthority.adjustBalance({
-        userId: req.user!.id,
-        amount: yieldAmount,
-        currencyType: "NC",
-        reason: `Mining Harvest: ${rig.name}`,
-      });
-    });
-
-    res.json({ harvested: yieldAmount.toString() });
+    // One transaction that claims the rig first, so two clicks can't both pay out.
+    const result = await MiningAuthority.harvestRig(req.user!.id, String(req.params.rigId));
+    if (result.status === "not_found") return res.status(404).json({ error: "Rig not found" });
+    if (result.status === "inactive") return res.status(400).json({ error: "Rig is not active" });
+    if (result.status === "empty") return res.status(400).json({ error: "No yield to harvest yet" });
+    res.json({ harvested: result.harvested.toString() });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

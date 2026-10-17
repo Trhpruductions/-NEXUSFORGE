@@ -6,17 +6,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingReadiness } from "@/lib/api";
+import { confirmCheckout, createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingPlans, getBillingReadiness, type PlanInfo } from "@/lib/api";
+import { PREVIOUS_TIER, megabytes, perksFor, shownUploadBytes } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING, type CorePlusTier } from "@/lib/pricing-catalog";
-import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
-
-const perkRows = [
-  { title: "Forge Priority Routing", detail: "Low-latency queue lane for voice and stream operations." },
-  { title: "Core+ Identity Card", detail: "Animated profile card and premium account presentation." },
-  { title: "Boost Tier Multipliers", detail: "Progressive rewards for weekly activity and events." },
-  { title: "Creator Launch Kit", detail: "Early access to sponsor surfaces and campaign slots." },
-];
 
 const tierCheckoutMeta = {
   CORE: {
@@ -73,9 +66,22 @@ const portalAssurances = [
   "Cancel without losing historical billing visibility",
 ];
 
-export function CorePlusExperience({ checkoutState }: { checkoutState?: string }) {
+export function CorePlusExperience({ checkoutState, checkoutSessionId }: { checkoutState?: string; checkoutSessionId?: string }) {
   const queryClient = useQueryClient();
-  const { accessToken, csrfToken, user } = useAuthStore();
+  const { accessToken, csrfToken, user, fetchMe } = useAuthStore();
+  // Back from Stripe: confirm the payment with the server (works without Stripe's webhook).
+  const confirmQuery = useQuery({
+    queryKey: ["checkout-confirm", checkoutSessionId, accessToken],
+    queryFn: async () => {
+      const result = await confirmCheckout(accessToken!, csrfToken!, checkoutSessionId!);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["billing-entitlements"] }), fetchMe()]);
+      return result;
+    },
+    enabled: checkoutState === "success" && Boolean(checkoutSessionId && accessToken && csrfToken),
+    retry: 2,
+    retryDelay: 2500,
+    staleTime: Infinity,
+  });
   const [selectedTier, setSelectedTier] = useState<CorePlusTier>("PLUS");
   const [billingInterval, setBillingInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
@@ -129,6 +135,10 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             : "border-white/10 bg-[#0d1119] text-slate-300";
 
   const selectedPlan = tierCheckoutMeta[selectedTier];
+  const plansQuery = useQuery({ queryKey: ["billing-plans"], queryFn: getBillingPlans, staleTime: 5 * 60_000 });
+  const planByTier = Object.fromEntries((plansQuery.data?.plans ?? []).map((plan) => [plan.tier, plan])) as Record<string, PlanInfo | undefined>;
+  const tierLimits = planByTier[selectedTier];
+  const tierPerks = perksFor(tierLimits, planByTier[PREVIOUS_TIER[selectedTier]]);
   const displayedPrice = billingInterval === "YEARLY" ? selectedPlan.yearly : selectedPlan.monthly;
   const displayedPriceSuffix = billingInterval === "YEARLY" ? "per year" : "per month";
   const activationCta = activationMutation.isPending ? "Securing checkout..." : `Upgrade to ${selectedPlan.label}`;
@@ -136,12 +146,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
   const billingReady = billing?.ready ?? false;
   const missingTierPrices = billing?.missing.tierPrices ?? [];
   const missingAddOnPrices = billing?.missing.addOnPrices ?? [];
+  // Customers get a plain message; the setup details are only for staff.
   const billingStatusMessage = !billingReady
     ? billing
-      ? `Billing is currently in setup mode. Missing tier prices: ${missingTierPrices.length}; missing add-on prices: ${missingAddOnPrices.length}.`
-      : "Checking billing readiness..."
+      ? "Purchases aren't open yet. Everything is free to use while we finish setting up payments."
+      : "Checking billing..."
     : null;
-  const billingStatusDetail = !billingReady && billing
+  const billingStatusDetail = !billingReady && billing && user?.isAdmin
     ? [
         !billing.configured.stripeSecretKey ? "Missing STRIPE_SECRET_KEY" : null,
         missingTierPrices.length ? `Missing tier IDs: ${missingTierPrices.slice(0, 4).join(", ")}${missingTierPrices.length > 4 ? "..." : ""}` : null,
@@ -154,7 +165,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
     ? ((activationMutation.error.response?.data as { error?: string } | undefined)?.error ?? activationMutation.error.message)
     : activationMutation.error instanceof Error
       ? activationMutation.error.message
-      : "Checkout session creation failed. Verify Stripe config and retry.";
+      : "Couldn't start checkout. Please try again in a moment.";
   const portalErrorMessage = axios.isAxiosError(portalMutation.error)
     ? ((portalMutation.error.response?.data as { error?: string } | undefined)?.error ?? portalMutation.error.message)
     : portalMutation.error instanceof Error
@@ -172,18 +183,18 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           <div className="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[11px] uppercase tracking-[0.26em] text-amber-200">Preparing Core+ checkout</p>
             <h3 className="mt-3 font-[family-name:var(--font-orbitron)] text-2xl text-white">{selectedPlan.label}</h3>
-            <p className="mt-2 text-sm text-slate-400">Vexora Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
+            <p className="mt-2 text-sm text-slate-400">Nexus Forge Gaming is building a secure checkout session with your selected billing cadence and premium access package.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Tier</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Tier</p>
                 <p className="mt-1 text-sm font-semibold text-white">{selectedPlan.label}</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Billing</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Billing</p>
                 <p className="mt-1 text-sm font-semibold text-white">{billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-[#0d1119] p-3">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Price</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Price</p>
                 <p className="mt-1 text-sm font-semibold text-amber-300">{displayedPrice}</p>
               </div>
             </div>
@@ -195,7 +206,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
                 className="h-full w-1/2 rounded-full bg-gradient-to-r from-amber-300 via-amber-300 to-amber-300"
               />
             </div>
-            <p className="mt-3 text-xs text-slate-500">Do not close the page while Core+ hands off to secure billing.</p>
+            <p className="mt-3 text-xs text-slate-400">Do not close the page while Core+ hands off to secure billing.</p>
           </div>
         </motion.div>
       ) : null}
@@ -209,7 +220,11 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         <div className="pointer-events-none absolute -bottom-24 right-[-90px] h-64 w-64 rounded-full bg-amber-500/18 blur-3xl" />
         {checkoutState === "success" ? (
           <div className="nexus-display-panel mb-3 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
-            Checkout completed. Billing sync is now updating your Core+ access.
+            {confirmQuery.isSuccess
+              ? `Payment confirmed. You're on ${confirmQuery.data.premiumTier === "NONE" ? "Core+" : confirmQuery.data.premiumTier.charAt(0) + confirmQuery.data.premiumTier.slice(1).toLowerCase()} now. Thank you!`
+              : confirmQuery.isError
+                ? "We couldn't confirm the payment yet. If you were charged, refresh this page in a minute; your plan switches on as soon as Stripe confirms."
+                : "Payment received. Switching your plan on…"}
           </div>
         ) : null}
         {checkoutState === "cancelled" ? (
@@ -218,12 +233,12 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
           </div>
         ) : null}
         <p className="text-[11px] uppercase tracking-[0.28em] text-amber-300">Core+ Membership Program</p>
-        <h1 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white sm:text-5xl">
-          Premium infrastructure for serious gaming communities.
-        </h1>
+        <h2 className="mt-2 font-[family-name:var(--font-orbitron)] text-3xl leading-tight text-white sm:text-5xl">
+          More room for the players who need it.
+        </h2>
         <p className="mt-3 max-w-2xl text-sm text-slate-400 sm:text-base">
-          Core+ combines visual prestige with operational advantages: queue priority, premium surfaces, and tiered
-          progression mechanics tuned for creator-led ecosystems.
+          Core+ raises your limits: bigger uploads, more servers and, from Plus up, ultra-quality video. HD video,
+          profile banners and animated avatars are already free for everyone.
         </p>
 
         <div className="nexus-panel-glass mt-6 rounded-[28px] border border-white/10 bg-[#11151e] p-4 shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
@@ -255,22 +270,22 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         {billingStatusMessage ? (
           <div className="nexus-display-panel mt-4 rounded-[22px] border border-amber-400/40 bg-amber-500/10 p-3 text-xs text-amber-100">
             <p>{billingStatusMessage}</p>
-            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-700/90">{billingStatusDetail}</p> : null}
+            {billingStatusDetail ? <p className="mt-2 text-[11px] text-amber-200">{billingStatusDetail}</p> : null}
           </div>
         ) : null}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Queue Gain</p>
-            <p className="mt-1 text-sm font-semibold text-white">+32% priority lane</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Uploads</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? `Up to ${megabytes(shownUploadBytes(tierLimits))}` : "…"}</p>
           </div>
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Visual Tier</p>
-            <p className="mt-1 text-sm font-semibold text-white">Premium identity skin</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Servers</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? `Up to ${tierLimits.maxServers}` : "…"}</p>
           </div>
           <div className="glass-cut rounded-[22px] border border-white/10 bg-[#11151e] px-3 py-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Boost Ladder</p>
-            <p className="mt-1 text-sm font-semibold text-white">Progressive multipliers</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300">Video</p>
+            <p className="mt-1 text-sm font-semibold text-white">{tierLimits ? (tierLimits.ultraVideo ? "Ultra (1440p60)" : "HD") : "…"}</p>
           </div>
         </div>
 
@@ -292,16 +307,15 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         )}
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {perkRows.map((perk, index) => (
+          {tierPerks.map((perk, index) => (
             <motion.div
-              key={perk.title}
+              key={perk}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.12 + index * 0.07, ease: "easeOut" }}
               className="nexus-metric-card nexus-interactive-card rounded-[22px] border border-white/10 bg-[#11151e] p-3"
             >
-              <p className="text-sm font-semibold text-white">{perk.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{perk.detail}</p>
+              <p className="text-sm font-semibold text-white">{perk}</p>
             </motion.div>
           ))}
         </div>
@@ -329,21 +343,22 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
           </select>
-          <Button
+          <button
+            type="button"
             onClick={() => activationMutation.mutate()}
             disabled={!accessToken || !csrfToken || activationMutation.isPending || !billingReady}
-            className="h-10 rounded-full border-amber-300 bg-[linear-gradient(180deg,rgba(253,230,138,1),rgba(252,211,77,0.96)_45%,rgba(245,158,11,0.96))] px-4 text-sm text-white shadow-[0_16px_30px_rgba(245,158,11,0.26)]"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-amber-300 bg-[linear-gradient(180deg,rgba(159,216,255,1),rgba(99,192,255,0.96)_45%,rgba(30,139,255,0.96))] px-5 text-sm font-semibold text-slate-950 shadow-[0_16px_30px_rgba(30,139,255,0.26)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {activationCta}
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={() => portalMutation.mutate()}
             disabled={!accessToken || !csrfToken || portalMutation.isPending || !billingReady}
-            variant="ghost"
-            className="h-10 rounded-full border-amber-500/35 px-4 text-sm text-amber-200"
+            className="inline-flex h-11 items-center justify-center rounded-full border border-amber-400/40 bg-[#0d1119] px-5 text-sm font-semibold text-amber-100 transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {portalMutation.isPending ? "Opening portal..." : "Manage Billing"}
-          </Button>
+            {portalMutation.isPending ? "Opening portal..." : "Manage billing"}
+          </button>
           <Link
             href="/app"
             className="nexus-interactive-btn inline-flex h-10 items-center rounded-full border border-white/10 bg-[#11151e] px-4 text-sm font-semibold text-white hover:border-amber-300"
@@ -370,13 +385,13 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="nexus-display-panel rounded-[28px] border border-white/10 bg-[#11151e] p-4">
-            <div className="mb-3 overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119]">
+            <div className="relative mb-3 flex h-72 items-center justify-center overflow-hidden rounded-[22px] border border-white/10 bg-[#0d1119] sm:h-80">
               <Image
                 src={tierLogoById[selectedTier].src}
                 alt={`${selectedPlan.label} tier artwork`}
-                width={1200}
-                height={800}
-                className="h-auto w-full object-cover"
+                fill
+                sizes="(min-width: 1024px) 26vw, (min-width: 640px) 50vw, 90vw"
+                className="object-contain p-3"
               />
             </div>
             <div className="flex items-start justify-between gap-3">
@@ -387,7 +402,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               </div>
               <div className="text-right">
                 <p className="text-2xl font-semibold text-white">{displayedPrice}</p>
-                <p className="text-xs text-slate-500">{displayedPriceSuffix}</p>
+                <p className="text-xs text-slate-400">{displayedPriceSuffix}</p>
               </div>
             </div>
             <div className="mt-3 inline-flex rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-200">
@@ -401,7 +416,7 @@ export function CorePlusExperience({ checkoutState }: { checkoutState?: string }
               <li>• Billing: {billingInterval === "YEARLY" ? "Yearly lock-in" : "Monthly flexibility"}</li>
               <li>• Price: {displayedPrice} {displayedPriceSuffix}</li>
             </ul>
-            <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs text-slate-500">
+            <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-xs text-slate-400">
               {checkoutAssurances.map((item) => (
                 <p key={item}>• {item}</p>
               ))}

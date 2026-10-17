@@ -17,6 +17,7 @@ import { getLaunchMode, setLaunchModeDesktopOnly } from "./launch-mode.js";
 import { MiningAuthority } from "./mining-authority.js";
 import { EconomyAuthority } from "./economy-authority.js";
 import { prisma } from "./prisma.js";
+import { redeemLinkCode, userForDiscord } from "./discord-link.js";
 
 let discordClient: Client | null = null;
 let readyUsername: string | null = null;
@@ -75,6 +76,9 @@ function reportTitleFor(kind: ReportKind, tags: string[]) {
   }
   if (tags.includes("ops")) {
     return "Operations Digest";
+  }
+  if (tags.includes("pulse")) {
+    return "Daily beta pulse";
   }
   if (tags.includes("probe") && tags.includes("status")) {
     return "Status Probe";
@@ -140,7 +144,7 @@ function buildReportEmbed(kind: ReportKind, content: string) {
     title,
     color: reportColorFor(kind, parsed.tags),
     fields,
-    footer: { text: "Vexora Gaming Bot Operations" },
+    footer: { text: "Nexus Forge Gaming Bot Operations" },
     timestamp: new Date().toISOString(),
   };
 }
@@ -169,11 +173,11 @@ function buildInstallUrl() {
 export function createCommands() {
   const commands = [
     new SlashCommandBuilder().setName("ping").setDescription("Check bot latency and status."),
-    new SlashCommandBuilder().setName("app").setDescription("Get Vexora Gaming app links."),
-    new SlashCommandBuilder().setName("status").setDescription("Show Vexora Gaming API and launch mode status."),
+    new SlashCommandBuilder().setName("app").setDescription("Get Nexus Forge Gaming app links."),
+    new SlashCommandBuilder().setName("status").setDescription("Show Nexus Forge Gaming API and launch mode status."),
     new SlashCommandBuilder()
       .setName("ops-summary")
-      .setDescription("Show an executive Vexora Gaming operations snapshot.")
+      .setDescription("Show an executive Nexus Forge Gaming operations snapshot.")
       .addBooleanOption((option) =>
         option
           .setName("publish")
@@ -182,7 +186,7 @@ export function createCommands() {
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("launchmode")
-      .setDescription("View or set Vexora Gaming launch mode.")
+      .setDescription("View or set Nexus Forge Gaming launch mode.")
       .addBooleanOption((option) =>
         option
           .setName("desktop_only")
@@ -191,17 +195,23 @@ export function createCommands() {
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("social")
-      .setDescription("Post a message to the configured Vexora Gaming social report channel.")
+      .setDescription("Post a message to the configured Nexus Forge Gaming social report channel.")
       .addStringOption((option) =>
         option.setName("message").setDescription("The message to post").setRequired(true),
       )
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     new SlashCommandBuilder()
       .setName("mining")
-      .setDescription("Vexora Gaming Industrial Mining Control Center."),
+      .setDescription("Nexus Forge Gaming Industrial Mining Control Center."),
     new SlashCommandBuilder()
       .setName("balance")
-      .setDescription("Check your Vexora Gaming economic standing."),
+      .setDescription("Check your Nexus Forge Gaming economic standing."),
+    new SlashCommandBuilder()
+      .setName("link")
+      .setDescription("Link this Discord account to your Nexus Forge Gaming account.")
+      .addStringOption((option) =>
+        option.setName("code").setDescription("The code from Nexus Forge Settings > Connections").setRequired(true),
+      ),
   ];
 
   return commands.map((command) => command.toJSON());
@@ -356,7 +366,9 @@ async function postReport(kind: ReportKind, content: string) {
   if (kind === "social") {
     channelId = getRoutedAppChannelId("feedback") || channelId;
   } else if (kind === "status") {
-    if (
+    if (parsed.tags.includes("health") || parsed.tags.includes("pulse")) {
+      channelId = getRoutedAppChannelId("health") || channelId;
+    } else if (
       parsed.tags.includes("ops") ||
       parsed.tags.includes("heartbeat") ||
       lowerDetail.includes("launchmode") ||
@@ -467,6 +479,11 @@ export async function reportDiscordAlert(message: string) {
 
 export async function reportDiscordError(message: string) {
   await postReportSafe("errors", `[error] ${message}`);
+}
+
+/** Routine health news (daily pulse, recoveries): goes to #app-health, not #bot-alerts. */
+export async function reportDiscordHealth(message: string) {
+  await postReportSafe("status", `[health] ${message}`);
 }
 
 export async function reportDiscordSocial(message: string) {
@@ -593,7 +610,7 @@ async function buildOpsSummaryLines() {
     : "skipped";
 
   return [
-    `Vexora Gaming API: online (http://localhost:${env.PORT})`,
+    `Nexus Forge Gaming API: online (http://localhost:${env.PORT})`,
     `Launch mode: ${launchMode.desktopOnly ? "desktop-only" : "web + desktop"}`,
     `Bot connected: ${botStatus.connected ? "yes" : "no"}`,
     `Security layer: Industrial IP Anonymization (SHA256) is [ACTIVE]`,
@@ -623,10 +640,10 @@ export async function getOpsSummarySnapshot() {
   return {
     lines,
     embed: {
-      title: "Vexora Gaming Operations Summary",
+      title: "Nexus Forge Gaming Operations Summary",
       description,
       color: 0x22d3ee,
-      footer: { text: "Vexora Gaming Bot Operations" },
+      footer: { text: "Nexus Forge Gaming Bot Operations" },
       timestamp: new Date().toISOString(),
     },
   };
@@ -755,9 +772,14 @@ export async function startDiscordBot() {
         if (interaction.customId.startsWith("harvest_all_")) {
           const userId = interaction.customId.replace("harvest_all_", "");
           
-          // Basic security: only wearer can click or we verify the user
-          // For now we trust the customId mapping as it's ephemeral
-          
+          // Only the person the button was made for may press it: whoever clicks must be
+          // the Discord account linked to that Nexus Forge account.
+          const clicker = await userForDiscord(interaction.user.id);
+          if (!clicker || clicker.id !== userId) {
+            await interaction.reply({ content: "That button isn't yours. Use /mining to see your own rigs.", ephemeral: true });
+            return;
+          }
+
           await interaction.deferUpdate();
           const harvested = await MiningAuthority.harvestAll(userId);
           
@@ -802,7 +824,7 @@ export async function startDiscordBot() {
         const snapshot = await getOpsSummarySnapshot();
 
         await interaction.reply({
-          content: snapshot.lines[0] || "Vexora Gaming API: online",
+          content: snapshot.lines[0] || "Nexus Forge Gaming API: online",
           embeds: [snapshot.embed],
           ephemeral: true,
         });
@@ -824,7 +846,7 @@ export async function startDiscordBot() {
           await reportDiscordOpsSummary("manual-summary");
         }
         await interaction.reply({
-          content: publish ? "Published to app-runtime." : "Vexora Gaming operations snapshot.",
+          content: publish ? "Published to app-runtime." : "Nexus Forge Gaming operations snapshot.",
           embeds: [snapshot.embed],
           ephemeral: true,
         });
@@ -898,17 +920,27 @@ export async function startDiscordBot() {
         return;
       }
 
-      if (interaction.commandName === "balance") {
-        const user = await prisma.user.findFirst({
-          where: { socialLinks: { path: ["discord"], equals: interaction.user.id } }
+      if (interaction.commandName === "link") {
+        const code = interaction.options.getString("code", true);
+        const result = await redeemLinkCode(code, interaction.user.id);
+        await interaction.reply({
+          content: result.ok
+            ? `Linked! This Discord account is now connected to **${result.username}** on Nexus Forge Gaming.`
+            : result.reason === "expired"
+              ? "That code has expired. Get a new one in Nexus Forge Settings > Connections."
+              : "That code isn't valid. Get one in Nexus Forge Settings > Connections.",
+          ephemeral: true,
         });
+        return;
+      }
 
-        // Fallback to checking by username or other mapping if socialLinks isn't populated
-        const actualUser = user || await prisma.user.findUnique({ where: { username: interaction.user.username } });
+      if (interaction.commandName === "balance") {
+        // Only an account linked with a one-time code (usernames and profile links can be faked).
+        const actualUser = await userForDiscord(interaction.user.id);
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Your Discord account is not linked to a Vexora Gaming profile. Please link it in the app settings.",
+            content: "Your Discord account isn't linked yet. Get a code in Nexus Forge Settings > Connections, then use /link.",
             ephemeral: true,
           });
           return;
@@ -937,14 +969,11 @@ export async function startDiscordBot() {
       }
 
       if (interaction.commandName === "mining") {
-        const user = await prisma.user.findFirst({
-          where: { socialLinks: { path: ["discord"], equals: interaction.user.id } }
-        });
-        const actualUser = user || await prisma.user.findUnique({ where: { username: interaction.user.username } });
+        const actualUser = await userForDiscord(interaction.user.id);
 
         if (!actualUser) {
           await interaction.reply({
-            content: "Please link your Vexora Gaming account to use mining features.",
+            content: "Your Discord account isn't linked yet. Get a code in Nexus Forge Settings > Connections, then use /link.",
             ephemeral: true,
           });
           return;
@@ -952,13 +981,13 @@ export async function startDiscordBot() {
 
         const report = await MiningAuthority.getOperationalReport(actualUser.id);
         const embed = new EmbedBuilder()
-          .setTitle("Vexora Gaming Industrial Mining Center")
+          .setTitle("Nexus Forge Gaming Industrial Mining Center")
           .setColor(0x16a34a)
           .setDescription("Real-time telemetry and infrastructure status.")
           .setTimestamp();
 
         if (report.length === 0) {
-          embed.setDescription("No mining rigs detected. Deployment required via Vexora Gaming Dashboard.");
+          embed.setDescription("No mining rigs detected. Deployment required via Nexus Forge Gaming Dashboard.");
         } else {
           let totalHashRate = 0;
           let totalPending = 0n;

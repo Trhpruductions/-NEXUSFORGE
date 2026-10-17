@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld("nexusforgeDesktop", {
   platform: process.platform,
   runtime: "electron",
   getStartupHealth: () => ipcRenderer.invoke("nexusforge-desktop:get-startup-health"),
+  // Splash screen buttons only ("minimize" or "close"); main.js ignores it from any other window.
+  splashControl: (action) => ipcRenderer.send("nexusforge-desktop:splash-control", action === "close" ? "close" : "minimize"),
   getLocalStackStatus: () => ipcRenderer.invoke("nexusforge-desktop:get-local-stack-status"),
   getUpdateState: () => ipcRenderer.invoke("nexusforge-desktop:get-update-state"),
   getPricingCatalog: () => ipcRenderer.invoke("nexusforge-desktop:get-pricing-catalog"),

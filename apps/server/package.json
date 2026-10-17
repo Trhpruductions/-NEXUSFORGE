@@ -6,7 +6,7 @@
     "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1",
     "dev": "npm run dev:cleanup-port && npx --yes tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "npx --yes tsx --test tests/**/*.test.ts",
+    "test": "npx --yes tsx --test \"tests/**/*.test.ts\"",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

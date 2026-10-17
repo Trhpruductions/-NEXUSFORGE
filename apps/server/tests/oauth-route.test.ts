@@ -170,6 +170,7 @@ test("issueClientCredentialsToken issues a bearer token for a valid authorizatio
           user: { id: "user-123", username: "auth-user", email: "auth@example.com", appRole: "USER" },
         }),
         update: async ({ where, data }) => ({ id: where.id, ...data }),
+        updateMany: async () => ({ count: 1 }),
       },
       user: {
         findUnique: async () => null,

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma.js";
 import { EconomyAuthority } from "./economy-authority.js";
 import { randomUUID } from "node:crypto";
@@ -49,11 +50,12 @@ export class MiningAuthority {
   }
 
   /**
-   * Creates a new mining rig for a user (atomic with balance deduction).
+   * Buys a rig: the coins are taken and the rig created in one serializable transaction.
+   * Throws InsufficientBalanceError if the player can't afford it.
    */
-  static async createRig(params: { 
-    userId: string; 
-    name: string; 
+  static async createRig(params: {
+    userId: string;
+    name: string;
     tier: string;
   }): Promise<any> {
     const tierConfig = this.validateRigTier(params.tier);
@@ -61,49 +63,16 @@ export class MiningAuthority {
       throw new Error(`Invalid rig tier: ${params.tier}`);
     }
 
-    // Atomic transaction: check balance → deduct → create rig
-    return prisma.$transaction(async (tx) => {
-      // 1. Check user balance
-      const account = await tx.economyAccount.findUnique({
-        where: {
-          userId_currencyType: {
-            userId: params.userId,
-            currencyType: "NC",
-          },
-        },
-      });
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      await EconomyAuthority.applyChange(tx, {
+        userId: params.userId,
+        amount: -tierConfig.cost,
+        currencyType: "NC",
+        type: "MINING_RIG_PURCHASE",
+        reason: `Mining Rig Purchase: ${params.tier}`,
+        referenceId: rigPurchaseReference(params.userId, randomUUID()),
+      }, retryCount);
 
-      if (!account || account.balance < tierConfig.cost) {
-        throw new Error(`Insufficient balance. Required: ${tierConfig.cost}, Available: ${account?.balance || 0n}`);
-      }
-
-      // 2. Deduct cost from balance
-      await tx.economyAccount.update({
-        where: {
-          userId_currencyType: {
-            userId: params.userId,
-            currencyType: "NC",
-          },
-        },
-        data: {
-          balance: { decrement: tierConfig.cost },
-        },
-      });
-
-      // 3. Create transaction log entry
-      await tx.economyTransaction.create({
-        data: {
-          userId: params.userId,
-          amount: tierConfig.cost,
-          type: "MINING_RIG_PURCHASE",
-          reason: `Mining Rig Purchase: ${params.tier}`,
-          balanceBefore: account.balance,
-          balanceAfter: account.balance - tierConfig.cost,
-          referenceId: rigPurchaseReference(params.userId, randomUUID()),
-        },
-      });
-
-      // 4. Create mining rig
       const rig = await tx.miningRig.create({
         data: {
           userId: params.userId,
@@ -123,147 +92,125 @@ export class MiningAuthority {
   }
 
   /**
-   * Updates a mining rig (name, power level, status).
+   * Marks a rig harvested, but only if nobody harvested it since we read it. Returns
+   * whether this call won; two simultaneous harvests can't both pay out.
+   */
+  private static async claimHarvest(tx: Prisma.TransactionClient, rig: { id: string; lastHarvestAt: Date }, amount: bigint, now: Date) {
+    const claimed = await tx.miningRig.updateMany({
+      where: { id: rig.id, lastHarvestAt: rig.lastHarvestAt },
+      data: { lastHarvestAt: now, totalYield: { increment: amount } },
+    });
+    return claimed.count === 1;
+  }
+
+  /** Harvests one of the player's active rigs. Returns the coins paid (0 if nothing was due). */
+  static async harvestRig(userId: string, rigId: string): Promise<{ status: "ok" | "not_found" | "inactive" | "empty"; harvested: bigint }> {
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      const rig = await tx.miningRig.findFirst({ where: { id: rigId, userId } });
+      if (!rig) return { status: "not_found" as const, harvested: 0n };
+      if (rig.status !== "ACTIVE") return { status: "inactive" as const, harvested: 0n };
+      const amount = this.calculatePendingYield(rig);
+      const now = new Date();
+      if (amount <= 0n || !(await this.claimHarvest(tx, rig, amount, now))) return { status: "empty" as const, harvested: 0n };
+      await EconomyAuthority.applyChange(tx, { userId, amount, currencyType: "NC", reason: `Mining Harvest: ${rig.name}` }, retryCount);
+      return { status: "ok" as const, harvested: amount };
+    });
+  }
+
+  /**
+   * Renames a rig or changes its status. Pausing pays out what it earned so far; resuming
+   * starts the clock again, so a paused rig really earns nothing.
    */
   static async updateRig(params: {
     rigId: string;
     userId: string;
     updates: Partial<{ name: string; status: string }>;
   }): Promise<any> {
-    // Validate ownership
-    const rig = await prisma.miningRig.findUnique({
-      where: { id: params.rigId },
-    });
-
-    if (!rig || rig.userId !== params.userId) {
-      throw new Error("Rig not found or access denied");
-    }
-
-    // Validate status if being changed
     const validStatuses = ["ACTIVE", "PAUSED", "MAINTENANCE"];
     if (params.updates.status && !validStatuses.includes(params.updates.status)) {
       throw new Error(`Invalid status: ${params.updates.status}`);
     }
 
-    const updated = await prisma.miningRig.update({
-      where: { id: params.rigId },
-      data: params.updates,
-    });
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      const rig = await tx.miningRig.findFirst({ where: { id: params.rigId, userId: params.userId } });
+      if (!rig) {
+        throw new Error("Rig not found or access denied");
+      }
 
-    console.log(`[MINING] Rig updated: rigId=${params.rigId}, updates=${JSON.stringify(params.updates)}`);
-    return updated;
+      const now = new Date();
+      const data: { name?: string; status?: string; lastHarvestAt?: Date } = { ...params.updates };
+      const stopping = rig.status === "ACTIVE" && params.updates.status && params.updates.status !== "ACTIVE";
+      const starting = rig.status !== "ACTIVE" && params.updates.status === "ACTIVE";
+
+      if (stopping) {
+        const amount = this.calculatePendingYield(rig);
+        if (amount > 0n && (await this.claimHarvest(tx, rig, amount, now))) {
+          await EconomyAuthority.applyChange(tx, { userId: params.userId, amount, currencyType: "NC", reason: `Mining Harvest: ${rig.name} (paused)` }, retryCount);
+        }
+      }
+      if (starting) data.lastHarvestAt = now;
+
+      const updated = await tx.miningRig.update({ where: { id: rig.id }, data });
+      console.log(`[MINING] Rig updated: rigId=${params.rigId}, updates=${JSON.stringify(params.updates)}`);
+      return updated;
+    });
   }
 
   /**
-   * Decommissions a mining rig (refund 50% of cost to user).
+   * Decommissions a rig: pays out what it earned, refunds half its price and deletes it,
+   * all in one transaction (it used to credit in separate transactions).
    */
   static async decommissionRig(params: {
     rigId: string;
     userId: string;
   }): Promise<any> {
-    return prisma.$transaction(async (tx) => {
-      // 1. Validate ownership
-      const rig = await tx.miningRig.findUnique({
-        where: { id: params.rigId },
-      });
-
-      if (!rig || rig.userId !== params.userId) {
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      const rig = await tx.miningRig.findFirst({ where: { id: params.rigId, userId: params.userId } });
+      if (!rig) {
         throw new Error("Rig not found or access denied");
       }
 
-      // 2. Harvest any pending yield before deletion
-      const pendingYield = this.calculatePendingYield(rig);
-      if (pendingYield > 0n) {
-        await EconomyAuthority.adjustBalance({
-          userId: params.userId,
-          amount: pendingYield,
-          currencyType: "NC",
-          reason: `Final Harvest: ${rig.name} (Decommissioning)`,
-        });
+      // Delete first: a second, simultaneous decommission finds nothing and gets no refund.
+      const removed = await tx.miningRig.deleteMany({ where: { id: rig.id, userId: params.userId } });
+      if (removed.count !== 1) {
+        throw new Error("Rig not found or access denied");
       }
 
-      // 3. Calculate refund (50% of purchase cost)
+      const pendingYield = rig.status === "ACTIVE" ? this.calculatePendingYield(rig) : 0n;
+      if (pendingYield > 0n) {
+        await EconomyAuthority.applyChange(tx, { userId: params.userId, amount: pendingYield, currencyType: "NC", reason: `Final Harvest: ${rig.name} (Decommissioning)` }, retryCount);
+      }
+
       const tierConfig = this.validateRigTier(rig.tier || "BASIC");
       const refundAmount = (tierConfig?.cost || 5000n) / 2n;
-
-      // 4. Refund to user balance
-      const account = await tx.economyAccount.findUnique({
-        where: {
-          userId_currencyType: {
-            userId: params.userId,
-            currencyType: "NC",
-          },
-        },
-      });
-
-      await tx.economyAccount.update({
-        where: {
-          userId_currencyType: {
-            userId: params.userId,
-            currencyType: "NC",
-          },
-        },
-        data: {
-          balance: { increment: refundAmount },
-        },
-      });
-
-      // 5. Log refund transaction
-      await tx.economyTransaction.create({
-        data: {
-          userId: params.userId,
-          amount: refundAmount,
-          type: "MINING_RIG_REFUND",
-          reason: `Mining Rig Decommission Refund: ${rig.name}`,
-          balanceBefore: account?.balance || 0n,
-          balanceAfter: (account?.balance || 0n) + refundAmount,
-          referenceId: rigDecommissionReference(params.userId, rig.id),
-        },
-      });
-
-      // 6. Delete rig
-      await tx.miningRig.delete({
-        where: { id: params.rigId },
-      });
+      await EconomyAuthority.applyChange(tx, {
+        userId: params.userId,
+        amount: refundAmount,
+        currencyType: "NC",
+        type: "MINING_RIG_REFUND",
+        reason: `Mining Rig Decommission Refund: ${rig.name}`,
+        referenceId: rigDecommissionReference(params.userId, rig.id),
+      }, retryCount);
 
       console.log(`[MINING] Rig decommissioned: rigId=${params.rigId}, refund=${refundAmount}, pendingYield=${pendingYield}`);
       return { rigId: params.rigId, refundAmount: refundAmount.toString(), pendingYield: pendingYield.toString() };
     });
   }
 
-  /**
-   * Harvests all active rigs for a user (atomic transaction).
-   */
+  /** Harvests all of the player's active rigs in one transaction. */
   static async harvestAll(userId: string) {
-    return prisma.$transaction(async (tx) => {
-      const rigs = await tx.miningRig.findMany({
-        where: { userId, status: "ACTIVE" },
-      });
-
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      const rigs = await tx.miningRig.findMany({ where: { userId, status: "ACTIVE" } });
       let totalHarvested = 0n;
       const now = new Date();
 
       for (const rig of rigs) {
-        const yieldAmount = this.calculatePendingYield(rig);
-        if (yieldAmount > 0n) {
-          totalHarvested += yieldAmount;
-          await tx.miningRig.update({
-            where: { id: rig.id },
-            data: { 
-              lastHarvestAt: now,
-              totalYield: { increment: yieldAmount },
-            },
-          });
-        }
+        const amount = this.calculatePendingYield(rig);
+        if (amount > 0n && (await this.claimHarvest(tx, rig, amount, now))) totalHarvested += amount;
       }
 
       if (totalHarvested > 0n) {
-        await EconomyAuthority.adjustBalance({
-          userId,
-          amount: totalHarvested,
-          currencyType: "NC",
-          reason: "Global Mining Harvest",
-        });
+        await EconomyAuthority.applyChange(tx, { userId, amount: totalHarvested, currencyType: "NC", reason: "Global Mining Harvest" }, retryCount);
       }
 
       console.log(`[MINING] Harvest complete: userId=${userId}, rigs=${rigs.length}, total=${totalHarvested}`);
@@ -286,7 +233,7 @@ export class MiningAuthority {
       hashRate: rig.hashRate,
       efficiency: rig.efficiency,
       status: rig.status,
-      currentYield: this.calculatePendingYield(rig).toString(),
+      currentYield: (rig.status === "ACTIVE" ? this.calculatePendingYield(rig) : 0n).toString(),
       tier: rig.tier,
       purchasedAt: rig.purchasedAt,
       totalYield: rig.totalYield?.toString() || "0",

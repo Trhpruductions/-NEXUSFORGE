@@ -38,22 +38,22 @@ export const achievementCatalog: AchievementDefinition[] = [
   { key: "storyteller", name: "Storyteller", description: "Posted 25 updates or clips.", icon: "🎬", check: (s) => s.posts >= 25 },
   { key: "chatterbox", name: "Chatterbox", description: "Sent 100 messages in forge channels.", icon: "💬", check: (s) => s.messages >= 100 },
   { key: "voice-of-the-forge", name: "Voice of the Forge", description: "Sent 1,000 messages in forge channels.", icon: "📣", check: (s) => s.messages >= 1000 },
-  { key: "squad-up", name: "Squad Up", description: "Made 5 friends on Vexora.", icon: "🤝", check: (s) => s.friends >= 5 },
-  { key: "full-lobby", name: "Full Lobby", description: "Made 25 friends on Vexora.", icon: "🎮", check: (s) => s.friends >= 25 },
+  { key: "squad-up", name: "Squad Up", description: "Made 5 friends on Nexus Forge.", icon: "🤝", check: (s) => s.friends >= 5 },
+  { key: "full-lobby", name: "Full Lobby", description: "Made 25 friends on Nexus Forge.", icon: "🎮", check: (s) => s.friends >= 25 },
   { key: "forge-founder", name: "Forge Founder", description: "Created your own forge.", icon: "🏗", check: (s) => s.forgesOwned >= 1 },
   { key: "explorer", name: "Explorer", description: "Joined 5 forges.", icon: "🧭", check: (s) => s.forgesJoined >= 5 },
   { key: "rising-star", name: "Rising Star", description: "Reached 10 followers.", icon: "⭐", check: (s) => s.followers >= 10 },
   { key: "headliner", name: "Headliner", description: "Reached 100 followers.", icon: "🌟", check: (s) => s.followers >= 100 },
-  { key: "on-air", name: "On Air", description: "Went live on Vexora for the first time.", icon: "📡", check: (s) => s.wentLive },
+  { key: "on-air", name: "On Air", description: "Went live on Nexus Forge for the first time.", icon: "📡", check: (s) => s.wentLive },
   { key: "verified-18", name: "Verified 18+", description: "Verified your age with a government ID.", icon: "🪪", check: (s) => s.idVerified },
   { key: "locked-down", name: "Locked Down", description: "Turned on two-factor sign-in.", icon: "🔐", check: (s) => s.twoFactor },
   { key: "drip", name: "Drip", description: "Own 5 cosmetics.", icon: "👟", check: (s) => s.cosmetics >= 5 },
   { key: "collector", name: "Collector", description: "Own 20 cosmetics.", icon: "🧥", check: (s) => s.cosmetics >= 20 },
   { key: "event-goer", name: "Event Goer", description: "RSVP'd to 3 events.", icon: "🎟", check: (s) => s.eventsGoing >= 3 },
   { key: "shapeshifter", name: "Shapeshifter", description: "Saved 3 avatar presets.", icon: "🎭", check: (s) => s.avatarPresets >= 3 },
-  { key: "veteran", name: "Veteran", description: "Been on Vexora for a year.", icon: "🎖", check: (s) => s.accountAgeDays >= 365 },
+  { key: "veteran", name: "Veteran", description: "Been on Nexus Forge for a year.", icon: "🎖", check: (s) => s.accountAgeDays >= 365 },
   // Granted directly by the tournament engine when a bracket completes.
-  { key: "champion", name: "Champion", description: "Won a Vexora tournament.", icon: "🏆", check: () => false },
+  { key: "champion", name: "Champion", description: "Won a Nexus Forge tournament.", icon: "🏆", check: () => false },
 ];
 
 export async function ensureAchievementCatalog() {
@@ -78,7 +78,7 @@ export async function grantMedal(userId: string, key: string): Promise<boolean> 
     userId,
     type: "SYSTEM",
     title: `Achievement unlocked: ${medal.name}`,
-    body: `${medal.description ?? ""} +${ACHIEVEMENT_REWARD} Vexora Coins.`,
+    body: `${medal.description ?? ""} +${ACHIEVEMENT_REWARD} Nexus Forge Coins.`,
     data: { achievement: key, icon: medal.icon },
   }).catch(() => undefined);
   return true;
