@@ -16,6 +16,9 @@ const monitor = require("./lib/monitor");
 const { TicketStore } = require("./lib/tickets/store");
 const ops = require("./lib/ops-actions");
 const finance = require("./lib/finance");
+const financeReport = require("./lib/finance-report");
+const { ExpenseLedger } = require("./lib/expense-ledger");
+const { presetRange, CATEGORIES } = require("./lib/expenses");
 
 const TOKEN = crypto.randomBytes(24).toString("base64url");
 const COOKIE_NAME = "oc_session";
@@ -39,6 +42,7 @@ for (const [route, entry] of STATIC_FILES) {
 
 let port = 0;
 let store = null;
+let expenses = null;
 const clients = new Set();
 
 class HttpError extends Error {
@@ -245,6 +249,26 @@ async function handleGet(req, res, url) {
       return sendJson(res, 503, { error: scrubText(error && error.message ? error.message : "finance read failed") });
     }
   }
+  if (pathname === "/api/finance/report") return sendJson(res, 200, await financeReport.buildPeriodReport({ range: periodFrom(url.searchParams), expenses }));
+  if (pathname === "/api/finance/ledger") {
+    return sendJson(res, 200, await financeReport.readLedger({ range: periodFrom(url.searchParams), query: Object.fromEntries(url.searchParams) }));
+  }
+  if (pathname === "/api/finance/expenses") {
+    if (!expenses) throw new HttpError(503, "the expense store is not open");
+    const range = periodFrom(url.searchParams);
+    return sendJson(res, 200, {
+      range,
+      expenses: expenses.list({ from: range.from, to: range.to, includeVoided: url.searchParams.get("includeVoided") === "1" }),
+      summary: expenses.summary({ from: range.from, to: range.to }),
+      categories: CATEGORIES,
+    });
+  }
+  const expenseMatch = pathname.match(/^\/api\/finance\/expenses\/(\d+)$/);
+  if (expenseMatch) {
+    if (!expenses) throw new HttpError(503, "the expense store is not open");
+    const record = expenses.get(Number(expenseMatch[1]));
+    return record ? sendJson(res, 200, { expense: record, revisions: expenses.revisions(record.id) }) : sendJson(res, 404, { error: "expense not found" });
+  }
   if (pathname === "/api/state") return sendJson(res, 200, monitor.buildState(all));
   if (pathname === "/api/logs") return sendJson(res, 200, monitor.buildLogs());
   if (pathname === "/api/jobs") return sendJson(res, 200, { dryRun: DRY_RUN, jobs: monitor.getJobs() ? monitor.getJobs().list() : [] });
@@ -276,6 +300,23 @@ async function handlePost(req, res, url) {
   if (!store) throw new HttpError(503, "triage store is not open");
   const { pathname } = url;
   const body = await readJsonBody(req);
+  if (pathname === "/api/finance/expenses") {
+    if (!expenses) throw new HttpError(503, "the expense store is not open");
+    const result = expenses.create(body);
+    if (result.errors) return sendJson(res, 400, { error: result.errors.join(" "), errors: result.errors });
+    store.logAction("expense.create", { detail: `expense ${result.record.id}, ${result.record.category}` });
+    return sendJson(res, 201, result.record);
+  }
+  const expenseAction = pathname.match(/^\/api\/finance\/expenses\/(\d+)\/(update|void)$/);
+  if (expenseAction) {
+    if (!expenses) throw new HttpError(503, "the expense store is not open");
+    const id = Number(expenseAction[1]);
+    const result = expenseAction[2] === "update" ? expenses.update(id, body) : expenses.void(id, body.reason);
+    if (result.notFound) return sendJson(res, 404, { error: "expense not found" });
+    if (result.errors) return sendJson(res, 400, { error: result.errors.join(" "), errors: result.errors });
+    store.logAction(`expense.${expenseAction[2]}`, { detail: `expense ${id}` });
+    return sendJson(res, 200, result.record);
+  }
   if (pathname.startsWith("/api/ops/")) return handleOps(pathname, body, res);
   const action = pathname.match(/^\/api\/tickets\/(\d+)\/(triage|note|link-bug)$/);
   if (action) {
@@ -341,6 +382,15 @@ function handleOps(pathname, body, res) {
     return sendJson(res, 202, ops.startSchemaDiff(runner));
   }
   throw new HttpError(404, "not found");
+}
+
+/** The finance period from the query string: a preset (default this month), or a custom from and to. Refuses bad input. */
+function periodFrom(params) {
+  try {
+    return presetRange(params.get("preset") || "month", new Date(), { from: params.get("from"), to: params.get("to") });
+  } catch (error) {
+    throw new HttpError(400, scrubText(error && error.message ? error.message : "invalid period"));
+  }
 }
 
 function pickFields(source, keys) {
@@ -450,6 +500,7 @@ async function main() {
   });
 
   store = new TicketStore();
+  expenses = new ExpenseLedger(store.db);
 
   const server = http.createServer((req, res) => {
     handle(req, res).catch(() => {

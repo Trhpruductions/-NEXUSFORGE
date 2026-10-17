@@ -1469,96 +1469,296 @@
     return `<span class="pill pill-${tone}">${esc(text)}</span>`;
   }
 
-  /* Finance: revenue and subscribers from the app database, read only. Shown in this console only. */
+  /* Finance: the owner's money view. Read only from the app database, plus this console's own expense records.
+     Shown in this console only, never on the website. Every figure comes from a stored record; nothing is estimated.
+     Helpers are prefixed fin so they cannot clash with the rest of this script. */
 
-  const FINANCE_STALE_MS = 60 * 1000;
-  let financeData = null;
-  let financeError = null;
-  let financeLoadedAt = 0;
-  let financeFetching = false;
+  // Must match CATEGORIES in lib/expenses.js.
+  const FIN_CATEGORIES = [
+    ["HOSTING", "Hosting and infrastructure"],
+    ["SOFTWARE", "Software and subscriptions"],
+    ["MARKETING", "Marketing"],
+    ["CONTRACTORS", "Contractors and development"],
+    ["PROCESSING_FEES", "Payment processing fees (only with a statement reference)"],
+    ["REFUNDS_CHARGEBACKS", "Chargeback and dispute costs (not refund amounts)"],
+    ["OTHER", "Other business expenses"],
+  ];
+  const FIN_PERIODS = [
+    ["today", "Today"],
+    ["week", "This week"],
+    ["month", "This month"],
+    ["quarter", "This quarter"],
+    ["year", "This year"],
+    ["last30", "Last 30 days"],
+    ["all", "All time"],
+    ["custom", "Custom"],
+  ];
+  const FIN_STATUSES = ["", "SUCCEEDED", "REFUNDED", "PENDING", "FAILED"];
+  const FIN_PAGE = 25;
+  const FIN_STALE_MS = 2 * 60 * 1000;
+  const FIN_REFRESH_MS = 60 * 1000;
 
-  function usd(cents) {
-    return `$${(Number(cents || 0) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const finState = {
+    preset: "month",
+    from: "",
+    to: "",
+    ledgerQ: "",
+    ledgerStatus: "",
+    ledgerOffset: 0,
+    showVoided: false,
+    editId: null,
+    fetching: false,
+    error: null,
+    lastGood: 0,
+    lastAttempt: 0,
+  };
+  let finAll = null; // /api/finance: all-time figures
+  let finReport = null; // /api/finance/report: the chosen period
+  let finExpenses = null; // /api/finance/expenses: the chosen period
+  let finLedger = null; // /api/finance/ledger: the chosen period, search and page
+
+  /** Money in cents as dollars, with a leading minus for negatives. */
+  function finMoney(cents) {
+    const n = Number(cents || 0);
+    return `${n < 0 ? "-" : ""}$${(Math.abs(n) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
-  function signedPct(value) {
-    const n = Number(value || 0);
-    return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+  function finField(form, name) {
+    return form.elements.namedItem(name);
+  }
+
+  function finPeriodQuery() {
+    const params = new URLSearchParams({ preset: finState.preset });
+    if (finState.preset === "custom") {
+      params.set("from", finState.from);
+      params.set("to", finState.to);
+    }
+    return params.toString();
+  }
+
+  function finSlot(name, html) {
+    const node = $("#view-finance").querySelector(`[data-fin-slot="${name}"]`);
+    if (node) node.innerHTML = html;
   }
 
   async function refreshFinance() {
-    if (financeFetching) return;
-    financeFetching = true;
+    if (finState.fetching) return;
+    finState.fetching = true;
+    const period = finPeriodQuery();
+    const ledgerParams = new URLSearchParams({ q: finState.ledgerQ, status: finState.ledgerStatus, offset: String(finState.ledgerOffset), limit: String(FIN_PAGE) });
     try {
-      financeData = await api("GET", "/api/finance");
-      financeError = null;
+      const [all, report, expenses, ledger] = await Promise.all([
+        api("GET", "/api/finance"),
+        api("GET", `/api/finance/report?${period}`),
+        api("GET", `/api/finance/expenses?${period}&includeVoided=${finState.showVoided ? 1 : 0}`),
+        api("GET", `/api/finance/ledger?${period}&${ledgerParams}`),
+      ]);
+      finAll = all;
+      finReport = report;
+      finExpenses = expenses;
+      finLedger = ledger;
+      finState.error = null;
+      finState.lastGood = Date.now();
     } catch (err) {
-      financeError = err.message;
+      finState.error = err.message;
     } finally {
-      financeFetching = false;
-      financeLoadedAt = Date.now();
+      finState.fetching = false;
+      finState.lastAttempt = Date.now();
     }
     if (app.view === "finance") renderFinance();
   }
 
-  function renderFinance() {
-    const el = $("#view-finance");
-    const head = viewHead("Finance", "Money and memberships from the app database. Read only, and shown in this console only: never on the website.");
-    if (Date.now() - financeLoadedAt > FINANCE_STALE_MS) refreshFinance();
-    if (!financeData) {
-      el.innerHTML = head + `<section class="card">${loading("Reading the finance numbers.")}${errorLine(financeError)}</section>`;
-      return;
-    }
+  function buildFinanceSkeleton(el) {
+    // The owner's local day, so an expense entered in the evening is dated today, not tomorrow in UTC.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const categories = FIN_CATEGORIES.map(([value, label]) => `<option value="${value}">${esc(label)}</option>`).join("");
+    const statuses = FIN_STATUSES.map((value) => `<option value="${value}"${value === finState.ledgerStatus ? " selected" : ""}>${esc(value ? sentence(value) : "Any status")}</option>`).join("");
+    el.innerHTML =
+      viewHead("Finance", "Money, memberships and expenses. Read from the app database and this console's own records. Shown in this console only, never on the website.") +
+      `<div id="finSkeleton" class="stack">` +
+      `<div data-fin-slot="connection"></div>` +
+      `<div data-fin-slot="period"></div>` +
+      `<form id="finCustomForm" class="field-row"><div class="field"><label for="finFrom">From (UTC day)</label><input id="finFrom" type="date" name="from" value="${esc(finState.from)}"></div>` +
+      `<div class="field"><label for="finTo">To (UTC day)</label><input id="finTo" type="date" name="to" value="${esc(finState.to)}"></div><button type="submit" class="btn">Show custom period</button></form>` +
+      `<div data-fin-slot="profit"></div>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title" id="finExpenseTitle">Add an expense</h2>` +
+      `<form id="finExpenseForm" class="stack">` +
+      `<div class="field-row"><div class="field"><label for="finAmount">Amount</label><input id="finAmount" name="amount" inputmode="decimal" placeholder="12.34" maxlength="13" required></div>` +
+      `<div class="field"><label for="finExpDate">Date</label><input id="finExpDate" name="date" type="date" value="${today}" required></div>` +
+      `<div class="field"><label for="finCurrency">Currency</label><input id="finCurrency" name="currency" value="USD" maxlength="3" autocomplete="off"></div></div>` +
+      `<div class="field"><label for="finCategory">Category</label><select id="finCategory" name="category" required>${categories}</select></div>` +
+      `<div class="field"><label for="finDesc">Description</label><input id="finDesc" name="description" maxlength="200" placeholder="What it was for" required></div>` +
+      `<div class="field"><label for="finRef">Reference (optional)</label><input id="finRef" name="reference" maxlength="200" placeholder="Invoice or statement number"></div>` +
+      `<div class="field-row"><button type="submit" class="btn btn-primary" id="finSaveBtn">Save expense</button><button type="button" class="btn" id="finCancelEdit" data-fin-cancel hidden>Cancel edit</button></div>` +
+      `<p class="error-line" id="finExpenseMsg" role="status"></p>` +
+      `<p class="card-foot">Expenses are stored only in this console, not in the app database. Stripe refunds and lost disputes are already in revenue, so enter only the fees and costs that go with them. Expenses are never deleted: a mistake is voided and the reason stays on record.</p>` +
+      `</form></section>` +
+      `<section class="card"><h2 class="card-title">Expenses in this period</h2><div data-fin-slot="expenses"></div>` +
+      `<label class="field-row"><input type="checkbox" id="finShowVoided"${finState.showVoided ? " checked" : ""}> Show voided expenses</label></section>` +
+      `</div>` +
+      `<div data-fin-slot="report"></div>` +
+      `<section class="card"><h2 class="card-title">Payments in this period</h2>` +
+      `<form id="finLedgerForm" class="field-row"><div class="field grow"><label for="finSearch">Search by member name</label><input id="finSearch" name="q" maxlength="64" value="${esc(finState.ledgerQ)}" autocomplete="off"></div>` +
+      `<div class="field"><label for="finStatus">Status</label><select id="finStatus" name="status">${statuses}</select></div><button type="submit" class="btn">Search</button></form>` +
+      `<div data-fin-slot="ledger"></div></section>` +
+      `<div data-fin-slot="alltime"></div>` +
+      `</div>`;
+  }
 
-    const f = financeData;
-    const readAt = new Date(f.generatedAt).toLocaleString("en-GB", { hour12: false });
-    const modeLabel = { test: "Stripe test mode (sandbox)", live: "Stripe live mode", "not set": "Stripe not set up", unknown: "Stripe key not recognised" }[f.stripeMode] || f.stripeMode;
-    const connection = financeError
-      ? `<p class="error-line">Stale: the backend did not answer, so these figures are from ${esc(readAt)} and may be out of date. (${esc(financeError)})</p>`
-      : `<p class="card-foot">Connected. Last read ${esc(readAt)}. Refreshes every 30 seconds while this view is open. ${esc(modeLabel)}.</p>`;
+  function finConnection() {
+    if (!finReport && !finState.error) return "";
+    const readAt = finReport ? new Date(finReport.generatedAt).toLocaleString("en-GB", { hour12: false }) : "never";
+    const stale = finState.error || Date.now() - finState.lastGood > FIN_STALE_MS;
+    if (stale) return `<p class="error-line">Stale: the figures below are from ${esc(readAt)} and may be out of date.${finState.error ? ` (${esc(finState.error)})` : ""}</p>`;
+    return `<p class="card-foot">Current. Last read ${esc(readAt)}. Refreshes every 30 seconds while this view is open.</p>`;
+  }
 
-    const periods = [
-      ["today", "Today"],
-      ["week", "This week"],
-      ["month", "This month"],
-      ["thirtyDays", "Last 30 days"],
-      ["allTime", "All time"],
-    ];
-    const totalRows = [
-      ["Gross collected", (t) => usd(t.grossCents)],
-      ["Refunds", (t) => usd(t.refundsCents)],
-      ["Net revenue", (t) => usd(t.netCents)],
-      ["Payments counted", (t) => num(t.transactions)],
-    ].map(([label, pick]) => `<tr><td>${esc(label)}</td>${periods.map(([key]) => `<td class="num">${pick(f.totals[key])}</td>`).join("")}</tr>`);
-    const totalsTable = table([{ label: "" }, ...periods.map(([, label]) => ({ label, num: true }))], totalRows, "No payments yet.");
+  function finPeriodBar() {
+    const label = finReport ? `Showing ${finReport.range.from} to ${finReport.range.to} (UTC days). Payments are counted by the time Stripe recorded them.` : "";
+    return (
+      `<div class="field-row" role="group" aria-label="Period">` +
+      FIN_PERIODS.map(([key, text]) => `<button type="button" class="btn${finState.preset === key ? " btn-primary" : ""}" data-fin-period="${key}" aria-pressed="${finState.preset === key}">${esc(text)}</button>`).join("") +
+      `</div><p class="card-foot">${esc(label)}</p>`
+    );
+  }
 
+  function finProfit() {
+    const p = finReport.profit;
+    const rows = [
+      ["Gross sales (live payments)", finMoney(p.grossSalesCents)],
+      ["Refunds (recorded by Stripe)", finMoney(-p.refundsCents)],
+      ["Lost disputes (recorded by Stripe)", finMoney(-p.disputeLostCents)],
+      ["Net collected revenue", finMoney(p.netCollectedCents), true],
+      ["Payment processing fees (entered)", p.processingFeesCents === null ? "Not entered" : finMoney(-p.processingFeesCents)],
+      ["Operating expenses (entered)", finMoney(-p.operatingExpensesCents)],
+      ["Chargeback and dispute costs (entered)", finMoney(-p.disputeCostsCents)],
+      [p.label, finMoney(p.operatingProfitCents), true],
+    ].map(([label, value, strong]) => `<tr><td>${strong ? `<strong>${esc(label)}</strong>` : esc(label)}</td><td class="num">${strong ? `<strong>${esc(value)}</strong>` : esc(value)}</td></tr>`);
+    return (
+      `<section class="card"><h2 class="card-title">Profit for this period</h2>` +
+      table([{ label: "Line" }, { label: "Amount", num: true }], rows) +
+      `<p class="card-foot">Net collected revenue is not profit: operating costs come off it. The result is only as complete as the expenses entered.</p>` +
+      `<ul class="muted">${p.gaps.map((gap) => `<li>${esc(gap)}</li>`).join("")}</ul></section>`
+    );
+  }
+
+  function finExpenseList() {
+    const e = finExpenses;
+    const s = e.summary;
+    const head =
+      `<p class="card-foot">USD entered in this period: ${esc(finMoney(s.usdCents))} across ${num(s.count)} expense(s). Operating ${esc(finMoney(s.operatingCents))}; processing fees ${s.feeCount ? esc(finMoney(s.feeCents)) : "not entered"}; dispute costs ${esc(finMoney(s.disputeCostCents))}.` +
+      `${s.otherCurrencyCount ? ` ${num(s.otherCurrencyCount)} entr${s.otherCurrencyCount === 1 ? "y" : "ies"} in other currencies are not in these totals.` : ""}</p>`;
+    const rows = e.expenses.map((x) => {
+      const category = (FIN_CATEGORIES.find(([value]) => value === x.category) || [x.category, x.category])[1];
+      const reference = x.reference ? `<div class="muted">Ref: ${esc(x.reference)}</div>` : "";
+      const action = x.voided
+        ? `${pill("Voided", "warn")} <span class="muted">${esc(x.voidReason || "")}</span>`
+        : `<button type="button" class="btn" data-fin-edit="${x.id}">Edit</button> ` +
+          `<form class="field-row" data-fin-void="${x.id}"><input name="reason" minlength="3" maxlength="200" placeholder="Reason to void" aria-label="Reason to void" required><button type="submit" class="btn">Void</button></form>`;
+      return `<tr${x.voided ? ' class="muted"' : ""}><td>${esc(x.expenseDate)}</td><td>${esc(x.description)}${reference}</td><td>${esc(category)}</td><td class="num">${esc(finMoney(x.amountCents))} ${esc(x.currency)}</td><td>${action}</td></tr>`;
+    });
+    return head + table([{ label: "Date" }, { label: "Description" }, { label: "Category" }, { label: "Amount", num: true }, { label: "" }], rows, "No expenses entered for this period.");
+  }
+
+  function finReportHtml() {
+    const r = finReport;
+    const live = r.money.live;
+    const m = r.membership;
     const tiles = [
-      tile({ label: "Net revenue, all time", value: usd(f.totals.allTime.netCents), sub: "Gross minus refunds" }),
-      tile({ label: "Gross, last 30 days", value: usd(f.totals.thirtyDays.grossCents), sub: `Growth on the previous 30 days: ${signedPct(f.revenue.growthPct)}` }),
+      tile({ label: "Gross, live", value: finMoney(live.grossCents), sub: `${num(live.transactions)} payment(s) in this period` }),
+      tile({ label: "Net collected", value: finMoney(live.netCents), sub: "Gross minus refunds and lost disputes" }),
+      tile({ label: "Recorded profit", value: finMoney(r.profit.operatingProfitCents), sub: r.profit.label }),
+      tile({ label: "Recurring renewals", value: finMoney(r.recurring.renewalGrossCents), sub: `${num(r.recurring.renewalCount)} renewal payment(s)` }),
+      tile({ label: "Failed live payments", value: num(r.recurring.failedLivePayments), sub: "Card payments the bank did not make" }),
+      tile({ label: "Seen in last 5 minutes", value: num(m.seenLast5Minutes), sub: `${num(m.activeLast30Days)} seen in the last 30 days` }),
+    ].join("");
+    const trendRows = r.trend.points.map(
+      (pt) => `<tr><td>${esc(pt.bucket)}</td><td class="num">${num(pt.transactions)}</td><td class="num">${esc(finMoney(pt.grossCents))}</td><td class="num">${esc(finMoney(pt.refundsCents + pt.disputeLostCents))}</td><td class="num">${esc(finMoney(pt.netCents))}</td></tr>`,
+    );
+    const trend = table(
+      [{ label: `Start of each ${r.trend.unit}` }, { label: "Payments", num: true }, { label: "Gross", num: true }, { label: "Refunds and lost", num: true }, { label: "Net", num: true }],
+      trendRows,
+      "No live payments in this period.",
+    );
+    const other = table(
+      [{ label: "Stripe mode" }, { label: "Payments", num: true }, { label: "Gross", num: true }],
+      [
+        ["Test (sandbox): not revenue", r.money.test],
+        ["Not recorded (before the mode was stored): not revenue", r.money.unrecorded],
+      ].map(([label, b]) => `<tr><td>${esc(label)}</td><td class="num">${num(b.transactions)}</td><td class="num">${esc(finMoney(b.grossCents))}</td></tr>`),
+    );
+    const members =
+      `<dl class="detail-grid">` +
+      `<dt>Registered users</dt><dd>${num(m.totalUsers)}</dd>` +
+      `<dt>Seen in last 5 minutes</dt><dd>${num(m.seenLast5Minutes)}</dd>` +
+      `<dt>Seen in last 30 days</dt><dd>${num(m.activeLast30Days)}</dd>` +
+      `<dt>Free accounts (not premium)</dt><dd>${num(m.freeUsers)}</dd>` +
+      `<dt>Premium accounts</dt><dd>${num(m.premiumUsers)}</dd>` +
+      `<dt>Lifetime members</dt><dd>${num(m.lifetimeMembers)}</dd>` +
+      `<dt>Stripe, active</dt><dd>${num(m.stripe.active)}</dd>` +
+      `<dt>Stripe, trialing</dt><dd>${num(m.stripe.trialing)}</dd>` +
+      `<dt>Stripe, past due</dt><dd>${num(m.stripe.pastDue)}</dd>` +
+      `<dt>Stripe, canceled (all time)</dt><dd>${num(m.stripe.canceled)}</dd>` +
+      `<dt>Store, active</dt><dd>${num(m.storeActiveUsers)}</dd>` +
+      `<dt>Premium with no payment on record</dt><dd>${num(m.premiumWithoutPayment)}</dd>` +
+      `<dt>New paid subscriptions in period</dt><dd>${num(m.newPaidSubscriptions)}</dd>` +
+      `<dt>Ended in period</dt><dd>${num(m.endedInPeriod)}</dd>` +
+      `</dl><p class="card-foot">${esc(m.note)}</p>`;
+    return (
+      `<div class="grid">${tiles}</div>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title">Trend</h2>${trend}<p class="card-foot">${esc(r.recurring.note)}</p></section>` +
+      `<section class="card"><h2 class="card-title">Memberships</h2>${members}</section>` +
+      `</div>` +
+      `<section class="card"><h2 class="card-title">Other payment modes</h2>${other}<p class="card-foot">Shown so they are never taken for live income.</p></section>`
+    );
+  }
+
+  function finLedgerHtml() {
+    const l = finLedger;
+    const first = l.query.offset + 1;
+    const last = Math.min(l.query.offset + l.rows.length, l.total);
+    const rows = l.rows.map((x) => {
+      const environment = x.environment === "live" ? pill("Live", "good") : x.environment === "test" ? pill("Test", "info") : pill("Not recorded", "warn");
+      const refund = x.refundedCents ? ` <span class="muted">(refunded ${esc(finMoney(x.refundedCents))})</span>` : "";
+      return (
+        `<tr><td>${esc(new Date(x.createdAt).toLocaleString("en-GB", { hour12: false }))}</td><td>${esc(x.username)}</td>` +
+        `<td>${esc(sentence(x.feature))}${x.tier ? ` · ${esc(sentence(x.tier))}` : ""}</td><td>${esc(sentence(x.provider))}</td>` +
+        `<td>${environment}</td><td>${esc(sentence(x.status))}</td><td class="num">${esc(finMoney(x.amountCents))}${refund}</td></tr>`
+      );
+    });
+    const pager =
+      `<div class="field-row"><span class="muted">${l.total ? `Showing ${num(first)} to ${num(last)} of ${num(l.total)}` : "No payments match."}</span>` +
+      (l.query.offset > 0 ? `<button type="button" class="btn" data-fin-page="-1">Newer</button>` : "") +
+      (l.query.offset + l.rows.length < l.total ? `<button type="button" class="btn" data-fin-page="1">Older</button>` : "") +
+      `</div>`;
+    return (
+      table(
+        [{ label: "When (UTC)" }, { label: "Member" }, { label: "Purchase" }, { label: "Provider" }, { label: "Mode" }, { label: "Status" }, { label: "Amount", num: true }],
+        rows,
+        "No payments match this search.",
+      ) + pager
+    );
+  }
+
+  function finAllTimeHtml() {
+    const f = finAll;
+    const tiles = [
+      tile({ label: "Net revenue, all time", value: finMoney(f.totals.allTime.netCents), sub: "Live payments: gross minus refunds" }),
       tile({ label: "Active subscriptions", value: num(f.revenue.activeSubscriptions), sub: "Stripe: active, trialing or past due" }),
-      tile({ label: "Renewals, last 30 days", value: num(f.activity.renewals30), sub: "Charges Stripe made for renewals" }),
       tile({ label: "Failed payments, 30 days", value: num(f.revenue.failedPayments30), sub: "Payments the card did not make" }),
       tile({ label: "Lifetime members", value: num(f.membership.lifetimeMembers), sub: "Granted tier; never ends with a subscription" }),
     ].join("");
-
     const statusRows = [
       ["Succeeded", f.statuses.succeeded],
       ["Refunded", f.statuses.refunded],
       ["Pending (not counted yet)", f.statuses.pending],
       ["Failed (not counted)", f.statuses.failed],
-    ].map(([label, s]) => `<tr><td>${esc(label)}</td><td class="num">${num(s.count)}</td><td class="num">${usd(s.cents)}</td></tr>`);
-
-    const planRows = f.plans.map((p) => `<tr><td>${esc(sentence(p.tier))}</td><td class="num">${num(p.activeSubscriptions)}</td><td class="num">${usd(p.grossCents30 - p.refundsCents30)}</td><td class="num">${usd(p.grossCentsAll - p.refundsCentsAll)}</td></tr>`);
-
-    const activity = [
-      ["Renewals charged", f.activity.renewals30],
-      ["Renewals that failed", f.activity.failedRenewals30],
-      ["Stripe subscriptions ended", f.activity.stripeEnded30],
-      ["Store purchases expired or revoked", f.activity.storeEnded30],
-    ].map(([label, n]) => `<tr><td>${esc(label)}</td><td class="num">${num(n)}</td></tr>`);
-
+    ].map(([label, s]) => `<tr><td>${esc(label)}</td><td class="num">${num(s.count)}</td><td class="num">${esc(finMoney(s.cents))}</td></tr>`);
+    const planRows = f.plans.map((p) => `<tr><td>${esc(sentence(p.tier))}</td><td class="num">${num(p.activeSubscriptions)}</td><td class="num">${esc(finMoney(p.grossCentsAll - p.refundsCentsAll))}</td></tr>`);
     const storeRows = f.store.providers.map((p) => `<tr><td>${esc(sentence(p.provider))}</td><td class="num">${num(p.active)}</td><td class="num">${num(p.expired)}</td><td class="num">${num(p.revoked)}</td><td class="num">${num(p.purchasesLast30Days)}</td></tr>`);
-
     const memberStatus = (m) => {
       if (m.stripeStatus) return `${sentence(m.stripeStatus)}${m.cancelAtPeriodEnd ? " (ends at period end)" : ""}`;
       if (m.storeProvider) return "Active in the app store";
@@ -1570,50 +1770,191 @@
       return when ? new Date(when).toLocaleDateString("en-GB") : "-";
     };
     const memberRows = f.members.map((m) => `<tr><td>${esc(m.username)}</td><td>${esc(sentence(m.tier))}</td><td>${esc(m.source)}</td><td>${esc(memberStatus(m))}</td><td>${esc(memberDate(m))}</td></tr>`);
-
-    const recentRows = f.recent.map((r) => `<tr><td>${esc(new Date(r.createdAt).toLocaleString("en-GB", { hour12: false }))}</td><td>${esc(r.username)}</td><td>${esc(r.featureLabel)}${r.tier ? ` · ${esc(sentence(r.tier))}` : ""}</td><td>${esc(sentence(r.provider))}</td><td>${esc(sentence(r.status))}${r.refundedCents ? ` · refunded ${esc(usd(r.refundedCents))}` : ""}</td><td class="num">${usd(r.amountCents)}</td></tr>`);
-
     const envRows = [
       ["Test mode (Stripe test account)", f.environments.allTime.test],
       ["Not recorded (before the mode was stored)", f.environments.allTime.unrecorded],
-    ].map(([label, bucket]) => `<tr><td>${esc(label)}</td><td class="num">${num(bucket.transactions)}</td><td class="num">${usd(bucket.grossCents)}</td></tr>`);
+    ].map(([label, bucket]) => `<tr><td>${esc(label)}</td><td class="num">${num(bucket.transactions)}</td><td class="num">${esc(finMoney(bucket.grossCents))}</td></tr>`);
     const disputeRows = [
       ["Open, not deducted", f.disputes.openCents],
       ["Lost, deducted from net", f.disputes.lostCents],
-    ].map(([label, cents]) => `<tr><td>${esc(label)}</td><td class="num">${usd(cents)}</td></tr>`);
-
+    ].map(([label, cents]) => `<tr><td>${esc(label)}</td><td class="num">${esc(finMoney(cents))}</td></tr>`);
     const b = f.billing;
-    const payments =`<section class="card"><h2 class="card-title">Payments setup</h2>` +
+    const modeLabel = { test: "Stripe test mode (sandbox)", live: "Stripe live mode", "not set": "Stripe not set up", unknown: "Stripe key not recognised" }[f.stripeMode] || f.stripeMode;
+    const payments =
+      `<section class="card"><h2 class="card-title">Payments setup</h2>` +
       `<dl class="detail-grid"><dt>Mode</dt><dd>${esc(modeLabel)}</dd>` +
       `<dt>Stripe secret key</dt><dd>${b.stripeKeyPresent ? "Set" : "Not set"}</dd>` +
       `<dt>Webhook secret</dt><dd>${b.webhookSecretPresent ? "Set" : "Not set"}</dd>` +
       `<dt>Webhook events, last 24 h</dt><dd>${f.webhook.available ? `${num(f.webhook.appliedLast24h)} applied${f.webhook.lastReceivedAt ? `, last ${esc(new Date(f.webhook.lastReceivedAt).toLocaleString("en-GB", { hour12: false }))}` : ""}` : esc(f.webhook.note)}</dd>` +
       `<dt>Core+ prices</dt><dd>${b.missingTierPrices.length === 0 ? "All set" : `Missing: ${esc(b.missingTierPrices.join(", "))}`}</dd></dl>` +
       `<p class="card-foot">${b.ready ? "Card payments are ready." : "Card payments are not ready."} Only whether each key is present is shown; no key value is read out.</p></section>`;
-
-    el.innerHTML = head +
-      connection +
+    return (
+      `<section class="card"><h2 class="card-title">All time, from the start</h2><p class="card-foot">Everything the app has recorded, not limited to the period above.</p></section>` +
       `<div class="grid">${tiles}</div>` +
-      `<section class="card"><h2 class="card-title">Money collected</h2>${totalsTable}` +
-      `<p class="card-foot">${esc(f.processingFees.note)}</p>` +
-      `<p class="card-foot">These totals are live payments only. Net revenue is gross minus refunds and money lost to disputes. Pending payments are kept out of every total until Stripe confirms them.</p></section>` +
       `<div class="two-col">` +
-      `<section class="card"><h2 class="card-title">Not counted as revenue</h2>${table([{ label: "Where it came from" }, { label: "Payments, all time", num: true }, { label: "Amount, all time", num: true }], envRows, "No test or unrecorded payments.")}<p class="card-foot">Test-mode payments, and payments recorded before the Stripe mode was stored. Shown so they are never taken for live income.</p></section>` +
+      `<section class="card"><h2 class="card-title">Payments by status</h2>${table([{ label: "Status" }, { label: "Payments", num: true }, { label: "Amount", num: true }], statusRows, "No payments yet.")}</section>` +
+      `<section class="card"><h2 class="card-title">Revenue by plan, all time</h2>${table([{ label: "Plan" }, { label: "Active", num: true }, { label: "Net, all time", num: true }], planRows, "No plan payments yet.")}</section>` +
+      `</div>` +
+      `<div class="two-col">` +
+      `<section class="card"><h2 class="card-title">Not counted as revenue</h2>${table([{ label: "Where it came from" }, { label: "Payments", num: true }, { label: "Amount", num: true }], envRows, "No test or unrecorded payments.")}<p class="card-foot">${esc(f.processingFees.note)}</p></section>` +
       `<section class="card"><h2 class="card-title">Disputes</h2>${table([{ label: "Disputes, live payments" }, { label: "Amount", num: true }], disputeRows)}<p class="card-foot">${esc(f.disputes.note)}</p></section>` +
       `</div>` +
       `<div class="two-col">` +
-      `<section class="card"><h2 class="card-title">Payments by status, all time</h2>${table([{ label: "Status" }, { label: "Payments", num: true }, { label: "Amount", num: true }], statusRows, "No payments yet.")}</section>` +
-      `<section class="card"><h2 class="card-title">Revenue by plan</h2>${table([{ label: "Plan" }, { label: "Active", num: true }, { label: "Net, 30 days", num: true }, { label: "Net, all time", num: true }], planRows, "No plan payments yet.")}</section>` +
-      `</div>` +
-      `<div class="two-col">` +
-      `<section class="card"><h2 class="card-title">Renewals and endings, last 30 days</h2>${table([{ label: "Event" }, { label: "Count", num: true }], activity)}</section>` +
       `<section class="card"><h2 class="card-title">Store purchases (Apple, Google)</h2>${table([{ label: "Store" }, { label: "Active", num: true }, { label: "Expired", num: true }, { label: "Revoked", num: true }, { label: "Bought, 30 days", num: true }], storeRows, "No store purchases yet.")}<p class="card-foot">${esc(f.store.note)}</p></section>` +
+      `<div>${payments}</div>` +
       `</div>` +
-      `<section class="card"><h2 class="card-title">Memberships (${num(f.members.length)} shown)</h2>` +
+      `<section class="card"><h2 class="card-title">Members with premium or a subscription (${num(f.members.length)} shown)</h2>` +
       `${table([{ label: "Member" }, { label: "Tier" }, { label: "Source" }, { label: "Status" }, { label: "Renews or ends" }], memberRows, "No premium members.")}` +
       `<p class="card-foot">${num(f.membership.premiumUsers)} members have premium: ${num(f.membership.lifetimeMembers)} lifetime, ${num(f.membership.stripeActiveUsers)} paying through an active Stripe subscription, ${num(f.membership.storeActiveUsers)} paying through an active store subscription, and ${num(f.membership.premiumWithoutPayment)} with no payment on record. Premium with no payment on record is granted another way and is not counted as revenue.</p></section>` +
-      `<section class="card"><h2 class="card-title">Most recent payments</h2>${table([{ label: "When" }, { label: "Member" }, { label: "Purchase" }, { label: "Provider" }, { label: "Status" }, { label: "Amount", num: true }], recentRows, "No payments yet.")}</section>` +
-      `<div class="two-col">${payments}</div>`;
+      `<section class="card"><h2 class="card-title">Most recent payments</h2>${table([{ label: "When" }, { label: "Member" }, { label: "Purchase" }, { label: "Provider" }, { label: "Status" }, { label: "Amount", num: true }], f.recent.map((r) => `<tr><td>${esc(new Date(r.createdAt).toLocaleString("en-GB", { hour12: false }))}</td><td>${esc(r.username)}</td><td>${esc(r.featureLabel)}${r.tier ? ` · ${esc(sentence(r.tier))}` : ""}</td><td>${esc(sentence(r.provider))}</td><td>${esc(sentence(r.status))}${r.refundedCents ? ` · refunded ${esc(finMoney(r.refundedCents))}` : ""}</td><td class="num">${esc(finMoney(r.amountCents))}</td></tr>`), "No payments yet.")}</section>`
+    );
+  }
+
+  function renderFinance() {
+    const el = $("#view-finance");
+    if (!el.querySelector("#finSkeleton")) buildFinanceSkeleton(el);
+    el.onclick = finClick;
+    el.onsubmit = finSubmit;
+    el.onchange = finChange;
+    if (Date.now() - finState.lastAttempt > FIN_REFRESH_MS) refreshFinance();
+    finSlot("period", finPeriodBar());
+    finSlot("connection", finConnection());
+    if (!finReport || !finAll || !finExpenses || !finLedger) {
+      finSlot("profit", finState.error ? `<section class="card">${errorLine(finState.error)}</section>` : loading("Reading the finance numbers."));
+      return;
+    }
+    finSlot("profit", finProfit());
+    finSlot("expenses", finExpenseList());
+    finSlot("report", finReportHtml());
+    finSlot("ledger", finLedgerHtml());
+    finSlot("alltime", finAllTimeHtml());
+  }
+
+  function finClick(event) {
+    const target = event.target;
+    const period = target.closest("[data-fin-period]");
+    if (period) {
+      const key = period.dataset.finPeriod;
+      if (key === "custom") {
+        const from = $("#finFrom").value;
+        const to = $("#finTo").value;
+        if (!from || !to) {
+          toast("Pick both dates, then press Show custom period.", true);
+          return;
+        }
+        finState.from = from;
+        finState.to = to;
+      }
+      finState.preset = key;
+      finState.ledgerOffset = 0;
+      refreshFinance();
+      return;
+    }
+    const page = target.closest("[data-fin-page]");
+    if (page) {
+      finState.ledgerOffset = Math.max(0, finState.ledgerOffset + Number(page.dataset.finPage) * FIN_PAGE);
+      refreshFinance();
+      return;
+    }
+    const edit = target.closest("[data-fin-edit]");
+    if (edit) {
+      finStartEdit(Number(edit.dataset.finEdit));
+      return;
+    }
+    if (target.closest("[data-fin-cancel]")) finCancelEdit();
+  }
+
+  function finChange(event) {
+    if (event.target.id === "finShowVoided") {
+      finState.showVoided = event.target.checked;
+      refreshFinance();
+    }
+  }
+
+  function finSubmit(event) {
+    const form = event.target;
+    if (form.id === "finCustomForm") {
+      event.preventDefault();
+      const from = finField(form, "from").value;
+      const to = finField(form, "to").value;
+      if (!from || !to) {
+        toast("Pick both dates first.", true);
+        return;
+      }
+      finState.preset = "custom";
+      finState.from = from;
+      finState.to = to;
+      finState.ledgerOffset = 0;
+      refreshFinance();
+    } else if (form.id === "finLedgerForm") {
+      event.preventDefault();
+      finState.ledgerQ = finField(form, "q").value.trim();
+      finState.ledgerStatus = finField(form, "status").value;
+      finState.ledgerOffset = 0;
+      refreshFinance();
+    } else if (form.id === "finExpenseForm") {
+      event.preventDefault();
+      finSaveExpense(form);
+    } else if (form.dataset.finVoid) {
+      event.preventDefault();
+      finVoidExpense(form);
+    }
+  }
+
+  async function finSaveExpense(form) {
+    const msg = $("#finExpenseMsg");
+    const body = {};
+    for (const name of ["amount", "date", "currency", "category", "description", "reference"]) body[name] = finField(form, name).value;
+    const editing = finState.editId;
+    msg.textContent = "";
+    try {
+      await api("POST", editing ? `/api/finance/expenses/${editing}/update` : "/api/finance/expenses", body);
+      toast(editing ? "Expense changed." : "Expense saved.");
+      finCancelEdit();
+      refreshFinance();
+    } catch (err) {
+      msg.textContent = err.message;
+    }
+  }
+
+  function finStartEdit(id) {
+    const record = finExpenses && finExpenses.expenses.find((x) => x.id === id);
+    if (!record) return;
+    const form = $("#finExpenseForm");
+    finField(form, "amount").value = (record.amountCents / 100).toFixed(2);
+    finField(form, "date").value = record.expenseDate;
+    finField(form, "currency").value = record.currency;
+    finField(form, "category").value = record.category;
+    finField(form, "description").value = record.description;
+    finField(form, "reference").value = record.reference || "";
+    finState.editId = id;
+    $("#finSaveBtn").textContent = "Save changes";
+    $("#finCancelEdit").hidden = false;
+    $("#finExpenseTitle").textContent = `Edit expense ${id}`;
+    $("#finExpenseMsg").textContent = "";
+    form.scrollIntoView({ block: "nearest" });
+  }
+
+  function finCancelEdit() {
+    const form = $("#finExpenseForm");
+    if (!form) return;
+    form.reset();
+    finState.editId = null;
+    $("#finSaveBtn").textContent = "Save expense";
+    $("#finCancelEdit").hidden = true;
+    $("#finExpenseTitle").textContent = "Add an expense";
+    $("#finExpenseMsg").textContent = "";
+  }
+
+  async function finVoidExpense(form) {
+    const id = form.dataset.finVoid;
+    try {
+      await api("POST", `/api/finance/expenses/${id}/void`, { reason: finField(form, "reason").value });
+      toast("Expense voided. It stays on record.");
+      refreshFinance();
+    } catch (err) {
+      toast(err.message, true);
+    }
   }
 
   function renderActive() {

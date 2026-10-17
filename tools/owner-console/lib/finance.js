@@ -90,7 +90,9 @@ function emptyBucket() {
  * Gross, refunds, disputes and net for every confirmed payment since `since`, split by the Stripe mode each was made in.
  * Net is gross minus refunds minus money lost to disputes. Open disputes are shown but not deducted: they may be won.
  */
-async function totalsSince(select, since) {
+const FAR_FUTURE = new Date("2100-01-01T00:00:00Z");
+
+async function totalsSince(select, since, until = FAR_FUTURE) {
   const rows = (
     await select(
       `SELECT ${ENVIRONMENT_SQL} AS environment,
@@ -101,9 +103,9 @@ async function totalsSince(select, since) {
               COALESCE(SUM(${DISPUTE_OPEN_SQL}), 0)::bigint AS open_cents,
               COUNT(*) FILTER (WHERE ${DISPUTE_OPEN_SQL} > 0)::int AS open_disputes
          FROM "PaymentTransaction"
-        WHERE status::text IN ('SUCCEEDED', 'REFUNDED') AND "createdAt" >= $1
+        WHERE status::text IN ('SUCCEEDED', 'REFUNDED') AND "createdAt" >= $1 AND "createdAt" < $2
         GROUP BY 1`,
-      [since],
+      [since, until],
     )
   ).rows;
 
@@ -144,6 +146,27 @@ async function webhookActivity() {
   } catch {
     return { available: false, note: "Webhook event records are not in the live database yet, so recent Stripe deliveries cannot be shown." };
   }
+}
+
+/** Premium and paid-membership counts. Premium with no payment behind it is counted separately and is never revenue. */
+async function membershipCounts(select, now) {
+  return (
+    await select(
+      `SELECT (SELECT COUNT(*) FROM "User" WHERE premium = true)::int AS premium_users,
+              (SELECT COUNT(*) FROM "User" WHERE "lifetimeMember" = true)::int AS lifetime_members,
+              (SELECT COUNT(*) FROM "BillingSubscription" WHERE status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))::int AS stripe_active,
+              (SELECT COUNT(DISTINCT "userId") FROM "BillingSubscription" WHERE status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))::int AS stripe_active_users,
+              (SELECT COUNT(DISTINCT "userId") FROM "StorePurchase"
+                WHERE status = 'ACTIVE' AND tier IS NOT NULL AND ("expiresAt" IS NULL OR "expiresAt" > $1))::int AS store_active_users,
+              -- Premium with no payment behind it: not lifetime, no live Stripe or store subscription, and no successful payment ever.
+              (SELECT COUNT(*) FROM "User" u
+                WHERE u.premium = true AND u."lifetimeMember" = false
+                  AND NOT EXISTS (SELECT 1 FROM "BillingSubscription" b WHERE b."userId" = u.id AND b.status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))
+                  AND NOT EXISTS (SELECT 1 FROM "StorePurchase" s WHERE s."userId" = u.id AND s.status = 'ACTIVE' AND s.tier IS NOT NULL AND (s."expiresAt" IS NULL OR s."expiresAt" > $1))
+                  AND NOT EXISTS (SELECT 1 FROM "PaymentTransaction" p WHERE p."userId" = u.id AND p.status::text IN ('SUCCEEDED', 'REFUNDED')))::int AS premium_without_payment`,
+      [now],
+    )
+  ).rows[0];
 }
 
 function windowStarts(now) {
@@ -219,23 +242,7 @@ async function readFinance(now) {
       )
     ).rows[0];
 
-    const membership = (
-      await select(
-        `SELECT (SELECT COUNT(*) FROM "User" WHERE premium = true)::int AS premium_users,
-                (SELECT COUNT(*) FROM "User" WHERE "lifetimeMember" = true)::int AS lifetime_members,
-                (SELECT COUNT(*) FROM "BillingSubscription" WHERE status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))::int AS stripe_active,
-                (SELECT COUNT(DISTINCT "userId") FROM "BillingSubscription" WHERE status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))::int AS stripe_active_users,
-                (SELECT COUNT(DISTINCT "userId") FROM "StorePurchase"
-                  WHERE status = 'ACTIVE' AND tier IS NOT NULL AND ("expiresAt" IS NULL OR "expiresAt" > $1))::int AS store_active_users,
-                -- Premium with no payment behind it: not lifetime, no live Stripe or store subscription, and no successful payment ever.
-                (SELECT COUNT(*) FROM "User" u
-                  WHERE u.premium = true AND u."lifetimeMember" = false
-                    AND NOT EXISTS (SELECT 1 FROM "BillingSubscription" b WHERE b."userId" = u.id AND b.status::text IN ('ACTIVE', 'TRIALING', 'PAST_DUE'))
-                    AND NOT EXISTS (SELECT 1 FROM "StorePurchase" s WHERE s."userId" = u.id AND s.status = 'ACTIVE' AND s.tier IS NOT NULL AND (s."expiresAt" IS NULL OR s."expiresAt" > $1))
-                    AND NOT EXISTS (SELECT 1 FROM "PaymentTransaction" p WHERE p."userId" = u.id AND p.status::text IN ('SUCCEEDED', 'REFUNDED')))::int AS premium_without_payment`,
-        [now],
-      )
-    ).rows[0];
+    const membership = await membershipCounts(select, now);
 
     // One row per member: the latest Stripe subscription and the live store purchase, if either exists.
     const memberRows = (
@@ -416,4 +423,19 @@ async function buildFinance(now = new Date()) {
   return value;
 }
 
-module.exports = { buildFinance, growthPercent, summarizeStore, billingReadiness, stripeModeFrom, windowStarts, FEATURE_LABELS };
+module.exports = {
+  buildFinance,
+  growthPercent,
+  summarizeStore,
+  billingReadiness,
+  stripeModeFrom,
+  windowStarts,
+  FEATURE_LABELS,
+  REFUND_SQL,
+  DISPUTE_LOST_SQL,
+  DISPUTE_OPEN_SQL,
+  ENVIRONMENT_SQL,
+  totalsSince,
+  membershipCounts,
+  emptyBucket,
+};
