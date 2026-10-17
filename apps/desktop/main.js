@@ -11,7 +11,8 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
     throw err;
   }
 }
-const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen, desktopCapturer } = require("electron");
+const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
+const screenPicker = require("./lib/screen-picker");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -150,6 +151,11 @@ const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
 const updateDownloadDir = path.join(app.getPath("userData"), "updates");
 const startupLogPath = path.join(app.getPath("userData"), "startup.log");
 const windowStatePath = path.join(app.getPath("userData"), "window-state.json");
+// Small enough for a 1366x768 laptop or a 1080p screen at 150% scaling; the web app's layout handles narrower widths.
+const MAIN_WINDOW_MIN_WIDTH = 960;
+const MAIN_WINDOW_MIN_HEIGHT = 600;
+const MAIN_WINDOW_DEFAULT_WIDTH = 1480;
+const MAIN_WINDOW_DEFAULT_HEIGHT = 920;
 const desktopPreferencesPath = path.join(app.getPath("userData"), "desktop-preferences.json");
 const startupBootEpochMs = Date.now();
 const startupTimingMarks = new Set();
@@ -392,16 +398,33 @@ function readWindowState() {
       return null;
     }
 
-    return {
-      width: Math.max(1100, Math.round(width)),
-      height: Math.max(760, Math.round(height)),
+    const state = {
+      width: Math.max(MAIN_WINDOW_MIN_WIDTH, Math.round(width)),
+      height: Math.max(MAIN_WINDOW_MIN_HEIGHT, Math.round(height)),
       x: Number.isFinite(Number(parsed?.x)) ? Math.round(Number(parsed.x)) : undefined,
       y: Number.isFinite(Number(parsed?.y)) ? Math.round(Number(parsed.y)) : undefined,
       isMaximized: Boolean(parsed?.isMaximized),
     };
+    // 1.0.14 and older opened full screen and saved that size. A saved window that fills a whole display, or that is
+    // no longer on any display, is not a real window position: open maximized instead, with the normal default size.
+    if (state.x !== undefined && state.y !== undefined) {
+      const display = screen.getDisplayMatching({ x: state.x, y: state.y, width: state.width, height: state.height });
+      const { bounds } = display;
+      const fillsDisplay = state.width >= bounds.width && state.height >= bounds.height;
+      const visible = state.x < bounds.x + bounds.width && state.x + state.width > bounds.x && state.y < bounds.y + bounds.height && state.y + state.height > bounds.y;
+      if (fillsDisplay || !visible) {
+        return { width: MAIN_WINDOW_DEFAULT_WIDTH, height: MAIN_WINDOW_DEFAULT_HEIGHT, x: undefined, y: undefined, isMaximized: true };
+      }
+    }
+    return state;
   } catch {
     return null;
   }
+}
+
+/** Opens maximized on first run (no saved window) and whenever the window was last maximized. */
+function shouldStartMaximized(savedState) {
+  return !savedState || savedState.isMaximized;
 }
 
 function saveWindowState() {
@@ -410,7 +433,8 @@ function saveWindowState() {
   }
 
   try {
-    const bounds = mainWindow.getBounds();
+    // The normal (restored) size and position, so maximizing or going full screen does not overwrite them.
+    const bounds = mainWindow.getNormalBounds();
     const payload = {
       x: bounds.x,
       y: bounds.y,
@@ -1025,21 +1049,20 @@ async function checkForUpdates(trigger = "manual") {
 
 function createSplashWindow() {
   markStartupTiming("splash-window-create");
-  const { workArea } = screen.getPrimaryDisplay();
+  // A small launcher window, not a full-screen takeover: it can be dragged (splash.html marks it as a drag region),
+  // minimized, and closed (which quits), so starting the app never traps the desktop.
   splashWindow = new BrowserWindow({
-    x: workArea.x,
-    y: workArea.y,
-    width: workArea.width,
-    height: workArea.height,
+    width: 560,
+    height: 440,
+    center: true,
     frame: false,
     show: true,
     resizable: false,
-    movable: false,
-    minimizable: false,
+    movable: true,
+    minimizable: true,
     maximizable: false,
-    fullscreenable: true,
-    fullscreen: true,
-    backgroundColor: "#020617",
+    fullscreenable: false,
+    backgroundColor: "#04060c",
     icon: appIconPath,
     autoHideMenuBar: true,
     webPreferences: {
@@ -1100,8 +1123,7 @@ async function revealMainWindow() {
       accent: "ready",
     });
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      const savedState = readWindowState();
-      if (savedState?.isMaximized) {
+      if (shouldStartMaximized(readWindowState())) {
         mainWindow.maximize();
       }
       mainWindow.show();
@@ -2260,28 +2282,49 @@ function keepAppNavigationInside(contents) {
 }
 
 /**
- * Screen share in the hosted app calls getDisplayMedia. Electron refuses that unless a handler is
- * set. The app asks for video only, so we give the primary screen to trusted app pages. There is
- * no picker yet, so any trusted page that asks can capture that screen.
+ * Screen share in the hosted app calls getDisplayMedia. Electron refuses every such call (NotSupportedError) unless a
+ * display-media handler is set, which is why desktop 1.0.14 and older could not share at all. This handler answers
+ * trusted app pages only, and shares exactly the screen or window the user picks in the picker window
+ * (lib/screen-picker.js). Cancelling shares nothing, and the page reports that the share was cancelled.
  */
 function registerScreenShareHandler() {
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    // Electron must be answered exactly once. Refusing (answering with no video) makes Electron throw by design, and
+    // the page still gets its rejection (AbortError), so that throw is expected and not logged as a failure.
+    let answered = false;
+    const answer = (streams) => {
+      if (answered) return;
+      answered = true;
+      try {
+        callback(streams);
+      } catch (error) {
+        if (streams.video) appendStartupLog(`[screen-share] could not start: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
     try {
+      // One log line per request: the outcome only. Source names (window titles) and screen contents are never logged.
       if (!isAllowedAppUrl(request.securityOrigin)) {
-        callback({});
+        let origin = "(unreadable origin)";
+        try {
+          origin = new URL(request.securityOrigin).origin;
+        } catch {
+          // keep the placeholder
+        }
+        appendStartupLog(`[screen-share] refused: request came from an untrusted page (${origin})`);
+        answer({});
         return;
       }
-      const sources = await desktopCapturer.getSources({
-        types: ["screen", "window"],
-        thumbnailSize: { width: 0, height: 0 },
-      });
-      const primaryDisplayId = String(screen.getPrimaryDisplay().id);
-      const screens = sources.filter((source) => source.id.startsWith("screen:"));
-      const chosen = screens.find((source) => source.display_id === primaryDisplayId) ?? screens[0];
-      callback(chosen ? { video: chosen } : {});
+      const choice = await screenPicker.pick(mainWindow);
+      if (!choice) {
+        appendStartupLog("[screen-share] nothing shared: the picker was cancelled or closed, or there was nothing to share");
+        answer({});
+        return;
+      }
+      appendStartupLog(`[screen-share] sharing a ${choice.kind} picked by the user`);
+      answer({ video: choice.source });
     } catch (error) {
-      appendStartupLog(`[screen-share] could not list screens: ${error instanceof Error ? error.message : String(error)}`);
-      callback({});
+      appendStartupLog(`[screen-share] could not start: ${error instanceof Error ? error.message : String(error)}`);
+      answer({});
     }
   });
 }
@@ -2300,14 +2343,16 @@ function createWindow() {
   }
 
   const savedState = readWindowState();
+  // A normal Windows window: the native title bar moves it, double-click maximizes, the edges resize it, and the
+  // minimize, maximize/restore and close buttons work. It used to open full screen, which has no title bar and
+  // cannot be moved, resized or minimized. F11 still switches to full screen and back (see below).
   mainWindow = new BrowserWindow({
-    width: savedState?.width ?? 1480,
-    height: savedState?.height ?? 920,
+    width: savedState?.width ?? MAIN_WINDOW_DEFAULT_WIDTH,
+    height: savedState?.height ?? MAIN_WINDOW_DEFAULT_HEIGHT,
     x: savedState?.x,
     y: savedState?.y,
-    minWidth: 1100,
-    minHeight: 760,
-    fullscreen: true,
+    minWidth: MAIN_WINDOW_MIN_WIDTH,
+    minHeight: MAIN_WINDOW_MIN_HEIGHT,
     show: false,
     icon: appIconPath,
     backgroundColor: "#020617",
@@ -2372,9 +2417,17 @@ function createWindow() {
     saveWindowState();
   });
 
-  if (savedState?.isMaximized) {
-    mainWindow.maximize();
-  }
+  // F11 toggles full screen, and is the way back out of it. Only plain F11; other keys go to the page as usual.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    const keyDown = input.type === "keyDown" || input.type === "rawKeyDown";
+    if (!keyDown || input.key !== "F11" || input.alt || input.control || input.meta || input.shift || input.isAutoRepeat) {
+      return;
+    }
+    event.preventDefault();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(!mainWindow.isFullScreen());
+    }
+  });
 
   mainWindow.once("ready-to-show", () => {
     markStartupTiming("main-ready-to-show");
@@ -2483,6 +2536,17 @@ app.whenReady().then(async () => {
     timestamp: new Date().toISOString(),
   };
 
+  // The splash's own minimize and close buttons. Accepted from the splash window only; close quits the app.
+  ipcMain.on("nexusforge-desktop:splash-control", (event, action) => {
+    if (!splashWindow || splashWindow.isDestroyed() || event.sender !== splashWindow.webContents) return;
+    if (action === "minimize") {
+      splashWindow.minimize();
+    } else if (action === "close") {
+      appendStartupLog("[startup] closed from the splash screen");
+      isQuitting = true;
+      app.quit();
+    }
+  });
   ipcMain.handle("nexusforge-desktop:get-startup-health", () => startupHealth);
   ipcMain.handle("nexusforge-desktop:get-local-stack-status", async () => {
     await refreshLocalPortStatus();
@@ -2719,6 +2783,7 @@ app.on("will-quit", () => {
     startupRevealTimer = null;
   }
   stopSpawnedLocalStack();
+  ipcMain.removeAllListeners("nexusforge-desktop:splash-control");
   ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
   ipcMain.removeHandler("nexusforge-desktop:get-local-stack-status");
   ipcMain.removeHandler("nexusforge-desktop:get-update-state");
