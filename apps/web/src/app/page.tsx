@@ -82,7 +82,7 @@ function DiscordValue({ value }: { value: string }) {
 
 export default function Home() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#040812] text-slate-100 selection:bg-amber-500/40 selection:text-white scroll-smooth">
+    <div className="min-h-app overflow-x-hidden bg-[#040812] text-slate-100 selection:bg-amber-500/40 selection:text-white scroll-smooth">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(46,164,255,0.16),transparent_34%),radial-gradient(circle_at_82%_18%,rgba(139,92,246,0.12),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(10,86,176,0.14),transparent_40%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.07)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.07)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_0%,#000_55%,transparent_100%)]" />
 

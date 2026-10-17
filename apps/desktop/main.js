@@ -13,6 +13,7 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
 }
 const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
 const screenPicker = require("./lib/screen-picker");
+const { TITLE_BAR_HEIGHT, isPopoutRequest, popoutSize, restoreBounds } = require("./lib/window-rules");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -179,6 +180,16 @@ let skipAutoInstallOnQuit = false;
 let isQuitting = false;
 let appTray = null;
 let shouldStartHiddenOnLaunch = false;
+/** Popout windows (voice room, shared screen, member list) opened from the main window's page. */
+const popoutWindows = new Set();
+
+/** Popouts belong to the main window's page: when it goes, they go, so none is left without its call. */
+function closePopoutWindows() {
+  for (const child of popoutWindows) {
+    if (!child.isDestroyed()) child.close();
+  }
+  popoutWindows.clear();
+}
 const updateStatePath = path.join(app.getPath("userData"), "update-state.json");
 
 const launchedFromStartupArg = process.argv.some((arg) => /^(--|\/)startup$/i.test(String(arg || "").trim()));
@@ -392,31 +403,16 @@ function readWindowState() {
       return null;
     }
     const parsed = JSON.parse(fs.readFileSync(windowStatePath, "utf8"));
-    const width = Number(parsed?.width);
-    const height = Number(parsed?.height);
-    if (!Number.isFinite(width) || !Number.isFinite(height)) {
-      return null;
-    }
-
-    const state = {
-      width: Math.max(MAIN_WINDOW_MIN_WIDTH, Math.round(width)),
-      height: Math.max(MAIN_WINDOW_MIN_HEIGHT, Math.round(height)),
-      x: Number.isFinite(Number(parsed?.x)) ? Math.round(Number(parsed.x)) : undefined,
-      y: Number.isFinite(Number(parsed?.y)) ? Math.round(Number(parsed.y)) : undefined,
-      isMaximized: Boolean(parsed?.isMaximized),
-    };
-    // 1.0.14 and older opened full screen and saved that size. A saved window that fills a whole display, or that is
-    // no longer on any display, is not a real window position: open maximized instead, with the normal default size.
-    if (state.x !== undefined && state.y !== undefined) {
-      const display = screen.getDisplayMatching({ x: state.x, y: state.y, width: state.width, height: state.height });
-      const { bounds } = display;
-      const fillsDisplay = state.width >= bounds.width && state.height >= bounds.height;
-      const visible = state.x < bounds.x + bounds.width && state.x + state.width > bounds.x && state.y < bounds.y + bounds.height && state.y + state.height > bounds.y;
-      if (fillsDisplay || !visible) {
-        return { width: MAIN_WINDOW_DEFAULT_WIDTH, height: MAIN_WINDOW_DEFAULT_HEIGHT, x: undefined, y: undefined, isMaximized: true };
-      }
-    }
-    return state;
+    const number = (value) => (value === null || value === undefined || value === "" ? NaN : Number(value));
+    // Only a position whose title bar is still on a connected screen is used (an unplugged monitor or a changed
+    // layout would otherwise open the window out of reach); sizes shrink to the screen; a saved full-screen size
+    // (1.0.14 and older opened full screen) opens maximized instead. See lib/window-rules.js.
+    return restoreBounds(
+      { x: number(parsed?.x), y: number(parsed?.y), width: number(parsed?.width), height: number(parsed?.height), isMaximized: Boolean(parsed?.isMaximized) },
+      screen.getAllDisplays().map((display) => display.workArea),
+      screen.getPrimaryDisplay().workArea,
+      { minWidth: MAIN_WINDOW_MIN_WIDTH, minHeight: MAIN_WINDOW_MIN_HEIGHT, defaultWidth: MAIN_WINDOW_DEFAULT_WIDTH, defaultHeight: MAIN_WINDOW_DEFAULT_HEIGHT },
+    );
   } catch {
     return null;
   }
@@ -2343,9 +2339,10 @@ function createWindow() {
   }
 
   const savedState = readWindowState();
-  // A normal Windows window: the native title bar moves it, double-click maximizes, the edges resize it, and the
-  // minimize, maximize/restore and close buttons work. It used to open full screen, which has no title bar and
-  // cannot be moved, resized or minimized. F11 still switches to full screen and back (see below).
+  // A normal Windows window: it moves, resizes from its edges and corners, minimizes, maximizes and restores, and
+  // F11 switches to full screen and back (see below). On Windows the title bar is a dark strip in the app's colours:
+  // Windows still draws the minimize, maximize/restore and close buttons (with snap layouts) on it, and the page
+  // marks the rest of the strip as the place to drag the window (double-click maximizes; see globals.css).
   mainWindow = new BrowserWindow({
     width: savedState?.width ?? MAIN_WINDOW_DEFAULT_WIDTH,
     height: savedState?.height ?? MAIN_WINDOW_DEFAULT_HEIGHT,
@@ -2358,6 +2355,9 @@ function createWindow() {
     backgroundColor: "#020617",
     title: "Nexus Forge Gaming Desktop",
     autoHideMenuBar: true,
+    ...(process.platform === "win32"
+      ? { titleBarStyle: "hidden", titleBarOverlay: { color: "#070a10", symbolColor: "#cbd5e1", height: TITLE_BAR_HEIGHT } }
+      : null),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -2367,9 +2367,43 @@ function createWindow() {
     },
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  // New windows: popouts (a blank window with a popout name, from an app page) open inside the app; the page then
+  // draws the voice room, a shared screen or the member list into it, so they share its call and streams. Every
+  // other link or window opens in the browser.
+  mainWindow.webContents.setWindowOpenHandler(({ url, frameName, features }) => {
+    if (isPopoutRequest(url, frameName) && isAllowedAppUrl(mainWindow.webContents.getURL())) {
+      const size = popoutSize(features);
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          ...size,
+          minWidth: 320,
+          minHeight: 240,
+          icon: appIconPath,
+          backgroundColor: "#070a10",
+          autoHideMenuBar: true,
+          title: "Nexus Forge Gaming",
+          webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+        },
+      };
+    }
     openExternalSafely(url);
     return { action: "deny" };
+  });
+  mainWindow.webContents.on("did-create-window", (child) => {
+    popoutWindows.add(child);
+    child.setMenuBarVisibility(false);
+    // A popout never navigates; a link clicked in one opens in the browser like everywhere else.
+    child.webContents.on("will-navigate", (event, value) => {
+      event.preventDefault();
+      if (!isAllowedAppUrl(value)) openExternalSafely(value);
+    });
+    child.webContents.setWindowOpenHandler(({ url }) => {
+      openExternalSafely(url);
+      return { action: "deny" };
+    });
+    child.on("closed", () => popoutWindows.delete(child));
+    appendStartupLog("[popout] opened a popout window");
   });
   keepAppNavigationInside(mainWindow.webContents);
 
@@ -2392,6 +2426,7 @@ function createWindow() {
   mainWindow.on("closed", () => {
     saveWindowState();
     mainWindow = null;
+    closePopoutWindows();
   });
 
   mainWindow.on("close", (event) => {
@@ -2570,6 +2605,19 @@ app.whenReady().then(async () => {
     }
   });
   ipcMain.handle("nexusforge-desktop:get-desktop-preferences", async () => ({ ...desktopPreferences }));
+  // Settings > Appearance > Layout > Reset layout: the window goes back to its default size, centred on the screen it
+  // is on. Only the main window's page may ask.
+  ipcMain.handle("nexusforge-desktop:reset-window-layout", async (event) => {
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
+    if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea;
+    const width = Math.min(MAIN_WINDOW_DEFAULT_WIDTH, area.width);
+    const height = Math.min(MAIN_WINDOW_DEFAULT_HEIGHT, area.height);
+    mainWindow.setBounds({ x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2), width, height });
+    saveWindowState();
+    return true;
+  });
   ipcMain.handle("nexusforge-desktop:update-desktop-preferences", async (_event, patch = {}) => {
     const next = {
       ...desktopPreferences,

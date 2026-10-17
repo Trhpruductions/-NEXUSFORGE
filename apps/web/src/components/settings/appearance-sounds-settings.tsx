@@ -8,6 +8,7 @@ import { allSeasons, seasonFor, type SeasonId } from "@/lib/appearance/seasons";
 import { DEFAULT_APPEARANCE, applyAppearance, resolveAppearance, soundSettingsFrom, type ResolvedAppearance } from "@/lib/appearance/preferences";
 import { EGGS, discoveredEggs } from "@/lib/appearance/easter-eggs";
 import { DEFAULT_SOUND_SETTINGS, previewCue, type CueName, type SoundSettings } from "@/lib/sound/sound-engine";
+import { LayoutSettings } from "@/components/settings/layout-settings";
 
 type SavePayload = { appearance: Partial<AppearancePreferences>; sounds: Partial<SoundPreferences>; notifications: { sounds: boolean } };
 
@@ -275,6 +276,8 @@ export function AppearanceSoundsSettings({
         </button>
         <p className="text-[11px] text-slate-500">Changes preview on this device straight away and apply everywhere you sign in once saved.</p>
       </div>
+
+      <LayoutSettings />
     </div>
   );
 }

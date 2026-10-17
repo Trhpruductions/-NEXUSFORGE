@@ -51,7 +51,7 @@ export function OAuthConsent() {
   const here = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/oauth/authorize";
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-[#040812] px-4 py-10 text-slate-100">
+    <div className="flex min-h-app items-center justify-center bg-[#040812] px-4 py-10 text-slate-100">
       <main id="main-content" className="w-full max-w-md rounded-2xl border border-violet-400/25 bg-[#0d0a18] p-6 shadow-[0_0_60px_rgba(139,92,246,0.12)] sm:p-8">
         <span className="flex h-12 w-12 items-center justify-center rounded-xl border border-violet-400/40 bg-violet-500/10 text-violet-200"><KeyRound className="h-6 w-6" /></span>
         {!hydrated ? (

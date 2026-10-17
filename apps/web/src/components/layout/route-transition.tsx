@@ -35,7 +35,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
   }, [themeMode]);
 
   return (
-    <div className="flex min-h-dvh w-full flex-col overflow-x-hidden transition-colors duration-300">
+    <div className="flex min-h-app w-full flex-col overflow-x-hidden transition-colors duration-300">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {routeAnnouncement}
       </div>
@@ -46,7 +46,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, filter: "blur(2px)" }}
           transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
-          className="flex min-h-dvh w-full flex-col overflow-x-hidden"
+          className="flex min-h-app w-full flex-col overflow-x-hidden"
         >
           {children}
         </motion.div>

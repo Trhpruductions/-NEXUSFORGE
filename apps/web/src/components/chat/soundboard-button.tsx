@@ -32,8 +32,9 @@ export function SoundboardButton({ forgeId, channelId, nameOf }: { forgeId: stri
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${open ? "border-fuchsia-400/60 bg-fuchsia-500/10 text-fuchsia-100" : "border-white/10 text-slate-200 hover:border-fuchsia-400/50"}`}>
-        <AudioLines className="h-3.5 w-3.5" /> Soundboard
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Soundboard" title="Soundboard" className={`inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold uppercase tracking-[0.14em] ${open ? "border-fuchsia-400/60 bg-fuchsia-500/10 text-fuchsia-100" : "border-white/10 text-slate-200 hover:border-fuchsia-400/50"}`}>
+        {/* In a narrow call window (the controls' container) only the icon shows; the name stays for screen readers. */}
+        <AudioLines className="h-4 w-4" /> <span className="hidden @3xl/controls:inline">Soundboard</span>
       </button>
       {note ? <p role="status" className="absolute -top-7 left-1/2 w-max max-w-[16rem] -translate-x-1/2 truncate rounded-full bg-fuchsia-500/20 px-2.5 py-0.5 text-[11px] text-fuchsia-100">{note}</p> : null}
       {open ? (

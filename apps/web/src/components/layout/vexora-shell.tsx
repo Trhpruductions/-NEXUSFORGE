@@ -39,8 +39,14 @@ import {
   MessagesSquare,
   CheckCheck,
   Download,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ResizeHandle } from "@/components/layout/resize-handle";
+import { PopoutHost } from "@/components/popout/popout-host";
+import { LAYOUT_LIMITS, effectiveLayout, maxDragWidth } from "@/lib/layout/layout-prefs";
+import { useLayoutPrefs, useLayoutStore, useViewportWidth } from "@/store/layout-store";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { ConsentRenewal } from "@/components/legal/consent-renewal";
 import { ForgeNotificationsDialog } from "@/components/chat/forge-notifications-dialog";
@@ -534,9 +540,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const quietWorkspace = pathname.startsWith("/app/settings");
   // In a server, the app's own navigation and header step back on desktop; the mobile menu keeps them (the server rail is hidden there).
   const serverView = useServerViewStore((state) => state.active);
+  // Chat (servers, voice and messages) uses the whole content area; other pages keep a readable, centred width.
+  const fullBleed = pathname.startsWith("/app/chat");
+  // Channel list size and visibility (desktop). A list that doesn't fit the window steps aside without forgetting
+  // the saved choice; the member list on the chat page counts towards that.
+  const layoutPrefs = useLayoutPrefs();
+  const viewportWidth = useViewportWidth();
+  const setSidebarWidth = useLayoutStore((state) => state.setWidth);
+  const toggleSidebar = useLayoutStore((state) => state.toggle);
+  const [leftDraft, setLeftDraft] = useState<number | null>(null);
+  const layout = effectiveLayout(layoutPrefs, viewportWidth || 1920, { hasLeft: true, hasRight: fullBleed && serverView });
+  const leftWidth = leftDraft ?? layout.left;
+  const leftMax = maxDragWidth("left", viewportWidth || 1920, layout.right);
+  // The narrow-window case: the channel list opens over the page instead (like on a phone).
+  const [sidebarOverlay, setSidebarOverlay] = useState(false);
 
-  const sidebar = (
-    <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
+  const renderSidebar = (width: number) => (
+    <aside style={{ width }} className="flex h-full shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
       <div className={cn("relative p-3", quietWorkspace && "hidden")} ref={forgeMenuRef}>
         <button
           type="button"
@@ -797,7 +817,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showTabBar = !quietWorkspace && !pathname.startsWith("/app/chat");
 
   return (
-    <div className="relative isolate flex h-dvh overflow-hidden bg-[#070a10] text-slate-100">
+    <div className="relative isolate flex h-app overflow-hidden bg-[#070a10] text-slate-100">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-[520px] w-[520px] rounded-full bg-violet-600/20 blur-[120px]" />
         <div className="absolute -right-32 top-1/4 h-[460px] w-[460px] rounded-full bg-cyan-500/[0.13] blur-[120px]" />
@@ -805,6 +825,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="absolute right-1/4 top-[-120px] h-[300px] w-[420px] rounded-full bg-amber-500/[0.08] blur-[110px]" />
       </div>
       <VoiceEngine />
+      <PopoutHost />
       <AppearanceRuntime preferences={settingsQuery.data?.preferences} userId={user?.id ?? null} />
       <ConsentRenewal />
       <QuickSwitcher forges={forges} forge={forge} onSelectForge={(forgeId) => setSelectedForgeId(forgeId)} />
@@ -902,17 +923,56 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            // Too narrow to dock it: open it over the page for now. Otherwise hide or show it and remember that.
+            if (layout.leftAutoHidden) setSidebarOverlay(true);
+            else toggleSidebar("left");
+          }}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/5 hover:text-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+          title={layout.left ? "Hide the channel list" : layout.leftAutoHidden ? "Show the channel list (the window is too narrow to keep it open)" : "Show the channel list"}
+          aria-label={layout.left ? "Hide the channel list" : "Show the channel list"}
+          aria-pressed={Boolean(layout.left)}
+        >
+          {layout.left ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+        </button>
         <Link href="/app/settings" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:text-amber-200" title="Settings">
           <Settings className="h-4 w-4" />
         </Link>
       </div>
 
-      <div className="hidden lg:flex">{sidebar}</div>
+      {layout.left ? (
+        <div className="hidden min-h-0 lg:flex">
+          {renderSidebar(leftWidth)}
+          <ResizeHandle
+            label="Channel list width"
+            edge="left"
+            width={leftWidth}
+            min={LAYOUT_LIMITS.left.min}
+            max={leftMax}
+            defaultWidth={LAYOUT_LIMITS.left.default}
+            onResize={setLeftDraft}
+            onCommit={(width) => {
+              setLeftDraft(null);
+              setSidebarWidth("left", width);
+            }}
+            onToggle={() => toggleSidebar("left")}
+            className="-ml-1.5"
+          />
+        </div>
+      ) : null}
 
-      {mobileOpen ? (
-        <div role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
-          <div className="relative flex h-full">{sidebar}</div>
+      {mobileOpen || sidebarOverlay ? (
+        <div role="dialog" aria-modal="true" aria-label="Navigation" className={cn("fixed inset-0 z-50 flex", !sidebarOverlay && "lg:hidden")}>
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => {
+              setMobileOpen(false);
+              setSidebarOverlay(false);
+            }}
+          />
+          <div className="relative flex h-full">{renderSidebar(LAYOUT_LIMITS.left.default)}</div>
         </div>
       ) : null}
 
@@ -1037,7 +1097,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
         {/* Flex column so full-height pages (chat) can size to what is left under the header and banner. */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto w-full max-w-[1400px] flex-1 p-4 md:p-6">{children}</div>
+          {/* Chat fills the area edge to edge (it sizes and scrolls its own panels); other pages are centred and padded. */}
+          <div className={cn("w-full flex-1", fullBleed ? "flex min-h-0 flex-col" : "mx-auto max-w-[1400px] p-4 md:p-6")}>{children}</div>
         </div>
       </main>
       {showTabBar ? <MobileTabBar pathname={pathname} onMore={() => setMobileOpen(true)} /> : null}

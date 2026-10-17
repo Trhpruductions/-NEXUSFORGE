@@ -33,8 +33,9 @@ const securityHeaders = [
 
 const nextConfig = (phase: string): NextConfig => ({
   ...baseConfig,
-  // Keep dev and production build artifacts isolated to prevent cross-mode chunk corruption.
-  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next-build",
+  // Keep dev and production build artifacts isolated to prevent cross-mode chunk corruption. NF_BUILD_DIR lets a
+  // check build go to its own folder, since .next-build is what the live site serves.
+  distDir: process.env.NF_BUILD_DIR || (phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next-build"),
   turbopack: {},
   poweredByHeader: false,
   // Serve images as they are. The on-the-fly optimizer failed for the large brand PNGs (blank logos on the home

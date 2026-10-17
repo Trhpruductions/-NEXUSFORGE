@@ -130,7 +130,7 @@ export function LegalCenter({ slug }: { slug: string | null }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#070a10] text-slate-100 print:bg-white print:text-black">
+    <div className="min-h-app bg-[#070a10] text-slate-100 print:bg-white print:text-black">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-0 overflow-hidden print:hidden">
         <div className="absolute -left-40 -top-40 h-[480px] w-[480px] rounded-full bg-violet-600/15 blur-[120px]" />
         <div className="absolute -right-32 top-1/3 h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-[120px]" />

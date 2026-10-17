@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowDownToLine,
   ArrowUpToLine,
+  ExternalLink,
   Hand,
   Headphones,
   HeadphoneOff,
@@ -34,6 +35,10 @@ import { useMediaDevices } from "@/components/voice/use-media-devices";
 import { DevicePicker, voiceLabel } from "@/components/voice/device-picker";
 import { desktopAppVersion, isDesktopApp, outputSelectionSupported } from "@/lib/media/media-devices";
 import { DESKTOP_SCREEN_SHARE_VERSION, desktopTooOldForScreenShare, realDevices } from "@/lib/media/media-prefs";
+import { popoutsSupported } from "@/lib/popout/popout-support";
+import { fitGrid } from "@/lib/layout/fit-grid";
+import { usePopoutStore } from "@/store/popout-store";
+import { useLayoutPrefs } from "@/store/layout-store";
 
 type MemberLike = { userId: string; user: { id: string; username: string; displayName?: string | null; avatar?: string | null } };
 
@@ -252,40 +257,69 @@ function ControlButton({
       onClick={onClick}
       disabled={disabled}
       title={title ?? label}
+      aria-label={label}
       aria-pressed={pressed}
       className={`inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-semibold uppercase tracking-[0.12em] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 disabled:cursor-not-allowed disabled:opacity-45 ${pressed ? active : "border-white/10 text-slate-200 hover:border-amber-400/50 hover:bg-white/[0.04]"}`}
     >
       {icon}
-      <span>{label}</span>
+      {/* Narrow rooms (sidebars open, small windows, popouts) show icons only, so the bar stays on one line. */}
+      <span className="hidden @3xl/controls:inline">{label}</span>
     </button>
   );
 }
 
 /** The shared screen in the big area, with who is sharing, full screen, and a switcher when more than one person shares. */
-function FocusedShare({ share, shares, onSelect, onShowGrid }: { share: Share; shares: Share[]; onSelect: (key: string) => void; onShowGrid: () => void }) {
+function FocusedShare({
+  share,
+  shares,
+  onSelect,
+  onShowGrid,
+  onPopout,
+  poppedOut,
+}: {
+  share: Share;
+  shares: Share[];
+  onSelect: (key: string) => void;
+  onShowGrid: () => void;
+  /** Watch this share in its own window (when popouts are available). */
+  onPopout?: () => void;
+  /** This share is open in its own window right now. */
+  poppedOut?: { onFocus: () => void; onReturn: () => void };
+}) {
   const frame = useRef<HTMLDivElement | null>(null);
+  const overlayButton =
+    "inline-flex items-center gap-1 rounded-lg border border-white/15 bg-black/70 px-2 py-1 text-[11px] font-semibold text-white hover:border-amber-400/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400";
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div ref={frame} className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-500/30 bg-black">
-        <StreamVideo stream={share.stream} className="h-full w-full object-contain" />
+        {poppedOut ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+            <ExternalLink className="h-6 w-6 text-amber-300" aria-hidden="true" />
+            <p className="text-sm text-slate-200">{share.self ? "Your screen" : `${share.name}'s screen`} is open in its own window.</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={poppedOut.onFocus} className={overlayButton}>Show that window</button>
+              <button type="button" onClick={poppedOut.onReturn} className={overlayButton}>Watch it here again</button>
+            </div>
+          </div>
+        ) : (
+          <StreamVideo stream={share.stream} className="h-full w-full object-contain" />
+        )}
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
           <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]" aria-hidden="true" />
           {share.self ? "You are sharing your screen" : `${share.name}'s screen`}
         </span>
         <span className="absolute right-3 top-3 flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => void frame.current?.requestFullscreen?.().catch(() => undefined)}
-            className="inline-flex items-center gap-1 rounded-lg border border-white/15 bg-black/70 px-2 py-1 text-[11px] font-semibold text-white hover:border-amber-400/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
-            aria-label="Watch the shared screen full screen"
-          >
-            <Maximize2 className="h-3.5 w-3.5" /> Full screen
-          </button>
-          <button
-            type="button"
-            onClick={onShowGrid}
-            className="inline-flex items-center gap-1 rounded-lg border border-white/15 bg-black/70 px-2 py-1 text-[11px] font-semibold text-white hover:border-amber-400/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
-          >
+          {onPopout && !poppedOut ? (
+            <button type="button" onClick={onPopout} className={overlayButton} aria-label="Watch the shared screen in its own window">
+              <ExternalLink className="h-3.5 w-3.5" /> Pop out
+            </button>
+          ) : null}
+          {poppedOut ? null : (
+            <button type="button" onClick={() => void frame.current?.requestFullscreen?.().catch(() => undefined)} className={overlayButton} aria-label="Watch the shared screen full screen">
+              <Maximize2 className="h-3.5 w-3.5" /> Full screen
+            </button>
+          )}
+          <button type="button" onClick={onShowGrid} className={overlayButton}>
             <LayoutGrid className="h-3.5 w-3.5" /> Show everyone
           </button>
         </span>
@@ -310,16 +344,22 @@ function FocusedShare({ share, shares, onSelect, onShowGrid }: { share: Share; s
   );
 }
 
-/** Grid columns and width by how many people are in the call, so a tile never stretches across the whole window. */
+/**
+ * Grid columns and width by how many people are in the call, so a tile never stretches across the whole window.
+ * Columns follow the room's own width (container queries), not the window's: sidebars and popouts change it.
+ */
 function gridFor(count: number) {
-  if (count <= 1) return "max-w-2xl grid-cols-1";
-  if (count <= 4) return "max-w-5xl grid-cols-1 sm:grid-cols-2";
-  if (count <= 9) return "max-w-6xl grid-cols-2 lg:grid-cols-3";
-  return "max-w-7xl grid-cols-2 md:grid-cols-3 xl:grid-cols-4";
+  if (count <= 1) return "max-w-3xl grid-cols-1";
+  if (count <= 4) return "max-w-6xl grid-cols-1 @2xl:grid-cols-2";
+  if (count <= 9) return "max-w-7xl grid-cols-2 @4xl:grid-cols-3";
+  return "grid-cols-2 @3xl:grid-cols-3 @6xl:grid-cols-4";
 }
 
-/** Visible voice room. All state comes from the voice store; the engine runs in the app shell. */
-export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
+/**
+ * Visible voice room. All state comes from the voice store; the engine runs in the app shell. inPopout: drawn in its
+ * own window by PopoutHost (the same call, not a second one).
+ */
+export function VoiceRoomPanel({ members = [], inPopout = false }: { members?: MemberLike[]; inPopout?: boolean }) {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const { session, flags, connection, remote, levels, localScreen, localCamera, error, toggle, leave, pushToTalk, stage, peerVolumes, setPeerVolume } = useVoiceStore();
@@ -331,8 +371,17 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
   const [showDevices, setShowDevices] = useState(false);
   // Read on the client only: the desktop app tells its version in the user agent.
   const [desktopVersion, setDesktopVersion] = useState<string | null>(null);
-  useEffect(() => setDesktopVersion(desktopAppVersion()), []);
+  const [canPopout, setCanPopout] = useState(false);
+  useEffect(() => {
+    setDesktopVersion(desktopAppVersion());
+    setCanPopout(popoutsSupported());
+  }, []);
   const shareBlocked = desktopTooOldForScreenShare(desktopVersion);
+  const layoutPrefs = useLayoutPrefs();
+  const openPopout = usePopoutStore((state) => state.open);
+  const closePopout = usePopoutStore((state) => state.close);
+  const focusPopout = usePopoutStore((state) => state.focus);
+  const sharePopout = usePopoutStore((state) => state.share);
 
   const nameOf = (userId: string) => {
     const member = members.find((entry) => entry.userId === userId || entry.user.id === userId);
@@ -396,10 +445,28 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remote, localScreen, selfOnStage, stage, members]);
   const activeShare = shares.find((entry) => entry.key === focusedShare) ?? shares[0] ?? null;
-  // Your own screen isn't worth watching big (it mirrors itself), so only other people's shares open the big view.
+  // Tiles sized to fill the room's area (both ways) without scrolling; measured in the room's own window, which is a
+  // popout's when the room is popped out.
+  const [gridArea, setGridArea] = useState<HTMLDivElement | null>(null);
+  const [gridBox, setGridBox] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    if (!gridArea) return;
+    const view = gridArea.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+    const Observer = view?.ResizeObserver ?? ResizeObserver;
+    const update = () => setGridBox({ width: gridArea.clientWidth, height: gridArea.clientHeight });
+    update();
+    const observer = new Observer(update);
+    observer.observe(gridArea);
+    return () => observer.disconnect();
+  }, [gridArea]);
+  const aloneNote = participants.length === 1 && !stageMode;
+  const grid = fitGrid(onStage.length + shares.length, gridBox.width, gridBox.height - (aloneNote ? 36 : 0));
+  // The saved default (Settings > Appearance > Layout). Automatic: other people's shares open the big view (unless
+  // that is switched off); your own screen isn't worth watching big (it mirrors itself), so it stays in the grid.
   const remoteShareCount = shares.filter((entry) => !entry.self).length;
-  const view = viewChoice ?? (remoteShareCount > 0 ? "focus" : "grid");
-  // Someone starting or stopping a share goes back to the automatic view.
+  const automaticView = layoutPrefs.voiceLayout === "auto" ? (remoteShareCount > 0 && layoutPrefs.focusNewShares ? "focus" : "grid") : layoutPrefs.voiceLayout;
+  const view = viewChoice ?? automaticView;
+  // Someone starting or stopping a share goes back to the default view.
   useEffect(() => {
     setView(null);
   }, [remoteShareCount]);
@@ -482,6 +549,16 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
           <span role="status" className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${badge.tone}`}>
             {badge.icon} {badge.text}
           </span>
+          {canPopout && !inPopout ? (
+            <button
+              type="button"
+              onClick={() => openPopout("voice", { channelId: session.channelId })}
+              title="Open the voice room in its own window (the same call)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Pop out
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -509,18 +586,28 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
         {showFocus && activeShare ? (
           <div className="flex h-full min-h-0 flex-col gap-2">
             <div className="min-h-0 flex-1">
-              <FocusedShare share={activeShare} shares={shares} onSelect={setFocusedShare} onShowGrid={() => setView("grid")} />
+              <FocusedShare
+                share={activeShare}
+                shares={shares}
+                onSelect={setFocusedShare}
+                onShowGrid={() => setView("grid")}
+                onPopout={canPopout ? () => openPopout("share", { key: activeShare.key, name: activeShare.name }) : undefined}
+                poppedOut={sharePopout?.key === activeShare.key ? { onFocus: () => focusPopout("share"), onReturn: () => closePopout("share") } : undefined}
+              />
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1" aria-label="People in this channel">
               {onStage.map((participant) => tileFor(participant, true))}
             </div>
           </div>
         ) : (
-          <div className="h-full overflow-y-auto">
+          <div ref={setGridArea} className="@container flex h-full flex-col overflow-y-auto">
             {stageMode && !onStage.length ? (
               <p className="mx-auto mt-6 max-w-md rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-slate-500">Nobody is on stage yet. A moderator can invite people up.</p>
             ) : (
-              <div className={`mx-auto grid w-full content-center gap-3 ${gridFor(onStage.length)}`}>
+              <div
+                className={`mx-auto my-auto grid w-full gap-3 ${grid.tileWidth ? "justify-center" : gridFor(onStage.length + shares.length)}`}
+                style={grid.tileWidth ? { gridTemplateColumns: `repeat(${grid.columns}, ${grid.tileWidth}px)` } : undefined}
+              >
                 {onStage.map((participant) => tileFor(participant))}
                 {shares.map((entry) => (
                   <button
@@ -541,8 +628,8 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
                 ))}
               </div>
             )}
-            {participants.length === 1 && !stageMode ? (
-              <p className="mt-4 text-center text-xs text-slate-500">You are the only one here. Others in the forge see you in the channel list and can hop in.</p>
+            {aloneNote ? (
+              <p className="mb-auto mt-4 text-center text-xs text-slate-500">You are the only one here. Others in the forge see you in the channel list and can hop in.</p>
             ) : null}
           </div>
         )}
@@ -587,7 +674,7 @@ export function VoiceRoomPanel({ members = [] }: { members?: MemberLike[] }) {
 
       {showDevices && session.mode === "mesh" ? <CallDevices desktopVersion={desktopVersion} /> : null}
 
-      <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-black/30 p-2" role="toolbar" aria-label="Call controls">
+      <div className="@container/controls flex flex-wrap items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-black/30 p-2" role="toolbar" aria-label="Call controls">
         {stageMode && !selfOnStage ? (
           <ControlButton label={raisedIds.has(selfId) ? "Lower hand" : "Raise hand"} pressed={raisedIds.has(selfId)} onClick={() => emitStage("stage:raise", { raised: !raisedIds.has(selfId) })} icon={<Hand className="h-4 w-4" />} />
         ) : null}

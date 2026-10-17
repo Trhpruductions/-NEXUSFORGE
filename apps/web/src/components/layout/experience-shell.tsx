@@ -30,7 +30,7 @@ export function ExperienceShell({ eyebrow, title, subtitle, metrics = [], action
   const pathname = usePathname() ?? "";
 
   return (
-    <div className="min-h-dvh bg-[#070a10] text-slate-100">
+    <div className="min-h-app bg-[#070a10] text-slate-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(46,164,255,0.14),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(30,139,255,0.1),transparent_30%)]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:42px_42px] [mask-image:radial-gradient(ellipse_70%_50%_at_50%_0%,#000_50%,transparent_100%)]" />
 

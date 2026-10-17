@@ -126,10 +126,10 @@ export function WelcomeWizard() {
   }, [discoverQuery.data]);
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[#070a10] text-slate-100">
+    <div className="relative min-h-app overflow-hidden bg-[#070a10] text-slate-100">
       <Image src="/brand/nexusforge-logo-full.png" alt="" fill priority className="object-cover opacity-20" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(46,164,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,16,0.55),#070a10_70%)]" />
-      <main className="relative mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-4 py-8 sm:px-6">
+      <main className="relative mx-auto flex min-h-app w-full max-w-4xl flex-col px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={40} height={40} className="h-10 w-10" />

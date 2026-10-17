@@ -4,7 +4,12 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, X } from "lucide-react";
+import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, ExternalLink, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, X } from "lucide-react";
+import { ResizeHandle } from "@/components/layout/resize-handle";
+import { LAYOUT_LIMITS, effectiveLayout, maxDragWidth } from "@/lib/layout/layout-prefs";
+import { popoutsSupported } from "@/lib/popout/popout-support";
+import { useLayoutPrefs, useLayoutStore, useViewportWidth } from "@/store/layout-store";
+import { usePopoutStore } from "@/store/popout-store";
 import { LoadingNote } from "@/components/ui/loading-note";
 import axios from "axios";
 import {
@@ -104,7 +109,21 @@ function ChatInner() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [pinsOpen, setPinsOpen] = useState(false);
-  const [membersOpen, setMembersOpen] = useState(true);
+  // Member list: its width and whether it is shown are saved for this device (see layout-store). When the window is
+  // too narrow to dock it, the Members button opens it over the chat instead.
+  const layoutPrefs = useLayoutPrefs();
+  const viewportWidth = useViewportWidth();
+  const setSidebarWidth = useLayoutStore((state) => state.setWidth);
+  const toggleSidebar = useLayoutStore((state) => state.toggle);
+  const [rightDraft, setRightDraft] = useState<number | null>(null);
+  const [membersOverlay, setMembersOverlay] = useState(false);
+  const membersPopout = usePopoutStore((state) => state.members);
+  const voicePopout = usePopoutStore((state) => state.voice);
+  const openPopout = usePopoutStore((state) => state.open);
+  const closePopout = usePopoutStore((state) => state.close);
+  const focusPopout = usePopoutStore((state) => state.focus);
+  const [canPopout, setCanPopout] = useState(false);
+  useEffect(() => setCanPopout(popoutsSupported()), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // ?manage=channels from the sidebar opens the forge manage panel on that tab.
   useEffect(() => {
@@ -739,6 +758,10 @@ function ChatInner() {
 
   const visibleMessages = (messagesQuery.data?.messages ?? []).filter((msg) => !search.trim() || msg.content.toLowerCase().includes(search.trim().toLowerCase()) || (msg.author?.username ?? "").toLowerCase().includes(search.trim().toLowerCase()));
   const typingNames = channelId ? typing[channelId] ?? [] : [];
+  // What fits: the member list steps aside first when the window is narrow (the saved choice stays as it is).
+  const layout = effectiveLayout(layoutPrefs, viewportWidth || 1920, { hasLeft: true, hasRight: Boolean(forge) && mode !== "dm" });
+  const membersWidth = rightDraft ?? layout.right;
+  const membersMax = maxDragWidth("right", viewportWidth || 1920, layout.left);
 
   const header = (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-gradient-to-r from-sky-500/[0.07] via-transparent to-violet-500/[0.07] px-4">
@@ -808,18 +831,30 @@ function ChatInner() {
           </div>
         ) : null}
         {mode === "channel" ? <button type="button" onClick={() => setPinsOpen((open) => !open)} className={cn(iconBtn, pinsOpen && "text-amber-200")} title="Pinned messages"><Pin className="h-4 w-4" /></button> : null}
-        <button type="button" onClick={() => setMembersOpen((open) => !open)} className={cn(iconBtn, membersOpen && "text-amber-200")} title="Members"><Users className="h-4 w-4" /></button>
+        <button
+          type="button"
+          onClick={() => {
+            if (membersPopout) focusPopout("members");
+            else if (layout.rightAutoHidden) setMembersOverlay((open) => !open);
+            else toggleSidebar("right");
+          }}
+          className={cn(iconBtn, (layout.right > 0 || membersOverlay || membersPopout) && "text-amber-200")}
+          title={membersPopout ? "Members (open in its own window)" : layout.right ? "Hide members" : "Show members"}
+          aria-pressed={Boolean(layout.right || membersOverlay)}
+        >
+          <Users className="h-4 w-4" />
+        </button>
         {selectedForgeId ? <button type="button" onClick={() => setSettingsOpen(true)} className={iconBtn} title="Forge settings"><Settings2 className="h-4 w-4" /></button> : null}
       </div>
     </header>
   );
 
   return (
-    // Fill the shell's content area edge to edge: undo its padding with negative margins and add it back to the height.
+    // The shell gives chat its whole content area (no padding, no width cap), so this fills it edge to edge.
     // (A fixed 100dvh calc ignored the "Secure your account" banner and pushed the composer off-screen.)
     // contain:size stops the message history from setting the shell's minimum height; without it, on short
     // screens (phones, where the header and banner wrap) the panel grew past the bottom and hid the composer.
-    <div className="-m-4 flex h-[calc(100%+2rem)] min-h-0 [contain:size] md:-m-6 md:h-[calc(100%+3rem)]">
+    <div className="relative flex h-full min-h-0 flex-1 [contain:size]">
       <h1 className="sr-only">Chat</h1>
       {selectedForgeId ? (
         <ForgeSettingsPanel forgeId={selectedForgeId} open={settingsOpen} initialTab={isManageTab(requestedManage) ? requestedManage : undefined} onClose={() => setSettingsOpen(false)} onForgeGone={() => router.push("/app")} />
@@ -839,7 +874,19 @@ function ChatInner() {
 
         {mode === "voice" ? (
           <div className={`flex min-h-0 flex-1 flex-col gap-4 ${voiceSession && voiceSession.channelId === voiceChannel?.id ? "p-2 sm:p-3" : "items-center justify-center p-6"}`}>
-            {voiceSession && voiceSession.channelId === voiceChannel?.id ? (
+            {voiceSession && voiceSession.channelId === voiceChannel?.id && voicePopout?.channelId === voiceSession.channelId ? (
+              // The room is open in its own window: the same call, so nothing is shown twice here.
+              <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-amber-500/20 bg-[#0d1119] p-6 text-center text-slate-100">
+                <ExternalLink className="h-7 w-7 text-amber-300" aria-hidden="true" />
+                <p className="text-sm text-slate-300">
+                  <span className="font-semibold text-white">{voiceSession.channelName}</span> is open in its own window. You are still in the call.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" onClick={() => focusPopout("voice")} className="rounded-lg border border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 hover:border-amber-400/60">Show that window</button>
+                  <button type="button" onClick={() => closePopout("voice")} className="rounded-lg bg-amber-400 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-950 hover:bg-amber-300">Bring it back here</button>
+                </div>
+              </div>
+            ) : voiceSession && voiceSession.channelId === voiceChannel?.id ? (
               // In the call: the room fills the whole content area.
               <div className="flex min-h-0 w-full flex-1 flex-col rounded-2xl border border-amber-500/20 bg-[#0d1119] p-3 text-slate-100 sm:p-4">
                 <VoiceRoomPanel members={forge?.members ?? []} />
@@ -1266,10 +1313,60 @@ function ChatInner() {
         <div className="fixed inset-0 z-40 lg:static lg:z-auto lg:flex">
           <ThreadPanel threadId={openThreadId} channelId={channelId} canModerate={canModerate} onClose={() => setOpenThreadId(null)} emojis={emojiMap} />
         </div>
-      ) : membersOpen && forge && mode !== "dm" ? (
-        <aside className="hidden w-60 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0b0e17]/80 p-3 backdrop-blur-xl lg:block">
-          <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} />
-        </aside>
+      ) : forge && mode !== "dm" && !membersPopout && (layout.right > 0 || membersOverlay) ? (
+        <>
+          {layout.right > 0 ? (
+            <ResizeHandle
+              label="Member list width"
+              edge="right"
+              width={membersWidth}
+              min={LAYOUT_LIMITS.right.min}
+              max={membersMax}
+              defaultWidth={LAYOUT_LIMITS.right.default}
+              onResize={setRightDraft}
+              onCommit={(width) => {
+                setRightDraft(null);
+                setSidebarWidth("right", width);
+              }}
+              onToggle={() => toggleSidebar("right")}
+              className="-mr-1.5 hidden lg:block"
+            />
+          ) : null}
+          <aside
+            style={{ width: layout.right > 0 ? membersWidth : LAYOUT_LIMITS.right.default }}
+            aria-label="Members"
+            className={cn(
+              "shrink-0 overflow-y-auto border-l border-white/[0.06] bg-[#0b0e17]/80 p-3 backdrop-blur-xl",
+              layout.right > 0 ? "hidden lg:block" : "absolute inset-y-0 right-0 z-30 bg-[#0b0e17] shadow-[-20px_0_50px_rgba(0,0,0,0.55)]",
+            )}
+          >
+            <div className="mb-2 flex justify-end gap-1">
+              {canPopout ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMembersOverlay(false);
+                    openPopout("members", { forgeId: forge.id });
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition hover:bg-white/5 hover:text-amber-200"
+                  title="Open the member list in its own window"
+                >
+                  <ExternalLink className="h-3 w-3" /> Pop out
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => (membersOverlay ? setMembersOverlay(false) : toggleSidebar("right"))}
+                className="inline-flex items-center rounded-md p-1 text-slate-500 transition hover:bg-white/5 hover:text-amber-200"
+                title="Hide members"
+                aria-label="Hide members"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <MemberList members={forge.members} roles={forge.roles} ownerId={forge.ownerId} selfId={user.id} />
+          </aside>
+        </>
       ) : null}
     </div>
   );
