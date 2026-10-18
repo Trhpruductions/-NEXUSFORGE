@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
-import { deleteDocument, isAdult, mimeForStoredPath, readDocument } from "../lib/age-verification.js";
+import { deleteDocument, isAdult, readDocument } from "../lib/age-verification.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { requireAdmin } from "../middleware/admin.js";
@@ -43,23 +43,45 @@ adminAgeRouter.get("/", async (req, res) => {
   });
 });
 
-/** Streams the stored document or selfie to the reviewing admin. Never linked publicly. */
+/**
+ * Sends the stored document or selfie to the reviewing admin (requireAuth + requireAdmin above).
+ * Never linked publicly. Files are encrypted on disk and decrypted here, in memory, for this one
+ * response; nothing may cache it. Only a submission still waiting for review can be opened: after
+ * a decision the files are deleted, and if one was left behind it stays closed.
+ */
 adminAgeRouter.get("/:id/file/:kind", async (req, res) => {
-  const record = await prisma.ageVerification.findUnique({ where: { id: req.params.id }, select: { documentPath: true, selfiePath: true } });
-  const relative = req.params.kind === "selfie" ? record?.selfiePath : record?.documentPath;
-  if (!record || !relative) {
+  res.setHeader("Cache-Control", "no-store, private, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  const kind = req.params.kind;
+  if (kind !== "document" && kind !== "selfie") {
     res.status(404).json({ error: "File not found" });
     return;
   }
-  try {
-    const buffer = await readDocument(relative);
-    res.setHeader("Content-Type", mimeForStoredPath(relative));
-    res.setHeader("Cache-Control", "private, no-store");
-    res.setHeader("Content-Disposition", "inline");
-    res.send(buffer);
-  } catch {
-    res.status(404).json({ error: "File missing on disk" });
+  const record = await prisma.ageVerification.findUnique({ where: { id: req.params.id }, select: { status: true, documentPath: true, selfiePath: true } });
+  const relative = kind === "selfie" ? record?.selfiePath : record?.documentPath;
+  if (!record || !relative || record.status !== "PENDING") {
+    res.status(404).json({ error: "File not found" });
+    return;
   }
+  let file: Awaited<ReturnType<typeof readDocument>>;
+  try {
+    file = await readDocument(relative);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      res.status(404).json({ error: "File missing on disk" });
+      return;
+    }
+    // Damaged, altered, or encrypted with a different key. Logged without the file's contents.
+    console.error("[AGE] could not open a stored ID document", { submissionId: req.params.id, kind, error: (error as Error)?.message });
+    res.status(500).json({ error: "This file could not be opened." });
+    return;
+  }
+  // Who looked at whose ID, for the record. Never the contents.
+  console.info(`[AGE] reviewer ${req.user!.id} opened the ${kind} of submission ${req.params.id}`);
+  res.setHeader("Content-Type", file.mime);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Disposition", "inline");
+  res.send(file.bytes);
 });
 
 adminAgeRouter.post("/:id/approve", requireCsrf, async (req, res) => {

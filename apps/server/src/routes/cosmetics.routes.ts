@@ -6,6 +6,7 @@ import { EconomyAuthority, InsufficientBalanceError } from "../lib/economy-autho
 import { ensureCosmeticCatalog, isCatalogItemAvailable } from "../lib/cosmetic-catalog.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { economyRateLimit } from "../middleware/economy-rate-limit.js";
 import { cosmeticPurchaseReference } from "../lib/economy-references.js";
 
 /** Wardrobe: cosmetic catalog, purchases with Nexus Forge Coins (NC), owned inventory, and the equipped loadout. */
@@ -168,7 +169,8 @@ cosmeticsRouter.delete("/presets/:id", async (req, res) => {
   res.json({ presets: next });
 });
 
-cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
+// Spends coins, so it shares the per-account budget of the other coin actions.
+cosmeticsRouter.post("/:itemId/purchase", economyRateLimit, async (req, res) => {
   const item = await prisma.cosmeticItem.findUnique({ where: { id: req.params.itemId } });
   if (!item) {
     res.status(404).json({ error: "Item not found" });

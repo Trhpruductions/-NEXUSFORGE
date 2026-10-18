@@ -7,6 +7,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { accountOrIpKey } from "../middleware/rate-limit.js";
+import { anonymousPerIpLimit } from "../middleware/anonymous-limit.js";
 
 export const errorsRouter = Router();
 
@@ -20,6 +21,15 @@ const reportLimit = rateLimit({
   message: { error: "Too many error reports." },
 });
 
+// Signed-out browsers get a smaller budget per internet address, so made-up reports from scripts can't fill
+// the error log (a real page sends at most ten per page load). Signed-in reports only use the limit above.
+export const ANONYMOUS_ERROR_REPORTS_PER_15_MIN = 10;
+const anonymousReportLimit = anonymousPerIpLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: ANONYMOUS_ERROR_REPORTS_PER_15_MIN,
+  message: "Too many error reports.",
+});
+
 const reportSchema = z.object({
   message: z.string().min(1).max(1000),
   stack: z.string().max(8000).optional().nullable(),
@@ -27,7 +37,7 @@ const reportSchema = z.object({
 });
 
 /** A crash in someone's browser. Answers 204 either way; nothing to show the person. */
-errorsRouter.post("/client", reportLimit, async (req, res) => {
+errorsRouter.post("/client", reportLimit, anonymousReportLimit, async (req, res) => {
   const parsed = reportSchema.safeParse(req.body);
   if (parsed.success) {
     await recordError({ source: "web", message: parsed.data.message, stack: parsed.data.stack, path: parsed.data.path });

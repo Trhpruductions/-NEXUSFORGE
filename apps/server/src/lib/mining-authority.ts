@@ -46,7 +46,8 @@ export class MiningAuthority {
    * Validates rig configuration and tier
    */
   static validateRigTier(tier: string): typeof RIG_PRICING[keyof typeof RIG_PRICING] | null {
-    return RIG_PRICING[tier as keyof typeof RIG_PRICING] || null;
+    // Own keys only: "constructor" or "toString" would otherwise look like a tier with no price.
+    return Object.prototype.hasOwnProperty.call(RIG_PRICING, tier) ? RIG_PRICING[tier as keyof typeof RIG_PRICING] : null;
   }
 
   /**

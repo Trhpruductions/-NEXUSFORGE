@@ -15,6 +15,33 @@ export function appTokenAllowed(method: string, originalUrl: string): boolean {
   return APP_TOKEN_ROUTES.has(`${method.toUpperCase()} ${path}`);
 }
 
+/**
+ * lastSeenAt is written at most once a minute per account. Every signed-in request used to write it (a page
+ * load makes ~15 calls), which was a database write per request. Everything that reads it looks at the last
+ * five minutes ("online now", live users, the daily pulse), and connecting or changing status still writes it
+ * straight away, so a minute's delay changes nothing anyone sees.
+ */
+export const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
+const LAST_SEEN_TRACKED_MAX = 50_000;
+const lastSeenWrites = new Map<string, number>();
+
+/** True when this request should write the user's lastSeenAt (and records that it did). In memory, per process. */
+export function shouldWriteLastSeen(userId: string, now = Date.now()): boolean {
+  const last = lastSeenWrites.get(userId);
+  if (last !== undefined && now - last < LAST_SEEN_WRITE_INTERVAL_MS) return false;
+  if (last === undefined && lastSeenWrites.size >= LAST_SEEN_TRACKED_MAX) {
+    // Keep the map bounded: forget everyone whose minute is up (they would be written again anyway).
+    for (const [id, at] of lastSeenWrites) if (now - at >= LAST_SEEN_WRITE_INTERVAL_MS) lastSeenWrites.delete(id);
+    if (lastSeenWrites.size >= LAST_SEEN_TRACKED_MAX) lastSeenWrites.clear();
+  }
+  lastSeenWrites.set(userId, now);
+  return true;
+}
+
+export function resetLastSeenThrottleForTests(): void {
+  lastSeenWrites.clear();
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
@@ -47,11 +74,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       ...(appToken ? { appClientId: payload.cid, appScope: payload.scope ?? "" } : {}),
     };
     
-    // Non-blocking update of lastSeenAt to keep stats accurate
-    prisma.user.update({
-      where: { id: payload.sub },
-      data: { lastSeenAt: new Date() },
-    }).catch(() => { /* ignore update failures */ });
+    // Non-blocking update of lastSeenAt to keep stats accurate (at most once a minute per account).
+    if (shouldWriteLastSeen(payload.sub)) {
+      prisma.user.update({
+        where: { id: payload.sub },
+        data: { lastSeenAt: new Date() },
+      }).catch(() => { /* ignore update failures */ });
+    }
 
     next();
   } catch {

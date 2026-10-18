@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { comparePassword, hashPassword } from "../lib/password.js";
+import { checkPasswordOrDummy, hashPassword } from "../lib/password.js";
 import { APPEAL_REPLY, submitVacAppeal } from "../lib/vac-bans.js";
 import { VAC_APPEAL_MAX, VAC_APPEAL_MIN } from "../lib/account-suspension.js";
 import { randomToken, sha256, signAccessToken } from "../lib/jwt.js";
@@ -16,7 +16,7 @@ import { emailContextFromEnv, renderEmail } from "../lib/email-templates.js";
 import { dispatchPushNotification, pushConfigured } from "../lib/push.js";
 import { limitsForUser, messageLengthProblem } from "../lib/user-limits.js";
 import { upgradeRequired } from "../lib/plans.js";
-import { AuditOperation, AuditStatus } from "@prisma/client";
+import { AuditOperation, AuditStatus, type Prisma } from "@prisma/client";
 import { getAuditLogger } from "../utils/audit-logger.js";
 import jwt from "jsonwebtoken";
 import { issueCode, verifyCode, maskEmail, maskPhone, normalizePhone } from "../lib/verification.js";
@@ -112,6 +112,16 @@ function hasAdminAccess(role: string | null | undefined, isAdmin: boolean): bool
   return isAdmin || (role ? privilegedRoles.has(role) : false);
 }
 
+/**
+ * Whether an account keeps the profile banner and animated avatar whatever its plan allows.
+ * This is the lifetime membership staff grant (User.lifetimeMember), recorded on the account.
+ * It replaces one tester's username that was written into the code: a rename, or someone else
+ * registering that name after the account was gone, would have moved the perk with the name.
+ */
+export function keepsProfilePerksWithoutPlan(user: { lifetimeMember: boolean } | null | undefined): boolean {
+  return Boolean(user?.lifetimeMember);
+}
+
 function refreshCookieOptions() {
   return {
     httpOnly: true,
@@ -137,11 +147,13 @@ type SessionCarry = { sessionId: string; signedInAt: Date; deviceLabel: string |
 /**
  * Issues an access token and a refresh token. Without `carry` this starts a new session
  * (sign-in); with it, the new refresh token continues an existing session (rotation).
+ * `db` lets rotation write the new token in the same transaction that retires the old one.
  */
 async function issueTokens(
   user: { id: string; username: string; email: string; appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER" },
   ctx: DeviceContext,
   carry?: SessionCarry,
+  db: Prisma.TransactionClient = prisma,
 ) {
   const accessToken = signAccessToken({
     sub: user.id,
@@ -156,7 +168,7 @@ async function issueTokens(
 
   const now = new Date();
   const sessionId = carry?.sessionId ?? randomUUID();
-  await prisma.refreshToken.create({
+  await db.refreshToken.create({
     data: {
       userId: user.id,
       tokenHash,
@@ -328,8 +340,10 @@ authRouter.post("/vac-appeal", async (req, res) => {
     res.status(400).json({ error: `Give your email, password and an appeal of ${VAC_APPEAL_MIN} to ${VAC_APPEAL_MAX} characters.` });
     return;
   }
-  await submitVacAppeal(parsed.data);
+  // Answer first, then check. Waiting for the check let the response time show whether the email
+  // has an account (the password is only hashed when it does).
   res.json({ ok: true, message: APPEAL_REPLY });
+  void submitVacAppeal(parsed.data).catch((error) => console.error("[AUTH] VAC appeal failed", error));
 });
 
 authRouter.post("/login", async (req, res) => {
@@ -341,13 +355,10 @@ authRouter.post("/login", async (req, res) => {
 
   const user = await findLoginUser(parsed.data.email);
 
-  if (!user) {
-    res.status(401).json({ error: "Invalid credentials" });
-    return;
-  }
-
-  const validPassword = await comparePassword(parsed.data.password, user.password);
-  if (!validPassword) {
+  // An unknown email or phone still pays for a password check (against a dummy hash), so the
+  // response time doesn't reveal which ones have accounts. Same answer either way.
+  const validPassword = await checkPasswordOrDummy(parsed.data.password, user?.password);
+  if (!user || !validPassword) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
@@ -580,7 +591,9 @@ authRouter.post("/refresh", async (req, res) => {
     // cookie jar is shared, so the newer cookie may already be set; leave it alone in that case.
     const replacedMomentsAgo = Boolean(session?.revokedAt && Date.now() - session.revokedAt.getTime() <= REFRESH_REUSE_GRACE_MS);
     if (!replacedMomentsAgo) res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions());
-    res.status(401).json({ error: "Invalid refresh token" });
+    // Same code as losing the race below: the website retries once with the newer cookie instead of signing
+    // this tab out. Someone replaying a copied token gains nothing from it: after the grace period it ends the session.
+    res.status(401).json({ error: "Invalid refresh token", ...(replacedMomentsAgo ? { code: "REFRESH_TOKEN_ROTATED" } : {}) });
     return;
   }
   const suspension = await currentSuspension(session.userId);
@@ -590,10 +603,40 @@ authRouter.post("/refresh", async (req, res) => {
     return;
   }
 
-  await prisma.refreshToken.update({
-    where: { id: session.id },
-    data: { revokedAt: new Date() },
+  // Rotation in one transaction: retire this token with a conditional write, then issue its
+  // successor. When two requests bring the same token at the same moment (two tabs), both get
+  // past the checks above, but only one can flip revokedAt from null; the other changes nothing
+  // and is refused below. Before, both wrote revokedAt and both got a fresh token, so a copied
+  // token used at the same time as the real one kept working and was never caught as reuse.
+  const now = new Date();
+  const ctx = deviceContext(req);
+  const tokens = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.refreshToken.updateMany({
+      where: { id: session.id, revokedAt: null, expiresAt: { gt: now } },
+      data: { revokedAt: now },
+    });
+    if (claimed.count !== 1) return null;
+    // Same session, new token. Rows from before sessions were tracked start their chain here.
+    return issueTokens(
+      session.user,
+      ctx,
+      {
+        sessionId: session.sessionId ?? session.id,
+        signedInAt: session.signedInAt ?? session.createdAt,
+        deviceLabel: session.deviceLabel,
+        userAgent: session.userAgent,
+      },
+      tx,
+    );
   });
+
+  if (!tokens) {
+    // Lost the race to a request with the same token, which is rotating it right now. That is the
+    // grace case above (not theft), so the session is left alone. The winner's response sets the
+    // new cookie in the shared cookie jar, so this one must not clear it.
+    res.status(401).json({ error: "Invalid refresh token", code: "REFRESH_TOKEN_ROTATED" });
+    return;
+  }
 
   await logSessionRevocation({
     sessionId: session.id,
@@ -606,13 +649,6 @@ authRouter.post("/refresh", async (req, res) => {
     },
   });
 
-  // Same session, new token. Rows from before sessions were tracked start their chain here.
-  const tokens = await issueTokens(session.user, deviceContext(req), {
-    sessionId: session.sessionId ?? session.id,
-    signedInAt: session.signedInAt ?? session.createdAt,
-    deviceLabel: session.deviceLabel,
-    userAgent: session.userAgent,
-  });
   const csrfToken = randomToken(16);
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, refreshCookieOptions());
   res.cookie(csrfCookieName(), csrfToken, csrfCookieOptions());
@@ -745,16 +781,14 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
     return;
   }
 
-  const betaCosmeticsBypassUsers = new Set(["jacksongaming69"]);
   const requester = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { username: true },
+    select: { lifetimeMember: true },
   });
-  const isBetaCosmeticsBypass = requester ? betaCosmeticsBypassUsers.has(requester.username.toLowerCase()) : false;
 
   const wantsBanner = Boolean(parsed.data.banner);
   const wantsAnimatedAvatar = typeof parsed.data.avatar === "string" && /\.gif(\?|$)/i.test(parsed.data.avatar);
-  if ((wantsBanner || wantsAnimatedAvatar) && !isBetaCosmeticsBypass) {
+  if ((wantsBanner || wantsAnimatedAvatar) && !keepsProfilePerksWithoutPlan(requester)) {
     const limits = await limitsForUser(req.user!.id);
     const allowed = (wantsBanner ? limits.profileBanner : true) && (wantsAnimatedAvatar ? limits.animatedAvatar : true);
     if (!allowed && !(await hasActiveFeatureEntitlement(req.user!.id, "TEAM_BRANDING_KIT"))) {
@@ -897,36 +931,36 @@ authRouter.post("/forgot-password", async (req, res) => {
       res.status(400).json({ error: "Enter a valid phone number with country code, e.g. +1 555 123 4567" });
       return;
     }
-    // Same answer whether or not the number is on an account.
-    const phoneAnswer = { message: "If that number is verified on an account, we've texted it a 6-digit code. It works for 10 minutes." };
-    const owner = await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } });
-    if (owner) {
-      void issueCode({ userId: owner.id, channel: "SMS", purpose: "RESET_PASSWORD", target: phone })
-        .then((result) => {
-          if (!result.ok && !result.retryAfterSeconds) console.error("[AUTH] reset text failed", result.error);
-          if (result.devCode) console.log(`[DEV SMS] reset code for ${maskPhone(phone)}: ${result.devCode}`);
-        })
-        .catch((error) => console.error("[AUTH] reset text failed", error));
-    }
-    res.status(200).json(phoneAnswer);
+    // Same answer whether or not the number is on an account, sent before looking it up so the
+    // response time doesn't tell either.
+    res.status(200).json({ message: "If that number is verified on an account, we've texted it a 6-digit code. It works for 10 minutes." });
+    void sendPhoneResetCode(phone).catch((error) => console.error("[AUTH] reset text failed", error));
     return;
   }
 
-  const answer = { message: "If that email has an account, we've sent a link to reset the password. It works for 30 minutes." };
-  const email = parsed.data.email.toLowerCase();
+  // Same answer whether or not the address has an account, sent before the lookup: the work done
+  // for a real account (checks, token, email) used to make its response measurably slower.
+  res.status(200).json({ message: "If that email has an account, we've sent a link to reset the password. It works for 30 minutes." });
+  void sendPasswordResetEmail(parsed.data.email.toLowerCase()).catch((error) => console.error("[AUTH] reset email failed", error));
+});
+
+/** Texts a reset code if the number is verified on an account. Runs after the response. */
+async function sendPhoneResetCode(phone: string) {
+  const owner = await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } });
+  if (!owner) return;
+  const result = await issueCode({ userId: owner.id, channel: "SMS", purpose: "RESET_PASSWORD", target: phone });
+  if (!result.ok && !result.retryAfterSeconds) console.error("[AUTH] reset text failed", result.error);
+  if (result.devCode) console.log(`[DEV SMS] reset code for ${maskPhone(phone)}: ${result.devCode}`);
+}
+
+/** Emails a reset link if the address has an account. Runs after the response. */
+async function sendPasswordResetEmail(email: string) {
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, username: true, email: true, deletedAt: true } });
-
-  if (!user || user.deletedAt) {
-    res.status(200).json(answer);
-    return;
-  }
+  if (!user || user.deletedAt) return;
 
   // One reset email per window: a repeated request gets the same answer and no new link.
   const resetSubject = renderEmail("password-reset", { username: user.username, link: env.APP_WEB_URL, expiresIn: "30 minutes" }, emailContextFromEnv()).subject;
-  if ((await duplicateWaitSeconds(user.id, "password-reset", resetSubject)) > 0) {
-    res.status(200).json(answer);
-    return;
-  }
+  if ((await duplicateWaitSeconds(user.id, "password-reset", resetSubject)) > 0) return;
 
   const resetToken = randomToken(24);
   await prisma.user.update({
@@ -938,12 +972,8 @@ authRouter.post("/forgot-password", async (req, res) => {
   });
 
   const link = `${env.APP_WEB_URL.replace(/\/+$/, "")}/reset-password?token=${encodeURIComponent(resetToken)}`;
-  void sendTemplateEmail("password-reset", user.email, { username: user.username, link, expiresIn: "30 minutes" }, { userId: user.id }).catch((error) =>
-    console.error("[AUTH] reset email failed", error),
-  );
-
-  res.status(200).json(answer);
-});
+  await sendTemplateEmail("password-reset", user.email, { username: user.username, link, expiresIn: "30 minutes" }, { userId: user.id });
+}
 
 authRouter.post("/reset-password", async (req, res) => {
   const parsed = resetSchema.safeParse(req.body);
@@ -975,15 +1005,18 @@ authRouter.post("/reset-password/phone", async (req, res) => {
     res.status(400).json({ error: "Enter your phone number, the 6-digit code and a new password (8+ characters)." });
     return;
   }
+  // One answer for every failure. Different messages (or an attempts count) for a number that is on
+  // an account would tell anyone which numbers are. Wrong guesses still use up the code's attempts.
+  const failure = { error: "That code is wrong or has expired. Request a new one." };
   const phone = normalizePhone(parsed.data.phone);
   const user = phone ? await prisma.user.findFirst({ where: { phoneNumber: phone, phoneVerified: true, deletedAt: null }, select: { id: true } }) : null;
   if (!user) {
-    res.status(400).json({ error: "That code is wrong or has expired. Request a new one." });
+    res.status(400).json(failure);
     return;
   }
   const check = await verifyCode({ userId: user.id, purpose: "RESET_PASSWORD", code: parsed.data.code, channel: "SMS" });
   if (!check.ok || check.target !== phone) {
-    res.status(400).json({ error: check.ok ? "That code is wrong or has expired. Request a new one." : check.error, attemptsLeft: check.ok ? undefined : check.attemptsLeft });
+    res.status(400).json(failure);
     return;
   }
   await setNewPassword(user.id, parsed.data.newPassword, req, "reset-password-phone");

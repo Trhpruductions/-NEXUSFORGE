@@ -7,7 +7,7 @@ import { issueCode, maskPhone, normalizePhone, protectionSummary, verifyCode } f
 import { PASSWORD_REQUIRED, confirmCurrentPassword, sendSecurityAlert } from "../lib/reauth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { authRateLimit } from "../middleware/rate-limit.js";
+import { accountSecurityRateLimit } from "../middleware/rate-limit.js";
 import { comparePassword } from "../lib/password.js";
 import { checkSecondFactor } from "../lib/second-factor.js";
 import { decryptSecret, encryptSecret, generateRecoveryCodes, generateTotpSecret, otpauthUrl, verifyTotp } from "../lib/totp.js";
@@ -44,7 +44,7 @@ verificationRouter.get("/status", async (req, res) => {
 // Email
 // ---------------------------------------------------------------------------
 
-verificationRouter.post("/email/send", authRateLimit, async (req, res) => {
+verificationRouter.post("/email/send", accountSecurityRateLimit, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: userSelect });
   if (!user) {
     res.status(404).json({ error: "User not found" });
@@ -62,7 +62,7 @@ verificationRouter.post("/email/send", authRateLimit, async (req, res) => {
   res.json({ ok: true, sentTo: protectionSummary(user).email, transport: result.delivery?.transport, devCode: result.devCode });
 });
 
-verificationRouter.post("/email/confirm", authRateLimit, async (req, res) => {
+verificationRouter.post("/email/confirm", accountSecurityRateLimit, async (req, res) => {
   const parsed = codeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter the 6-digit code" });
@@ -85,7 +85,7 @@ verificationRouter.post("/email/confirm", authRateLimit, async (req, res) => {
 // Phone
 // ---------------------------------------------------------------------------
 
-verificationRouter.post("/phone/send", authRateLimit, async (req, res) => {
+verificationRouter.post("/phone/send", accountSecurityRateLimit, async (req, res) => {
   const parsed = phoneSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter a valid phone number" });
@@ -113,7 +113,7 @@ verificationRouter.post("/phone/send", authRateLimit, async (req, res) => {
   res.json({ ok: true, sentTo: phone, transport: result.delivery?.transport, devCode: result.devCode });
 });
 
-verificationRouter.post("/phone/confirm", authRateLimit, async (req, res) => {
+verificationRouter.post("/phone/confirm", accountSecurityRateLimit, async (req, res) => {
   const parsed = codeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter the 6-digit code" });
@@ -148,7 +148,7 @@ verificationRouter.post("/phone/confirm", authRateLimit, async (req, res) => {
   res.json({ ok: true, protection: protectionSummary(user) });
 });
 
-verificationRouter.delete("/phone", authRateLimit, async (req, res) => {
+verificationRouter.delete("/phone", accountSecurityRateLimit, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: userSelect });
   if (!user) {
     res.status(404).json({ error: "User not found" });
@@ -179,7 +179,7 @@ verificationRouter.delete("/phone", authRateLimit, async (req, res) => {
 // ---------------------------------------------------------------------------
 
 /** Sends a confirmation code (to every verified channel) before 2FA can be switched off. */
-verificationRouter.post("/two-factor/challenge", authRateLimit, async (req, res) => {
+verificationRouter.post("/two-factor/challenge", accountSecurityRateLimit, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: userSelect });
   if (!user) {
     res.status(404).json({ error: "User not found" });
@@ -198,7 +198,7 @@ verificationRouter.post("/two-factor/challenge", authRateLimit, async (req, res)
   res.json({ ok: true, channels: delivered.map((entry) => entry?.delivery?.transport), devCode: delivered.find((entry) => entry?.devCode)?.devCode });
 });
 
-verificationRouter.put("/two-factor", authRateLimit, async (req, res) => {
+verificationRouter.put("/two-factor", accountSecurityRateLimit, async (req, res) => {
   const parsed = twoFactorSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
@@ -250,7 +250,7 @@ const passwordSchema = z.object({ password: z.string().min(1).max(200) });
 const anyCodeSchema = z.object({ code: z.string().trim().min(6).max(12) });
 
 /** Step 1: confirm the password, get a fresh secret to scan. Nothing changes until step 2. */
-verificationRouter.post("/two-factor/totp/setup", authRateLimit, async (req, res) => {
+verificationRouter.post("/two-factor/totp/setup", accountSecurityRateLimit, async (req, res) => {
   const parsed = passwordSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter your password" });
@@ -275,7 +275,7 @@ verificationRouter.post("/two-factor/totp/setup", authRateLimit, async (req, res
 });
 
 /** Step 2: prove the app works by entering its current code. Returns recovery codes, shown once. */
-verificationRouter.post("/two-factor/totp/enable", authRateLimit, async (req, res) => {
+verificationRouter.post("/two-factor/totp/enable", accountSecurityRateLimit, async (req, res) => {
   const parsed = codeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter the 6-digit code from your app" });
@@ -303,7 +303,7 @@ verificationRouter.post("/two-factor/totp/enable", authRateLimit, async (req, re
 });
 
 /** Turning it off needs a current app code (or a recovery code), so a stolen session can't. */
-verificationRouter.post("/two-factor/totp/disable", authRateLimit, async (req, res) => {
+verificationRouter.post("/two-factor/totp/disable", accountSecurityRateLimit, async (req, res) => {
   const parsed = anyCodeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter a code from your app or a recovery code" });
@@ -323,7 +323,7 @@ verificationRouter.post("/two-factor/totp/disable", authRateLimit, async (req, r
 });
 
 /** New set of recovery codes (the old ones stop working). */
-verificationRouter.post("/two-factor/totp/recovery-codes", authRateLimit, async (req, res) => {
+verificationRouter.post("/two-factor/totp/recovery-codes", accountSecurityRateLimit, async (req, res) => {
   const parsed = anyCodeSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter a code from your app" });

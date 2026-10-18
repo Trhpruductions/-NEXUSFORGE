@@ -36,8 +36,15 @@ router.get("/daily/status", requireAuth, async (req, res) => {
 });
 
 /** Claim today's reward (once per UTC day; streaks grow the payout). */
-router.post("/daily/claim", requireAuth, economyRateLimit, async (req, res) => {
-  const result = await claimDaily(req.user!.id);
+router.post("/daily/claim", requireAuth, requireCsrf, economyRateLimit, async (req, res) => {
+  let result: Awaited<ReturnType<typeof claimDaily>>;
+  try {
+    result = await claimDaily(req.user!.id);
+  } catch (error) {
+    console.error("[ECONOMY_DAILY_CLAIM_ERROR]", { userId: req.user!.id, error });
+    res.status(500).json({ error: "Today's reward could not be claimed. Please try again." });
+    return;
+  }
   if (!result.ok) {
     res.status(400).json({ error: "Already claimed today. Come back after the reset.", status: { ...result.status, nextAmount: result.status.nextAmount.toString() } });
     return;
@@ -191,8 +198,10 @@ router.get("/:userId", requireAuth, economyRateLimit, async (req, res) => {
     }));
 
     res.json(serialized);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    // Details stay in the server log; the message could carry database internals.
+    console.error("[ECONOMY_ACCOUNTS_ERROR]", { userId: req.user!.id, error });
+    res.status(500).json({ error: "Your balance could not be loaded. Please try again." });
   }
 });
 
@@ -201,7 +210,7 @@ router.get("/:userId", requireAuth, economyRateLimit, async (req, res) => {
  * @desc Adjust user balance (Admin only)
  * @access Admin
  */
-router.post("/:userId/adjust", requireAuth, requireAdmin, economyRateLimit, async (req, res) => {
+router.post("/:userId/adjust", requireAuth, requireAdmin, requireCsrf, economyRateLimit, async (req, res) => {
   try {
     const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
     const validatedData = adjustBalanceSchema.parse(req.body);
@@ -215,16 +224,29 @@ router.post("/:userId/adjust", requireAuth, requireAdmin, economyRateLimit, asyn
       metadata: validatedData.metadata,
     });
     
+    // Every BigInt as a string: frozenBalance was missed, so JSON failed after the change was made.
     res.json({
       ...result,
       balance: result.balance.toString(),
+      frozenBalance: result.frozenBalance?.toString() ?? "0",
       lifetimeEarnings: result.lifetimeEarnings.toString()
     });
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.issues });
     }
-    res.status(400).json({ error: error.message });
+    if (error instanceof InsufficientBalanceError) {
+      return res.status(400).json({ error: "That would take the balance below zero.", code: "INSUFFICIENT" });
+    }
+    if (error instanceof SyntaxError || error instanceof RangeError) {
+      // BigInt() refused the amount ("12.5", "abc").
+      return res.status(400).json({ error: "The amount must be a whole number." });
+    }
+    if ((error as { code?: string })?.code === "P2002") {
+      return res.status(409).json({ error: "An adjustment with that reference already exists." });
+    }
+    console.error("[ECONOMY_ADJUST_ERROR]", { actorId: req.user!.id, error });
+    res.status(500).json({ error: "The balance could not be adjusted. Nothing was changed." });
   }
 });
 
