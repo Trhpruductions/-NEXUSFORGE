@@ -816,6 +816,14 @@ let refreshInFlight: Promise<RefreshedSession | null> | null = null;
 
 const authEndpointsWithoutRefresh = ["/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout"];
 
+/** How long to wait before retrying a refresh that lost a race with another tab. */
+const REFRESH_RACE_RETRY_MS = 400;
+
+/** True when the API refused a refresh only because another request rotated the same cookie at that moment. */
+export function lostRefreshRace(status: number | undefined, body: unknown) {
+  return status === 401 && (body as { code?: unknown } | null | undefined)?.code === "REFRESH_TOKEN_ROTATED";
+}
+
 function isNonRefreshableAuthUrl(url?: string) {
   if (!url) return false;
   return authEndpointsWithoutRefresh.some((endpoint) => url.includes(endpoint));
@@ -828,8 +836,16 @@ function isNonRefreshableAuthUrl(url?: string) {
  */
 export function refreshAccessToken(): Promise<RefreshedSession | null> {
   if (!refreshInFlight) {
-    refreshInFlight = axios
-      .post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true, timeout: 20000 })
+    const post = () =>
+      axios.post<RefreshedSession>(`${api.defaults.baseURL ?? API_BASE_URL}/api/auth/refresh`, {}, { withCredentials: true, timeout: 20000 });
+    refreshInFlight = post()
+      .catch(async (error: unknown) => {
+        // Another tab rotated the same refresh cookie a moment earlier. Its answer has already put the new
+        // cookie in the browser, so one more try a little later succeeds instead of signing this tab out.
+        if (!lostRefreshRace(axios.isAxiosError(error) ? error.response?.status : undefined, axios.isAxiosError(error) ? error.response?.data : undefined)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, REFRESH_RACE_RETRY_MS));
+        return post();
+      })
       .then((response) => {
         const data = response.data;
         if (!data?.accessToken) return null;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Download, Loader2, Trash2 } from "lucide-react";
 import { downloadAccountData, getApiErrorMessage, getDeletionStatus, requestAccountDeletion } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const inputClass =
   "h-10 w-full rounded-xl border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -17,13 +17,14 @@ const dangerBtn =
 /** "Download my data" and "Delete my account", at the bottom of Settings > Account. */
 export function AccountDataCard() {
   const { accessToken, csrfToken, clearSession } = useAuthStore();
+  const queryScope = useQueryScope();
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [understood, setUnderstood] = useState(false);
 
   const statusQuery = useQuery({
-    queryKey: ["account-deletion", accessToken],
+    queryKey: ["account-deletion", queryScope],
     queryFn: () => getDeletionStatus(accessToken!),
     enabled: Boolean(accessToken && deleteOpen),
   });

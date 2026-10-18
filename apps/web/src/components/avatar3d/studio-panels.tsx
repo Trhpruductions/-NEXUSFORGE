@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage, getCosmeticInventory, setLoadoutSlot, type AvatarPreset, type CosmeticItem, type CosmeticSlot, type User } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { ALL_PART_OPTIONS, type RecentPick } from "@/components/avatar3d/studio-model";
 import type { PartCategory } from "@/components/avatar3d/design";
 import { isEmoteId, type EmoteId } from "@/components/avatar3d/emote-poses";
@@ -21,8 +21,9 @@ export function partForItem(item: Pick<CosmeticItem, "key">): { category: PartCa
 /** The account's owned catalog items, from the server. Nothing here is hardcoded. */
 function useOwnedItems() {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   const query = useQuery({
-    queryKey: ["avatar-inventory", accessToken],
+    queryKey: ["avatar-inventory", queryScope],
     queryFn: () => getCosmeticInventory(accessToken!),
     enabled: Boolean(accessToken),
   });

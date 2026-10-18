@@ -46,7 +46,7 @@ import {
   type PrivacySettings,
   getCosmeticInventory,
 } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { AccountProtection } from "@/components/settings/account-protection";
 import { AccountDataCard } from "@/components/settings/account-data-card";
@@ -132,16 +132,17 @@ function SettingsInner() {
   const highlightAge = searchParams?.get("age") === "1";
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user, clearSession, fetchMe, hydrated } = useAuthStore();
+  const queryScope = useQueryScope();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const settingsQuery = useQuery({
-    queryKey: ["settings", accessToken],
+    queryKey: ["settings", queryScope],
     queryFn: () => getSettings(accessToken!),
     enabled: Boolean(accessToken),
   });
   const forgeQuery = useQuery({
-    queryKey: ["forge", selectedForgeId, accessToken],
+    queryKey: ["forge", selectedForgeId, queryScope],
     queryFn: () => getForge(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
@@ -178,29 +179,29 @@ function SettingsInner() {
   }, [settingsQuery.data, seeded]);
 
   const avatarQuery = useQuery({
-    queryKey: ["avatar", accessToken],
+    queryKey: ["avatar", queryScope],
     queryFn: () => getAvatar(accessToken!),
     enabled: Boolean(accessToken) && category === "avatar",
   });
   const cosmeticsQuery = useQuery({
-    queryKey: ["cosmetic-inventory", accessToken],
+    queryKey: ["cosmetic-inventory", queryScope],
     queryFn: () => getCosmeticInventory(accessToken!),
     enabled: Boolean(accessToken) && category === "avatar",
   });
   const equippedGear = useMemo(() => equippedFrom(cosmeticsQuery.data?.items, cosmeticsQuery.data?.loadout), [cosmeticsQuery.data]);
   const billingQuery = useQuery({
-    queryKey: ["billing-entitlements", accessToken],
+    queryKey: ["billing-entitlements", queryScope],
     queryFn: () => getBillingEntitlements(accessToken!),
     enabled: Boolean(accessToken) && category === "billing",
   });
-  const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken) && category === "billing" });
+  const limitsQuery = useQuery({ queryKey: ["my-limits", queryScope], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken) && category === "billing" });
   const botsQuery = useQuery({
-    queryKey: ["my-bots", accessToken],
+    queryKey: ["my-bots", queryScope],
     queryFn: () => listMyBots(accessToken!),
     enabled: Boolean(accessToken) && category === "integrations",
   });
   const bansQuery = useQuery({
-    queryKey: ["forge-bans", selectedForgeId, accessToken],
+    queryKey: ["forge-bans", selectedForgeId, queryScope],
     queryFn: () => listForgeBans(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId) && category === "moderation",
     retry: false,

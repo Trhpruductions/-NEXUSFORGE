@@ -5,13 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/api";
 import { designOfLook, loadLooks, retiredPartsOf } from "@/lib/avatar-api";
 import { AvatarBuilder } from "@/components/avatar3d/avatar-builder";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 /** Opens a saved avatar for editing: loads its design from the account, then shows the builder. */
 export function AvatarEditor({ presetId }: { presetId: string }) {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   const query = useQuery({
-    queryKey: ["avatar", accessToken],
+    queryKey: ["avatar", queryScope],
     queryFn: () => loadLooks(accessToken!),
     enabled: Boolean(accessToken),
   });

@@ -241,3 +241,33 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+/**
+ * Whose data a cached server response is, for react-query keys: the signed-in user's id, "signed-in" for the moment
+ * between getting a token and loading the account, and null when signed out.
+ *
+ * Use this in query keys instead of the access token. The token changes on every refresh (every 15 minutes); with it
+ * in the keys, each refresh made every query on the page refetch at once and showed empty lists meanwhile. The
+ * queryFn still sends the current token. The cache is cleared on sign-out and when the account changes
+ * (AppProviders), so one person's data is never shown to the next.
+ */
+export function queryScopeOf(state: Pick<AuthState, "accessToken" | "user">): string | null {
+  if (!state.accessToken) return null;
+  return state.user?.id ?? "signed-in";
+}
+
+export function useQueryScope(): string | null {
+  return useAuthStore(queryScopeOf);
+}
+
+/**
+ * Whether cached server data must be dropped when the auth state goes from `previous` to `next`: on sign-out or
+ * expiry (the token goes away), and when a different account is signed in. A token refresh, or the account loading
+ * after the token, keeps the cache.
+ */
+export function shouldClearQueryCache(previous: Pick<AuthState, "accessToken" | "user">, next: Pick<AuthState, "accessToken" | "user">): boolean {
+  if (previous.accessToken && !next.accessToken) return true;
+  const before = previous.user?.id ?? null;
+  const after = next.user?.id ?? null;
+  return Boolean(before && after && before !== after);
+}

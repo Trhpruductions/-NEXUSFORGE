@@ -7,11 +7,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Building2, Crown, Gamepad2, Hash, Link2, Loader2, MessageSquare, Plus, Settings2, Users, Users2, X, Zap, BookOpen } from "lucide-react";
 import { createForge, getApiErrorMessage, getUnreadSummary, joinForge, listForges, type Forge } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
 import { LoadingNote } from "@/components/ui/loading-note";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const panel = "vx-panel rounded-2xl p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -34,14 +34,15 @@ export function CommunityPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const setSelectedForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
-  const forgesQuery = useQuery({ queryKey: ["forges", accessToken], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
-  const unreadQuery = useQuery({ queryKey: ["unread-summary", accessToken], queryFn: () => getUnreadSummary(accessToken!), enabled: Boolean(accessToken) });
+  const forgesQuery = useQuery({ queryKey: ["forges", queryScope], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
+  const unreadQuery = useQuery({ queryKey: ["unread-summary", queryScope], queryFn: () => getUnreadSummary(accessToken!), enabled: Boolean(accessToken) });
   const unreadByForge = new Map((unreadQuery.data?.forges ?? []).map((entry) => [entry.forgeId, entry] as const));
 
   const joinMutation = useMutation({
@@ -177,7 +178,7 @@ export function CommunityPage() {
 }
 
 function CreateForgeDialog({ onClose }: { onClose: () => void }) {
-  useEscapeKey(true, onClose);
+  const dialog = useDialogFocus({ open: true, onClose, label: "Create a forge" });
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
@@ -200,7 +201,7 @@ function CreateForgeDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Create a forge" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div {...dialog} className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">
@@ -208,7 +209,7 @@ function CreateForgeDialog({ onClose }: { onClose: () => void }) {
             <h2 className="nf-heading text-base font-bold text-white">Create a forge</h2>
             <p className="text-xs text-slate-400">Pick a template. Channels and roles are set up for you.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:text-white" title="Close"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:text-white" title="Close" aria-label="Close"><X className="h-4 w-4" /></button>
         </div>
         <div className="mb-4 grid gap-2 sm:grid-cols-5">
           {templates.map((entry) => (
@@ -220,7 +221,7 @@ function CreateForgeDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <div className="space-y-3">
-          <input className={inputClass} placeholder="Forge name" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} autoFocus />
+          <input className={inputClass} placeholder="Forge name" value={name} onChange={(event) => setName(event.target.value)} maxLength={80} data-autofocus aria-label="Forge name" />
           <input className={inputClass} placeholder="What is this forge about? (optional)" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={300} />
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500">/invite/</span>

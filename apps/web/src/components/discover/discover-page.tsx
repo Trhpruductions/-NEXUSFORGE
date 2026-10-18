@@ -7,7 +7,7 @@ import axios from "axios";
 import { Check, Hash, Search, Star, TrendingUp, Users } from "lucide-react";
 import { getDiscover, joinForge, type DiscoverForge } from "@/lib/api";
 import { LoadingNote } from "@/components/ui/loading-note";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { CoverArt } from "@/components/ui/cover-art";
 
@@ -33,6 +33,7 @@ export function DiscoverPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const setSelectedForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
@@ -40,7 +41,7 @@ export function DiscoverPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const discoverQuery = useQuery({
-    queryKey: ["discover", category, search, accessToken],
+    queryKey: ["discover", category, search, queryScope],
     queryFn: () => getDiscover(accessToken!, { category, q: search || undefined }),
     enabled: Boolean(accessToken),
   });
@@ -49,7 +50,7 @@ export function DiscoverPage() {
   const joinMutation = useMutation({
     mutationFn: (forge: DiscoverForge) => joinForge(accessToken!, csrfToken!, forge.inviteCode),
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["forges", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["forges", queryScope] });
       await queryClient.invalidateQueries({ queryKey: ["discover"] });
       setSelectedForgeId(result.forgeId);
       router.push("/app");

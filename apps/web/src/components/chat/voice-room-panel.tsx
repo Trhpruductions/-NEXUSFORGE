@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowDownToLine,
@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
-import { useVoiceStore } from "@/store/voice-store";
+import { isSpeaking, levelKeyFor, useVoiceStore } from "@/store/voice-store";
 import { SoundboardButton } from "@/components/chat/soundboard-button";
 import { useMediaStore } from "@/lib/media/media-store";
 import { useMediaDevices } from "@/components/voice/use-media-devices";
@@ -74,24 +74,42 @@ function StreamVideo({ stream, className, mirror = false }: { stream: MediaStrea
   return <video ref={ref} autoPlay playsInline muted className={className} style={mirror ? { transform: "scaleX(-1)" } : undefined} />;
 }
 
-/** One person: camera or avatar, name, speaking ring from their real audio level, mute/deafen/sharing and connection state. */
-function ParticipantTile({
+/**
+ * The thin bar under a tile that follows someone's live audio level. The only thing that re-renders at the meter's
+ * rate (about 8 times a second), and only for this one person.
+ */
+function LevelBar({ levelKey, muted }: { levelKey: string; muted: boolean }) {
+  const level = useVoiceStore((state) => state.levels[levelKey] ?? 0);
+  const speaking = isSpeaking(level, muted);
+  return (
+    <span className="absolute inset-x-0 bottom-0 h-0.5 bg-transparent" aria-hidden="true">
+      <span className="block h-full bg-emerald-400 transition-[width] duration-100" style={{ width: `${speaking ? Math.min(100, level) : 0}%` }} />
+    </span>
+  );
+}
+
+/**
+ * One person: camera or avatar, name, speaking ring from their real audio level, mute/deafen/sharing and connection
+ * state. Subscribes to "is this person speaking" itself (a yes/no that changes when they start or stop talking), so
+ * audio level updates don't re-render the voice room or anyone else's tile.
+ */
+const ParticipantTile = memo(function ParticipantTile({
   participant,
-  level,
   volume,
   onVolume,
   compact,
   action,
 }: {
   participant: Participant;
-  level: number;
   volume: number;
-  onVolume?: (volume: number) => void;
+  /** Per-person volume on this device; left out for your own tile. */
+  onVolume?: (userId: string, volume: number) => void;
   compact?: boolean;
   action?: ReactNode;
 }) {
   const [volumeOpen, setVolumeOpen] = useState(false);
-  const speaking = level > 8 && !participant.muted;
+  const levelKey = levelKeyFor(participant.userId, participant.self);
+  const speaking = useVoiceStore((state) => isSpeaking(state.levels[levelKey] ?? 0, participant.muted));
   const connecting = participant.state === "new" || participant.state === "connecting" || participant.state === "self-connecting";
   const reconnecting = participant.state === "disconnected";
   const failed = participant.state === "failed" || participant.state === "closed";
@@ -165,18 +183,16 @@ function ParticipantTile({
         <div className="absolute inset-x-2 bottom-11 rounded-lg border border-white/10 bg-slate-950/95 p-2 text-[11px] text-slate-200 shadow-lg">
           <label className="flex items-center gap-2">
             <span className="shrink-0">Volume</span>
-            <input type="range" min={0} max={100} step={5} value={Math.round(volume * 100)} onChange={(event) => onVolume(Number(event.target.value) / 100)} className="w-full accent-amber-400" aria-label={`Volume for ${participant.name}`} />
+            <input type="range" min={0} max={100} step={5} value={Math.round(volume * 100)} onChange={(event) => onVolume(participant.userId, Number(event.target.value) / 100)} className="w-full accent-amber-400" aria-label={`Volume for ${participant.name}`} />
             <span className="w-9 shrink-0 text-right">{Math.round(volume * 100)}%</span>
           </label>
           <p className="mt-1 text-[10px] text-slate-500">Only changes what you hear.</p>
         </div>
       ) : null}
-      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-transparent" aria-hidden="true">
-        <span className="block h-full bg-emerald-400 transition-[width] duration-100" style={{ width: `${speaking ? Math.min(100, level) : 0}%` }} />
-      </span>
+      <LevelBar levelKey={levelKey} muted={participant.muted} />
     </div>
   );
-}
+});
 
 /** What this app is and whether it can share a screen: the first thing to check when sharing fails. */
 function screenShareReadiness(desktopVersion: string | null): { app: string; share: string; ok: boolean } {
@@ -362,7 +378,22 @@ function gridFor(count: number) {
 export function VoiceRoomPanel({ members = [], inPopout = false }: { members?: MemberLike[]; inPopout?: boolean }) {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
-  const { session, flags, connection, remote, levels, localScreen, localCamera, error, toggle, leave, pushToTalk, stage, peerVolumes, setPeerVolume } = useVoiceStore();
+  // One selector per field, and never the audio levels: those change about 8 times a second per person, and reading
+  // the whole store here re-rendered the entire room (every tile, video and control) on each change. Each tile reads
+  // its own speaking state instead (ParticipantTile, LevelBar).
+  const session = useVoiceStore((state) => state.session);
+  const flags = useVoiceStore((state) => state.flags);
+  const connection = useVoiceStore((state) => state.connection);
+  const remote = useVoiceStore((state) => state.remote);
+  const localScreen = useVoiceStore((state) => state.localScreen);
+  const localCamera = useVoiceStore((state) => state.localCamera);
+  const error = useVoiceStore((state) => state.error);
+  const toggle = useVoiceStore((state) => state.toggle);
+  const leave = useVoiceStore((state) => state.leave);
+  const pushToTalk = useVoiceStore((state) => state.pushToTalk);
+  const stage = useVoiceStore((state) => state.stage);
+  const peerVolumes = useVoiceStore((state) => state.peerVolumes);
+  const setPeerVolume = useVoiceStore((state) => state.setPeerVolume);
   const micNotice = useMediaStore((state) => state.micNotice);
   const screenShare = useMediaStore((state) => state.screenShare);
   // null = automatic: the big screen view when someone else is sharing, everyone's tiles otherwise.
@@ -504,9 +535,8 @@ export function VoiceRoomPanel({ members = [], inPopout = false }: { members?: M
       <ParticipantTile
         key={participant.userId}
         participant={participant}
-        level={levels[participant.self ? "self" : participant.userId] ?? 0}
         volume={participant.self ? 1 : peerVolumes[participant.userId] ?? 1}
-        onVolume={participant.self ? undefined : (volume) => setPeerVolume(participant.userId, volume)}
+        onVolume={participant.self ? undefined : setPeerVolume}
         compact={compact}
         action={moveDown}
       />

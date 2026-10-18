@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Table2 } from "lucide-react";
 import { getAdminAnalytics, type AdminAnalytics } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 // Validated with the dataviz palette checker against the dashboard surface (#0d1119):
 // lightness band, chroma, CVD and normal-vision separation and contrast all pass.
@@ -133,10 +133,11 @@ const metricCharts: Array<{ key: keyof AdminAnalytics["series"]; label: string }
 
 export function AdminAnalyticsPanel() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [asTable, setAsTable] = useState(false);
   const query = useQuery({
-    queryKey: ["admin-analytics", days, accessToken],
+    queryKey: ["admin-analytics", days, queryScope],
     queryFn: () => getAdminAnalytics(accessToken!, days),
     enabled: Boolean(accessToken),
     refetchInterval: 5 * 60_000,

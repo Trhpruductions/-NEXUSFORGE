@@ -7,12 +7,12 @@ import axios from "axios";
 import { Backpack, Check, Coins, Crown, Footprints, Glasses, HardHat, Loader2, Save, Search, Shirt, ShoppingBag, Sparkles, Sword, Trash2, X } from "lucide-react";
 import { LoadingNote } from "@/components/ui/loading-note";
 import { applyLoadoutPreset, deleteLoadoutPreset, getCosmeticCatalog, getCosmeticInventory, purchaseCosmetic, saveLoadoutPreset, setLoadoutSlot, type CosmeticItem, type CosmeticRarity, type CosmeticSlot, type LoadoutPreset } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { CosmeticArt } from "@/components/wardrobe/cosmetic-art";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { equippedFrom } from "@/components/avatar/cosmetic-layers";
 import { getAvatar } from "@/lib/api";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { MINING_ENABLED } from "@/lib/held-features";
 
 type Filter = "all" | "outfits" | "accessories" | "cosmetics" | "emotes";
@@ -59,20 +59,21 @@ function ItemArt({ item, size = 96 }: { item: CosmeticItem; size?: number }) {
 export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [presetName, setPresetName] = useState("");
   const [presetDialog, setPresetDialog] = useState(false);
-  useEscapeKey(presetDialog, () => setPresetDialog(false));
+  const presetDialogProps = useDialogFocus({ open: presetDialog, onClose: () => setPresetDialog(false), label: "Save outfit" });
 
   const query = useQuery({
-    queryKey: ["cosmetics", mode, accessToken],
+    queryKey: ["cosmetics", mode, queryScope],
     queryFn: () => (mode === "store" ? getCosmeticCatalog(accessToken!) : getCosmeticInventory(accessToken!)),
     enabled: Boolean(accessToken),
   });
   const catalogQuery = useQuery({
-    queryKey: ["cosmetics", "store", accessToken],
+    queryKey: ["cosmetics", "store", queryScope],
     queryFn: () => getCosmeticCatalog(accessToken!),
     enabled: Boolean(accessToken && mode === "wardrobe"),
   });
@@ -122,7 +123,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
 
   const loadout = query.data?.loadout ?? {};
   const avatarQuery = useQuery({
-    queryKey: ["avatar", accessToken],
+    queryKey: ["avatar", queryScope],
     queryFn: () => getAvatar(accessToken!),
     enabled: Boolean(accessToken),
   });
@@ -306,7 +307,7 @@ export function WardrobePage({ mode }: { mode: "wardrobe" | "store" }) {
       </div>
 
       {presetDialog ? (
-        <div role="dialog" aria-modal="true" aria-label="Save outfit" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div {...presetDialogProps} className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setPresetDialog(false)} />
           <div className="relative w-full max-w-sm rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Save outfit</h3>

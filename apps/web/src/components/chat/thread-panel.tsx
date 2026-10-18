@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ArchiveRestore, Loader2, MessagesSquare, Pencil, Send, X } from "lucide-react";
 import { getApiErrorMessage, getThread, postMessage, updateThread, type Message, type ThreadSummary } from "@/lib/api";
@@ -8,13 +8,14 @@ import { getSocket } from "@/lib/socket";
 import { hueFor, tileGradient } from "@/lib/colors";
 import { RichText } from "@/components/chat/rich-text";
 import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 function time(iso: string) {
   return new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function Row({ message, emojis }: { message: Message; emojis?: Record<string, string> }) {
+// Memoised: the reply box's draft lives in ThreadPanel, and typing in it shouldn't re-render (and re-parse) every reply.
+const Row = memo(function Row({ message, emojis }: { message: Message; emojis?: Record<string, string> }) {
   const name = message.author?.username ?? message.botName ?? "Unknown";
   return (
     <div className="flex gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.03]">
@@ -36,17 +37,18 @@ function Row({ message, emojis }: { message: Message; emojis?: Record<string, st
       </div>
     </div>
   );
-}
+});
 
 /** A thread, opened beside the channel. Replies are posted to the channel with the thread's id. */
 export function ThreadPanel({ threadId, channelId, canModerate, onClose, emojis }: { threadId: string; channelId: string; canModerate: boolean; onClose: () => void; emojis?: Record<string, string> }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [draft, setDraft] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const key = ["thread", threadId, accessToken];
+  const key = ["thread", threadId, queryScope];
 
   const threadQuery = useQuery({ queryKey: key, queryFn: () => getThread(accessToken!, threadId), enabled: Boolean(accessToken) });
   const data = threadQuery.data;

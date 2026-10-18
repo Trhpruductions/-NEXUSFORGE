@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { BarChart3, Plus, Trash2, X } from "lucide-react";
 import type { PollDraft } from "@/lib/api";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const DURATIONS = [
   { hours: 1, label: "1 hour" },
@@ -32,12 +33,8 @@ export function PollComposer({ open, onClose, onSubmit, busy }: { open: boolean;
     setAllowMultiple(false);
     setDurationHours(24);
     setError(null);
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
+  const dialog = useDialogFocus({ open, onClose, labelledBy: "poll-title" });
 
   if (!open || typeof document === "undefined") return null;
 
@@ -57,7 +54,7 @@ export function PollComposer({ open, onClose, onSubmit, busy }: { open: boolean;
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="poll-title" className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-3">
           <h2 id="poll-title" className="flex items-center gap-2 text-sm font-semibold"><BarChart3 className="h-4 w-4 text-violet-300" /> Create a poll</h2>
           <button type="button" onClick={onClose} className="rounded p-1 text-slate-400 hover:text-white" aria-label="Close"><X className="h-4 w-4" /></button>
@@ -71,7 +68,7 @@ export function PollComposer({ open, onClose, onSubmit, busy }: { open: boolean;
         >
           <label className="block">
             <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Question</span>
-            <input autoFocus value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={QUESTION_MAX} placeholder="What should we play tonight?" className="mt-1 h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm outline-none focus:border-violet-400/60" />
+            <input data-autofocus value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={QUESTION_MAX} placeholder="What should we play tonight?" className="mt-1 h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm outline-none focus:border-violet-400/60" />
           </label>
           <fieldset>
             <legend className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Answers</legend>

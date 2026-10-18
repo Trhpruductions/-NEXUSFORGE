@@ -41,7 +41,8 @@ import {
   type ForgePermissionSet,
   type ForgeRole,
 } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { AutoModTab } from "@/components/chat/automod-tab";
 import { EmojiTab } from "@/components/chat/emoji-tab";
 import { StickersTab } from "@/components/chat/stickers-tab";
@@ -116,6 +117,7 @@ export function ForgeSettingsPanel({
 }) {
   const queryClient = useQueryClient();
   const { accessToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [tab, setTab] = useState<Tab>(initialTab ?? "overview");
   useEffect(() => {
     if (open && initialTab) setTab(initialTab);
@@ -129,23 +131,16 @@ export function ForgeSettingsPanel({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const dialog = useDialogFocus({ open, onClose, label: "Server settings" });
 
   const forgeQuery = useQuery({
-    queryKey: ["forge", forgeId, accessToken],
+    queryKey: ["forge", forgeId, queryScope],
     queryFn: () => getForge(accessToken!, forgeId),
     enabled: Boolean(accessToken && forgeId && open),
   });
 
   const accessQuery = useQuery({
-    queryKey: ["forge-permissions", forgeId, accessToken],
+    queryKey: ["forge-permissions", forgeId, queryScope],
     queryFn: () => getForgePermissions(accessToken!, forgeId),
     enabled: Boolean(accessToken && forgeId && open),
   });
@@ -156,9 +151,9 @@ export function ForgeSettingsPanel({
 
   const invalidateForge = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["forge", forgeId, accessToken] }),
-      queryClient.invalidateQueries({ queryKey: ["forges", accessToken] }),
-      queryClient.invalidateQueries({ queryKey: ["home-forges", accessToken] }),
+      queryClient.invalidateQueries({ queryKey: ["forge", forgeId, queryScope] }),
+      queryClient.invalidateQueries({ queryKey: ["forges", queryScope] }),
+      queryClient.invalidateQueries({ queryKey: ["home-forges", queryScope] }),
     ]);
   };
 
@@ -168,7 +163,7 @@ export function ForgeSettingsPanel({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Server settings" className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+    <div {...dialog} className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={onClose} />
       <div className="nexus-panel-strong relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[18px] border border-slate-700/70 bg-slate-950/95 text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="flex items-start justify-between gap-3 border-b border-slate-800/80 px-5 py-4">
@@ -181,7 +176,7 @@ export function ForgeSettingsPanel({
               </p>
             ) : null}
           </div>
-          <button type="button" onClick={onClose} title="Close" className={iconBtn}>
+          <button type="button" onClick={onClose} title="Close" aria-label="Close server settings" className={iconBtn}>
             <X className="h-4 w-4" />
           </button>
         </header>
@@ -1346,6 +1341,7 @@ function timeLeft(iso: string | null) {
 function InvitesTab({ forge, isOwner, setNotice, invalidate }: { forge: ForgeDetail; isOwner: boolean; setNotice: NoticeSetter; invalidate: () => Promise<void> }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useTokens();
+  const queryScope = useQueryScope();
   const [customCode, setCustomCode] = useState<string | null>(null);
   const customMutation = useMutation({
     mutationFn: (code: string) => updateForgeInviteCode(accessToken, csrfToken, forge.id, code),
@@ -1359,7 +1355,7 @@ function InvitesTab({ forge, isOwner, setNotice, invalidate }: { forge: ForgeDet
   const [maxAgeSeconds, setMaxAgeSeconds] = useState(604800);
   const [maxUses, setMaxUses] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const queryKey = ["forge-invites", forge.id, accessToken];
+  const queryKey = ["forge-invites", forge.id, queryScope];
   const invitesQuery = useQuery({ queryKey, queryFn: () => listForgeInvites(accessToken, forge.id), enabled: Boolean(accessToken) });
 
   const linkFor = (code: string) => (typeof window === "undefined" ? `/invite/${code}` : `${window.location.origin}/invite/${code}`);
@@ -1551,13 +1547,14 @@ function describeAudit(entry: ForgeAuditEntry): string {
 
 function AuditLogTab({ forgeId }: { forgeId: string }) {
   const { accessToken } = useTokens();
+  const queryScope = useQueryScope();
   const [filter, setFilter] = useState("");
   const [pages, setPages] = useState<ForgeAuditEntry[][]>([]);
   const [nextBefore, setNextBefore] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const firstPage = useQuery({
-    queryKey: ["forge-audit", forgeId, filter, accessToken],
+    queryKey: ["forge-audit", forgeId, filter, queryScope],
     queryFn: () => getForgeAuditLog(accessToken, forgeId, { action: filter || undefined }),
     enabled: Boolean(accessToken),
   });
@@ -1641,8 +1638,9 @@ const reportReasonLabels: Record<string, string> = {
 function ReportsTab({ forgeId, setNotice }: { forgeId: string; setNotice: NoticeSetter }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useTokens();
+  const queryScope = useQueryScope();
   const [status, setStatus] = useState<"OPEN" | "RESOLVED" | "DISMISSED">("OPEN");
-  const queryKey = ["forge-reports", forgeId, status, accessToken];
+  const queryKey = ["forge-reports", forgeId, status, queryScope];
   const reportsQuery = useQuery({ queryKey, queryFn: () => listForgeReports(accessToken, forgeId, status), enabled: Boolean(accessToken) });
 
   const handleMutation = useMutation({
@@ -1728,8 +1726,9 @@ function ReportsTab({ forgeId, setNotice }: { forgeId: string; setNotice: Notice
 function BansTab({ forgeId, setNotice, invalidate }: { forgeId: string; setNotice: NoticeSetter; invalidate: () => Promise<void> }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useTokens();
+  const queryScope = useQueryScope();
   const bansQuery = useQuery({
-    queryKey: ["forge-bans", forgeId, accessToken],
+    queryKey: ["forge-bans", forgeId, queryScope],
     queryFn: () => listForgeBans(accessToken, forgeId),
     enabled: Boolean(accessToken && forgeId),
   });
@@ -1738,7 +1737,7 @@ function BansTab({ forgeId, setNotice, invalidate }: { forgeId: string; setNotic
     mutationFn: (userId: string) => unbanForgeUser(accessToken, csrfToken, forgeId, userId),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Ban lifted." });
-      await queryClient.invalidateQueries({ queryKey: ["forge-bans", forgeId, accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["forge-bans", forgeId, queryScope] });
       await invalidate();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),

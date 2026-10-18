@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Hash, Heart, Link2, MessageCircle, Mic2, Radio, ShoppingBag, Users, Wifi, Zap, Check, SlidersHorizontal } from "lucide-react";
 import { getApiErrorMessage, getHomeSummary, getSettings, updatePreferences, type HomeWidgetId } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { plainText } from "@/lib/plain-text";
 import { alpha, hues, hueFor, tileGradient, type Hue } from "@/lib/colors";
@@ -82,13 +82,14 @@ function Avatar({ src, name, size = 36 }: { src?: string | null; name: string; s
 
 export function HomeDashboard() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [copied, setCopied] = useState(false);
   const { csrfToken } = useAuthStore();
   const queryClient = useQueryClient();
 
   // Saved layout comes with the settings the app shell already loads.
-  const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
+  const settingsQuery = useQuery({ queryKey: ["settings", queryScope], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
   const layout = resolveLayout(settingsQuery.data?.preferences.home);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<HomeLayoutItem[]>([]);
@@ -108,7 +109,7 @@ export function HomeDashboard() {
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["home-summary", selectedForgeId, accessToken],
+    queryKey: ["home-summary", selectedForgeId, queryScope],
     queryFn: () => getHomeSummary(accessToken!, selectedForgeId),
     enabled: Boolean(accessToken),
     refetchInterval: 45_000,

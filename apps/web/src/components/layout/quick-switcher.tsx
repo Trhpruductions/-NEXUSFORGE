@@ -7,7 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AtSign, Compass, Hash, LayoutGrid, Megaphone, Radio, Search, Volume2 } from "lucide-react";
 import { listDmThreads, type Channel, type Forge } from "@/lib/api";
 import { alpha, hues, hueFor } from "@/lib/colors";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 type Item = {
   id: string;
@@ -60,6 +61,7 @@ export function QuickSwitcher({
 }) {
   const router = useRouter();
   const { accessToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -86,10 +88,11 @@ export function QuickSwitcher({
     if (!open) return;
     setQuery("");
     setActive(0);
-    window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
+  // Focus starts in the search box; Escape (anywhere in the switcher) closes it.
+  const dialog = useDialogFocus({ open, onClose: () => setOpen(false), label: "Quick switcher", initialFocus: inputRef });
 
-  const dmQuery = useQuery({ queryKey: ["dm-threads", accessToken], queryFn: () => listDmThreads(accessToken!), enabled: Boolean(open && accessToken) });
+  const dmQuery = useQuery({ queryKey: ["dm-threads", queryScope], queryFn: () => listDmThreads(accessToken!), enabled: Boolean(open && accessToken) });
 
   const items = useMemo<Item[]>(() => {
     const list: Item[] = [];
@@ -160,7 +163,7 @@ export function QuickSwitcher({
   return createPortal(
     <div className="fixed inset-0 z-[1150] flex items-start justify-center px-3 pt-[12vh]">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
-      <div role="dialog" aria-modal="true" aria-label="Quick switcher" className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-violet-500/70 via-amber-400/80 to-cyan-400/70" />
         <div className="flex items-center gap-2 border-b border-white/[0.06] px-4">
           <Search className="h-4 w-4 shrink-0 text-violet-300" />
@@ -178,8 +181,6 @@ export function QuickSwitcher({
               } else if (event.key === "Enter") {
                 event.preventDefault();
                 go(results[active]);
-              } else if (event.key === "Escape") {
-                setOpen(false);
               }
             }}
             placeholder="Where would you like to go?"

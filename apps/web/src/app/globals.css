@@ -446,6 +446,14 @@ select:focus-visible {
   outline-offset: 3px;
 }
 
+/*
+ * Modal dialogs (lib/use-dialog-focus.ts) take focus themselves only when nothing inside can; no ring around the
+ * whole dialog then.
+ */
+[aria-modal="true"][tabindex="-1"]:focus {
+  outline: none;
+}
+
 .nexus-shell {
   position: relative;
 }

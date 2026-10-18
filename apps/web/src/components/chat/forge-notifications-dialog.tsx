@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Loader2, X } from "lucide-react";
 import { getApiErrorMessage, getForgeNotificationSettings, updateForgeNotificationSettings, type ForgeNotificationSettings } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const muteChoices: Array<{ minutes: 15 | 60 | 180 | 480 | 1440 | -1; label: string }> = [
   { minutes: 15, label: "15 minutes" },
@@ -25,7 +25,8 @@ const levels: Array<{ value: ForgeNotificationSettings["notifyLevel"]; label: st
 export function ForgeNotificationsDialog({ forgeId, forgeName, open, onClose }: { forgeId: string; forgeName: string; open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
-  const queryKey = ["forge-notifications", forgeId, accessToken];
+  const queryScope = useQueryScope();
+  const queryKey = ["forge-notifications", forgeId, queryScope];
   const settingsQuery = useQuery({ queryKey, queryFn: () => getForgeNotificationSettings(accessToken!, forgeId), enabled: Boolean(open && accessToken && forgeId) });
   const settings = settingsQuery.data;
 
@@ -37,14 +38,7 @@ export function ForgeNotificationsDialog({ forgeId, forgeName, open, onClose }: 
     },
   });
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const dialog = useDialogFocus({ open, onClose, labelledBy: "forge-notify-title" });
 
   if (!open || typeof document === "undefined") return null;
 
@@ -53,14 +47,14 @@ export function ForgeNotificationsDialog({ forgeId, forgeName, open, onClose }: 
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="forge-notify-title" className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-violet-500/70 via-amber-400/80 to-cyan-400/70" />
         <header className="flex items-start justify-between gap-3 border-b border-white/5 px-4 py-3">
           <div className="min-w-0">
             <h2 id="forge-notify-title" className="flex items-center gap-2 text-sm font-semibold"><Bell className="h-4 w-4 text-amber-300" /> Notification settings</h2>
             <p className="truncate text-[11px] text-slate-400">{forgeName} · only affects you</p>
           </div>
-          <button type="button" onClick={onClose} title="Close" className="rounded-lg p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} title="Close" aria-label="Close" className="rounded-lg p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
         </header>
 
         {!settings ? (

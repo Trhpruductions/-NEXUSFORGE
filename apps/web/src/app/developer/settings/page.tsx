@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import {
   listDeveloperOAuthClients,
@@ -16,6 +16,7 @@ import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function DeveloperSettingsPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken && csrfToken);
   const queryClient = useQueryClient();
   const [clientName, setClientName] = useState("");
@@ -29,7 +30,7 @@ export default function DeveloperSettingsPage() {
   const [editingClients, setEditingClients] = useState<Record<string, { name: string; redirectUris: string }>>({});
 
   const oauthClientsQuery = useQuery({
-    queryKey: ["developer-oauth-clients", accessToken],
+    queryKey: ["developer-oauth-clients", queryScope],
     queryFn: () => listDeveloperOAuthClients(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
@@ -48,7 +49,7 @@ export default function DeveloperSettingsPage() {
       setClientName("");
       setClientRedirectUris("");
       setCreatedOauthSecret(data.secret);
-      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", queryScope] });
     },
   });
 
@@ -61,7 +62,7 @@ export default function DeveloperSettingsPage() {
       }),
     onSuccess: async () => {
       setEditingClientId(null);
-      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", queryScope] });
     },
   });
 
@@ -69,7 +70,7 @@ export default function DeveloperSettingsPage() {
     mutationFn: async (clientId: string) => rotateDeveloperOAuthClientSecret(accessToken!, csrfToken!, clientId),
     onSuccess: async (data) => {
       setRotatedOauthSecret(data.secret);
-      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", queryScope] });
     },
   });
 
@@ -143,7 +144,7 @@ export default function DeveloperSettingsPage() {
   const revokeOAuthClientMutation = useMutation({
     mutationFn: async (clientId: string) => revokeDeveloperOAuthClient(accessToken!, csrfToken!, clientId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", queryScope] });
     },
   });
 

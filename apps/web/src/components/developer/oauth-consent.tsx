@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, KeyRound, Loader2 } from "lucide-react";
 import { api, authHeaders, getApiErrorMessage } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 type AppInfo = { name: string; developer: string; createdAt: string; redirectHost: string };
 
@@ -17,6 +17,7 @@ type AppInfo = { name: string; developer: string; createdAt: string; redirectHos
 export function OAuthConsent() {
   const params = useSearchParams();
   const { accessToken, csrfToken, user, hydrated } = useAuthStore();
+  const queryScope = useQueryScope();
   const request = {
     response_type: params?.get("response_type") ?? "code",
     client_id: params?.get("client_id") ?? "",
@@ -28,7 +29,7 @@ export function OAuthConsent() {
   const [error, setError] = useState<string | null>(null);
 
   const info = useQuery({
-    queryKey: ["oauth-app", request.client_id, request.redirect_uri, accessToken],
+    queryKey: ["oauth-app", request.client_id, request.redirect_uri, queryScope],
     queryFn: async () =>
       (await api.get<{ app: AppInfo }>("/api/oauth/authorize/info", { headers: authHeaders(accessToken), params: { client_id: request.client_id, redirect_uri: request.redirect_uri } })).data.app,
     enabled: Boolean(accessToken && request.client_id && request.redirect_uri),

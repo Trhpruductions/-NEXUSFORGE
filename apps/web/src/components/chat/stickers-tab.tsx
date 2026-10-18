@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { addForgeSticker, createUploadPresign, deleteForgeSticker, getApiErrorMessage, listForgeStickers, type ForgeDetail } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const MAX_BYTES = 512 * 1024;
 
@@ -12,12 +12,13 @@ const MAX_BYTES = 512 * 1024;
 export function StickersTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: (notice: { tone: "ok" | "error"; text: string } | null) => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const query = useQuery({ queryKey: ["forge-stickers", forge.id, accessToken], queryFn: () => listForgeStickers(accessToken!, forge.id), enabled: Boolean(accessToken) });
+  const query = useQuery({ queryKey: ["forge-stickers", forge.id, queryScope], queryFn: () => listForgeStickers(accessToken!, forge.id), enabled: Boolean(accessToken) });
   const stickers = query.data?.stickers ?? [];
   const max = query.data?.max ?? 30;
 

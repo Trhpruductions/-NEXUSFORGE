@@ -7,7 +7,7 @@ import { Coins, Heart, MessageCircle, Newspaper, Ticket, Timer } from "lucide-re
 import { getJackpotCurrent, listPosts } from "@/lib/api";
 import { plainText } from "@/lib/plain-text";
 import { alpha, hues, hueFor } from "@/lib/colors";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const panel = "relative overflow-hidden rounded-2xl border border-white/[0.07] bg-[#0d1119]/85 p-4 backdrop-blur";
 const sectionTitle = "nf-heading flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white";
@@ -19,8 +19,9 @@ function tint(base: string) {
 /** Optional Home widget: the newest posts from people you follow (yours included). */
 export function LatestPostsWidget() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const query = useQuery({
-    queryKey: ["home-latest-posts", accessToken],
+    queryKey: ["home-latest-posts", queryScope],
     queryFn: () => listPosts(accessToken!, { scope: "following", limit: 4 }),
     enabled: Boolean(accessToken),
     refetchInterval: 60_000,
@@ -58,8 +59,9 @@ export function LatestPostsWidget() {
 /** Optional Home widget: the current jackpot round at a glance. */
 export function JackpotWidget() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const query = useQuery({
-    queryKey: ["jackpot", accessToken],
+    queryKey: ["jackpot", queryScope],
     queryFn: () => getJackpotCurrent(accessToken!),
     enabled: Boolean(accessToken),
     refetchInterval: 15_000,

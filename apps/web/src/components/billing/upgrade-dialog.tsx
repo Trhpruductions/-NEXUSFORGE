@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { usePaywallStore } from "@/store/paywall-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 /**
  * Shown whenever the server says something needs a higher plan (bigger upload, longer
@@ -13,21 +13,14 @@ import { usePaywallStore } from "@/store/paywall-store";
 export function UpgradeDialog() {
   const { prompt, close } = usePaywallStore();
 
-  useEffect(() => {
-    if (!prompt) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [prompt, close]);
+  const dialog = useDialogFocus({ open: Boolean(prompt), onClose: close, labelledBy: "upgrade-title" });
 
   if (!prompt || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={close} />
-      <div role="dialog" aria-modal="true" aria-labelledby="upgrade-title" className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-amber-400/30 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-amber-400/30 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <div className="bg-[radial-gradient(circle_at_30%_0%,rgba(99,192,255,0.25),transparent_60%)] px-5 pb-4 pt-5">
           <button type="button" onClick={close} className="absolute right-3 top-3 rounded p-1 text-slate-400 hover:text-white" aria-label="Close"><X className="h-4 w-4" /></button>
           <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-500/10 text-amber-200"><Sparkles className="h-5 w-5" /></span>

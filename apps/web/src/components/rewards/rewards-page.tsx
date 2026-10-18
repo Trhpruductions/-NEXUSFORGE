@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Award, Check, Coins, Cpu, Flame, Gift, Loader2, Send, ShoppingBag, Sparkles } from "lucide-react";
 import { claimDailyReward, getApiErrorMessage, getDailyReward, getEconomyAccounts, getUserMedals } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { JACKPOT_ENABLED, MINING_ENABLED } from "@/lib/held-features";
 import { CoinHistory } from "./coin-history";
 import { JackpotPanel } from "./jackpot-panel";
@@ -27,11 +27,12 @@ function fmt(value: string | number) {
 
 export function RewardsPage() {
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [claimNotice, setClaimNotice] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const dailyQuery = useQuery({
-    queryKey: ["daily-reward", accessToken],
+    queryKey: ["daily-reward", queryScope],
     queryFn: () => getDailyReward(accessToken!),
     enabled: Boolean(accessToken),
   });
@@ -46,12 +47,12 @@ export function RewardsPage() {
   });
   const daily = dailyQuery.data;
   const accountsQuery = useQuery({
-    queryKey: ["economy", user?.id, accessToken],
+    queryKey: ["economy", user?.id, queryScope],
     queryFn: () => getEconomyAccounts(accessToken!, user!.id),
     enabled: Boolean(accessToken && user?.id),
   });
   const medalsQuery = useQuery({
-    queryKey: ["medals", user?.id, accessToken],
+    queryKey: ["medals", user?.id, queryScope],
     queryFn: () => getUserMedals(accessToken!, user!.id),
     enabled: Boolean(accessToken && user?.id),
   });

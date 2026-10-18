@@ -7,7 +7,7 @@ import { ChevronRight, Coins, Cpu, Crown, Shirt, Ticket } from "lucide-react";
 import { LoadingNote } from "@/components/ui/loading-note";
 import { getShopOverview, type ShopOverview } from "@/lib/shop-api";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { JACKPOT_ENABLED, MINING_ENABLED } from "@/lib/held-features";
 import { shownUploadBytes } from "@/lib/plan-perks";
 
@@ -31,8 +31,9 @@ function titleCase(value: string) {
 /** One query for the whole shop, shared by the Shop page and the Home widget. */
 export function useShopOverview() {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   return useQuery<ShopOverview>({
-    queryKey: ["shop-overview", accessToken],
+    queryKey: ["shop-overview", queryScope],
     queryFn: () => getShopOverview(accessToken!),
     enabled: Boolean(accessToken),
     staleTime: 60_000,

@@ -15,7 +15,7 @@ import {
   type EmailMessageStatus,
   type EmailMode,
 } from "@/lib/admin-email-api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const MODE_COPY: Record<EmailMode, { label: string; tone: string; detail: string }> = {
   smtp: { label: "SMTP", tone: "text-emerald-200", detail: "Real sends. Accepted by the mail server is not the same as delivered to an inbox." },
@@ -44,7 +44,8 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 function StatusCards() {
   const { accessToken } = useAuthStore();
-  const query = useQuery({ queryKey: ["admin-email-status", accessToken], queryFn: () => getEmailStatus(accessToken!), enabled: Boolean(accessToken) });
+  const queryScope = useQueryScope();
+  const query = useQuery({ queryKey: ["admin-email-status", queryScope], queryFn: () => getEmailStatus(accessToken!), enabled: Boolean(accessToken) });
 
   if (query.isLoading) return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading status…</p>;
   if (query.isError || !query.data) return <p className="text-sm text-rose-300">{getApiErrorMessage(query.error)}</p>;
@@ -90,7 +91,8 @@ function StatusCards() {
 
 function StatsPanel() {
   const { accessToken } = useAuthStore();
-  const query = useQuery({ queryKey: ["admin-email-stats", accessToken], queryFn: () => getEmailStats(accessToken!), enabled: Boolean(accessToken), refetchInterval: 60_000 });
+  const queryScope = useQueryScope();
+  const query = useQuery({ queryKey: ["admin-email-stats", queryScope], queryFn: () => getEmailStats(accessToken!), enabled: Boolean(accessToken), refetchInterval: 60_000 });
   if (query.isLoading) return <p className="text-sm text-slate-400">Loading counts…</p>;
   if (query.isError || !query.data) return <p className="text-sm text-rose-300">{getApiErrorMessage(query.error)}</p>;
   const stats = query.data;
@@ -116,11 +118,12 @@ function StatsPanel() {
 
 function MessagesTable() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [status, setStatus] = useState<EmailMessageStatus | "">("");
   const [cursor, setCursor] = useState<string | null>(null);
   const [trail, setTrail] = useState<string[]>([]);
   const query = useQuery({
-    queryKey: ["admin-email-messages", accessToken, status, cursor],
+    queryKey: ["admin-email-messages", queryScope, status, cursor],
     queryFn: () => listEmailMessages(accessToken!, { status, cursor, limit: 50 }),
     enabled: Boolean(accessToken),
   });
@@ -216,15 +219,16 @@ function MessagesTable() {
 
 function TemplatePreview() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [kind, setKind] = useState<string | null>(null);
   const templatesQuery = useQuery({
-    queryKey: ["admin-email-templates", accessToken],
+    queryKey: ["admin-email-templates", queryScope],
     queryFn: () => listEmailTemplates(accessToken!),
     enabled: Boolean(accessToken),
   });
   const selected = kind ?? templatesQuery.data?.[0]?.kind ?? null;
   const previewQuery = useQuery({
-    queryKey: ["admin-email-preview", accessToken, selected],
+    queryKey: ["admin-email-preview", queryScope, selected],
     queryFn: () => getEmailTemplatePreview(accessToken!, selected!),
     enabled: Boolean(accessToken && selected),
   });

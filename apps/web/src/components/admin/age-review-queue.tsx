@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { BadgeCheck, Eye, FileText, Loader2, X, XCircle } from "lucide-react";
 import { approveAgeReview, fetchAgeReviewFile, getAgeReviewQueue, rejectAgeReview, type AgeReviewItem, type AgeReviewStatus } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
@@ -35,7 +35,7 @@ function ageFrom(iso: string) {
 
 /** Streams a private file through the API (needs the bearer token, so no plain <img src>). */
 function SecureFile({ id, kind, onClose }: { id: string; kind: "document" | "selfie"; onClose: () => void }) {
-  useEscapeKey(true, onClose);
+  const dialog = useDialogFocus({ open: true, onClose, label: kind === "selfie" ? "Selfie" : "ID document" });
   const { accessToken } = useAuthStore();
   const [url, setUrl] = useState<string | null>(null);
   const [type, setType] = useState<string>("");
@@ -56,9 +56,9 @@ function SecureFile({ id, kind, onClose }: { id: string; kind: "document" | "sel
   }, [accessToken, id, kind]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="ID document" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+    <div {...dialog} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
       <div className="relative max-h-full w-full max-w-3xl overflow-auto rounded-2xl border border-amber-500/20 bg-[#0d1119] p-3" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="absolute right-3 top-3 rounded-lg border border-white/10 p-1 text-slate-300 hover:text-white" onClick={onClose} title="Close">
+        <button type="button" className="absolute right-3 top-3 rounded-lg border border-white/10 p-1 text-slate-300 hover:text-white" onClick={onClose} title="Close" aria-label="Close">
           <X className="h-4 w-4" />
         </button>
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">{kind === "selfie" ? "Selfie" : "Document"}</p>
@@ -75,13 +75,14 @@ function SecureFile({ id, kind, onClose }: { id: string; kind: "document" | "sel
 export function AgeReviewQueue() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [status, setStatus] = useState<AgeReviewStatus>("PENDING");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [viewing, setViewing] = useState<{ id: string; kind: "document" | "selfie" } | null>(null);
   const [rejecting, setRejecting] = useState<{ id: string; reason: string } | null>(null);
 
   const queue = useQuery({
-    queryKey: ["age-review-queue", status, accessToken],
+    queryKey: ["age-review-queue", status, queryScope],
     queryFn: () => getAgeReviewQueue(accessToken!, status),
     enabled: Boolean(accessToken),
     refetchInterval: 30_000,

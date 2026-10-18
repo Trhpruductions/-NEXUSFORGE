@@ -7,7 +7,7 @@ import { getApiErrorMessage, listThreads, postMessage, type Channel } from "@/li
 import { plainText } from "@/lib/plain-text";
 import { alpha, hueFor, tileGradient } from "@/lib/colors";
 import { RichText } from "@/components/chat/rich-text";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 function ago(iso: string | null | undefined) {
   if (!iso) return "";
@@ -23,6 +23,7 @@ function ago(iso: string | null | undefined) {
 export function ForumView({ channel, emojis, onOpenPost }: { channel: Channel; emojis?: Record<string, string>; onOpenPost: (threadId: string) => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [composing, setComposing] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -32,7 +33,7 @@ export function ForumView({ channel, emojis, onOpenPost }: { channel: Channel; e
   const [error, setError] = useState<string | null>(null);
   const forumTags = channel.forumTags ?? [];
 
-  const postsQuery = useQuery({ queryKey: ["threads", channel.id, accessToken], queryFn: () => listThreads(accessToken!, channel.id), enabled: Boolean(accessToken) });
+  const postsQuery = useQuery({ queryKey: ["threads", channel.id, queryScope], queryFn: () => listThreads(accessToken!, channel.id), enabled: Boolean(accessToken) });
   const posts = useMemo(() => {
     const list = (postsQuery.data?.threads ?? []).filter((post) => !filter || post.tags?.includes(filter));
     return [...list].sort((a, b) => {

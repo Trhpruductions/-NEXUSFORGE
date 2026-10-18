@@ -6,18 +6,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Megaphone } from "lucide-react";
 import { listUpdates, markUpdatesSeen } from "@/lib/api";
 import { LegalMarkdown } from "@/components/legal/legal-markdown";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 /** Every published "What's new" update, newest first. Opening it counts as catching up. */
 export function UpdatesPage() {
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["updates", accessToken], queryFn: () => listUpdates(accessToken!), enabled: Boolean(accessToken) });
+  const query = useQuery({ queryKey: ["updates", queryScope], queryFn: () => listUpdates(accessToken!), enabled: Boolean(accessToken) });
 
   useEffect(() => {
     if (!accessToken || !csrfToken || !query.data?.some((update) => update.unseen)) return;
-    void markUpdatesSeen(accessToken, csrfToken).then(() => queryClient.setQueryData(["updates-unseen", accessToken], []));
-  }, [accessToken, csrfToken, query.data, queryClient]);
+    void markUpdatesSeen(accessToken, csrfToken).then(() => queryClient.setQueryData(["updates-unseen", queryScope], []));
+  }, [accessToken, csrfToken, query.data, queryClient, queryScope]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">

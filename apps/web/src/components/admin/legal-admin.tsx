@@ -7,7 +7,7 @@ import { AlertTriangle, Archive, Check, Eye, FilePlus2, History, Loader2, Pencil
 import { getApiErrorMessage } from "@/lib/api";
 import { adminCreateDraft, adminEditVersion, adminGetVersion, adminLegalAudit, adminListPolicies, adminTransition, type AdminPolicy, type AdminVersionRow } from "@/lib/legal-api";
 import { LegalMarkdown } from "@/components/legal/legal-markdown";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const statusStyle: Record<string, string> = {
   DRAFT: "border-slate-500/50 text-slate-200",
@@ -30,12 +30,13 @@ function when(iso: string | null | undefined) {
 export function LegalAdmin() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [slug, setSlug] = useState<string>("terms");
   const [versionId, setVersionId] = useState<string | null>(null);
   const [tab, setTab] = useState<"versions" | "audit">("versions");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
-  const listQuery = useQuery({ queryKey: ["legal-admin", accessToken], queryFn: () => adminListPolicies(accessToken!), enabled: Boolean(accessToken) });
+  const listQuery = useQuery({ queryKey: ["legal-admin", queryScope], queryFn: () => adminListPolicies(accessToken!), enabled: Boolean(accessToken) });
   const policies = listQuery.data?.policies ?? [];
   const canPublish = listQuery.data?.canPublish ?? false;
   const policy = policies.find((entry) => entry.slug === slug) ?? null;
@@ -167,7 +168,8 @@ function VersionEditor({
   onOpen: (id: string) => void;
 }) {
   const { accessToken, csrfToken } = useAuthStore();
-  const versionQuery = useQuery({ queryKey: ["legal-version", versionId, accessToken], queryFn: () => adminGetVersion(accessToken!, versionId), enabled: Boolean(accessToken) });
+  const queryScope = useQueryScope();
+  const versionQuery = useQuery({ queryKey: ["legal-version", versionId, queryScope], queryFn: () => adminGetVersion(accessToken!, versionId), enabled: Boolean(accessToken) });
   const data = versionQuery.data;
   const version = data?.version;
   const [content, setContent] = useState("");
@@ -372,7 +374,8 @@ function VersionEditor({
 
 function AuditLog({ slug }: { slug: string }) {
   const { accessToken } = useAuthStore();
-  const auditQuery = useQuery({ queryKey: ["legal-audit", slug, accessToken], queryFn: () => adminLegalAudit(accessToken!, slug), enabled: Boolean(accessToken) });
+  const queryScope = useQueryScope();
+  const auditQuery = useQuery({ queryKey: ["legal-audit", slug, queryScope], queryFn: () => adminLegalAudit(accessToken!, slug), enabled: Boolean(accessToken) });
   const entries = auditQuery.data?.entries ?? [];
   const labels: Record<string, string> = {
     "version.create": "created",

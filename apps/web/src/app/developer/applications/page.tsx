@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import { listMyBots, createBotApp, updateBotApp, deleteBotApp, type BotApp } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function DeveloperApplicationsPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken && csrfToken);
   const queryClient = useQueryClient();
   const [botName, setBotName] = useState("");
@@ -18,7 +19,7 @@ export default function DeveloperApplicationsPage() {
   const [inviteCopyStatuses, setInviteCopyStatuses] = useState<Record<string, CopyStatus>>({});
 
   const myBotsQuery = useQuery({
-    queryKey: ["developer-my-bots", accessToken],
+    queryKey: ["developer-my-bots", queryScope],
     queryFn: () => listMyBots(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
@@ -33,7 +34,7 @@ export default function DeveloperApplicationsPage() {
     onSuccess: async () => {
       setBotName("");
       setBotDescription("");
-      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", queryScope] });
     },
   });
 
@@ -42,14 +43,14 @@ export default function DeveloperApplicationsPage() {
       updateBotApp(accessToken!, csrfToken!, payload.botId, payload.data),
     onSuccess: async () => {
       setEditingBotId(null);
-      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", queryScope] });
     },
   });
 
   const deleteBotMutation = useMutation({
     mutationFn: async (botId: string) => deleteBotApp(accessToken!, csrfToken!, botId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", queryScope] });
     },
   });
 

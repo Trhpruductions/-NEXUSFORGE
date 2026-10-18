@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { addForgeEmoji, createUploadPresign, deleteForgeEmoji, getApiErrorMessage, listForgeEmojis, type ForgeDetail } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const MAX_BYTES = 256 * 1024;
 
@@ -12,11 +12,12 @@ const MAX_BYTES = 256 * 1024;
 export function EmojiTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: (notice: { tone: "ok" | "error"; text: string } | null) => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [name, setName] = useState("");
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const key = ["forge-emojis", forge.id, accessToken];
+  const key = ["forge-emojis", forge.id, queryScope];
   const emojisQuery = useQuery({ queryKey: key, queryFn: () => listForgeEmojis(accessToken!, forge.id), enabled: Boolean(accessToken) });
   const emojis = emojisQuery.data?.emojis ?? [];
   const max = emojisQuery.data?.max ?? 50;

@@ -19,7 +19,7 @@ import {
   type DiscoverForge,
 } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
@@ -60,6 +60,7 @@ export function WelcomeWizard() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, accessToken, csrfToken, fetchMe } = useAuthStore();
+  const queryScope = useQueryScope();
   const setSelectedForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState<AvatarConfig>(defaultAvatarConfig);
@@ -70,13 +71,13 @@ export function WelcomeWizard() {
   const [joined, setJoined] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const avatarQuery = useQuery({ queryKey: ["avatar", accessToken], queryFn: () => getAvatar(accessToken!), enabled: Boolean(accessToken) });
+  const avatarQuery = useQuery({ queryKey: ["avatar", queryScope], queryFn: () => getAvatar(accessToken!), enabled: Boolean(accessToken) });
   useEffect(() => {
     if (avatarQuery.data) setConfig(avatarQuery.data.config);
   }, [avatarQuery.data]);
 
-  const discoverQuery = useQuery({ queryKey: ["discover", "all", "", accessToken], queryFn: () => getDiscover(accessToken!), enabled: Boolean(accessToken) && step === 1 });
-  const usersQuery = useQuery({ queryKey: ["search-users", term, accessToken], queryFn: () => searchUsers(accessToken!, term), enabled: Boolean(accessToken) && step === 2 && term.length >= 2 });
+  const discoverQuery = useQuery({ queryKey: ["discover", "all", "", queryScope], queryFn: () => getDiscover(accessToken!), enabled: Boolean(accessToken) && step === 1 });
+  const usersQuery = useQuery({ queryKey: ["search-users", term, queryScope], queryFn: () => searchUsers(accessToken!, term), enabled: Boolean(accessToken) && step === 2 && term.length >= 2 });
 
   const saveAvatarMutation = useMutation({
     mutationFn: () => saveAvatar(accessToken!, csrfToken!, config),

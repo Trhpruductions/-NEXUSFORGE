@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowDownLeft, MonitorUp } from "lucide-react";
 import { getForge } from "@/lib/api";
 import { popoutWindowName } from "@/lib/popout/popout-support";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { usePopoutStore, type PopoutState } from "@/store/popout-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { PopoutWindow } from "@/components/popout/popout-window";
@@ -33,9 +33,10 @@ function PopoutFrame({ title, onReturn, children }: { title: string; onReturn: (
 
 function useForgeMembers(forgeId: string | null | undefined) {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   // Same query as the shell and chat page, so this reads the cached server and updates with it.
   return useQuery({
-    queryKey: ["forge", forgeId, accessToken],
+    queryKey: ["forge", forgeId, queryScope],
     queryFn: () => getForge(accessToken!, forgeId!),
     enabled: Boolean(accessToken && forgeId),
   });

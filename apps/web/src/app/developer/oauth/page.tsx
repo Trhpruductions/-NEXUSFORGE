@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { API_BASE_URL } from "@/lib/config";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import { getApiErrorMessage, listDeveloperOAuthClients, requestOAuthToken } from "@/lib/api";
@@ -14,6 +14,7 @@ function prettyUriList(uris: string[]) {
 
 export default function DeveloperOAuthPage() {
   const { user, accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clientSecret, setClientSecret] = useState("");
@@ -31,7 +32,7 @@ export default function DeveloperOAuthPage() {
   const [authUrlCopyStatus, setAuthUrlCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const oauthClientsQuery = useQuery({
-    queryKey: ["developer-oauth-clients", accessToken],
+    queryKey: ["developer-oauth-clients", queryScope],
     queryFn: () => listDeveloperOAuthClients(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,

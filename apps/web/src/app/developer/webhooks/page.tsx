@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import {
   listDeveloperWebhooks,
@@ -15,6 +15,7 @@ import { ExperienceShell } from "@/components/layout/experience-shell";
 
 export default function DeveloperWebhooksPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken && csrfToken);
   const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
@@ -25,7 +26,7 @@ export default function DeveloperWebhooksPage() {
   const [testResults, setTestResults] = useState<Record<string, string>>({});
 
   const webhooksQuery = useQuery({
-    queryKey: ["developer-webhooks", accessToken],
+    queryKey: ["developer-webhooks", queryScope],
     queryFn: () => listDeveloperWebhooks(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
@@ -43,7 +44,7 @@ export default function DeveloperWebhooksPage() {
       setDescription("");
       setEvents("");
       setCreatedSecret(data.secret);
-      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", queryScope] });
     },
   });
 
@@ -51,14 +52,14 @@ export default function DeveloperWebhooksPage() {
     mutationFn: async (payload: { webhookId: string; enabled: boolean }) =>
       updateDeveloperWebhook(accessToken!, csrfToken!, payload.webhookId, { enabled: payload.enabled }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", queryScope] });
     },
   });
 
   const deleteWebhookMutation = useMutation({
     mutationFn: async (webhookId: string) => deleteDeveloperWebhook(accessToken!, csrfToken!, webhookId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-webhooks", queryScope] });
     },
   });
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, Mail, RefreshCcw, RotateCcw, User } from "lucide-react";
 import { getApiErrorMessage, listProblemReports, setProblemReportStatus, type ProblemReportRow } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const KIND_LABEL: Record<ProblemReportRow["kind"], { label: string; tone: string }> = {
   BUG: { label: "Broken", tone: "border-rose-400/30 text-rose-200" },
@@ -21,11 +21,12 @@ function when(iso: string) {
 /** Staff: reports from the website's "Report a problem" form. */
 export function ProblemReportsAdmin() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<"OPEN" | "RESOLVED" | "ALL">("OPEN");
   const [notice, setNotice] = useState<string | null>(null);
   const query = useQuery({
-    queryKey: ["problem-reports", status, accessToken],
+    queryKey: ["problem-reports", status, queryScope],
     queryFn: () => listProblemReports(accessToken!, status),
     enabled: Boolean(accessToken),
     refetchInterval: 60_000,

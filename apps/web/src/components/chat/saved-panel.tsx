@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Bookmark, BookmarkX, Hash, Loader2, MessageSquare, Paperclip, X } from "lucide-react";
 import { listSaved, type SavedItem } from "@/lib/api";
 import { plainText } from "@/lib/plain-text";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useSavedMessages } from "@/components/chat/use-saved";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 function when(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -18,17 +18,11 @@ function when(value: string) {
 export function SavedPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const saved = useSavedMessages();
-  const query = useQuery({ queryKey: ["saved-list", accessToken], queryFn: () => listSaved(accessToken!), enabled: Boolean(accessToken && open) });
+  const query = useQuery({ queryKey: ["saved-list", queryScope], queryFn: () => listSaved(accessToken!), enabled: Boolean(accessToken && open) });
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const dialog = useDialogFocus({ open, onClose, labelledBy: "saved-title" });
 
   if (!open || typeof document === "undefined") return null;
 
@@ -43,7 +37,7 @@ export function SavedPanel({ open, onClose }: { open: boolean; onClose: () => vo
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex items-start justify-center p-3 pt-[8vh]">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="saved-title" className="relative flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-3">
           <div>
             <h2 id="saved-title" className="flex items-center gap-2 text-sm font-semibold"><Bookmark className="h-4 w-4 text-amber-300" /> Saved messages</h2>

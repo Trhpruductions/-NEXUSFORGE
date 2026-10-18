@@ -15,6 +15,19 @@ export type VoiceConnection = "connecting" | "connected" | "reconnecting" | "dis
 /** state is the peer connection's real state (new, connecting, connected, disconnected, failed, closed). */
 export type RemotePeer = { userId: string; name?: string; connected: boolean; state?: RTCPeerConnectionState; video?: MediaStream | null; camera?: MediaStream | null; muted?: boolean; deafened?: boolean };
 
+/** Audio level (0 to 100, from the meter) above which someone counts as speaking. */
+export const SPEAKING_LEVEL = 8;
+
+/** Whether a level means someone is talking. A muted (or deafened) person never is. */
+export function isSpeaking(level: number, muted: boolean): boolean {
+  return level > SPEAKING_LEVEL && !muted;
+}
+
+/** Where someone's audio level is kept in `levels`: "self" for you, their user id for everyone else. */
+export function levelKeyFor(userId: string, self: boolean): string {
+  return self ? "self" : userId;
+}
+
 // How loud each person is for you (0 to 1), kept on this device. Changing it only affects what you hear.
 const PEER_VOLUME_KEY = "nf-peer-volumes";
 function loadPeerVolumes(): Record<string, number> {
@@ -32,6 +45,10 @@ type VoiceStore = {
   flags: VoiceFlags;
   connection: VoiceConnection;
   remote: RemotePeer[];
+  /**
+   * Live audio level per person (key from levelKeyFor), updated about 8 times a second each. Don't read the whole
+   * store in a component: select one person's level (or isSpeaking) so only that person's indicator re-renders.
+   */
   levels: Record<string, number>;
   localScreen: MediaStream | null;
   localCamera: MediaStream | null;

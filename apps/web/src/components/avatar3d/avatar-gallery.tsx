@@ -7,7 +7,7 @@ import { Check, Copy, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from "lucide-rea
 import { getApiErrorMessage, getAvatar, updateAvatarPreset, type AvatarPreset } from "@/lib/api";
 import { createLook, designOfLook, duplicateLook, equipLook, loadLooks, removeLook, retiredPartsOf } from "@/lib/avatar-api";
 import { normaliseDesign, type AvatarDesign } from "@/components/avatar3d/design";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const button = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-40";
 
@@ -119,18 +119,19 @@ function AvatarCard({ preset, isMain, onChanged, onError, onNotice }: { preset: 
 
 export function AvatarGallery() {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const query = useQuery({
-    queryKey: ["avatar", accessToken],
+    queryKey: ["avatar", queryScope],
     queryFn: () => loadLooks(accessToken!),
     enabled: Boolean(accessToken),
   });
 
   // Only read when the account has no looks yet: the worn avatar may predate looks (made in the old Studio).
   const worn = useQuery({
-    queryKey: ["avatar-worn", accessToken],
+    queryKey: ["avatar-worn", queryScope],
     queryFn: () => getAvatar(accessToken!),
     enabled: Boolean(accessToken) && query.data?.presets.length === 0,
   });

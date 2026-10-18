@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { Clapperboard, Loader2, Newspaper, Send, Users } from "lucide-react";
 import { createPost, deletePost, getApiErrorMessage, listPosts, togglePostLike, type Post } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { PostCard } from "./post-card";
 
 const panel = "vx-panel rounded-2xl p-4";
@@ -15,6 +15,7 @@ type Page = { posts: Post[]; nextCursor: string | null };
 
 export function FeedPage() {
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [scope, setScope] = useState<Scope>("following");
   const [kind, setKind] = useState<Kind>(undefined);
@@ -23,7 +24,7 @@ export function FeedPage() {
   const [mediaUrl, setMediaUrl] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
 
-  const queryKey = ["feed", scope, kind ?? "ALL", accessToken] as const;
+  const queryKey = ["feed", scope, kind ?? "ALL", queryScope] as const;
   const feed = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) => listPosts(accessToken!, { scope, kind, cursor: pageParam, limit: 20 }),
