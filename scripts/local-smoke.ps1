@@ -221,8 +221,31 @@ function Resolve-ServerPort {
 $apiPort = Resolve-ServerPort
 $apiBase = "http://localhost:$apiPort"
 $webBase = "http://127.0.0.1:3300"
+# Live services on the production PC (keep in sync with scripts/cleanup-dev-ports.ps1).
+$protectedPorts = @(3000, 3300, 3400, 4001, 5433)
+$devWebPort = if ($env:NF_DEV_WEB_PORT) { [int]$env:NF_DEV_WEB_PORT } else { 3301 }
+
+function Test-LiveServerConfig {
+  # True when apps/server/.env is the live configuration (public site address or NODE_ENV=production).
+  $serverEnvPath = Join-Path $repoRoot "apps/server/.env"
+  foreach ($key in @("APP_WEB_URL", "API_PUBLIC_URL")) {
+    $value = [string](Get-EnvFileValue -Path $serverEnvPath -Key $key)
+    $value = $value.Trim('"', "'")
+    if ($value -match '^https?://' -and $value -notmatch '^https?://(localhost|127\.\d+\.\d+\.\d+|\[::1\])([:/]|$)') {
+      return $true
+    }
+  }
+  $nodeEnv = [string](Get-EnvFileValue -Path $serverEnvPath -Key "NODE_ENV")
+  return ($nodeEnv.Trim('"', "'") -eq "production")
+}
+
 try {
   if (-not (Test-ApiHealthy -BaseUrl $apiBase)) {
+    # Never start a second copy of the live API: it would fight pm2 for the port and run against live data.
+    if (($protectedPorts -contains $apiPort) -or (Test-LiveServerConfig)) {
+      throw "The API on $apiBase is not answering. On the production PC that is the live API; check pm2 (vexora-watchdog restarts it) instead of starting a second copy."
+    }
+
     Write-Host "[smoke] Server not detected; launching temporary server for API probes" -ForegroundColor Yellow
 
     $serverProcess = Start-Process -FilePath "node.exe" -ArgumentList @("dist/index.js") -WorkingDirectory (Join-Path $repoRoot "apps/server") -PassThru -WindowStyle Hidden -RedirectStandardOutput $serverStdoutLog -RedirectStandardError $serverStderrLog
@@ -240,7 +263,9 @@ try {
   Test-ApiProbe -Url "$apiBase/api/runtime/launch-mode"
 
   if (-not (Test-WebHealthy -BaseUrl $webBase)) {
-    Write-Host "[smoke] Web app not detected; launching temporary web app for age gate security validation" -ForegroundColor Yellow
+    # The dev web server runs on the dev port (3301 by default), never on the live port 3300.
+    $webBase = "http://127.0.0.1:$devWebPort"
+    Write-Host "[smoke] Web app not detected; launching temporary dev web app on $webBase for age gate security validation" -ForegroundColor Yellow
 
     $webProcess = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "-w", "web") -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden -RedirectStandardOutput $webStdoutLog -RedirectStandardError $webStderrLog
     $webStartedBySmoke = $true
@@ -252,8 +277,11 @@ try {
     }
   }
 
-  $validateAgeGateArgs = @("run", "age:gate:validate:local")
-  Invoke-NpmChecked -Label "Validate age-gate security" -CommandArguments $validateAgeGateArgs
+  Write-Host "[smoke] Validate age-gate security on $webBase" -ForegroundColor Cyan
+  & node ./scripts/validate-age-gate-security.mjs --base $webBase
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed (exit $LASTEXITCODE): node ./scripts/validate-age-gate-security.mjs --base $webBase"
+  }
 
   Write-Host "[smoke] Completed successfully." -ForegroundColor Green
 } finally {
@@ -262,11 +290,13 @@ try {
     if ($webProcess -and -not $webProcess.HasExited) {
       Stop-Process -Id $webProcess.Id -Force -ErrorAction SilentlyContinue
     }
+    # Stopping npm does not stop the next dev child; clear the dev web port (never the live one).
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-dev-ports.ps1" -Target web | Out-Null
   }
 
   if ($serverStartedBySmoke -and -not $KeepServerAlive) {
     Write-Host "[smoke] Stopping temporary server instance" -ForegroundColor Cyan
-    & powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" | Out-Null
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "./scripts/cleanup-server-port.ps1" -Ports $apiPort | Out-Null
     if ($serverProcess -and -not $serverProcess.HasExited) {
       Stop-Process -Id $serverProcess.Id -Force -ErrorAction SilentlyContinue
     }

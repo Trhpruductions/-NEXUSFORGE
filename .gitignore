@@ -62,3 +62,17 @@ brand-inbox/
 
 # Local beta run logs
 .beta-logs/
+
+# Build backups made during deploys, and check builds (NF_BUILD_DIR=.next-buildcheck)
+apps/server/dist-backup-*/
+apps/web/.next-build-backup-*/
+apps/web/.next-buildcheck/
+
+# Database dumps and local SQLite files (backups live outside the repo)
+*.dump
+*.sqlite
+*.sqlite3
+
+# Installers dropped straight into the website's public folder (releases go through gh-pages).
+# Already-tracked installers stay tracked until the owner approves removing them.
+apps/web/public/*.exe

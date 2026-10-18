@@ -1,3 +1,8 @@
+# DISABLED (2026-10-18): this "validation" starts with "pm2:workspace:delete:all", which removes the live API and
+# website from pm2, then rebuilds and restarts them. Use the read-only check instead: npm run pm2:workspace:doctor.
+Write-Host "ops-managed-validate.ps1 is disabled: it deletes and rebuilds the live pm2 apps. Use the read-only check: npm run pm2:workspace:doctor." -ForegroundColor Red
+exit 1
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")

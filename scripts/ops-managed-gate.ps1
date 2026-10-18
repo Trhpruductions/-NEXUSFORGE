@@ -22,7 +22,8 @@ try {
   Invoke-CheckedNpm -Label "Desktop splash packaging verification" -Arguments @("run", "desktop:splash:verify:packaged")
   Invoke-CheckedNpm -Label "Desktop artifact integrity report" -Arguments @("run", "desktop:artifact:report")
   Invoke-CheckedNpm -Label "Desktop artifact consistency validation" -Arguments @("run", "desktop:artifact:validate")
-  Invoke-CheckedNpm -Label "Managed runtime validation" -Arguments @("run", "pm2:workspace:validate:managed")
+  # Read-only runtime check. (pm2:workspace:validate:managed used to run here; it deleted and rebuilt the live apps.)
+  Invoke-CheckedNpm -Label "Managed runtime check (read-only)" -Arguments @("run", "pm2:workspace:doctor")
 
   Write-Host "[ops-managed-gate] PASS: managed runtime gate is healthy." -ForegroundColor Green
 } finally {

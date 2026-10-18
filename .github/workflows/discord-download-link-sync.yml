@@ -1,5 +1,12 @@
 name: discord-download-link-sync
 
+# Posts (or updates) the desktop download message in Discord after a release manifest change lands
+# on main. It runs only after the owner approves the "release-approval" environment; see
+# docs/RELEASE-APPROVAL.md for how to create that environment with required reviewers.
+#
+# Secret handling: each Discord secret is passed by name to the one step that posts, after the
+# dependencies are installed, so install scripts never see them. Secret values are never written to
+# GITHUB_ENV or GITHUB_OUTPUT. No dependency cache is used in this job (cache poisoning protection).
 on:
   push:
     branches:
@@ -20,62 +27,56 @@ concurrency:
 
 jobs:
   post-download-link:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     # Runs only after the owner approves the "release-approval" environment (set its required reviewers in
     # GitHub: Settings > Environments). A merge that changes the release manifest waits here until then.
     environment: release-approval
-    env:
-      SECRETS_JSON: ${{ toJSON(secrets) }}
-      VARS_JSON: ${{ toJSON(vars) }}
     steps:
+      - name: Check required Discord secrets are set
+        shell: bash
+        env:
+          # Booleans only ("true"/"false"); the secret values are not exposed to this step.
+          HAS_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN != '' }}
+          HAS_TARGET: ${{ secrets.DISCORD_DOWNLOAD_TARGET_ID != '' || secrets.DISCORD_REPORT_GUILD_ID != '' || secrets.DISCORD_GUILD_ID != '' }}
+        run: |
+          if [ "${HAS_TOKEN}" != "true" ]; then
+            echo "::error::DISCORD_BOT_TOKEN secret is missing."
+            exit 1
+          fi
+          if [ "${HAS_TARGET}" != "true" ]; then
+            echo "::error::Set one of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID."
+            exit 1
+          fi
+          echo "Discord secrets are present."
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
-          cache: npm
-
-      - name: Validate required Discord secrets
-        shell: bash
-        run: |
-          node - <<'NODE' >> "$GITHUB_ENV"
-          const secrets = JSON.parse(process.env.SECRETS_JSON || "{}");
-          const vars = JSON.parse(process.env.VARS_JSON || "{}");
-
-          const token = String(secrets.DISCORD_BOT_TOKEN || "").trim();
-          const targetId = String(secrets.DISCORD_DOWNLOAD_TARGET_ID || "").trim();
-          const reportGuildId = String(secrets.DISCORD_REPORT_GUILD_ID || "").trim();
-          const guildId = String(secrets.DISCORD_GUILD_ID || "").trim();
-          const resolvedTargetId = targetId || reportGuildId || guildId;
-          const channelName = String(vars.DISCORD_DOWNLOAD_CHANNEL_NAME || "app-downloads").trim() || "app-downloads";
-          const appWebUrl = String(vars.APP_WEB_URL || "").trim();
-          const messageId = String(vars.DISCORD_DOWNLOAD_MESSAGE_ID || "").trim();
-
-          if (!token) {
-            console.error("DISCORD_BOT_TOKEN secret is missing.");
-            process.exit(1);
-          }
-          if (!resolvedTargetId) {
-            console.error("Set one of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID.");
-            process.exit(1);
-          }
-
-          console.log(`DISCORD_BOT_TOKEN=${token}`);
-          console.log(`DISCORD_DOWNLOAD_TARGET_ID=${resolvedTargetId}`);
-          console.log(`DISCORD_REPORT_GUILD_ID=${reportGuildId}`);
-          console.log(`DISCORD_GUILD_ID=${guildId}`);
-          console.log(`DISCORD_DOWNLOAD_CHANNEL_NAME=${channelName}`);
-          console.log(`APP_WEB_URL=${appWebUrl}`);
-          console.log(`DISCORD_DOWNLOAD_MESSAGE_ID=${messageId}`);
-          NODE
+          node-version: 24
+          package-manager-cache: false
 
       - name: Install server workspace dependencies
         run: npm ci --workspace @nexusforge/server
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Validate desktop-update.json schema
         run: npm run desktop:manifest:validate -w @nexusforge/server
 
       - name: Sync Discord app-downloads message
+        shell: bash
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_DOWNLOAD_TARGET_ID: ${{ secrets.DISCORD_DOWNLOAD_TARGET_ID || secrets.DISCORD_REPORT_GUILD_ID || secrets.DISCORD_GUILD_ID }}
+          DISCORD_REPORT_GUILD_ID: ${{ secrets.DISCORD_REPORT_GUILD_ID }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          DISCORD_DOWNLOAD_CHANNEL_NAME: ${{ vars.DISCORD_DOWNLOAD_CHANNEL_NAME || 'app-downloads' }}
+          APP_WEB_URL: ${{ vars.APP_WEB_URL }}
+          DISCORD_DOWNLOAD_MESSAGE_ID: ${{ vars.DISCORD_DOWNLOAD_MESSAGE_ID }}
         run: npm run discord:post:download -w @nexusforge/server -- "$DISCORD_DOWNLOAD_TARGET_ID" "$DISCORD_DOWNLOAD_CHANNEL_NAME"

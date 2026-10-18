@@ -5,11 +5,20 @@ param(
   [string] $WorktreeDir = "",
   [string] $CommitMessage = "Publish NexusForge desktop release bundle",
   [switch] $Force,
-  [switch] $DryRun
+  [switch] $DryRun,
+  # The owner must approve each release before it is published. Pass this only after that approval.
+  [switch] $OwnerApproved
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# This replaces the whole gh-pages branch with the bundle and force-pushes it: it changes the installers and the
+# update manifest every installed copy downloads (an earlier run deleted other files from gh-pages).
+# Stop before anything is touched unless the owner has approved this release. -DryRun pushes nothing.
+if (-not $OwnerApproved -and -not $DryRun) {
+  throw "Not publishing: force-pushing a desktop release to gh-pages needs the owner's approval first. Show the owner the version and notes, then re-run with -OwnerApproved."
+}
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot

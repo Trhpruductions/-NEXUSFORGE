@@ -2,6 +2,11 @@ param(
   [switch]$SkipEnsureOnline
 )
 
+# DISABLED (2026-10-18): this script runs "pm2 save". On this PC the pm2 dump is shared with the owner's other
+# bots, and a save once wiped them. scripts/vexora-autostart.cmd restores the site at logon without a save.
+Write-Host "pm2-workspace-persist.ps1 is disabled: it runs 'pm2 save', which must never run on this PC (the pm2 dump is shared with other bots). See README.md." -ForegroundColor Red
+exit 1
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")

@@ -1,5 +1,9 @@
 name: Release PR Guard
 
+# Checks a pull request that changes the desktop release manifest or the release scripts:
+# the manifest must pass the schema check (blocking), and the Discord secrets the post-merge job needs
+# are looked up (warning only). The real release gate is the "release-approval" environment on the
+# post-merge Discord job; see docs/RELEASE-APPROVAL.md.
 on:
   pull_request:
     branches: ["main", "master"]
@@ -14,54 +18,42 @@ permissions:
 
 jobs:
   validate-desktop-manifest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
+          package-manager-cache: false
 
-      - name: Install server workspace dependencies
-        run: npm ci --workspace @nexusforge/server
-
+      # The validator uses only Node built-ins, so nothing is installed for it.
       - name: Validate desktop-update.json schema
-        run: npm run desktop:manifest:validate -w @nexusforge/server
+        working-directory: apps/server
+        run: node ./scripts/validate-desktop-manifest.mjs
 
   discord-sync-preflight:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: validate-desktop-manifest
-    env:
-      SECRETS_JSON: ${{ toJSON(secrets) }}
 
     steps:
-      - name: Validate Discord sync secrets
+      # Only "set / not set" is checked; no secret value reaches this pull request job. Secrets kept as
+      # environment secrets on "release-approval" (recommended) are not visible here, so a miss is a warning.
+      - name: Check Discord sync secrets
         shell: bash
+        env:
+          HAS_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN != '' }}
+          HAS_TARGET: ${{ secrets.DISCORD_DOWNLOAD_TARGET_ID != '' || secrets.DISCORD_REPORT_GUILD_ID != '' || secrets.DISCORD_GUILD_ID != '' }}
         run: |
-          node - <<'NODE'
-          const secrets = JSON.parse(process.env.SECRETS_JSON || '{}');
-          const token = String(secrets.DISCORD_BOT_TOKEN || '').trim();
-          const target = String(secrets.DISCORD_DOWNLOAD_TARGET_ID || '').trim();
-          const reportGuild = String(secrets.DISCORD_REPORT_GUILD_ID || '').trim();
-          const guild = String(secrets.DISCORD_GUILD_ID || '').trim();
-
-          const hasTarget = Boolean(target || reportGuild || guild);
-          if (!token || !hasTarget) {
-            console.error('Release PR Guard failed: missing required repository secrets for Discord download-link sync.');
-            if (!token) {
-              console.error('- DISCORD_BOT_TOKEN');
-            }
-            if (!hasTarget) {
-              console.error('- One of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID');
-            }
-            process.exit(1);
-          }
-
-          console.log('Discord sync secrets preflight passed.');
-          NODE
+          if [ "${HAS_TOKEN}" = "true" ] && [ "${HAS_TARGET}" = "true" ]; then
+            echo "Discord sync secrets preflight passed (repository secrets)."
+            exit 0
+          fi
+          echo "::warning::Discord download-link sync secrets are not set as repository secrets. After merge the Discord job will fail unless DISCORD_BOT_TOKEN and one of DISCORD_DOWNLOAD_TARGET_ID / DISCORD_REPORT_GUILD_ID / DISCORD_GUILD_ID exist as secrets of the release-approval environment."

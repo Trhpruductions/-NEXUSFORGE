@@ -12,6 +12,14 @@ $taskDescription = "Automatically starts NexusForge production services (API, We
 $scriptPath = "d:\NEXUSFORGE GAMGING APP\scripts\startup-production.ps1"
 $user = "hankh"
 
+# DISABLED (2026-10-18): registering is refused. The task runs scripts/startup-production.ps1 as SYSTEM, and that
+# script runs "pm2 save" (forbidden on this PC: the pm2 dump is shared with other bots). -Uninstall still works,
+# to remove an old copy of the task. Logon start-up is handled by scripts/vexora-autostart.cmd.
+if (-not $Uninstall) {
+  Write-Host "Registering $taskName is disabled: its script ran 'pm2 save' as SYSTEM, which must never run on this PC. Logon start-up is handled by scripts/vexora-autostart.cmd. (-Uninstall still removes an old copy of the task.)" -ForegroundColor Red
+  exit 1
+}
+
 Write-Host "`n=== Windows Task Scheduler Registration ===" -ForegroundColor Cyan
 
 # Check if running as admin

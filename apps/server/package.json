@@ -3,8 +3,8 @@
   "version": "1.0.11",
   "description": "Vexora Gaming API service",
   "scripts": {
-    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-server-port.ps1",
-    "dev": "npm run dev:cleanup-port && npx --yes tsx watch src/index.ts",
+    "dev:cleanup-port": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/cleanup-dev-ports.ps1 -Target api",
+    "dev": "npm run dev:cleanup-port && node ../../scripts/dev-server.mjs api",
     "build": "tsc -p tsconfig.json",
     "test": "npx --yes tsx --test \"tests/**/*.test.ts\"",
     "start": "node dist/index.js",

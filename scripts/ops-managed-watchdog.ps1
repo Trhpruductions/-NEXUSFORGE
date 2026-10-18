@@ -6,6 +6,12 @@ param(
   [bool]$PersistAfterSuccess = $true
 )
 
+# DISABLED (2026-10-18; retired 2026-10-16, see docs/remediation/ops-watchdog-retired-2026-10-16.md): every run
+# called pm2-workspace-persist.ps1 ("pm2 save", forbidden on this PC) and ops-managed-heal.ps1, which deletes and
+# rebuilds the live pm2 apps. vexora-watchdog does the health checks and restarts.
+Write-Host "ops-managed-watchdog.ps1 is retired and disabled: it ran 'pm2 save' and could delete the live pm2 apps. vexora-watchdog covers health checks. See docs/remediation/ops-watchdog-retired-2026-10-16.md." -ForegroundColor Red
+exit 1
+
 $ErrorActionPreference = "Stop"
 
 if ($IntervalSeconds -lt 15) {
