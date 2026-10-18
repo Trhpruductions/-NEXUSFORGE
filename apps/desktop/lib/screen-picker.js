@@ -8,8 +8,11 @@
 const path = require("node:path");
 const { BrowserWindow, ipcMain, desktopCapturer, screen } = require("electron");
 const { describeSources, resolveChoice, sourceKind } = require("./screen-picker-rules");
+const { describeSender } = require("./ipc-policy");
+const { isBundledPage } = require("./origin-rules");
 
 const PICKER_DIR = path.join(__dirname, "screen-picker");
+const PICKER_PAGE = path.join(PICKER_DIR, "picker.html");
 const THUMBNAIL_SIZE = { width: 320, height: 180 };
 const CHOOSE = "nexusforge-picker:choose";
 const CANCEL = "nexusforge-picker:cancel";
@@ -68,14 +71,18 @@ async function pick(parentWindow) {
       const source = sourceId ? byId.get(sourceId) : null;
       resolve(source ? { source, kind: sourceKind(source.id) } : null);
     };
-    // Messages are accepted from this picker window only.
+    // Messages are accepted from this picker window's top frame, showing the bundled picker page, only.
+    const fromPicker = (event) => {
+      const sender = describeSender(event, (contents) => (contents && contents.id === pickerId ? "picker" : null));
+      return Boolean(sender && sender.windowRole === "picker" && sender.isTopFrame && isBundledPage(sender.url, PICKER_PAGE));
+    };
     const onChoose = (event, id) => {
-      if (event.sender.id !== pickerId) return;
+      if (!fromPicker(event)) return;
       const chosen = resolveChoice(offeredIds, id);
       if (chosen) finish(chosen);
     };
     const onCancel = (event) => {
-      if (event.sender.id === pickerId) finish(null);
+      if (fromPicker(event)) finish(null);
     };
 
     ipcMain.on(CHOOSE, onChoose);
@@ -94,7 +101,7 @@ async function pick(parentWindow) {
       picker.focus();
     });
     active = { window: picker, finish };
-    picker.loadFile(path.join(PICKER_DIR, "picker.html")).catch(() => finish(null));
+    picker.loadFile(PICKER_PAGE).catch(() => finish(null));
   });
 }
 

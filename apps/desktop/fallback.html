@@ -307,7 +307,7 @@
       const actionButtons = ["start", "retry", "log", "reload", "set-workspace-path"].map((id) => document.getElementById(id));
       const recoveryStatusEl = document.getElementById("recovery-status");
       let autoRetryInFlight = false;
-      let currentTargetUrl = "https://www.nexusforge.app/app";
+      let currentTargetUrl = "https://nfgcord.com/app";
 
       function normalizeHttpUrl(value) {
         const candidate = String(value || "").trim();
@@ -483,7 +483,7 @@
       });
 
       document.getElementById("openFallback").addEventListener("click", () => {
-        const target = normalizeHttpUrl(currentTargetUrl) || "https://www.nexusforge.app/app";
+        const target = normalizeHttpUrl(currentTargetUrl) || "https://nfgcord.com/app";
         window.open(target, "_blank", "noopener");
       });
 
