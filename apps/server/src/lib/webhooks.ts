@@ -1,4 +1,14 @@
 import { prisma } from "./prisma.js";
+import { safePostJson } from "./link-preview.js";
+
+/** Delivery headers. Header names must be plain tokens (no spaces), or the request is never sent. */
+export function webhookHeaders(event: string, subscriptionId: string, deliveredAt = new Date().toISOString()): Record<string, string> {
+  return {
+    "X-NexusForge-Webhook-Event": event,
+    "X-NexusForge-Webhook-Subscription-Id": subscriptionId,
+    "X-NexusForge-Webhook-Delivered-At": deliveredAt,
+  };
+}
 
 const WEBHOOK_TIMEOUT_MS = 10_000;
 
@@ -27,35 +37,19 @@ export async function dispatchDeveloperWebhookEvent(
     payload,
   });
 
+  // Sent through safePostJson: a developer picks the URL, so it must never reach this
+  // machine or the local network (no private addresses, no redirects).
   const sendPromises = subscriptions.map(async (subscription) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(subscription.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-NexusForge-Webhook-Event": eventName,
-          "X-NexusForge-Webhook-Subscription-Id": subscription.id,
-          "X-NexusForge-Webhook-Delivered-At": new Date().toISOString(),
-        },
-        body,
-        redirect: "follow",
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error(
-          `[webhooks] Delivery ${eventName} to ${subscription.url} failed: ${response.status} ${response.statusText} - ${text.slice(0, 500)}`,
-        );
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[webhooks] Delivery ${eventName} to ${subscription.url} failed: ${message}`);
-    } finally {
-      clearTimeout(timeoutId);
+    const response = await safePostJson(
+      subscription.url,
+      body,
+      webhookHeaders(eventName, subscription.id),
+      WEBHOOK_TIMEOUT_MS,
+    );
+    if (!response) {
+      console.error(`[webhooks] Delivery ${eventName} to subscription ${subscription.id} failed: unreachable or not allowed`);
+    } else if (response.status < 200 || response.status >= 300) {
+      console.error(`[webhooks] Delivery ${eventName} to subscription ${subscription.id} failed: HTTP ${response.status}`);
     }
   });
 

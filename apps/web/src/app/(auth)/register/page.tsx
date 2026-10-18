@@ -10,7 +10,9 @@ import { ArrowRight, Crosshair, Gamepad2, Users2, Wrench } from "lucide-react";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
-import { register as registerApi } from "@/lib/api";
+import { getApiErrorMessage, register as registerApi } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { getRequiredPolicies } from "@/lib/legal-api";
 import { useAuthStore } from "@/store/auth-store";
 
 const schema = z
@@ -48,6 +50,11 @@ export default function RegisterPage() {
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
   const setSession = useAuthStore((state) => state.setSession);
+  // Published policies that must be accepted, one unticked box each, with the exact wording.
+  const requiredQuery = useQuery({ queryKey: ["legal-required"], queryFn: getRequiredPolicies });
+  const requiredPolicies = requiredQuery.data?.policies ?? [];
+  const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+  const allAccepted = requiredPolicies.every((policy) => accepted[policy.versionId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -73,6 +80,7 @@ export default function RegisterPage() {
         email: values.email,
         password: values.password,
         birthdate: values.birthdate,
+        acceptedPolicyVersionIds: requiredPolicies.filter((policy) => accepted[policy.versionId]).map((policy) => policy.versionId),
       });
 
       setSession({
@@ -84,7 +92,9 @@ export default function RegisterPage() {
       setVerificationToken(payload.verification.devCode ?? null);
       router.push(redirectTarget ?? "/welcome");
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : "Registration failed");
+      setServerError(getApiErrorMessage(error));
+      // A policy may have been updated while the form was open: show the current versions.
+      void requiredQuery.refetch();
     }
   };
 
@@ -93,12 +103,12 @@ export default function RegisterPage() {
       hero={
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(230,179,37,0.9)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(46,164,255,0.9)]" />
             Built for gamers. Connected by community.
           </div>
           <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
             Forge your
-            <span className="block bg-[linear-gradient(120deg,#f8df8a,#e6b325_45%,#b0820f)] bg-clip-text text-transparent">
+            <span className="block bg-[linear-gradient(120deg,#9fd8ff,#2ea4ff_45%,#0b6fe0)] bg-clip-text text-transparent">
               community.
             </span>
           </h2>
@@ -119,7 +129,7 @@ export default function RegisterPage() {
     >
       <AuthFormCard
         title="Create your account"
-        subtitle="You must be 18 or older to join Vexora Gaming."
+        subtitle="You must be 18 or older to join Nexus Forge Gaming."
         footer={
           <span>
             Already have an account?{" "}
@@ -132,10 +142,12 @@ export default function RegisterPage() {
           </span>
         }
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <AuthField
             id="register-username"
             label="Username"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="username"
             placeholder="gamertag"
             error={errors.username?.message}
@@ -145,6 +157,8 @@ export default function RegisterPage() {
             id="register-email"
             label="Email"
             type="email"
+            autoCapitalize="none"
+            spellCheck={false}
             autoComplete="email"
             placeholder="you@example.com"
             error={errors.email?.message}
@@ -184,15 +198,36 @@ export default function RegisterPage() {
             </div>
           ) : null}
 
-          <button type="submit" disabled={isSubmitting} className={authPrimaryButtonClass}>
+          {requiredPolicies.length ? (
+            <fieldset className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+              <legend className="sr-only">Agreements</legend>
+              {requiredPolicies.map((policy) => (
+                <label key={policy.versionId} className="flex cursor-pointer items-start gap-2.5 text-xs leading-relaxed text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-amber-400"
+                    checked={Boolean(accepted[policy.versionId])}
+                    onChange={(event) => setAccepted((current) => ({ ...current, [policy.versionId]: event.target.checked }))}
+                  />
+                  <span>
+                    {policy.consentText}{" "}
+                    <Link href={`/legal/${policy.slug}`} target="_blank" className="font-semibold text-sky-300 underline-offset-2 hover:underline">
+                      Read the {policy.title}
+                    </Link>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
+
+          <button type="submit" disabled={isSubmitting || requiredQuery.isLoading || !allAccepted} className={authPrimaryButtonClass}>
             {isSubmitting ? "Creating account..." : "Create account"}
             {!isSubmitting ? <ArrowRight className="h-4 w-4" /> : null}
           </button>
 
           <p className="text-center text-[11px] leading-relaxed text-slate-500">
-            By joining you agree to the{" "}
-            <Link href="/terms" className="text-slate-300 hover:text-white">Terms</Link> and{" "}
-            <Link href="/privacy" className="text-slate-300 hover:text-white">Privacy Policy</Link>.
+            Our policies and their history are in the{" "}
+            <Link href="/legal" className="text-slate-300 hover:text-white">Legal Center</Link>.
           </p>
         </form>
       </AuthFormCard>

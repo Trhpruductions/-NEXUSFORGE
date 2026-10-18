@@ -54,3 +54,11 @@ var/
 
 # Local (no-S3) uploads
 var/uploads/
+
+# Desktop installers are build output (rebuild with npm run package:win in apps/desktop)
+apps/web/public/downloads/*.exe
+
+brand-inbox/
+
+# Local beta run logs
+.beta-logs/

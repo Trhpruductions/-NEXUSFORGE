@@ -7,12 +7,12 @@ import { useId } from "react";
 type Palette = { base: string; deep: string; glow: string; accent: string };
 
 const PALETTES: Palette[] = [
-  { base: "#1a1406", deep: "#07060a", glow: "#e6b325", accent: "#f8df8a" }, // forge gold
-  { base: "#1b0d08", deep: "#08050a", glow: "#f07a2a", accent: "#e6b325" }, // ember
-  { base: "#06171a", deep: "#04080c", glow: "#22b8c7", accent: "#e6b325" }, // teal
-  { base: "#120a1f", deep: "#06040c", glow: "#8b5cf6", accent: "#e6b325" }, // violet
-  { base: "#1c0a0e", deep: "#08040a", glow: "#e0435e", accent: "#f8df8a" }, // crimson
-  { base: "#0a1220", deep: "#04060c", glow: "#3b82f6", accent: "#e6b325" }, // cobalt
+  { base: "#1a1406", deep: "#07060a", glow: "#2ea4ff", accent: "#9fd8ff" }, // forge gold
+  { base: "#1b0d08", deep: "#08050a", glow: "#f07a2a", accent: "#2ea4ff" }, // ember
+  { base: "#06171a", deep: "#04080c", glow: "#22b8c7", accent: "#2ea4ff" }, // teal
+  { base: "#120a1f", deep: "#06040c", glow: "#8b5cf6", accent: "#2ea4ff" }, // violet
+  { base: "#1c0a0e", deep: "#08040a", glow: "#e0435e", accent: "#9fd8ff" }, // crimson
+  { base: "#0a1220", deep: "#04060c", glow: "#3b82f6", accent: "#2ea4ff" }, // cobalt
 ];
 
 function hash(seed: string) {
@@ -135,7 +135,7 @@ export function CoverArt({ seed, className = "", variant }: CoverArtProps) {
         </g>
       ) : null}
 
-      {/* Brand chevron, low key, so every cover reads as Vexora. */}
+      {/* Brand chevron, low key, so every cover reads as Nexus Forge. */}
       <path
         d={`M${gx * 4 - 46} ${gy * 2 - 30} L${gx * 4} ${gy * 2 + 34} L${gx * 4 + 46} ${gy * 2 - 30} L${gx * 4 + 26} ${gy * 2 - 30} L${gx * 4} ${gy * 2 + 6} L${gx * 4 - 26} ${gy * 2 - 30} Z`}
         fill={p.accent}

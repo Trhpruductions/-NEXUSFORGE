@@ -19,7 +19,7 @@ function cx(...parts: Array<string | undefined>) {
 
 function rarityClass(rarity: BrandBadge["rarity"]) {
   if (rarity === "legendary") {
-    return "border-amber-400/70 shadow-[0_0_14px_rgba(251,191,36,0.25)]";
+    return "border-amber-400/70 shadow-[0_0_14px_rgba(99,192,255,0.25)]";
   }
 
   if (rarity === "epic") {

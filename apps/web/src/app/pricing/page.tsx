@@ -1,6 +1,12 @@
+import { pageMetadata } from "@/lib/seo";
 import { PricingAndPayments } from "@/components/brand/pricing-and-payments";
-import { PoweredByFooter } from "@/components/layout/powered-by-footer";
 import { ExperienceShell } from "@/components/layout/experience-shell";
+
+export const metadata = pageMetadata({
+  title: "Pricing",
+  description: "Nexus Forge Gaming is free to use. Core+ plans from $3.99 a month add bigger uploads, more servers and ultra-quality video.",
+  path: "/pricing",
+});
 
 export default async function PricingPage({
   searchParams,
@@ -11,13 +17,13 @@ export default async function PricingPage({
 
   return (
     <ExperienceShell
-      eyebrow="Monetization"
-      title="Pricing, Payments, and Upgrade Flows"
-      subtitle="Tiered subscriptions and add-ons built to feel premium, clear, and conversion-ready."
+      eyebrow="Core+"
+      title="Plans and pricing"
+      subtitle="Every plan includes the full app. Core+ adds bigger uploads, more servers and ultra-quality video."
       metrics={[
-        { label: "Checkout", value: "Secure Redirect", tone: "emerald" },
-        { label: "Tier Ladder", value: "Core to Infinite", tone: "cyan" },
-        { label: "Upgrade Momentum", value: "Optimized", tone: "amber" },
+        { label: "Free plan", value: "$0, forever", tone: "emerald" },
+        { label: "Core+ from", value: "$3.99/mo", tone: "amber" },
+        { label: "Cancel", value: "Any time", tone: "cyan" },
       ]}
       actions={[
         { label: "Sign in", href: "/login?redirect=/pricing", tone: "ghost" },
@@ -26,10 +32,9 @@ export default async function PricingPage({
       ]}
       maxWidthClassName="max-w-[1300px]"
     >
-      <main className="mx-auto w-full">
+      <div className="mx-auto w-full">
         <PricingAndPayments checkoutState={resolved.checkout} />
-      </main>
-      <PoweredByFooter />
+      </div>
     </ExperienceShell>
   );
 }

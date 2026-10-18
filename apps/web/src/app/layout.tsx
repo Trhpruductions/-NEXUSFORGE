@@ -3,6 +3,7 @@ import { Exo_2, Orbitron } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { RouteTransition } from "@/components/layout/route-transition";
 import "./globals.css";
+import "./themes.css";
 
 const exo = Exo_2({
   variable: "--font-exo",
@@ -20,18 +21,16 @@ const metadataBase = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "Vexora Gaming",
-    template: "%s | Vexora Gaming",
+    default: "Nexus Forge Gaming",
+    template: "%s | Nexus Forge Gaming",
   },
-  description: "Premium 18+ command network for gaming communities, creators, and power users.",
-  icons: {
-    icon: "/brand/vexora-logo.png",
-    apple: "/brand/vexora-logo.png",
-  },
+  description: "Servers, voice, video and chat for gamers, creators and esports teams, with more included free. Web and Windows. 18+.",
+  // Icons and the link-preview image come from app/favicon.ico, app/apple-icon.png and
+  // app/opengraph-image.png (made from the logo by scripts/brand-images.cjs).
   openGraph: {
-    title: "Vexora Gaming",
-    description: "Premium 18+ command network for gaming communities",
-    images: ["/brand/vexora-logo.png"],
+    title: "Nexus Forge Gaming",
+    description: "Servers, voice, video and chat for gamers, with more included free.",
+    siteName: "Nexus Forge Gaming",
   },
 };
 

@@ -71,7 +71,7 @@ router.post("/tickets", requireCsrf, economyRateLimit, async (req, res) => {
       return;
     }
     if (error instanceof InsufficientBalanceError) {
-      res.status(402).json({ error: "Not enough Vexora Coins.", code: "INSUFFICIENT" });
+      res.status(402).json({ error: "Not enough Nexus Forge Coins.", code: "INSUFFICIENT" });
       return;
     }
     console.error("[JACKPOT_BUY_ERROR]", { userId: req.user!.id, error });

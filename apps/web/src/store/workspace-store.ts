@@ -12,6 +12,9 @@ type WorkspaceState = {
   channelCounts: Record<string, ChannelCounts>;
   /** Unread totals keyed by forge id, for the server rail. */
   forgeCounts: Record<string, ChannelCounts>;
+  /** The channel each server was last open on, so opening the server returns there. */
+  lastChannelByForge: Record<string, string>;
+  rememberChannel: (forgeId: string, channelId: string) => void;
   setSelectedForgeId: (forgeId: string | null) => void;
   setActiveChannelId: (channelId: string | null) => void;
   setChannelCounts: (counts: Record<string, ChannelCounts>) => void;
@@ -27,6 +30,12 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       activeChannelId: null,
       channelCounts: {},
       forgeCounts: {},
+      lastChannelByForge: {},
+      rememberChannel: (forgeId, channelId) => {
+        const { lastChannelByForge } = get();
+        if (lastChannelByForge[forgeId] === channelId) return;
+        set({ lastChannelByForge: { ...lastChannelByForge, [forgeId]: channelId } });
+      },
       setSelectedForgeId: (forgeId) => set({ selectedForgeId: forgeId }),
       setActiveChannelId: (channelId) => set({ activeChannelId: channelId }),
       setChannelCounts: (counts) => set({ channelCounts: counts }),
@@ -58,7 +67,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     {
       name: "vexora-workspace",
       storage: createJSONStorage(() => (typeof window === "undefined" ? { getItem: () => null, setItem: () => undefined, removeItem: () => undefined } : window.localStorage)),
-      partialize: (state) => ({ selectedForgeId: state.selectedForgeId }),
+      partialize: (state) => ({ selectedForgeId: state.selectedForgeId, lastChannelByForge: state.lastChannelByForge }),
     },
   ),
 );

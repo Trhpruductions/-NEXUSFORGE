@@ -123,7 +123,7 @@ describe("MiningAuthority", () => {
           name: "Expensive Rig",
           tier: "ELITE",
         })
-      ).rejects.toThrow("Insufficient balance");
+      ).rejects.toThrow("Not enough NC");
 
       // Cleanup
       await prisma.user.delete({ where: { id: lowBalanceUserId } });
@@ -162,7 +162,8 @@ describe("MiningAuthority", () => {
       });
 
       expect(lastTransaction?.type).toBe("MINING_RIG_PURCHASE");
-      expect(lastTransaction?.amount).toBe(RIG_PRICING.STANDARD.cost);
+      // A purchase is a debit, so it is recorded as a negative amount.
+      expect(lastTransaction?.amount).toBe(-RIG_PRICING.STANDARD.cost);
     });
   });
 

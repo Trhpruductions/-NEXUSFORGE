@@ -8,7 +8,9 @@ param(
   [switch] $AllowUnresolvedTunnelHostnames,
   [switch] $AllowInsecureTlsValidation,
   [switch] $SkipDownloadUrlValidation,
-  [switch] $SkipDoctor
+  [switch] $SkipDoctor,
+  # The owner must approve each release before it is published. Pass this only after that approval.
+  [switch] $OwnerApproved
 )
 
 Set-StrictMode -Version Latest
@@ -16,6 +18,12 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
+
+# Publishing changes the version every installed copy checks for, and a forced release installs itself.
+# Stop before anything is built, written or uploaded unless the owner has approved this release.
+if (-not $OwnerApproved) {
+  throw "Not publishing: a desktop release needs the owner's approval first. Show the owner the version and notes, then re-run with -OwnerApproved."
+}
 
 $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $logDir = Join-Path $repoRoot (".beta-logs\desktop-release-" + $runId)

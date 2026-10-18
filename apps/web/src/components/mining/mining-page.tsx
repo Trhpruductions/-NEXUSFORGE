@@ -7,12 +7,13 @@ import { Coins, Cpu, Gauge, Loader2, Pickaxe, Plus, Power, Trash2, TrendingUp, X
 import { api, authHeaders, getApiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Rig = { rigId: string; name: string; tier: string; hashRate: number; efficiency: number; status: string; currentYield: string; purchasedAt: string; totalYield: string };
 type Stats = { rigCount: number; activeRigs: number; totalHashRate: number; avgEfficiency: number; totalYield: string; pendingYield: string; estimatedHourlyIncome: string };
 type Pricing = { tier: string; cost: string; hashRate: number; efficiency: number };
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
@@ -32,6 +33,7 @@ export function MiningPage() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
   const [buyOpen, setBuyOpen] = useState(false);
+  useEscapeKey(buyOpen, () => setBuyOpen(false));
   const [tier, setTier] = useState("BASIC");
   const [name, setName] = useState("");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -69,7 +71,7 @@ export function MiningPage() {
     mutationFn: async () => (await api.post<{ totalHarvested?: string; harvested?: string }>("/api/mining/harvest-all", {}, headers)).data,
     onSuccess: async (result) => {
       const amount = result.totalHarvested ?? result.harvested;
-      setNotice({ tone: "ok", text: amount ? `Harvested ${fmt(amount)} Vexora Coins.` : "Harvest complete." });
+      setNotice({ tone: "ok", text: amount ? `Harvested ${fmt(amount)} Nexus Forge Coins.` : "Harvest complete." });
       await invalidate();
     },
     onError: (error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }),
@@ -97,7 +99,7 @@ export function MiningPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading text-xl font-bold text-white">Mining</h1>
-          <p className="text-xs text-slate-400">Rigs earn Vexora Coins every hour. Harvest to move them into your wallet.</p>
+          <p className="text-xs text-slate-400">Rigs earn Nexus Forge Coins every hour. Harvest to move them into your wallet.</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-100"><Coins className="h-4 w-4 text-amber-300" /> {fmt(coins)}</span>
@@ -178,7 +180,7 @@ export function MiningPage() {
         </section>
 
         <aside className={panel}>
-          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Zap className="h-4 w-4 text-amber-300" /> Rig tiers</h2>
+          <h2 className={`${sectionTitle} mb-3 inline-flex items-center gap-2`}><Zap className="h-4 w-4 vx-accent" /> Rig tiers</h2>
           <ul className="space-y-2">
             {(pricingQuery.data ?? []).map((entry) => (
               <li key={entry.tier} className="flex items-center justify-between rounded-xl border border-white/5 bg-[#11151e] px-3 py-2">
@@ -195,7 +197,7 @@ export function MiningPage() {
       </div>
 
       {buyOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Deploy a rig" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setBuyOpen(false)} />
           <div className="relative w-full max-w-md rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Deploy a rig</h3>

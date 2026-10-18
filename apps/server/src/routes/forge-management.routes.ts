@@ -1,8 +1,15 @@
-import { Router } from "express";
+import express, { Router, type ErrorRequestHandler, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
-import { getIo } from "../lib/realtime.js";
+import { evictUserFromChannels, evictUserFromForge, getIo } from "../lib/realtime.js";
+import { logForgeAction } from "../lib/forge-audit.js";
+import { clearAutoModCache } from "../lib/automod-runtime.js";
+import { isOwnUploadUrl, ownedForgeImageKey, storeForgeImage, swapStoredImage } from "../lib/storage.js";
+import { checkProfileImage, PROFILE_IMAGE_LIMITS } from "../lib/image-validation.js";
+import { hashWebhookToken, newWebhookToken } from "./webhooks.routes.js";
+import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
+import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import {
@@ -12,6 +19,7 @@ import {
   hasForgePermission,
   isProtectedOwnerRole,
   maxAssignableRolePosition,
+  ownerRolePosition,
   normalizePermissions,
   resolveForgeAccess,
   type ForgePermissionKey,
@@ -22,6 +30,13 @@ import {
  * Forge management: settings, channels, roles, members, bans, leave/delete.
  * Mounted at /api/forges alongside forgesRouter; every route here is scoped to /:id/...
  */
+
+/** Removing someone from a forge also removes them from its live rooms. */
+async function evictFromRealtime(forgeId: string, userId: string) {
+  const channels = await prisma.channel.findMany({ where: { forgeId }, select: { id: true } });
+  await evictUserFromForge(forgeId, userId, channels.map((channel) => channel.id));
+}
+
 export const forgeManagementRouter = Router();
 
 forgeManagementRouter.use(requireAuth);
@@ -48,10 +63,20 @@ const updateForgeSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
 
+/** Discord's slowmode choices, in seconds (0 = off, up to 6 hours). */
+const slowmodeSchema = z.number().int().min(0).max(21600);
+const idListSchema = z.array(z.string().uuid()).max(100);
+
 const createChannelSchema = z.object({
   name: channelNameSchema,
-  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE"]).default("TEXT"),
+  type: z.enum(["TEXT", "VOICE", "ANNOUNCEMENT", "STAGE", "CATEGORY", "FORUM"]).default("TEXT"),
+  forumTags: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   topic: z.string().trim().max(240).optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  slowmodeSeconds: slowmodeSchema.optional(),
+  isPrivate: z.boolean().optional(),
+  allowedRoleIds: idListSchema.optional(),
+  allowedUserIds: idListSchema.optional(),
 });
 
 const updateChannelSchema = z
@@ -59,8 +84,32 @@ const updateChannelSchema = z
     name: channelNameSchema.optional(),
     topic: z.string().trim().max(240).nullable().optional(),
     position: z.number().int().min(0).max(500).optional(),
+    parentId: z.string().uuid().nullable().optional(),
+    slowmodeSeconds: slowmodeSchema.optional(),
+    isPrivate: z.boolean().optional(),
+    allowedRoleIds: idListSchema.optional(),
+    allowedUserIds: idListSchema.optional(),
+    forumTags: z.array(z.string().trim().min(1).max(20)).max(20).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
+
+const timeoutSchema = z.object({
+  /** null clears the timeout. Discord caps timeouts at 28 days. */
+  minutes: z.number().int().min(1).max(40320).nullable(),
+  reason: z.string().trim().max(300).optional(),
+});
+
+const createInviteSchema = z.object({
+  /** 0 = never expires. */
+  maxAgeSeconds: z.union([z.literal(0), z.literal(1800), z.literal(3600), z.literal(21600), z.literal(43200), z.literal(86400), z.literal(604800)]).default(604800),
+  /** 0 = unlimited. */
+  maxUses: z.union([z.literal(0), z.literal(1), z.literal(5), z.literal(10), z.literal(25), z.literal(50), z.literal(100)]).default(0),
+});
+
+const transferSchema = z.object({
+  userId: z.string().uuid(),
+  confirmName: z.string().trim().min(1).max(80),
+});
 
 const permissionsSchema = z
   .object(Object.fromEntries(forgePermissionKeys.map((key) => [key, z.boolean().optional()])) as Record<ForgePermissionKey, z.ZodOptional<z.ZodBoolean>>)
@@ -170,6 +219,53 @@ async function guard(
   return context;
 }
 
+/**
+ * Checks the category / private-access fields of a channel create or update. Returns an
+ * error message, or null when everything points at things inside this forge.
+ */
+async function validateChannelLinks(
+  forgeId: string,
+  type: string,
+  data: { parentId?: string | null; allowedRoleIds?: string[]; allowedUserIds?: string[] },
+  selfId?: string,
+): Promise<string | null> {
+  if (data.parentId) {
+    if (type === "CATEGORY") return "A category can't sit inside another category";
+    if (data.parentId === selfId) return "A channel can't be its own category";
+    const parent = await prisma.channel.findFirst({ where: { id: data.parentId, forgeId }, select: { type: true } });
+    if (!parent || parent.type !== "CATEGORY") return "That category doesn't exist";
+  }
+  if (data.allowedRoleIds?.length) {
+    const count = await prisma.role.count({ where: { forgeId, id: { in: data.allowedRoleIds } } });
+    if (count !== new Set(data.allowedRoleIds).size) return "One of those roles isn't in this forge";
+  }
+  if (data.allowedUserIds?.length) {
+    const count = await prisma.forgeMember.count({ where: { forgeId, userId: { in: data.allowedUserIds } } });
+    if (count !== new Set(data.allowedUserIds).size) return "One of those people isn't a member of this forge";
+  }
+  return null;
+}
+
+/** After a private channel's access list changes, kick anyone who can no longer see it out of its rooms. */
+async function evictLostViewers(channel: { id: string; forgeId: string; isPrivate: boolean; allowedRoleIds: string[]; allowedUserIds: string[] }) {
+  if (!channel.isPrivate) return;
+  try {
+    const sockets = await getIo().in([`channel:${channel.id}`, `voice:${channel.id}`]).fetchSockets();
+    const userIds = [...new Set(sockets.map((socket) => socket.data?.user?.id as string | undefined).filter(Boolean))] as string[];
+    for (const userId of userIds) {
+      const member = await loadMemberContext(userId, channel.forgeId);
+      if (!canViewChannel(member, channel)) evictUserFromChannels(userId, [channel.id], { reason: "private" });
+    }
+  } catch {
+    // realtime not initialised (tests) - ignore
+  }
+}
+
+/** Audit-log label for a member: their username. */
+async function usernameOf(userId: string) {
+  return (await prisma.user.findUnique({ where: { id: userId }, select: { username: true } }))?.username ?? userId;
+}
+
 // ---------------------------------------------------------------------------
 // Caller access snapshot
 // ---------------------------------------------------------------------------
@@ -198,6 +294,17 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
   const context = await guard(req, res, "manageForge");
   if (!context) return;
 
+  // Icons and banners come through the upload routes below, which check the picture. Here only the
+  // server's current picture, or one of its own uploads, is accepted.
+  const currentPictures = await prisma.forge.findUnique({ where: { id: context.forge.id }, select: { icon: true, banner: true } });
+  for (const field of ["icon", "banner"] as const) {
+    const value = parsed.data[field];
+    if (typeof value === "string" && currentPictures && value !== currentPictures[field] && !ownedForgeImageKey(value, context.forge.id)) {
+      res.status(400).json({ error: "Upload a picture to change it. Links to other sites aren't accepted." });
+      return;
+    }
+  }
+
   const forge = await prisma.forge.update({
     where: { id: context.forge.id },
     data: { ...parsed.data, tags: parsed.data.tags?.map((tag) => tag.replace(/^#/, "").toLowerCase()) },
@@ -205,7 +312,731 @@ forgeManagementRouter.patch("/:id", async (req, res) => {
   });
 
   emitForgeEvent(forge.id, "forge:updated", { forge });
+  void logForgeAction(forge.id, req.user!.id, "forge.update", { type: "forge", id: forge.id, label: forge.name }, { changed: Object.keys(parsed.data) });
   res.json({ forge });
+});
+
+// ---------------------------------------------------------------------------
+// Server icon and banner: uploaded like profile pictures (checked, stored, old file removed after the swap)
+// ---------------------------------------------------------------------------
+
+type ForgeImageKind = "icon" | "banner";
+const forgeImageTypes = ["image/png", "image/jpeg", "image/webp"];
+
+/** Raw picture bodies, size-checked before they are read in full. Icons use the square avatar rules. */
+function forgeImageParsers(kind: ForgeImageKind): [RequestHandler, ErrorRequestHandler] {
+  const limit = kind === "icon" ? PROFILE_IMAGE_LIMITS.avatar.maxBytes : PROFILE_IMAGE_LIMITS.banner.maxBytes;
+  const parser = express.raw({ type: forgeImageTypes, limit, inflate: false });
+  const parserError: ErrorRequestHandler = (error, _req, res, next) => {
+    const status = (error as { status?: unknown } | null)?.status;
+    if (status === 413) {
+      res.status(413).json({ error: `${kind === "icon" ? "Server icons" : "Server banners"} can be up to ${limit / (1024 * 1024)} MB.` });
+      return;
+    }
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      res.status(415).json({ error: "Only plain PNG, JPEG and WebP pictures are accepted." });
+      return;
+    }
+    next(error);
+  };
+  return [parser, parserError];
+}
+
+/** Points the server at a new picture (or none) and returns the URL it had before. */
+async function commitForgeImage(forgeId: string, kind: ForgeImageKind, url: string | null): Promise<string | null> {
+  const before = await prisma.forge.findUnique({ where: { id: forgeId }, select: { icon: true, banner: true } });
+  await prisma.forge.update({ where: { id: forgeId }, data: kind === "icon" ? { icon: url } : { banner: url } });
+  return before ? before[kind] : null;
+}
+
+/** Tells the server's members the settings changed, and records who changed what. */
+async function announceForgeImage(forgeId: string, actorId: string, kind: ForgeImageKind, action: "set" | "removed") {
+  const forge = await prisma.forge.findUnique({
+    where: { id: forgeId },
+    select: { id: true, name: true, description: true, icon: true, banner: true, inviteCode: true, ownerId: true, isPublic: true, category: true, tags: true, updatedAt: true },
+  });
+  if (forge) emitForgeEvent(forgeId, "forge:updated", { forge });
+  void logForgeAction(forgeId, actorId, "forge.update", { type: "forge", id: forgeId, label: forge?.name }, { image: kind, action });
+}
+
+async function uploadForgeImage(kind: ForgeImageKind, req: Request<{ id: string }>, res: Response) {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const forgeId = context.forge.id;
+  try {
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(415).json({ error: "Send the picture file itself as PNG, JPEG or WebP." });
+      return;
+    }
+    const contentType = req.headers["content-type"];
+    const declared = typeof contentType === "string" ? contentType.split(";")[0].trim().toLowerCase() : null;
+    const picture = checkProfileImage(req.body, kind === "icon" ? "avatar" : "banner", declared);
+    if (!picture.ok) {
+      res.status(picture.status).json({ error: picture.error });
+      return;
+    }
+    // Write the new file, switch the server to it, and only then remove the old one (lib/storage.ts).
+    const result = await swapStoredImage({
+      write: () => storeForgeImage({ forgeId, kind, bytes: picture.bytes, ext: picture.ext, mime: picture.mime }),
+      commit: (url) => commitForgeImage(forgeId, kind, url),
+      keyForOwnedUrl: (url) => ownedForgeImageKey(url, forgeId),
+      onCleanupError: (error, key) => console.error("Server picture cleanup failed:", key, error),
+    });
+    await announceForgeImage(forgeId, req.user!.id, kind, "set");
+    res.json({ [kind]: result.url });
+  } catch (error) {
+    console.error("Server picture upload error:", error);
+    res.status(500).json({ error: "Couldn't save that picture. The current one is unchanged." });
+  }
+}
+
+async function removeForgeImage(kind: ForgeImageKind, req: Request<{ id: string }>, res: Response) {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const forgeId = context.forge.id;
+  try {
+    await swapStoredImage({
+      commit: () => commitForgeImage(forgeId, kind, null),
+      keyForOwnedUrl: (url) => ownedForgeImageKey(url, forgeId),
+      onCleanupError: (error, key) => console.error("Server picture cleanup failed:", key, error),
+    });
+    await announceForgeImage(forgeId, req.user!.id, kind, "removed");
+    res.json({ [kind]: null });
+  } catch (error) {
+    console.error("Server picture remove error:", error);
+    res.status(500).json({ error: "Couldn't remove that picture. The current one is unchanged." });
+  }
+}
+
+forgeManagementRouter.post("/:id/icon", ...forgeImageParsers("icon"), (req, res) => uploadForgeImage("icon", req, res));
+forgeManagementRouter.post("/:id/banner", ...forgeImageParsers("banner"), (req, res) => uploadForgeImage("banner", req, res));
+forgeManagementRouter.delete("/:id/icon", (req, res) => removeForgeImage("icon", req, res));
+forgeManagementRouter.delete("/:id/banner", (req, res) => removeForgeImage("banner", req, res));
+
+// ---------------------------------------------------------------------------
+// Your own notification settings for this forge (any member)
+// ---------------------------------------------------------------------------
+
+const notificationSettingsSchema = z
+  .object({
+    notifyLevel: z.enum(["ALL", "MENTIONS", "NONE"]).optional(),
+    /** Minutes to mute for; 0 unmutes; -1 mutes until turned back on. */
+    muteMinutes: z.union([z.literal(-1), z.literal(0), z.literal(15), z.literal(60), z.literal(180), z.literal(480), z.literal(1440)]).optional(),
+    suppressEveryone: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "No changes supplied." });
+
+/** "Until I turn it back on" is stored as a date far in the future. */
+const FOREVER = new Date("9999-12-31T00:00:00Z");
+
+forgeManagementRouter.get("/:id/notification-settings", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const member = await prisma.forgeMember.findUnique({
+    where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
+    select: { notifyLevel: true, mutedUntil: true, suppressEveryone: true },
+  });
+  const muted = Boolean(member?.mutedUntil && member.mutedUntil > new Date());
+  res.json({
+    notifyLevel: member?.notifyLevel ?? "MENTIONS",
+    suppressEveryone: member?.suppressEveryone ?? false,
+    muted,
+    mutedUntil: muted ? (member!.mutedUntil!.getTime() >= FOREVER.getTime() ? null : member!.mutedUntil) : null,
+    mutedForever: muted && member!.mutedUntil!.getTime() >= FOREVER.getTime(),
+  });
+});
+
+forgeManagementRouter.put("/:id/notification-settings", async (req, res) => {
+  const parsed = notificationSettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res);
+  if (!context) return;
+  const { muteMinutes } = parsed.data;
+  const member = await prisma.forgeMember.update({
+    where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
+    data: {
+      notifyLevel: parsed.data.notifyLevel,
+      suppressEveryone: parsed.data.suppressEveryone,
+      mutedUntil: muteMinutes === undefined ? undefined : muteMinutes === 0 ? null : muteMinutes === -1 ? FOREVER : new Date(Date.now() + muteMinutes * 60_000),
+    },
+    select: { notifyLevel: true, mutedUntil: true, suppressEveryone: true },
+  });
+  emitUserEvent(req.user!.id, "forge:notification-settings", { forgeId: context.forge.id });
+  const muted = Boolean(member.mutedUntil && member.mutedUntil > new Date());
+  res.json({
+    notifyLevel: member.notifyLevel,
+    suppressEveryone: member.suppressEveryone,
+    muted,
+    mutedUntil: muted && member.mutedUntil!.getTime() < FOREVER.getTime() ? member.mutedUntil : null,
+    mutedForever: muted && member.mutedUntil!.getTime() >= FOREVER.getTime(),
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Channel webhooks (manageChannels). The secret URL is shown once, on create or reset.
+// ---------------------------------------------------------------------------
+
+const webhookSelect = { id: true, channelId: true, name: true, avatarUrl: true, creatorId: true, lastUsedAt: true, createdAt: true } as const;
+const webhookSchema = z.object({
+  channelId: z.string().uuid(),
+  name: z.string().trim().min(1).max(80),
+  avatarUrl: z.string().url().max(2048).nullable().optional(),
+});
+
+function webhookUrl(id: string, token: string) {
+  // Webhooks are called from outside, so they need the public address (through the gateway
+  // the API answers on the same address as the app).
+  const base = (process.env.API_PUBLIC_URL || process.env.APP_WEB_URL || `http://127.0.0.1:${process.env.PORT ?? 4001}`).replace(/\/$/, "");
+  return `${base}/api/webhooks/${id}/${token}`;
+}
+
+async function webhookChannelOk(forgeId: string, channelId: string) {
+  const channel = await prisma.channel.findFirst({ where: { id: channelId, forgeId }, select: { type: true } });
+  return Boolean(channel && (channel.type === "TEXT" || channel.type === "ANNOUNCEMENT"));
+}
+
+forgeManagementRouter.get("/:id/webhooks", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const webhooks = await prisma.channelWebhook.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: webhookSelect });
+  res.json({ webhooks });
+});
+
+forgeManagementRouter.post("/:id/webhooks", async (req, res) => {
+  const parsed = webhookSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give the webhook a name and pick a text channel" });
+    return;
+  }
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  if (!(await webhookChannelOk(context.forge.id, parsed.data.channelId))) {
+    res.status(400).json({ error: "Pick a text or announcement channel in this forge" });
+    return;
+  }
+  if (parsed.data.avatarUrl && !isOwnUploadUrl(parsed.data.avatarUrl)) {
+    res.status(400).json({ error: "Upload the avatar image instead of linking to it" });
+    return;
+  }
+  if ((await prisma.channelWebhook.count({ where: { forgeId: context.forge.id } })) >= 25) {
+    res.status(400).json({ error: "A forge can have up to 25 webhooks" });
+    return;
+  }
+  const token = newWebhookToken();
+  const webhook = await prisma.channelWebhook.create({
+    data: { forgeId: context.forge.id, channelId: parsed.data.channelId, name: parsed.data.name, avatarUrl: parsed.data.avatarUrl ?? null, tokenHash: hashWebhookToken(token), creatorId: req.user!.id },
+    select: webhookSelect,
+  });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.create", { type: "channel", id: webhook.channelId, label: webhook.name });
+  res.status(201).json({ webhook, url: webhookUrl(webhook.id, token) });
+});
+
+forgeManagementRouter.patch("/:id/webhooks/:webhookId", async (req, res) => {
+  const parsed = webhookSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  if (parsed.data.channelId && !(await webhookChannelOk(context.forge.id, parsed.data.channelId))) {
+    res.status(400).json({ error: "Pick a text or announcement channel in this forge" });
+    return;
+  }
+  if (parsed.data.avatarUrl && !isOwnUploadUrl(parsed.data.avatarUrl)) {
+    res.status(400).json({ error: "Upload the avatar image instead of linking to it" });
+    return;
+  }
+  const webhook = await prisma.channelWebhook.update({ where: { id: existing.id }, data: parsed.data, select: webhookSelect });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.update", { type: "channel", id: webhook.channelId, label: webhook.name }, { changed: Object.keys(parsed.data) });
+  res.json({ webhook });
+});
+
+/** New secret URL; the old one stops working immediately. */
+forgeManagementRouter.post("/:id/webhooks/:webhookId/reset", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true, name: true, channelId: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  const token = newWebhookToken();
+  await prisma.channelWebhook.update({ where: { id: existing.id }, data: { tokenHash: hashWebhookToken(token) } });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.reset", { type: "channel", id: existing.channelId, label: existing.name });
+  res.json({ url: webhookUrl(existing.id, token) });
+});
+
+forgeManagementRouter.delete("/:id/webhooks/:webhookId", async (req, res) => {
+  const context = await guard(req, res, "manageChannels");
+  if (!context) return;
+  const existing = await prisma.channelWebhook.findFirst({ where: { id: req.params.webhookId, forgeId: context.forge.id }, select: { id: true, name: true, channelId: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Webhook not found" });
+    return;
+  }
+  await prisma.channelWebhook.delete({ where: { id: existing.id } });
+  void logForgeAction(context.forge.id, req.user!.id, "webhook.delete", { type: "channel", id: existing.channelId, label: existing.name });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Custom emoji
+// ---------------------------------------------------------------------------
+
+const MAX_EMOJI = 50;
+const emojiSchema = z.object({
+  name: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{2,30}$/, "Emoji names are 2-30 letters, numbers or underscores"),
+  imageUrl: z.string().url().max(2048),
+});
+
+forgeManagementRouter.get("/:id/emojis", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const emojis = await prisma.forgeEmoji.findMany({ where: { forgeId: context.forge.id }, orderBy: { name: "asc" }, select: { id: true, name: true, imageUrl: true, creatorId: true, createdAt: true } });
+  res.json({ emojis, max: MAX_EMOJI });
+});
+
+forgeManagementRouter.post("/:id/emojis", async (req, res) => {
+  const parsed = emojiSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid emoji" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  // Only images uploaded to our own storage: an outside URL would let the uploader see
+  // everyone who views a message with the emoji.
+  if (!isOwnUploadUrl(parsed.data.imageUrl) || !/\.(png|gif|webp|jpe?g)(\?|$)/i.test(parsed.data.imageUrl)) {
+    res.status(400).json({ error: "Upload a PNG, GIF, WebP or JPEG image" });
+    return;
+  }
+  if ((await prisma.forgeEmoji.count({ where: { forgeId: context.forge.id } })) >= MAX_EMOJI) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_EMOJI} emoji` });
+    return;
+  }
+  const taken = await prisma.forgeEmoji.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } });
+  if (taken) {
+    res.status(409).json({ error: `:${parsed.data.name}: already exists` });
+    return;
+  }
+  const emoji = await prisma.forgeEmoji.create({ data: { forgeId: context.forge.id, name: parsed.data.name, imageUrl: parsed.data.imageUrl, creatorId: req.user!.id }, select: { id: true, name: true, imageUrl: true, creatorId: true, createdAt: true } });
+  emitForgeEvent(context.forge.id, "forge:emojis", { action: "created", emoji });
+  res.status(201).json({ emoji });
+});
+
+forgeManagementRouter.delete("/:id/emojis/:emojiId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeEmoji.findFirst({ where: { id: req.params.emojiId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Emoji not found" });
+    return;
+  }
+  await prisma.forgeEmoji.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:emojis", { action: "deleted", emojiId: existing.id });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Stickers and soundboard sounds (manage: manageForge; everyone in the forge can list)
+// ---------------------------------------------------------------------------
+
+const MAX_STICKERS = 30;
+const MAX_SOUNDS = 40;
+const mediaName = z.string().trim().min(2, "Names are 2 to 30 characters").max(30, "Names are 2 to 30 characters").regex(/^[\p{L}\p{N} _'!?.-]+$/u, "Use letters, numbers, spaces and simple punctuation");
+const stickerSchema = z.object({ name: mediaName, description: z.string().trim().max(100).optional(), imageUrl: z.string().url().max(2048) });
+const soundSchema = z.object({ name: mediaName, emoji: z.string().trim().max(16).optional(), soundUrl: z.string().url().max(2048), volume: z.number().min(0.1).max(1).default(1) });
+const stickerSelect = { id: true, name: true, description: true, imageUrl: true, creatorId: true, createdAt: true } as const;
+const soundSelect = { id: true, name: true, emoji: true, soundUrl: true, volume: true, creatorId: true, createdAt: true } as const;
+
+forgeManagementRouter.get("/:id/stickers", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const stickers = await prisma.forgeSticker.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: stickerSelect });
+  res.json({ stickers, max: MAX_STICKERS });
+});
+
+forgeManagementRouter.post("/:id/stickers", async (req, res) => {
+  const parsed = stickerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid sticker" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  // Our own storage only, like emoji: an outside URL would reveal who views it.
+  if (!isOwnUploadUrl(parsed.data.imageUrl) || !/\.(png|gif|webp|jpe?g)(\?|$)/i.test(parsed.data.imageUrl)) {
+    res.status(400).json({ error: "Upload a PNG, GIF, WebP or JPEG image" });
+    return;
+  }
+  if ((await prisma.forgeSticker.count({ where: { forgeId: context.forge.id } })) >= MAX_STICKERS) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_STICKERS} stickers` });
+    return;
+  }
+  if (await prisma.forgeSticker.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } })) {
+    res.status(409).json({ error: `A sticker called "${parsed.data.name}" already exists` });
+    return;
+  }
+  const sticker = await prisma.forgeSticker.create({ data: { forgeId: context.forge.id, name: parsed.data.name, description: parsed.data.description || null, imageUrl: parsed.data.imageUrl, creatorId: req.user!.id }, select: stickerSelect });
+  emitForgeEvent(context.forge.id, "forge:stickers", { action: "created", sticker });
+  res.status(201).json({ sticker });
+});
+
+forgeManagementRouter.delete("/:id/stickers/:stickerId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeSticker.findFirst({ where: { id: req.params.stickerId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Sticker not found" });
+    return;
+  }
+  await prisma.forgeSticker.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:stickers", { action: "deleted", stickerId: existing.id });
+  res.json({ ok: true });
+});
+
+forgeManagementRouter.get("/:id/sounds", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const sounds = await prisma.forgeSound.findMany({ where: { forgeId: context.forge.id }, orderBy: { createdAt: "asc" }, select: soundSelect });
+  res.json({ sounds, max: MAX_SOUNDS });
+});
+
+forgeManagementRouter.post("/:id/sounds", async (req, res) => {
+  const parsed = soundSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid sound" });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  if (!isOwnUploadUrl(parsed.data.soundUrl) || !/\.(mp3|ogg|wav)(\?|$)/i.test(parsed.data.soundUrl)) {
+    res.status(400).json({ error: "Upload an MP3, OGG or WAV file" });
+    return;
+  }
+  if ((await prisma.forgeSound.count({ where: { forgeId: context.forge.id } })) >= MAX_SOUNDS) {
+    res.status(400).json({ error: `A forge can have up to ${MAX_SOUNDS} sounds` });
+    return;
+  }
+  if (await prisma.forgeSound.findUnique({ where: { forgeId_name: { forgeId: context.forge.id, name: parsed.data.name } }, select: { id: true } })) {
+    res.status(409).json({ error: `A sound called "${parsed.data.name}" already exists` });
+    return;
+  }
+  const sound = await prisma.forgeSound.create({ data: { forgeId: context.forge.id, name: parsed.data.name, emoji: parsed.data.emoji || null, soundUrl: parsed.data.soundUrl, volume: parsed.data.volume, creatorId: req.user!.id }, select: soundSelect });
+  emitForgeEvent(context.forge.id, "forge:sounds", { action: "created", sound });
+  res.status(201).json({ sound });
+});
+
+forgeManagementRouter.delete("/:id/sounds/:soundId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeSound.findFirst({ where: { id: req.params.soundId, forgeId: context.forge.id }, select: { id: true } });
+  if (!existing) {
+    res.status(404).json({ error: "Sound not found" });
+    return;
+  }
+  await prisma.forgeSound.delete({ where: { id: existing.id } });
+  emitForgeEvent(context.forge.id, "forge:sounds", { action: "deleted", soundId: existing.id });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// AutoMod rules (manageForge)
+// ---------------------------------------------------------------------------
+
+const wordList = z.array(z.string().trim().min(1).max(60)).max(200);
+// No .default() here: a partial update must only change the fields it sends.
+const automodFields = {
+  name: z.string().trim().min(1).max(60),
+  enabled: z.boolean(),
+  type: z.enum(["KEYWORDS", "LINKS", "INVITES", "MENTION_SPAM"]),
+  keywords: wordList,
+  allowList: wordList,
+  mentionLimit: z.number().int().min(1).max(50).nullable(),
+  blockMessage: z.boolean(),
+  alertModerators: z.boolean(),
+  timeoutMinutes: z.union([z.literal(1), z.literal(5), z.literal(10), z.literal(60), z.literal(1440), z.literal(10080)]).nullable(),
+  customMessage: z.string().trim().max(150).nullable(),
+  exemptRoleIds: z.array(z.string().uuid()).max(50),
+  exemptChannelIds: z.array(z.string().uuid()).max(100),
+};
+const automodUpdateSchema = z.object(automodFields).partial();
+const automodCreateSchema = automodUpdateSchema.required({ name: true, type: true }).transform((value) => ({
+  enabled: true,
+  keywords: [] as string[],
+  allowList: [] as string[],
+  mentionLimit: null as number | null,
+  blockMessage: true,
+  alertModerators: true,
+  timeoutMinutes: null as number | null,
+  customMessage: null as string | null,
+  exemptRoleIds: [] as string[],
+  exemptChannelIds: [] as string[],
+  ...Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)),
+  name: value.name,
+  type: value.type,
+}));
+
+function automodProblem(rule: { type: string; keywords: string[]; mentionLimit: number | null; blockMessage: boolean; alertModerators: boolean; timeoutMinutes: number | null }) {
+  if (rule.type === "KEYWORDS" && !rule.keywords.length) return "Add at least one word or phrase";
+  if (rule.type === "MENTION_SPAM" && !rule.mentionLimit) return "Set how many mentions are allowed";
+  if (!rule.blockMessage && !rule.alertModerators && !rule.timeoutMinutes) return "Pick at least one action";
+  return null;
+}
+
+forgeManagementRouter.get("/:id/automod", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const rules = await prisma.forgeAutoModRule.findMany({ where: { forgeId: context.forge.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
+  res.json({ rules });
+});
+
+forgeManagementRouter.post("/:id/automod", async (req, res) => {
+  const parsed = automodCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid rule", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const problem = automodProblem(parsed.data);
+  if (problem) {
+    res.status(400).json({ error: problem });
+    return;
+  }
+  const count = await prisma.forgeAutoModRule.count({ where: { forgeId: context.forge.id } });
+  if (count >= 20) {
+    res.status(400).json({ error: "A forge can have up to 20 AutoMod rules" });
+    return;
+  }
+  const rule = await prisma.forgeAutoModRule.create({ data: { ...parsed.data, forgeId: context.forge.id, position: count, createdById: req.user!.id } });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.create", { type: "forge", id: rule.id, label: rule.name }, { type: rule.type });
+  res.status(201).json({ rule });
+});
+
+forgeManagementRouter.patch("/:id/automod/:ruleId", async (req, res) => {
+  const parsed = automodUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid rule", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeAutoModRule.findFirst({ where: { id: req.params.ruleId, forgeId: context.forge.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Rule not found" });
+    return;
+  }
+  const merged = { ...existing, ...parsed.data };
+  const problem = automodProblem(merged);
+  if (problem) {
+    res.status(400).json({ error: problem });
+    return;
+  }
+  const rule = await prisma.forgeAutoModRule.update({ where: { id: existing.id }, data: parsed.data });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.update", { type: "forge", id: rule.id, label: rule.name }, { changed: Object.keys(parsed.data) });
+  res.json({ rule });
+});
+
+forgeManagementRouter.delete("/:id/automod/:ruleId", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+  const existing = await prisma.forgeAutoModRule.findFirst({ where: { id: req.params.ruleId, forgeId: context.forge.id } });
+  if (!existing) {
+    res.status(404).json({ error: "Rule not found" });
+    return;
+  }
+  await prisma.forgeAutoModRule.delete({ where: { id: existing.id } });
+  clearAutoModCache(context.forge.id);
+  void logForgeAction(context.forge.id, req.user!.id, "automod.rule.delete", { type: "forge", id: existing.id, label: existing.name });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.get("/:id/audit-log", async (req, res) => {
+  const context = await guard(req, res, "manageForge");
+  if (!context) return;
+
+  const limit = Math.min(Math.max(Number(req.query.limit ?? 50) || 50, 1), 100);
+  const before = typeof req.query.before === "string" && !Number.isNaN(Date.parse(req.query.before)) ? new Date(req.query.before) : undefined;
+  const action = typeof req.query.action === "string" && /^[a-z]+(\.[a-z]+)?$/.test(req.query.action) ? req.query.action : undefined;
+  const actorId = typeof req.query.actorId === "string" && /^[0-9a-f-]{36}$/i.test(req.query.actorId) ? req.query.actorId : undefined;
+
+  const entries = await prisma.forgeAuditEntry.findMany({
+    where: {
+      forgeId: context.forge.id,
+      ...(before ? { createdAt: { lt: before } } : {}),
+      ...(action ? (action.includes(".") ? { action } : { action: { startsWith: `${action}.` } }) : {}),
+      ...(actorId ? { actorId } : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit,
+  });
+  const actorIds = [...new Set(entries.map((entry) => entry.actorId))];
+  const actors = await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, username: true, avatar: true } });
+  const actorById = new Map(actors.map((actor) => [actor.id, actor] as const));
+
+  res.json({
+    entries: entries.map((entry) => ({ ...entry, actor: actorById.get(entry.actorId) ?? { id: entry.actorId, username: "Deleted user", avatar: null } })),
+    nextBefore: entries.length === limit ? entries[entries.length - 1].createdAt.toISOString() : null,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ownership transfer
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.post("/:id/transfer", async (req, res) => {
+  // Authorise before validating, so a non-owner gets the same 403 whatever they send and never learns the payload rules.
+  const context = await guard(req, res);
+  if (!context) return;
+  if (!context.access.isOwner) {
+    res.status(403).json({ error: "Only the owner can transfer ownership" });
+    return;
+  }
+  const parsed = transferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  if (parsed.data.userId === req.user!.id) {
+    res.status(400).json({ error: "You already own this forge" });
+    return;
+  }
+  // Typing the forge name is the "are you sure" for something this hard to undo.
+  if (parsed.data.confirmName.toLowerCase() !== context.forge.name.trim().toLowerCase()) {
+    res.status(400).json({ error: "Type the forge's name exactly to confirm" });
+    return;
+  }
+
+  const [oldMember, newMember] = await Promise.all([
+    prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } }, include: { roleLinks: { include: { role: true } } } }),
+    prisma.forgeMember.findUnique({ where: { userId_forgeId: { userId: parsed.data.userId, forgeId: context.forge.id } }, select: { id: true, userId: true } }),
+  ]);
+  if (!oldMember || !newMember) {
+    res.status(404).json({ error: "That person isn't a member of this forge" });
+    return;
+  }
+
+  // The Owner role moves with ownership; the previous owner keeps their other roles.
+  const ownerRoleIds = oldMember.roleLinks.filter((link) => link.role.position >= ownerRolePosition).map((link) => link.roleId);
+  await prisma.$transaction([
+    prisma.forge.update({ where: { id: context.forge.id }, data: { ownerId: newMember.userId } }),
+    ...(ownerRoleIds.length
+      ? [
+          prisma.memberRole.deleteMany({ where: { forgeMemberId: oldMember.id, roleId: { in: ownerRoleIds } } }),
+          prisma.memberRole.deleteMany({ where: { forgeMemberId: newMember.id, roleId: { in: ownerRoleIds } } }),
+          prisma.memberRole.createMany({ data: ownerRoleIds.map((roleId) => ({ forgeMemberId: newMember.id, roleId })) }),
+        ]
+      : []),
+  ]);
+
+  const newOwnerName = await usernameOf(newMember.userId);
+  void logForgeAction(context.forge.id, req.user!.id, "forge.transfer", { type: "member", id: newMember.userId, label: newOwnerName });
+  emitForgeEvent(context.forge.id, "forge:updated", { forge: { id: context.forge.id, ownerId: newMember.userId } });
+  emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed" });
+  void createNotification({
+    userId: newMember.userId,
+    type: "SYSTEM",
+    title: "You own a forge now",
+    body: `${req.user!.username} made you the owner of ${context.forge.name}.`,
+    data: { forgeId: context.forge.id },
+  }).catch(() => undefined);
+  res.json({ ok: true, forgeId: context.forge.id, ownerId: newMember.userId });
+});
+
+// ---------------------------------------------------------------------------
+// Invites (extra links with an expiry and/or a use limit)
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.get("/:id/invites", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  // Managers see every invite; everyone else sees the ones they made.
+  const seeAll = hasForgePermission(context.access, "manageForge");
+  const invites = await prisma.forgeInvite.findMany({
+    where: { forgeId: context.forge.id, revokedAt: null, ...(seeAll ? {} : { creatorId: req.user!.id }) },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  const live = invites.filter((invite) => inviteIsUsable(invite));
+  const creators = await prisma.user.findMany({ where: { id: { in: [...new Set(live.map((invite) => invite.creatorId))] } }, select: { id: true, username: true } });
+  const creatorById = new Map(creators.map((creator) => [creator.id, creator] as const));
+  res.json({ invites: live.map((invite) => ({ ...invite, creator: creatorById.get(invite.creatorId) ?? null })), canManageAll: seeAll });
+});
+
+forgeManagementRouter.post("/:id/invites", async (req, res) => {
+  const parsed = createInviteSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res);
+  if (!context) return;
+
+  const now = new Date();
+  const active = await prisma.forgeInvite.count({
+    where: { forgeId: context.forge.id, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+  });
+  if (active >= 100) {
+    res.status(400).json({ error: "This forge has 100 active invites. Revoke some first." });
+    return;
+  }
+
+  // Codes share a namespace with forge vanity codes, so retry on the rare collision.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = generateInviteCode();
+    const clash = await prisma.forge.findUnique({ where: { inviteCode: code }, select: { id: true } });
+    if (clash) continue;
+    try {
+      const invite = await prisma.forgeInvite.create({
+        data: {
+          code,
+          forgeId: context.forge.id,
+          creatorId: req.user!.id,
+          maxUses: parsed.data.maxUses || null,
+          expiresAt: parsed.data.maxAgeSeconds ? new Date(now.getTime() + parsed.data.maxAgeSeconds * 1000) : null,
+        },
+      });
+      void logForgeAction(context.forge.id, req.user!.id, "invite.create", { type: "invite", id: invite.id, label: invite.code }, { maxUses: invite.maxUses, expiresAt: invite.expiresAt });
+      res.status(201).json({ invite: { ...invite, creator: { id: req.user!.id, username: req.user!.username } } });
+      return;
+    } catch {
+      // unique clash on code - try another
+    }
+  }
+  res.status(500).json({ error: "Couldn't create an invite. Try again." });
+});
+
+forgeManagementRouter.delete("/:id/invites/:inviteId", async (req, res) => {
+  const context = await guard(req, res);
+  if (!context) return;
+  const invite = await prisma.forgeInvite.findFirst({ where: { id: req.params.inviteId, forgeId: context.forge.id, revokedAt: null } });
+  if (!invite) {
+    res.status(404).json({ error: "Invite not found" });
+    return;
+  }
+  if (invite.creatorId !== req.user!.id && !hasForgePermission(context.access, "manageForge")) {
+    res.status(403).json({ error: "You can only revoke invites you made" });
+    return;
+  }
+  await prisma.forgeInvite.update({ where: { id: invite.id }, data: { revokedAt: new Date() } });
+  void logForgeAction(context.forge.id, req.user!.id, "invite.revoke", { type: "invite", id: invite.id, label: invite.code });
+  res.json({ ok: true, inviteId: invite.id });
 });
 
 forgeManagementRouter.delete("/:id", async (req, res) => {
@@ -242,6 +1073,7 @@ forgeManagementRouter.post("/:id/leave", async (req, res) => {
     where: { userId_forgeId: { userId: req.user!.id, forgeId: context.forge.id } },
   });
 
+  void evictFromRealtime(context.forge.id, req.user!.id);
   emitForgeEvent(context.forge.id, "forge:members", { action: "left", userId: req.user!.id });
   res.json({ ok: true, forgeId: context.forge.id });
 });
@@ -271,21 +1103,39 @@ forgeManagementRouter.post("/:id/channels", async (req, res) => {
     select: { position: true },
   });
 
-  const name = parsed.data.type === "TEXT" || parsed.data.type === "ANNOUNCEMENT"
+  const name = parsed.data.type === "TEXT" || parsed.data.type === "ANNOUNCEMENT" || parsed.data.type === "FORUM"
     ? parsed.data.name.toLowerCase().replace(/\s+/g, "-")
     : parsed.data.name;
+
+  const linkError = await validateChannelLinks(context.forge.id, parsed.data.type, parsed.data);
+  if (linkError) {
+    res.status(400).json({ error: linkError });
+    return;
+  }
 
   const channel = await prisma.channel.create({
     data: {
       forgeId: context.forge.id,
       name,
       type: parsed.data.type,
-      topic: parsed.data.topic,
+      topic: parsed.data.type === "CATEGORY" ? null : parsed.data.topic,
       position: (last?.position ?? -1) + 1,
+      parentId: parsed.data.type === "CATEGORY" ? null : parsed.data.parentId ?? null,
+      slowmodeSeconds: parsed.data.slowmodeSeconds ?? 0,
+      isPrivate: parsed.data.isPrivate ?? false,
+      allowedRoleIds: [...new Set(parsed.data.allowedRoleIds ?? [])],
+      allowedUserIds: [...new Set(parsed.data.allowedUserIds ?? [])],
+      forumTags: parsed.data.type === "FORUM" ? [...new Set(parsed.data.forumTags ?? [])] : [],
     },
   });
 
-  emitForgeEvent(context.forge.id, "forge:channels", { action: "created", channel });
+  void logForgeAction(context.forge.id, req.user!.id, "channel.create", { type: "channel", id: channel.id, label: channel.name }, { type: channel.type, isPrivate: channel.isPrivate });
+  if (channel.isPrivate) {
+    // Only people who can see it hear about it.
+    for (const userId of await privateChannelViewerIds(channel)) emitUserEvent(userId, "forge:channels", { forgeId: context.forge.id, action: "created", channel });
+  } else {
+    emitForgeEvent(context.forge.id, "forge:channels", { action: "created", channel });
+  }
   res.status(201).json({ channel });
 });
 
@@ -307,10 +1157,16 @@ forgeManagementRouter.patch("/:id/channels/:channelId", async (req, res) => {
   }
 
   const nextName = parsed.data.name
-    ? existing.type === "TEXT" || existing.type === "ANNOUNCEMENT"
+    ? existing.type === "TEXT" || existing.type === "ANNOUNCEMENT" || existing.type === "FORUM"
       ? parsed.data.name.toLowerCase().replace(/\s+/g, "-")
       : parsed.data.name
     : undefined;
+
+  const linkError = await validateChannelLinks(context.forge.id, existing.type, parsed.data, existing.id);
+  if (linkError) {
+    res.status(400).json({ error: linkError });
+    return;
+  }
 
   const channel = await prisma.channel.update({
     where: { id: existing.id },
@@ -318,10 +1174,29 @@ forgeManagementRouter.patch("/:id/channels/:channelId", async (req, res) => {
       name: nextName,
       topic: parsed.data.topic,
       position: parsed.data.position,
+      parentId: existing.type === "CATEGORY" ? undefined : parsed.data.parentId,
+      slowmodeSeconds: parsed.data.slowmodeSeconds,
+      isPrivate: parsed.data.isPrivate,
+      allowedRoleIds: parsed.data.allowedRoleIds ? [...new Set(parsed.data.allowedRoleIds)] : undefined,
+      allowedUserIds: parsed.data.allowedUserIds ? [...new Set(parsed.data.allowedUserIds)] : undefined,
+      forumTags: existing.type === "FORUM" && parsed.data.forumTags ? [...new Set(parsed.data.forumTags)] : undefined,
     },
   });
 
-  emitForgeEvent(context.forge.id, "forge:channels", { action: "updated", channel });
+  const changes: Record<string, unknown> = {};
+  for (const key of Object.keys(parsed.data) as Array<keyof typeof parsed.data>) {
+    const before = (existing as Record<string, unknown>)[key];
+    const after = (channel as Record<string, unknown>)[key];
+    if (JSON.stringify(before) !== JSON.stringify(after)) changes[key] = { from: before ?? null, to: after ?? null };
+  }
+  if (Object.keys(changes).length) {
+    void logForgeAction(context.forge.id, req.user!.id, "channel.update", { type: "channel", id: channel.id, label: channel.name }, changes);
+  }
+
+  // Everyone refetches the channel list (it's filtered per viewer); the payload itself
+  // only goes out in full when the channel is public.
+  emitForgeEvent(context.forge.id, "forge:channels", channel.isPrivate || existing.isPrivate ? { action: "refresh" } : { action: "updated", channel });
+  void evictLostViewers(channel);
   res.json({ channel });
 });
 
@@ -350,6 +1225,7 @@ forgeManagementRouter.delete("/:id/channels/:channelId", async (req, res) => {
 
   await prisma.channel.delete({ where: { id: existing.id } });
 
+  void logForgeAction(context.forge.id, req.user!.id, "channel.delete", { type: "channel", id: existing.id, label: existing.name }, { type: existing.type });
   emitForgeEvent(context.forge.id, "forge:channels", { action: "deleted", channelId: existing.id });
   res.json({ ok: true, channelId: existing.id });
 });
@@ -401,6 +1277,7 @@ forgeManagementRouter.post("/:id/roles", async (req, res) => {
     },
   });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.create", { type: "role", id: role.id, label: role.name }, { permissions: requested, position });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "created", role });
   res.status(201).json({ role });
 });
@@ -454,7 +1331,10 @@ forgeManagementRouter.patch("/:id/roles/:roleId", async (req, res) => {
     },
   });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.update", { type: "role", id: role.id, label: role.name }, { changed: Object.keys(parsed.data), permissions: nextPermissions });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "updated", role });
+  // Role changes can open or close private channels; let clients refetch their list.
+  emitForgeEvent(context.forge.id, "forge:channels", { action: "refresh" });
   res.json({ role });
 });
 
@@ -478,7 +1358,9 @@ forgeManagementRouter.delete("/:id/roles/:roleId", async (req, res) => {
 
   await prisma.role.delete({ where: { id: existing.id } });
 
+  void logForgeAction(context.forge.id, req.user!.id, "role.delete", { type: "role", id: existing.id, label: existing.name });
   emitForgeEvent(context.forge.id, "forge:roles", { action: "deleted", roleId: existing.id });
+  emitForgeEvent(context.forge.id, "forge:channels", { action: "refresh" });
   emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed" });
   res.json({ ok: true, roleId: existing.id });
 });
@@ -503,6 +1385,17 @@ forgeManagementRouter.put("/:id/members/:userId/roles", async (req, res) => {
   if (!target) {
     res.status(404).json({ error: "Member not found" });
     return;
+  }
+  // Like kick and ban: you can only change the roles of someone you outrank.
+  if (req.params.userId !== req.user!.id) {
+    const targetAccess = resolveForgeAccess(
+      context.forge.ownerId === req.params.userId,
+      target.roleLinks.map((link) => ({ position: link.role.position, permissions: {} })),
+    );
+    if (!canModerateMember(context.access, targetAccess)) {
+      res.status(403).json({ error: "You can't change roles for someone who outranks you" });
+      return;
+    }
   }
 
   const forgeRoles = await prisma.role.findMany({
@@ -553,6 +1446,18 @@ forgeManagementRouter.put("/:id/members/:userId/roles", async (req, res) => {
       : []),
   ]);
 
+  if (toAdd.length || toRemove.length) {
+    const names = (ids: string[]) => ids.map((id) => roleById.get(id)?.name ?? id);
+    void logForgeAction(context.forge.id, req.user!.id, "member.roles", { type: "member", id: target.userId, label: await usernameOf(target.userId) }, { added: names(toAdd), removed: names(toRemove) });
+    emitUserEvent(target.userId, "forge:channels", { forgeId: context.forge.id, action: "refresh" });
+    if (toRemove.length) {
+      // Losing a role can close private channels they're sitting in.
+      const privateChannels = await prisma.channel.findMany({ where: { forgeId: context.forge.id, isPrivate: true }, select: { id: true, forgeId: true, isPrivate: true, allowedRoleIds: true, allowedUserIds: true } });
+      const member = await loadMemberContext(target.userId, context.forge.id);
+      const lost = privateChannels.filter((channel) => !canViewChannel(member, channel)).map((channel) => channel.id);
+      evictUserFromChannels(target.userId, lost, { reason: "private" });
+    }
+  }
   emitForgeEvent(context.forge.id, "forge:members", { action: "roles-changed", userId: target.userId });
   res.json({ userId: target.userId, roleIds: [...finalIds] });
 });
@@ -589,8 +1494,66 @@ forgeManagementRouter.patch("/:id/members/:userId", async (req, res) => {
     select: { id: true, userId: true, nickname: true },
   });
 
+  if (!isSelf) {
+    void logForgeAction(context.forge.id, req.user!.id, "member.nickname", { type: "member", id: member.userId, label: await usernameOf(member.userId) }, { nickname: member.nickname });
+  }
   emitForgeEvent(context.forge.id, "forge:members", { action: "updated", userId: member.userId });
   res.json({ member });
+});
+
+// ---------------------------------------------------------------------------
+// Timeouts: a timed-out member can read but can't send, react or join voice.
+// ---------------------------------------------------------------------------
+
+forgeManagementRouter.put("/:id/members/:userId/timeout", async (req, res) => {
+  const parsed = timeoutSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const context = await guard(req, res, "moderateChat");
+  if (!context) return;
+  if (req.params.userId === req.user!.id) {
+    res.status(400).json({ error: "You can't time yourself out" });
+    return;
+  }
+  const targetAccess = await loadTargetAccess(context.forge.id, context.forge.ownerId, req.params.userId);
+  if (!targetAccess) {
+    res.status(404).json({ error: "Member not found" });
+    return;
+  }
+  if (!canModerateMember(context.access, targetAccess)) {
+    res.status(403).json({ error: "You can't time out someone who outranks you" });
+    return;
+  }
+
+  const timeoutUntil = parsed.data.minutes ? new Date(Date.now() + parsed.data.minutes * 60_000) : null;
+  await prisma.forgeMember.update({
+    where: { userId_forgeId: { userId: req.params.userId, forgeId: context.forge.id } },
+    data: { timeoutUntil },
+  });
+
+  const label = await usernameOf(req.params.userId);
+  void logForgeAction(
+    context.forge.id,
+    req.user!.id,
+    timeoutUntil ? "member.timeout" : "member.untimeout",
+    { type: "member", id: req.params.userId, label },
+    timeoutUntil ? { minutes: parsed.data.minutes, until: timeoutUntil.toISOString(), reason: parsed.data.reason ?? null } : undefined,
+  );
+  emitForgeEvent(context.forge.id, "forge:members", { action: "timeout", userId: req.params.userId, timeoutUntil });
+  if (timeoutUntil) {
+    const voiceChannels = await prisma.channel.findMany({ where: { forgeId: context.forge.id, type: { in: ["VOICE", "STAGE"] } }, select: { id: true } });
+    evictUserFromChannels(req.params.userId, voiceChannels.map((channel) => channel.id), { voiceOnly: true, reason: "timeout" });
+    void createNotification({
+      userId: req.params.userId,
+      type: "SYSTEM",
+      title: "You were timed out",
+      body: `You can't chat or talk in ${context.forge.name} until ${timeoutUntil.toUTCString()}.${parsed.data.reason ? ` Reason: ${parsed.data.reason}` : ""}`,
+      data: { forgeId: context.forge.id, reason: "timeout", timeoutUntil: timeoutUntil.toISOString() },
+    }).catch(() => undefined);
+  }
+  res.json({ userId: req.params.userId, timeoutUntil });
 });
 
 forgeManagementRouter.delete("/:id/members/:userId", async (req, res) => {
@@ -616,6 +1579,8 @@ forgeManagementRouter.delete("/:id/members/:userId", async (req, res) => {
     where: { userId_forgeId: { userId: req.params.userId, forgeId: context.forge.id } },
   });
 
+  void evictFromRealtime(context.forge.id, req.params.userId);
+  void usernameOf(req.params.userId).then((label) => logForgeAction(context.forge.id, req.user!.id, "member.kick", { type: "member", id: req.params.userId, label }));
   emitForgeEvent(context.forge.id, "forge:members", { action: "kicked", userId: req.params.userId });
   emitUserEvent(req.params.userId, "forge:removed", { forgeId: context.forge.id, reason: "kicked", name: context.forge.name });
   void createNotification({
@@ -695,6 +1660,8 @@ forgeManagementRouter.post("/:id/bans", async (req, res) => {
     });
   });
 
+  void evictFromRealtime(context.forge.id, targetId);
+  void logForgeAction(context.forge.id, req.user!.id, "ban.create", { type: "member", id: targetId, label: targetUser.username }, { reason: parsed.data.reason ?? null });
   emitForgeEvent(context.forge.id, "forge:members", { action: "banned", userId: targetId });
   emitForgeEvent(context.forge.id, "forge:bans", { action: "created", ban });
   if (targetAccess) {
@@ -728,6 +1695,7 @@ forgeManagementRouter.delete("/:id/bans/:userId", async (req, res) => {
 
   await prisma.forgeBan.delete({ where: { id: existing.id } });
 
+  void usernameOf(req.params.userId).then((label) => logForgeAction(context.forge.id, req.user!.id, "ban.delete", { type: "member", id: req.params.userId, label }));
   emitForgeEvent(context.forge.id, "forge:bans", { action: "deleted", userId: req.params.userId });
   res.json({ ok: true, userId: req.params.userId });
 });

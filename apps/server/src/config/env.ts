@@ -68,6 +68,9 @@ for (const path of envPaths) {
   loadDotEnv({ path, override: false });
 }
 
+/** A blank value in .env means "not set", so optional keys don't fail validation. */
+const emptyToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -81,6 +84,10 @@ const envSchema = z.object({
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
   LIVEKIT_WS_URL: z.string().optional(),
+  // Built-in voice (mesh) relays through TURN when these are set; public STUN alone fails behind strict NATs.
+  TURN_URLS: z.string().optional(),
+  TURN_SHARED_SECRET: z.string().optional(),
+  TURN_CREDENTIAL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   S3_REGION: z.string().default("auto"),
   S3_BUCKET_NAME: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
@@ -96,6 +103,12 @@ const envSchema = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
   UPLOAD_MAX_BYTES: z.coerce.number().default(25 * 1024 * 1024),
   PREMIUM_UPLOAD_MAX_BYTES: z.coerce.number().default(150 * 1024 * 1024),
+  /**
+   * Cap for self-hosted (local-disk) uploads that arrive through a proxy such as the Cloudflare
+   * tunnel, which rejects request bodies over 100 MB before they reach us. Not used once S3/R2
+   * storage is configured (the browser then uploads straight to the bucket).
+   */
+  LOCAL_UPLOAD_PROXY_MAX_BYTES: z.coerce.number().default(95 * 1024 * 1024),
   APP_WEB_URL: z.string().default("http://127.0.0.1:3300"),
   // Email delivery (SMTP). When unset in development, codes are logged to the server console.
   SMTP_HOST: z.string().optional(),
@@ -103,7 +116,29 @@ const envSchema = z.object({
   SMTP_SECURE: z.string().default("false").transform((value) => value.toLowerCase() === "true"),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("Vexora Gaming <no-reply@vexoragaming.com>"),
+  MAIL_FROM: z.string().default("Nexus Forge Gaming <no-reply@nfgcord.com>"),
+  /** The sender name every email shows. */
+  MAIL_FROM_NAME: z.string().trim().min(1).default("Nexus Forge Gaming"),
+  /** Where replies go (e.g. a support mailbox). Optional. */
+  MAIL_REPLY_TO: z.string().email().optional(),
+  /**
+   * Test mode: every email goes through nodemailer's JSON transport, so nothing leaves the process.
+   * Records are still written. Turned on automatically when no SMTP host is set outside production.
+   */
+  EMAIL_TEST_MODE: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+  /** Shared secret for provider delivery webhooks (HMAC-SHA256). Unset or shorter than 32 characters = endpoint disabled. */
+  EMAIL_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  /** Key for signing unsubscribe links. Unset = a key derived from JWT_ACCESS_SECRET. */
+  EMAIL_UNSUBSCRIBE_SECRET: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  /** Comma-separated addresses the admin test-send may deliver to, besides the admin's own verified address. */
+  EMAIL_TEST_ALLOWLIST: z.preprocess(emptyToUndefined, z.string().optional()),
+  /** Public contact addresses shown in email footers. Left unset, nothing is shown. Never invented. */
+  SUPPORT_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
+  SECURITY_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
+  UPDATES_EMAIL: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
   // SMS delivery (Twilio). When unset in development, codes are logged to the server console.
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
@@ -161,6 +196,17 @@ const envSchema = z.object({
   STRIPE_PRICE_EVENT_TICKET_PASS: z.string().optional(),
   STRIPE_PRICE_TEAM_BRANDING_KIT: z.string().optional(),
   STRIPE_PRICE_ADVANCED_MODERATION_AI: z.string().optional(),
+  // App store billing. A store stays "not configured" (its purchases are refused) until its keys are set.
+  APPLE_IAP_ISSUER_ID: z.string().optional(),
+  APPLE_IAP_KEY_ID: z.string().optional(),
+  APPLE_IAP_PRIVATE_KEY: z.string().optional(),
+  APPLE_BUNDLE_ID: z.string().optional(),
+  APPLE_ROOT_CA_PEM: z.string().optional(),
+  GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
+  GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
+  GOOGLE_PLAY_PRIVATE_KEY: z.string().optional(),
+  // Shared secret in the Pub/Sub push URL (?token=...). Notifications without it are refused.
+  GOOGLE_RTDN_TOKEN: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);

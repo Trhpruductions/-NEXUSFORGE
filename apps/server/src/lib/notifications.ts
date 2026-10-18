@@ -1,6 +1,7 @@
 import { prisma } from "./prisma.js";
 import { dispatchPushNotification } from "./push.js";
 import { getIo } from "./realtime.js";
+import { isQuietNow, type QuietHours } from "./quiet-hours.js";
 
 type NotificationInput = {
   userId: string;
@@ -20,17 +21,25 @@ const prefKeyForType: Record<NotificationInput["type"], "mentions" | "directMess
   EVENT: "eventReminders",
 };
 
-type NotificationPrefs = { notifications?: Record<string, boolean> };
+type NotificationPrefs = { notifications?: Record<string, unknown> & { quietHours?: Partial<QuietHours> } };
+
+/** Security alerts reach the user even during quiet hours. */
+const BYPASS_QUIET_KINDS = new Set(["new-sign-in"]);
 
 export async function createNotification(input: NotificationInput): Promise<void> {
   // Respect the user's notification preferences (Settings → Notifications).
   const owner = await prisma.user.findUnique({ where: { id: input.userId }, select: { preferences: true } });
-  const prefs = ((owner?.preferences as NotificationPrefs | null)?.notifications ?? {}) as Record<string, boolean>;
+  const notificationPrefs = (owner?.preferences as NotificationPrefs | null)?.notifications ?? {};
+  const prefs = notificationPrefs as Record<string, boolean>;
   const category = prefKeyForType[input.type];
   const wantsCategory = prefs[category] !== false;
   const isVerification = typeof input.data === "object" && input.data !== null && "ageVerification" in (input.data as Record<string, unknown>);
   if (!wantsCategory && !isVerification) return;
-  const wantsPush = prefs.push !== false;
+  const kind = typeof input.data === "object" && input.data !== null ? (input.data as Record<string, unknown>).kind : undefined;
+  // During quiet hours the notification is still stored and shown in the inbox, but
+  // nothing buzzes: no push, and open clients are told not to play a sound.
+  const quiet = !BYPASS_QUIET_KINDS.has(String(kind)) && isQuietNow(notificationPrefs.quietHours);
+  const wantsPush = prefs.push !== false && !quiet;
 
   const notification = await prisma.notification.create({
     data: {
@@ -51,6 +60,7 @@ export async function createNotification(input: NotificationInput): Promise<void
       body: notification.body,
       data: notification.data,
       createdAt: notification.createdAt,
+      quiet,
     });
   } catch {
     // gateway not ready yet (boot-time notifications)

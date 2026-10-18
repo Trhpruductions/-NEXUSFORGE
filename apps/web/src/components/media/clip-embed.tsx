@@ -80,7 +80,7 @@ export function ClipEmbed({ url, className }: { url: string; className?: string 
       {open ? (
         <iframe src={embed.src} title={embed.label} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen className="aspect-video w-full" />
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="group flex aspect-video w-full flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_50%_40%,rgba(230,179,37,0.18),transparent_60%),#0b0e15] text-slate-300 transition hover:text-white">
+        <button type="button" onClick={() => setOpen(true)} className="group flex aspect-video w-full flex-col items-center justify-center gap-2 bg-[radial-gradient(circle_at_50%_40%,rgba(46,164,255,0.18),transparent_60%),#0b0e15] text-slate-300 transition hover:text-white">
           <span className="flex h-14 w-14 items-center justify-center rounded-full border border-amber-400/50 bg-amber-500/10 text-amber-300 transition group-hover:bg-amber-400 group-hover:text-slate-950"><Play className="h-6 w-6" /></span>
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Play {embed.label}</span>
         </button>

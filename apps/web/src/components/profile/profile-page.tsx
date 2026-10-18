@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Award, Clock, Crown, Heart, Loader2, MessageCircle, Radio, Send, Shield, Sparkles, Star, Trash2, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
+import { Award, Clock, Crown, Loader2, Radio, Send, Shield, Sparkles, Star, UserPlus, UserCheck, Users, X, Code2, Handshake, BadgeCheck } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import {
   applyAvatarPreset,
   createPost,
@@ -23,13 +24,14 @@ import {
   type Post,
 } from "@/lib/api";
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
-import { ClipEmbed } from "@/components/media/clip-embed";
+import { PostCard } from "@/components/social/post-card";
 import { useAuthStore } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { safeHref } from "@/lib/safe-href";
 
 type Tab = "posts" | "clips" | "streams" | "achievements" | "friends";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const sectionTitle = "nf-heading text-[13px] font-bold uppercase tracking-[0.18em] text-white";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
@@ -52,16 +54,6 @@ function compact(value: number) {
   return String(value);
 }
 
-function timeAgo(iso: string) {
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
-}
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
@@ -97,7 +89,7 @@ function ProfileInner() {
 
   const postsQuery = useQuery({
     queryKey: ["posts", userId, tab === "clips" ? "CLIP" : "POST", accessToken],
-    queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST" }),
+    queryFn: () => listPosts(accessToken!, { authorId: userId, kind: tab === "clips" ? "CLIP" : "POST", limit: 50 }),
     enabled: Boolean(accessToken && userId && (tab === "posts" || tab === "clips")),
   });
   const streamsQuery = useQuery({
@@ -186,7 +178,7 @@ function ProfileInner() {
   const friends = (friendsQuery.data?.friends ?? []).filter((entry) => entry.status === "ACCEPTED");
 
   if (summaryQuery.isLoading || !profile) {
-    return <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading profile...</p>;
+    return <LoadingNote label="Loading profile..." onRetry={() => void summaryQuery.refetch()} />;
   }
 
   const person = profile.user;
@@ -225,7 +217,7 @@ function ProfileInner() {
         <div className="relative px-5 pb-5">
           <div className="-mt-12 flex flex-wrap items-end gap-4">
             <div
-              className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(230,179,37,0.3)] ${person.profileEmote ? "cursor-pointer" : ""} ${emotePlaying && person.profileEmote ? emoteClass(person.profileEmote.key) : ""}`}
+              className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-[#0d1119] bg-[#11151e] shadow-[0_0_30px_rgba(46,164,255,0.3)] ${person.profileEmote ? "cursor-pointer" : ""} ${emotePlaying && person.profileEmote ? emoteClass(person.profileEmote.key) : ""}`}
               title={person.profileEmote ? `Play ${person.profileEmote.name}` : undefined}
               onClick={() => {
                 if (!person.profileEmote) return;
@@ -268,7 +260,7 @@ function ProfileInner() {
               {profile.isSelf ? (
                 <>
                   <Link href="/app/avatar" className={goldBtn}>Manage avatar</Link>
-                  <Link href="/app/settings" className={ghostBtn}>Edit profile</Link>
+                  <Link href="/app/profile/edit" className={ghostBtn}>Edit profile</Link>
                 </>
               ) : (
                 <>
@@ -290,7 +282,7 @@ function ProfileInner() {
               { label: "Points", value: person.points },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl border border-white/5 bg-[#11151e] px-3 py-2 text-center">
-                <p className="nf-heading text-lg font-bold text-white">{compact(stat.value)}</p>
+                <p className="text-lg font-semibold tabular-nums text-white">{compact(stat.value)}</p>
                 <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{stat.label}</p>
               </div>
             ))}
@@ -334,46 +326,10 @@ function ProfileInner() {
                 <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</p>
               ) : postsQuery.data?.posts.length ? (
                 postsQuery.data.posts.map((post) => (
-                  <article key={post.id} className={panel}>
-                    <div className="flex items-start gap-3">
-                      {post.author.avatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.author.avatar} alt="" className="h-10 w-10 rounded-full border border-amber-500/30 object-cover" />
-                      ) : (
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/30 bg-slate-800 text-xs font-bold text-amber-100">{initials(post.author.username)}</span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-slate-400">
-                          <span className="text-sm font-semibold text-white">{post.author.displayName || post.author.username}</span>
-                          <span>@{post.author.username}</span>
-                          <span>· {timeAgo(post.createdAt)}</span>
-                          {post.kind === "CLIP" ? <span className="rounded border border-white/10 px-1.5 text-[9px] uppercase tracking-[0.12em] text-amber-200">Clip</span> : null}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-200">{post.content}</p>
-                        {post.mediaUrl ? (
-                          post.kind === "CLIP" ? (
-                            <ClipEmbed url={post.mediaUrl} className="mt-2 max-w-2xl" />
-                          ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={post.mediaUrl} alt="" className="mt-2 max-h-80 rounded-xl border border-white/10 object-cover" />
-                          )
-                        ) : null}
-                        {post.tags.length ? <p className="mt-2 text-xs text-amber-300">{post.tags.map((tag) => `#${tag}`).join(" ")}</p> : null}
-                        <div className="mt-3 flex items-center gap-4 text-xs text-slate-400">
-                          <button type="button" onClick={() => likeMutation.mutate(post.id)} className={`inline-flex items-center gap-1 transition hover:text-rose-300 ${post.liked ? "text-rose-400" : ""}`}>
-                            <Heart className={`h-3.5 w-3.5 ${post.liked ? "fill-current" : ""}`} /> {post._count.likes}
-                          </button>
-                          <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 0</span>
-                          {post.authorId === self?.id ? (
-                            <button type="button" onClick={() => deleteMutation.mutate(post.id)} className="ml-auto inline-flex items-center gap-1 text-slate-500 hover:text-rose-300"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </article>
+                  <PostCard key={post.id} post={post} selfId={self?.id} onLike={(id) => likeMutation.mutate(id)} onDelete={(id) => deleteMutation.mutate(id)} className={panel} />
                 ))
               ) : (
-                <p className={`${panel} text-sm text-slate-500`}>{tab === "clips" ? "No clips shared yet." : "No posts yet."}</p>
+                <p className={`${panel} text-sm text-slate-500`}>{tab === "clips" ? "No clips shared yet. Clips you share will appear here." : "No posts yet. Share your first update above and the community will see it here."}</p>
               )}
             </div>
           ) : null}
@@ -385,16 +341,22 @@ function ProfileInner() {
                   <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400"><Radio className="h-3 w-3" /> Live now on {person.livePlatform ?? "stream"}</p>
                   <h3 className="text-lg font-semibold text-white">{person.liveStreamTitle ?? `${displayName} is live`}</h3>
                   <p className="text-sm text-slate-400">{person.liveGameCategory} · {compact(person.liveViewerCount)} watching</p>
-                  {person.liveStreamUrl ? <a href={person.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Watch stream</a> : null}
+                  {safeHref(person.liveStreamUrl) ? <a href={safeHref(person.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className={goldBtn}>Watch stream</a> : null}
                 </div>
               ) : (
                 <div className="space-y-2 text-sm text-slate-400">
                   <p>{profile.isSelf ? "You are not live." : `${displayName} is not live right now.`}</p>
                   {person.socialLinks && Object.values(person.socialLinks).some(Boolean) ? (
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {Object.entries(person.socialLinks).filter(([, value]) => value).map(([key, value]) => (
-                        <span key={key} className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-200"><span className="uppercase text-slate-500">{key}</span> {value}</span>
-                      ))}
+                      {Object.entries(person.socialLinks).filter(([, value]) => value).map(([key, value]) => {
+                        const href = safeHref(value);
+                        const label = <><span className="uppercase text-slate-500">{key}</span> {value}</>;
+                        return (
+                          <span key={key} className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-200">
+                            {href ? <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="hover:text-amber-200">{label}</a> : label}
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : profile.isSelf ? (
                     <Link href="/app/settings" className="text-amber-300 hover:text-amber-200">Link your Twitch, Kick or YouTube in Settings.</Link>
@@ -447,7 +409,7 @@ function ProfileInner() {
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[...achievements].sort((a, b) => Number(b.unlocked) - Number(a.unlocked)).map((entry) => (
-                    <div key={entry.key} className={`flex items-center gap-3 rounded-xl border p-3 ${entry.unlocked ? "border-amber-400/40 bg-[#11151e] shadow-[0_0_18px_rgba(230,179,37,0.12)]" : "border-white/5 bg-[#11151e] opacity-60"}`}>
+                    <div key={entry.key} className={`flex items-center gap-3 rounded-xl border p-3 ${entry.unlocked ? "border-amber-400/40 bg-[#11151e] shadow-[0_0_18px_rgba(46,164,255,0.12)]" : "border-white/5 bg-[#11151e] opacity-60"}`}>
                       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-xl ${entry.unlocked ? "border-amber-400/50 bg-amber-500/10" : "border-white/10 bg-slate-900 grayscale"}`}>{entry.icon || <Award className="h-5 w-5 text-amber-300" />}</span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-white">{entry.name}</p>
@@ -526,7 +488,7 @@ function ProfileInner() {
                 {unlockedAchievements.slice(0, 8).map((entry) => (
                   <div key={entry.key} className="flex flex-col items-center gap-1 rounded-lg border border-amber-400/30 bg-[#11151e] px-1 py-2 text-center" title={entry.description}>
                     <span className="text-xl">{entry.icon}</span>
-                    <span className="w-full truncate text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-300">{entry.name}</span>
+                    <span className="w-full break-words text-[9px] font-semibold uppercase leading-tight tracking-[0.08em] text-slate-300">{entry.name}</span>
                   </div>
                 ))}
               </div>

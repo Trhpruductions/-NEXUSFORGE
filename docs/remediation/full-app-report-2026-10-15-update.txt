@@ -1,0 +1,184 @@
+NEXUS FORGE GAMING - FULL APP REPORT (UPDATE)
+Prepared 2026-10-15, about 16:20 CDT, from live read-only checks and the working tree.
+Branch feat/community-feed. HEAD e03bc6c. Nothing has been committed, pushed, or released.
+
+==============================================================
+1. CURRENT STATE, IN ONE LOOK
+==============================================================
+- Public site nfgcord.com: up (HTTP 200).
+- API readiness: ok, database ok.
+- Live web build: zKIvfSHm592AkjnNEIDV8 (deployed 14:54). Includes the VAC screens and the copy corrections.
+- Live backend: running the VAC build (restarted 14:42). Error log empty since the restart.
+- pm2: 14 of 14 apps online (5 Nexus Forge apps, 8 other bots, pm2-logrotate).
+- Owner Console: NOT running. Its window was closed; nothing is listening on its ports.
+- Local preview (development mode, test data): http://127.0.0.1:3500 and test API on port 4101 are still running.
+- Desktop app published version: 1.0.14. No new release.
+
+==============================================================
+2. HOW THE APP WORKS
+==============================================================
+Parts:
+- Website and logged-in app: Next.js 16, React 19, Tailwind v4. Built into apps/web/.next-build and run by pm2 as nexusforge-web-workspace on port 3300.
+- API: Express 5 with Prisma 7 on PostgreSQL 17. Runs as nexusforge-backend-workspace on port 4001. Realtime (chat, presence, voice signalling) runs on socket.io in the same process.
+- Database: the app's own PostgreSQL cluster at D:\NexusForgeDB, port 5433 (database nexusforge). Started by scripts\vexora-autostart.cmd at logon. It is not a Windows service, so it does not restart on its own after a crash.
+- Gateway: vexora-gateway on port 3400. Sends /api, /socket.io and /uploads to the API, and everything else to the web app.
+- Public address: a Cloudflare tunnel (vexora-tunnel) carries nfgcord.com to the gateway.
+- Desktop app: an Electron wrapper of the web app. Its updater downloads the installer, checks its SHA-256 against the manifest, and only then installs. The installer is not code-signed yet.
+- Owner Console: a local tool (127.0.0.1 only) with a token. It reads the database through a read-only role, reads pm2 and health probes, keeps its own triage store, and can run restarts only when the owner clicks. Dry-run mode blocks all of those actions.
+- Watchdog: vexora-watchdog (pm2). A second watchdog script is defined but not running (see section 7).
+- Other bots on the same PC: alpha-bot, shadows-ruin, maddobot, trh-bot, smokebot, dynamite-bot, mariadb, ascend-ai. They run under the same pm2.
+
+Request path: browser -> Cloudflare tunnel -> gateway (3400) -> web app (3300) for pages, or API (4001) for /api, /socket.io and /uploads.
+
+Data: 103 accounts, 16 forges, 43 channel messages, 39 direct messages, 7 support tickets (none open), 16 message reports (8 open), 0 active bans, 2 email records in the last 24 hours. Database size 17 MB.
+
+==============================================================
+3. FEATURE STATUS
+==============================================================
+Level key: API = verified over HTTP on the isolated test server. BROWSER = checked in the browser on the local build. UNIT = automated tests. LIVE = checked on production. NOT TESTED = not yet checked.
+
+Accounts and sign-in
+- Sign-in, two-factor step, password reset (API and browser to the reset form): API, BROWSER.
+- Email verification: pipeline live; 2 emails accepted in the last 24 hours. Test email accepted by Gmail (LIVE). Delivery to a real inbox not confirmed by you yet.
+- Phone sign-in and text codes: depends on Twilio, which is not configured. NOT TESTED.
+
+Community
+- Forges, invites, rejoining by invite, membership removal: API.
+- Forge audit log (owner reads, member refused): API.
+- Chat messages, AutoMod keyword blocking, clean messages: API.
+- Direct messages, friends, notifications: browser (screens load, no errors).
+- Events: RSVP join and cancel, event create: API.
+- Support: ticket create and list, staff reply: API.
+- Creator go-live (age gate, live list, stream history): API.
+
+Economy and shop
+- Shop purchase with coins, inventory: API.
+- Coin transfers: transfer-limits route answers correctly: API.
+- Mining and jackpot: live on the server and in Discord. Hidden in the web app only. See section 7.
+
+Developers
+- OAuth clients, authorize, approve, token exchange, code reuse refused, deny, wrong secret refused: API.
+- Bots: create: API.
+- Webhooks: header bug fixed and deployed (LIVE). Unit tests pass. A real delivery to a public endpoint is NOT TESTED. Loopback destinations are refused by design (API).
+
+Voice and video
+- Voice token: API, mesh mode. Two STUN servers, no TURN relay. A real call between two people is NOT TESTED. Calls across some networks are likely to fail.
+
+Moderation and bans
+- Reports, staff queue: API.
+- VAC bans (automatic escalation after 3 upheld reports, staff queue, appeals): API, BROWSER. Live since 14:42/14:54. Active VAC bans now: 0.
+- Appeals: sent from the ban screen, recorded, shown in the staff queue (API, BROWSER). Emails to support are NOT sent yet, because SUPPORT_EMAIL is not set in production.
+
+Desktop app
+- Installer: hash matches the manifest; silent install and launch verified (desktop test).
+- In-app updater, end to end: NOT TESTED. Needs a newer version or a test manifest.
+
+Website
+- All 68 static public pages return 200 on the live site.
+- Public pages load with no console errors.
+- Copy has been corrected to match the code (see section 6).
+
+==============================================================
+4. DEPLOYMENTS TODAY (2026-10-15)
+==============================================================
+- 11:21 outage: a Windows restart request killed the app database and pm2 (the PC did not reboot). Recovered by starting the database and running the autostart script. Eight other bots restored from a filtered dump.
+- 12:44 backend: webhook header fix. Old build kept at D:\NexusForgeDB\backups\server-dist-before-webhook-fix-20261015-124419.
+- 14:39 backup of the production database: D:\NexusForgeDB\backups\nexusforge-before-vac-2026-10-15T19-39-07-582Z.dump (0.5 MB, verified).
+- 14:41 schema: VAC columns added to the AccountSuspension table (additive). Afterwards the production schema matches the working schema.
+- 14:42 backend restarted with the VAC build (about 70 seconds down). Old build: D:\NexusForgeDB\backups\server-dist-before-vac-20261015-144246.
+- 14:54 web swapped to the VAC build. Old build: D:\NexusForgeDB\backups\web-build-before-vac-20261015-145407.
+
+Not deployed (local only): the UI round 2 changes (phone bottom bar, banner, public hero, heading balance), the settings labels, the loading screen structure, the chat heading, and the ban screen title and appeal persistence.
+
+==============================================================
+5. TESTS (LAST RUNS)
+==============================================================
+- Server: 308 of 308 pass against the test database (after the VAC changes). The avatar design test runs only with the web folder present, so it was excluded from the build copy.
+- Owner Console: 62 of 62 pass.
+- Desktop: 16 of 16 pass (integrity and install gate).
+- Web: 31 of 31 pass. Typecheck clean on the current working tree. Lint clean on changed files, except an existing warning on the loading screen image.
+- Browser checks: public pages (no console errors), logged-in screens (no error text, no console errors), phone width (no horizontal overflow on checked screens), accessibility scan (no unnamed buttons or links on checked screens).
+
+==============================================================
+6. WHAT CHANGED IN THE CODE (UNCOMMITTED)
+==============================================================
+Earlier in this work:
+- Owner Console: every ticket change records who made it (owner or system). Health probes for the public site. Read-only role for database reads. Ticket and console tests.
+- Webhooks: header names fixed (one helper, tests).
+- VAC ban system: schema columns, escalation, staff queue, appeals, ban screen, staff controls. Tests: 9 rule tests, 7 database tests.
+- Copy corrections: email verification wording, DM video calls marked "coming later", 1440p wording tied to paid plans, text-code wording, Discord answer, AutoMod hint, camera and screen-share figures, 95 MB cap wording.
+- Held features: mining and jackpot hidden in the web app.
+- Billing fails closed in production when the Stripe key is missing.
+- Desktop: installer hash check before any install.
+- SEO metadata on nine public pages.
+
+UI round 1 and 2 (local, not deployed):
+- Settings toggles have accessible names.
+- Loading screen: one heading and one main landmark (was duplicated on every page).
+- Chat: a hidden page heading.
+- Ban screen: "Account status" title; appeal state kept after reload.
+- Phone: bottom navigation bar (Home, Chat, Friends, Events, More), hidden on chat and desktop.
+- Phone: shorter verify-email banner.
+- Public home on phones: smaller logo.
+- All headings use balanced line breaks.
+
+Git: 118 tracked files modified and 86 untracked. Staged commit plan: docs\remediation\git-stage-plan.md (Option A). Not executed.
+
+==============================================================
+7. ISSUES AND RISKS (PRIORITY ORDER)
+==============================================================
+1. SUPPORT_EMAIL is not set in production. Appeals are recorded and shown to staff, but no email goes to support.
+2. Age gate: the copy says 18+, but the server checks age only on cosmetics, economy, mining, jackpot and the live-status route. Chat, DMs, voice and forges are not checked.
+3. Add-on consumption is a stub (billing). It returns "remaining 9999" and debits nothing. Only entitled accounts can reach it, so a one-time pack never runs out.
+4. Mining and jackpot remain live on the server and in Discord (hidden only in the web app). Disable plan written (plans document, section C). Needs your decisions.
+5. Free City may start at logon: the logon script runs pm2 resurrect, which starts saved apps that are not running. A Startup shortcut also starts the Free City bot. Not changed.
+6. A second watchdog (nexusforge-watchdog-workspace) is defined in the ecosystem config but not running. Running both could restart services twice.
+7. Voice: no TURN relay, so calls across some networks will fail.
+8. Hidden duplicate page content: every page has a hidden copy of its content (container id "S:0", from the streaming setup). Also on the live site. Invisible to users; doubles the HTML.
+9. Owner Console is not running. Its window was closed.
+10. 8 message reports are open for staff review.
+11. Desktop installer is not code-signed. The in-app updater end to end is not tested.
+12. Web changes from the UI rounds and the ban screen fixes are not deployed.
+13. Production runs uncommitted code. Nothing is in git yet.
+14. The staff suspension email still says "Vexora staff" (kept on purpose; brand inconsistency).
+15. Legal drafts are unpublished and contain placeholders (for example "[Legal Operator Name]", "[Moderation Record Retention Period]"). Need attorney review.
+16. Five typecheck errors seen only in the build copy (coin-transfers.ts, jackpot.ts, economy-routes.ts). The live repository typechecks with zero errors, and the economy route works at runtime. Not a current problem.
+
+==============================================================
+8. NOT TESTED YET
+==============================================================
+- In-app desktop updater, end to end.
+- A real voice or video call between two people.
+- Live webhook delivery to a public endpoint.
+- Logged-in screens beyond the first pass (shop, settings and support at phone width; forge pages).
+- Real two-factor sign-in in the browser for the test accounts (the test accounts have two-factor enabled; no authenticator was available in the browser).
+- Staff confirm and lift buttons in the VAC queue in the browser (they open browser confirm dialogs, which were avoided).
+- Email delivery to real inboxes by the app's own pipeline.
+
+==============================================================
+9. DECISIONS AND APPROVALS NEEDED
+==============================================================
+1. Set SUPPORT_EMAIL in production and restart the backend. (Production configuration change.)
+2. Deploy the web changes (UI rounds, ban screen, settings labels, loading screen, chat heading). Same backup and swap steps as before.
+3. Age gate: enforce 18+ on chat, DMs, voice and forges, or change the copy.
+4. Billing: decide the add-on debit rules, then fix the consume stub.
+5. Mining and jackpot: approve the disable plan and answer its questions (settle or refund open rounds, yield on pause, decommission, environment values).
+6. Free City at logon: remove the Free City entries from the logon restore, and decide what to do with the Startup shortcut.
+7. Second watchdog: keep it off, or switch it on and turn off vexora-watchdog.
+8. Automatic VAC rules: threshold (3), window (30 days), ladder (1, 7, 30 days), categories.
+9. Commit: run the staged commit plan (Option A), and choose when.
+10. Desktop: release a new version, and sign the installer.
+11. Uploads: keep the 95 MB cap, or set up storage for larger files.
+12. Voice: configure TURN, or add LiveKit keys.
+13. Legal: send the drafts to an attorney before publishing.
+14. Owner Console: restart it when you want the live dashboard back.
+15. Staff: review the 8 open message reports.
+
+==============================================================
+10. HOUSEKEEPING
+==============================================================
+- Backups (67 MB): D:\NexusForgeDB\backups. Includes the database dump from before the VAC change and the old web and backend builds.
+- pm2 dump copy from the bot restore: C:\Users\TRHDEVELOPMENT\.pm2\dump.pm2.before-restore-*.bak. Holds the same secrets as the dump. Can be deleted once you confirm the bots are fine.
+- Test API log with dev-mail text, including reset links and codes for test accounts only: %TEMP%\test-api.log. Can be deleted.
+- Test accounts exist only in nexusforge_test.
+- Preview servers still running: web on 127.0.0.1:3500 and test API on 4101. Stop them when you no longer need the preview.

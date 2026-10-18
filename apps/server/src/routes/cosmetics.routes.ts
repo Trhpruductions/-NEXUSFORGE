@@ -3,12 +3,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { EconomyAuthority, InsufficientBalanceError } from "../lib/economy-authority.js";
-import { ensureCosmeticCatalog } from "../lib/cosmetic-catalog.js";
+import { ensureCosmeticCatalog, isCatalogItemAvailable } from "../lib/cosmetic-catalog.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { cosmeticPurchaseReference } from "../lib/economy-references.js";
 
-/** Wardrobe: cosmetic catalog, purchases with Vexora Coins (NC), owned inventory, and the equipped loadout. */
+/** Wardrobe: cosmetic catalog, purchases with Nexus Forge Coins (NC), owned inventory, and the equipped loadout. */
 export const cosmeticsRouter = Router();
 
 cosmeticsRouter.use(requireAuth);
@@ -67,7 +67,11 @@ cosmeticsRouter.get("/catalog", async (req, res) => {
   const equipped = new Set(Object.values(loadout));
 
   res.json({
-    items: items.map((item) => ({ ...item, owned: ownedIds.has(item.id), equipped: equipped.has(item.id) })),
+    // owned: a UserCosmetic row exists (only a purchase or a grant creates one). available: free, or owned.
+    items: items.map((item) => {
+      const isOwned = ownedIds.has(item.id);
+      return { ...item, owned: isOwned, available: isCatalogItemAvailable(item, isOwned), equipped: equipped.has(item.id) };
+    }),
     loadout,
     coins: await coinBalance(req.user!.id),
   });
@@ -128,15 +132,28 @@ cosmeticsRouter.post("/presets/:id/apply", async (req, res) => {
     res.status(404).json({ error: "Outfit preset not found" });
     return;
   }
-  const owned = await prisma.userCosmetic.findMany({ where: { userId: req.user!.id }, select: { itemId: true } });
+  const wanted = slotValues.map((slot) => preset.loadout[slot]).filter((id): id is string => Boolean(id));
+  const [items, owned] = await Promise.all([
+    prisma.cosmeticItem.findMany({ where: { id: { in: wanted } }, select: { id: true, slot: true, priceCoins: true } }),
+    prisma.userCosmetic.findMany({ where: { userId: req.user!.id, itemId: { in: wanted } }, select: { itemId: true } }),
+  ]);
   const ownedIds = new Set(owned.map((entry) => entry.itemId));
   const loadout: Loadout = {};
+  const skipped: Array<{ slot: string; itemId: string; reason: "not-owned" | "missing" }> = [];
   for (const slot of slotValues) {
     const itemId = preset.loadout[slot];
-    if (itemId && ownedIds.has(itemId)) loadout[slot] = itemId;
+    if (!itemId) continue;
+    const item = items.find((candidate) => candidate.id === itemId);
+    if (!item || item.slot !== slot) {
+      skipped.push({ slot, itemId, reason: "missing" });
+    } else if (isCatalogItemAvailable(item, ownedIds.has(itemId))) {
+      loadout[slot] = itemId;
+    } else {
+      skipped.push({ slot, itemId, reason: "not-owned" });
+    }
   }
   await prisma.user.update({ where: { id: req.user!.id }, data: { loadout } });
-  res.json({ loadout });
+  res.json({ loadout, skipped });
 });
 
 cosmeticsRouter.delete("/presets/:id", async (req, res) => {
@@ -165,30 +182,37 @@ cosmeticsRouter.post("/:itemId/purchase", async (req, res) => {
     return;
   }
 
-  if (item.priceCoins > 0) {
-    try {
-      await EconomyAuthority.adjustBalance({
-        userId: req.user!.id,
-        amount: BigInt(-item.priceCoins),
-        currencyType: "NC",
-        reason: `Cosmetic purchase: ${item.name}`,
-        referenceId: cosmeticPurchaseReference(req.user!.id, item.id),
-        metadata: { itemKey: item.key, slot: item.slot, rarity: item.rarity },
-      });
-    } catch (error) {
-      // Only a balance shortfall is the buyer's problem; anything else is ours and must
-      // not be dressed up as "you cannot afford this".
-      if (error instanceof InsufficientBalanceError) {
-        res.status(402).json({ error: "Not enough Vexora Coins" });
-        return;
+  // Grant and charge in ONE transaction. The item row is created first, so a double click
+  // hits the "already owned" unique key instead of charging twice; and if the charge fails
+  // the grant is rolled back (it used to take the coins even when the grant failed).
+  try {
+    await EconomyAuthority.serializable(async (tx, retryCount) => {
+      await tx.userCosmetic.create({ data: { userId: req.user!.id, itemId: item.id } });
+      if (item.priceCoins > 0) {
+        await EconomyAuthority.applyChange(tx, {
+          userId: req.user!.id,
+          amount: BigInt(-item.priceCoins),
+          currencyType: "NC",
+          reason: `Cosmetic purchase: ${item.name}`,
+          referenceId: cosmeticPurchaseReference(req.user!.id, item.id),
+          metadata: { itemKey: item.key, slot: item.slot, rarity: item.rarity },
+        }, retryCount);
       }
-      console.error("Cosmetic purchase failed", { itemId: item.id, userId: req.user!.id, error });
-      res.status(500).json({ error: "That purchase could not be completed. Please try again." });
+    });
+  } catch (error) {
+    if (error instanceof InsufficientBalanceError) {
+      res.status(402).json({ error: "Not enough Nexus Forge Coins" });
       return;
     }
+    if ((error as { code?: string })?.code === "P2002") {
+      res.status(400).json({ error: "You already own this item" });
+      return;
+    }
+    console.error("Cosmetic purchase failed", { itemId: item.id, userId: req.user!.id, error });
+    res.status(500).json({ error: "That purchase could not be completed. Please try again." });
+    return;
   }
 
-  await prisma.userCosmetic.create({ data: { userId: req.user!.id, itemId: item.id } });
   res.status(201).json({ item: { ...item, owned: true, equipped: false }, coins: await coinBalance(req.user!.id) });
   void evaluateAchievements(req.user!.id);
 });
@@ -201,17 +225,25 @@ cosmeticsRouter.put("/loadout", async (req, res) => {
   }
 
   if (parsed.data.itemId) {
-    const owned = await prisma.userCosmetic.findUnique({
-      where: { userId_itemId: { userId: req.user!.id, itemId: parsed.data.itemId } },
-      include: { item: { select: { slot: true } } },
-    });
-    if (!owned) {
-      res.status(403).json({ error: "You do not own this item" });
+    const item = await prisma.cosmeticItem.findUnique({ where: { id: parsed.data.itemId }, select: { slot: true, priceCoins: true } });
+    if (!item) {
+      res.status(404).json({ error: "Item not found" });
       return;
     }
-    if (owned.item.slot !== parsed.data.slot) {
-      res.status(400).json({ error: `That item belongs in the ${owned.item.slot.toLowerCase()} slot` });
+    if (item.slot !== parsed.data.slot) {
+      res.status(400).json({ error: `That item belongs in the ${item.slot.toLowerCase()} slot` });
       return;
+    }
+    // Free items are always available. A paid item needs its UserCosmetic row.
+    if (item.priceCoins > 0) {
+      const owned = await prisma.userCosmetic.findUnique({
+        where: { userId_itemId: { userId: req.user!.id, itemId: parsed.data.itemId } },
+        select: { id: true },
+      });
+      if (!owned) {
+        res.status(403).json({ error: "You do not own this item" });
+        return;
+      }
     }
   }
 

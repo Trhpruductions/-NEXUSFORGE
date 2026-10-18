@@ -14,7 +14,11 @@ import { getApiErrorMessage, login, resendTwoFactorLogin, verifyTwoFactorLogin }
 import { useAuthStore } from "@/store/auth-store";
 
 const schema = z.object({
-  email: z.string().email("Use a valid email"),
+  // An email, or a phone number that's been verified on the account.
+  email: z
+    .string()
+    .trim()
+    .refine((value) => (value.includes("@") ? z.string().email().safeParse(value).success : value.replace(/\D/g, "").length >= 7), "Use your email or phone number"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -38,7 +42,12 @@ export default function LoginPage() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [redirectTarget, setRedirectTarget] = useState<string | null>(null);
-  const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string } | null>(null);
+  const [deletionScheduled, setDeletionScheduled] = useState(false);
+  // Set when the app sent the visitor here because their session expired or was revoked.
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [challenge, setChallenge] = useState<{ token: string; channels: string[]; devCode?: string; method?: "totp" } | null>(null);
+  // Authenticator users can sign in with a one-time recovery code instead.
+  const [useRecovery, setUseRecovery] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const setSession = useAuthStore((state) => state.setSession);
@@ -80,6 +89,8 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const requested = sanitizeRedirectTarget(params.get("redirect") || params.get("next"));
     setRedirectTarget(requested);
+    setDeletionScheduled(params.get("deletion") === "scheduled");
+    setSessionEnded(params.get("reason") === "expired");
   }, []);
 
   const {
@@ -95,8 +106,9 @@ export default function LoginPage() {
     try {
       const payload = await login(values);
       if ("requiresTwoFactor" in payload && payload.requiresTwoFactor) {
-        setChallenge({ token: payload.challengeToken, channels: payload.channels, devCode: payload.devCode });
+        setChallenge({ token: payload.challengeToken, channels: payload.channels, devCode: payload.devCode, method: payload.method });
         setCode("");
+        setUseRecovery(false);
         return;
       }
       finishLogin(payload);
@@ -110,17 +122,16 @@ export default function LoginPage() {
       hero={
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(230,179,37,0.9)]" />
-            Welcome back
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_10px_var(--color-amber-400)]" />
+            Open beta
           </div>
-          <h2 className="nf-heading text-5xl font-bold leading-[1.05] tracking-tight text-white">
-            Drop back into
-            <span className="block bg-[linear-gradient(120deg,#f8df8a,#e6b325_45%,#b0820f)] bg-clip-text text-transparent">
-              the squad.
-            </span>
+          <h2 className="nf-heading text-5xl font-bold uppercase leading-[1.02] tracking-tight text-white">
+            Welcome to
+            <span className="nf-auth-heading block">the forge</span>
           </h2>
-          <p className="max-w-md text-base leading-relaxed text-slate-300">
-            Sign in to pick up your forges, voice rooms, friends and rewards right where you left them.
+          <p className="max-w-md text-lg font-semibold leading-relaxed text-slate-200">Your communities. Your games. Your space.</p>
+          <p className="max-w-md text-sm leading-relaxed text-slate-400">
+            Sign in to pick up your forges, voice rooms, screen shares and friends right where you left them.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {highlights.map((item) => (
@@ -136,8 +147,14 @@ export default function LoginPage() {
     >
       {challenge ? (
         <AuthFormCard
-          title="Check your codes"
-          subtitle={`We sent a 6-digit sign-in code. ${challenge.channels.join(" and ")}.`}
+          title={challenge.method === "totp" ? "Enter your app code" : "Check your codes"}
+          subtitle={
+            challenge.method === "totp"
+              ? useRecovery
+                ? "Enter one of the recovery codes you saved when you set up your authenticator app. Each works once."
+                : "Open your authenticator app and enter the 6-digit code for Nexus Forge Gaming."
+              : `We sent a 6-digit sign-in code. ${challenge.channels.join(" and ")}.`
+          }
           eyebrow="Two-factor sign-in"
           footer={
             <button type="button" onClick={() => setChallenge(null)} className="font-semibold text-amber-200 transition hover:text-white">
@@ -148,13 +165,15 @@ export default function LoginPage() {
           <div className="space-y-5">
             <AuthField
               id="login-2fa-code"
-              label="6-digit code"
-              inputMode="numeric"
+              label={useRecovery ? "Recovery code" : "6-digit code"}
+              inputMode={useRecovery ? "text" : "numeric"}
               autoComplete="one-time-code"
-              placeholder="123456"
-              maxLength={6}
+              placeholder={useRecovery ? "abcd-2345" : "123456"}
+              maxLength={useRecovery ? 9 : 6}
               value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) =>
+                setCode(useRecovery ? event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 9) : event.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               onKeyDown={(event) => {
                 if (event.key === "Enter") void submitCode();
               }}
@@ -169,19 +188,32 @@ export default function LoginPage() {
                 {serverError}
               </div>
             ) : null}
-            <button type="button" onClick={() => void submitCode()} disabled={busy || code.length !== 6} className={authPrimaryButtonClass}>
+            <button type="button" onClick={() => void submitCode()} disabled={busy || (useRecovery ? code.replace("-", "").length !== 8 : code.length !== 6)} className={authPrimaryButtonClass}>
               {busy ? "Checking..." : "Verify and sign in"}
               {!busy ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
-            <button type="button" onClick={() => void resendCode()} disabled={busy} className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200">
-              Resend code
-            </button>
+            {challenge.method === "totp" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setUseRecovery((value) => !value);
+                  setCode("");
+                }}
+                className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200"
+              >
+                {useRecovery ? "Use my authenticator app instead" : "Lost your phone? Use a recovery code"}
+              </button>
+            ) : (
+              <button type="button" onClick={() => void resendCode()} disabled={busy} className="w-full text-center text-xs text-slate-400 transition hover:text-amber-200">
+                Resend code
+              </button>
+            )}
           </div>
         </AuthFormCard>
       ) : (
       <AuthFormCard
         title="Sign in"
-        subtitle="Use the email and password on your Vexora Gaming account."
+        subtitle="Use your email (or a phone number you've verified) and your password."
         footer={
           <span>
             New here?{" "}
@@ -191,13 +223,26 @@ export default function LoginPage() {
           </span>
         }
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {sessionEnded ? (
+          <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100" role="status">
+            Your session has ended. It may have expired, or been signed out from another device. Sign in again to continue.
+          </p>
+        ) : null}
+        {deletionScheduled ? (
+          <p className="mb-4 rounded-xl border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-100" role="status">
+            Your account is scheduled for deletion and you&apos;ve been signed out everywhere. Changed your mind? Sign in and choose &quot;Keep my account&quot;.
+          </p>
+        ) : null}
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
           <AuthField
             id="login-email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
+            label="Email or phone number"
+            type="text"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoComplete="username"
+            placeholder="you@example.com or +1 555 123 4567"
             error={errors.email?.message}
             {...register("email")}
           />
@@ -212,7 +257,7 @@ export default function LoginPage() {
           />
 
           <div className="flex items-center justify-end">
-            <Link href="/forgot-password" className="text-xs text-slate-400 transition hover:text-amber-200">
+            <Link href="/forgot-password" className="py-2 text-xs font-semibold text-slate-300 transition hover:text-amber-200">
               Forgot password?
             </Link>
           </div>

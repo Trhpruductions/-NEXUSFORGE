@@ -15,6 +15,7 @@ import {
   setTwoFactor,
 } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { AuthenticatorCard } from "@/components/settings/authenticator-card";
 
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
@@ -49,6 +50,8 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
   const [emailSent, setEmailSent] = useState<{ devCode?: string; sentTo?: string } | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
+  const [phonePassword, setPhonePassword] = useState("");
+  const [removing, setRemoving] = useState(false);
   const [phoneSent, setPhoneSent] = useState<{ devCode?: string; sentTo?: string } | null>(null);
   const [offCode, setOffCode] = useState("");
   const [offChallenge, setOffChallenge] = useState<{ devCode?: string } | null>(null);
@@ -87,7 +90,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const sendPhone = useMutation({
-    mutationFn: () => sendPhoneCode(accessToken!, csrfToken!, phone),
+    mutationFn: () => sendPhoneCode(accessToken!, csrfToken!, phone, phonePassword),
     onSuccess: (result) => {
       setPhoneSent({ devCode: result.devCode, sentTo: result.sentTo });
       setNotice({ tone: "ok", text: `Text message sent to ${result.sentTo}.` });
@@ -100,23 +103,26 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
       setPhoneCode("");
       setPhoneSent(null);
       setPhone("");
+      setPhonePassword("");
       setNotice({ tone: "ok", text: "Phone number verified." });
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const dropPhone = useMutation({
-    mutationFn: () => removePhone(accessToken!, csrfToken!),
+    mutationFn: () => removePhone(accessToken!, csrfToken!, phonePassword),
     onSuccess: async () => {
       setNotice({ tone: "ok", text: "Phone number removed." });
+      setPhonePassword("");
+      setRemoving(false);
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
   });
   const enable2fa = useMutation({
-    mutationFn: () => setTwoFactor(accessToken!, csrfToken!, { enabled: true, channels: ["EMAIL", "SMS"] }),
+    mutationFn: () => setTwoFactor(accessToken!, csrfToken!, { enabled: true, channels: protection?.phoneVerified ? ["EMAIL", "SMS"] : ["EMAIL"] }),
     onSuccess: async () => {
-      setNotice({ tone: "ok", text: "Two-factor is on. Sign-ins now need a code from your email and phone." });
+      setNotice({ tone: "ok", text: protection?.phoneVerified ? "Two-factor is on. Sign-ins now need a code sent to your email and phone." : "Two-factor is on. Sign-ins now need a code sent to your email." });
       await refresh();
     },
     onError: (error) => setNotice({ tone: "error", text: errorText(error) }),
@@ -147,16 +153,16 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
   const steps = [protection.emailVerified, protection.phoneVerified, protection.twoFactorEnabled].filter(Boolean).length;
 
   return (
-    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && !protection.complete ? "border-amber-400/60 shadow-[0_0_30px_rgba(230,179,37,0.2)]" : "border-amber-500/15"}`}>
+    <section className={`rounded-2xl border bg-[#0d1119] p-4 ${highlight && !protection.complete ? "border-amber-400/60 shadow-[0_0_30px_rgba(46,164,255,0.2)]" : "border-amber-500/15"}`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="nf-heading inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.18em] text-white">
             <ShieldCheck className={`h-4 w-4 ${protection.complete ? "text-emerald-300" : "text-amber-300"}`} /> Account Protection
           </h2>
-          <p className="text-xs text-slate-400">Verify your email and phone, then turn on two-factor so nobody can take your account.</p>
+          <p className="text-xs text-slate-400">Verify your email, then turn on two-factor so nobody can take your account. Adding a phone is optional.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{steps}/3 complete</span>
+          <span className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{protection.complete ? "Protected" : `${steps}/3 complete`}</span>
           <span className="flex gap-1">
             {[0, 1, 2].map((index) => <span key={index} className={`h-1.5 w-6 rounded-full ${index < steps ? "bg-emerald-400" : "bg-slate-700"}`} />)}
           </span>
@@ -167,8 +173,12 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
         <p className={`mb-3 rounded-xl border px-3 py-2 text-xs ${notice.tone === "ok" ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" : "border-rose-400/30 bg-rose-500/10 text-rose-100"}`}>{notice.text}</p>
       ) : null}
       {delivery && (delivery.email === "unconfigured" || delivery.sms === "unconfigured") ? (
-        <p className="mb-3 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
-          Delivery is not configured on the server{delivery.email === "unconfigured" ? " for email" : ""}{delivery.sms === "unconfigured" ? " for SMS" : ""}. Codes cannot be sent until SMTP and Twilio credentials are set.
+        <p className="mb-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          {delivery.email === "unconfigured" && delivery.sms === "unconfigured"
+            ? "Nexus Forge can't send emails or texts right now, so codes can't be sent. Please try again later."
+            : delivery.sms === "unconfigured"
+              ? "Text messages aren't switched on for Nexus Forge yet, so phone numbers can't be verified right now. Email codes work as normal."
+              : "Nexus Forge can't send emails right now, so email codes can't be sent. Please try again later."}
         </p>
       ) : null}
 
@@ -190,10 +200,13 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
                 <>
                   <DevCode code={emailSent.devCode} />
                   <div className="flex gap-2">
-                    <input className={inputClass} inputMode="numeric" maxLength={6} placeholder="6-digit code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+                    <input className={inputClass} inputMode="numeric" maxLength={6} aria-label="6-digit email code" placeholder="6-digit code" value={emailCode} onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
                     <button type="button" className={goldBtn} disabled={emailCode.length !== 6 || confirmEmail.isPending} onClick={() => confirmEmail.mutate()}>Verify</button>
                   </div>
                   <button type="button" className="text-[11px] text-slate-400 hover:text-amber-200" disabled={sendEmail.isPending} onClick={() => sendEmail.mutate()}>Resend code</button>
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    Nothing after a minute? Check Spam or Promotions for a message from Nexus Forge Gaming. Wrong address? <a href="#account-email" className="text-slate-300 underline underline-offset-2 hover:text-amber-200">Change it</a> and we&apos;ll send a new code there.
+                  </p>
                 </>
               )}
             </div>
@@ -212,16 +225,29 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
             <div className="space-y-2">
               <p className="text-xs text-slate-400">{protection.phoneNumber}</p>
               <p className="text-xs text-emerald-200">Text-message codes protect sign-ins and changes.</p>
-              <button type="button" className={`${ghostBtn} text-rose-200`} disabled={dropPhone.isPending} onClick={() => window.confirm("Remove your verified phone number?") && dropPhone.mutate()}>
-                <Trash2 className="h-3.5 w-3.5" /> Remove
-              </button>
+              {removing ? (
+                <div className="space-y-2">
+                  <input className={inputClass} type="password" autoComplete="current-password" aria-label="Current password" placeholder="Current password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} />
+                  <div className="flex gap-2">
+                    <button type="button" className={`${ghostBtn} text-rose-200`} disabled={!phonePassword || dropPhone.isPending} onClick={() => dropPhone.mutate()}>
+                      <Trash2 className="h-3.5 w-3.5" /> Remove number
+                    </button>
+                    <button type="button" className={ghostBtn} onClick={() => { setRemoving(false); setPhonePassword(""); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className={`${ghostBtn} text-rose-200`} onClick={() => setRemoving(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               {!phoneSent ? (
                 <>
-                  <input className={inputClass} type="tel" autoComplete="tel" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
-                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || sendPhone.isPending} onClick={() => sendPhone.mutate()}>
+                  <input className={inputClass} type="tel" autoComplete="tel" aria-label="Phone number" placeholder="+1 555 123 4567" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                  <input className={inputClass} type="password" autoComplete="current-password" aria-label="Current password" placeholder="Current password" value={phonePassword} onChange={(event) => setPhonePassword(event.target.value)} />
+                  <button type="button" className={goldBtn} disabled={phone.trim().length < 7 || !phonePassword || sendPhone.isPending || delivery?.sms === "unconfigured"} onClick={() => sendPhone.mutate()}>
                     {sendPhone.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />} Text me a code
                   </button>
                 </>
@@ -267,13 +293,21 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-slate-400">
-                {protection.emailVerified && protection.phoneVerified ? "Both channels are verified. Turn this on to lock down sign-ins." : "Verify your email and phone first, then turn this on."}
+                {!protection.emailVerified
+                  ? "Verify your email first, then turn this on."
+                  : protection.phoneVerified
+                    ? "Sign-ins will need a code sent to your email and phone."
+                    : "Sign-ins will need a code sent to your email. Add a phone later to get codes by text too."}
               </p>
-              <button type="button" className={goldBtn} disabled={!protection.emailVerified || !protection.phoneVerified || enable2fa.isPending} onClick={() => enable2fa.mutate()}>
+              <button type="button" className={goldBtn} disabled={!protection.emailVerified || enable2fa.isPending} onClick={() => enable2fa.mutate()}>
                 {enable2fa.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Turn on two-factor
               </button>
             </div>
           )}
+        </div>
+
+        <div className="col-span-full">
+          <AuthenticatorCard protection={protection} />
         </div>
       </div>
     </section>

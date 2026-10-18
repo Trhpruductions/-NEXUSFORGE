@@ -10,6 +10,10 @@ REM 2. The pm2 resurrect restores nexusforge-backend-workspace and
 REM    nexusforge-web-workspace from dump.pm2. If the API burned through its
 REM    restarts before the DB was ready, or the resurrect failed, start or
 REM    restart them here.
+REM 3. vexora-gateway (local port 3400) and vexora-tunnel (Cloudflare tunnel for
+REM    https://nfgcord.com) are NOT in dump.pm2, so without this step the public
+REM    site stays down after a reboot. They are defined in ecosystem.config.cjs
+REM    and started here when missing.
 REM
 REM Deliberately NO "pm2 save" here - see the note in
 REM D:\dynamite-bot\scripts\autostart.cmd (a save at logon once overwrote
@@ -18,7 +22,9 @@ REM dump.pm2 and other bots stopped coming back).
 setlocal
 cd /d "%~dp0.."
 
-set "PATH=%APPDATA%\npm;C:\Program Files\nodejs;%PATH%"
+REM pm2 lives in the user's npm folder. At logon %APPDATA% is not always set in this script's environment,
+REM so the profile path comes first; without it "pm2" is not found and the public site stays down.
+set "PATH=%USERPROFILE%\AppData\Roaming\npm;%APPDATA%\npm;C:\Program Files\nodejs;%PATH%"
 set "PGBIN=C:\Program Files\PostgreSQL\17\bin"
 set "PGDATA=D:\NexusForgeDB\data"
 set "LOG=D:\NexusForgeDB\autostart.log"
@@ -40,7 +46,7 @@ if errorlevel 1 (
 REM Give the pm2 resurrect time to run first.
 timeout /t 60 /nobreak >nul 2>&1
 
-for %%A in (nexusforge-backend-workspace nexusforge-web-workspace) do call :ensure %%A
+for %%A in (nexusforge-backend-workspace nexusforge-web-workspace vexora-gateway vexora-tunnel vexora-watchdog) do call :ensure %%A
 exit /b 0
 
 :ensure

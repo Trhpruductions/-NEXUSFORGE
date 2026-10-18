@@ -23,6 +23,10 @@ enum ChannelType {
   VOICE
   ANNOUNCEMENT
   STAGE
+  /// A heading that groups channels in the sidebar; holds no messages.
+  CATEGORY
+  /// Every post is a titled thread; the channel itself has no flat chat.
+  FORUM
 }
 
 enum MessageType {
@@ -69,6 +73,10 @@ enum BillingInterval {
 
 enum BillingProvider {
   STRIPE
+  APPLE
+  GOOGLE
+  MICROSOFT
+  AMAZON
 }
 
 enum BillingStatus {
@@ -181,6 +189,8 @@ model User {
   banner             String?
   bio                String?        @db.VarChar(512)
   status             UserStatus     @default(OFFLINE)
+  /// What the user picked (ONLINE/IDLE/DND, or OFFLINE = invisible). `status` is what others see right now.
+  chosenStatus       UserStatus     @default(ONLINE)
   premium            Boolean        @default(false)
   premiumTier        PremiumTier    @default(NONE)
   corePlusActivatedAt DateTime?
@@ -217,6 +227,8 @@ model User {
   socialLinks        Json?          // { discord, x, instagram, kick, youtube, twitch }
   displayName        String?        @db.VarChar(40)
   avatarConfig       Json?          // layered avatar builder state
+  /// The saved avatar (AvatarPreset id) that is the main gaming profile character.
+  mainAvatarPresetId String? @db.VarChar(40)
   loadout            Json?          // equipped cosmetic item ids by slot
   loadoutPresets     Json?          // saved outfit presets [{ id, name, loadout, createdAt }]
   privacySettings    Json?          // { showOnlineStatus, allowFriendRequests, allowDms, showActivity, contentFilter }
@@ -228,6 +240,13 @@ model User {
   phoneVerified      Boolean        @default(false)
   twoFactorEnabled   Boolean        @default(false)
   twoFactorChannels  String[]       @default([])
+  /// Authenticator-app (TOTP) two-factor. Secrets are AES-GCM encrypted; recovery codes
+  /// are stored as SHA-256 hashes and each works once. totpLastStep blocks code replay.
+  totpSecretEnc      String?
+  totpPendingEnc     String?
+  totpEnabledAt      DateTime?
+  totpLastStep       Int?
+  totpRecoveryHashes String[]       @default([])
   verificationCodes  VerificationCode[]
   emailVerifyToken   String?        @unique
   emailVerifyExpires DateTime?
@@ -239,6 +258,27 @@ model User {
   ageVerifiedAt      DateTime?
   onboardedAt        DateTime?
   lastDailyClaimAt   DateTime?
+  /// Account deletion: requested by the user, carried out (anonymised) once the grace
+  /// period ends unless they cancel. deletedAt is set when the account has been wiped.
+  deletionRequestedAt  DateTime?
+  deletionScheduledFor DateTime?
+  deletedAt            DateTime?
+  suspensions          AccountSuspension[]
+  pollVotes            PollVote[]
+  /// Discord account proven with a one-time /link code (the bot trusts only this).
+  discordUserId        String?        @unique
+  discordLinkedAt      DateTime?
+  discordLinkCodes     DiscordLinkCode[]
+  /// The newest "What's new" update this person has seen (null: anything after sign-up is new).
+  lastSeenUpdateAt     DateTime?
+  usernameChangedAt    DateTime?
+  /// Lifetime membership granted by Vexora (not billed). Billing never lowers or removes it.
+  lifetimeMember       Boolean   @default(false)
+  lifetimeGrantedAt    DateTime?
+  problemReports       ProblemReport[]
+  savedMessages        SavedMessage[]
+  notesWritten         UserNote[]     @relation("NoteAuthor")
+  notesAbout           UserNote[]     @relation("NoteTarget")
   dailyStreak        Int            @default(0)
   ageVerifications   AgeVerification[] @relation("AgeVerificationUser")
   ageReviews         AgeVerification[] @relation("AgeVerificationReviewer")
@@ -261,12 +301,12 @@ model User {
   billingSubscriptions BillingSubscription[]
   paymentTransactions PaymentTransaction[]
   featureEntitlements FeatureEntitlement[]
+  storePurchases      StorePurchase[]
   economyAccounts      EconomyAccount[]
   economyTransactions  EconomyTransaction[] @relation("EconomyTransactions")
   miningRigs          MiningRig[]
   botApps            BotApp[]
   botInstallations   ForgeBotInstallation[] @relation("BotInstaller")
-  apiKeys            ApiKey[]
   webhookSubscriptions WebhookSubscription[]
   oAuthClients       OAuthClient[]
   authorizationCodes  OAuthAuthorizationCode[]
@@ -285,6 +325,9 @@ model User {
   streamSessions     StreamSession[]
   jackpotEntries     JackpotEntry[]
   jackpotWins        JackpotRound[] @relation("JackpotWinner")
+  supportTickets     SupportTicket[]
+  supportMessages    SupportMessage[]
+  postComments       PostComment[]
 }
 
 model EconomyAccount {
@@ -407,18 +450,431 @@ model JackpotEntry {
   @@index([userId, createdAt])
 }
 
-model ApiKey {
-  id         String   @id @default(uuid())
-  userId     String
-  name       String
-  secretHash String
-  enabled    Boolean  @default(true)
-  lastUsedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum SupportCategory {
+  ACCOUNT
+  BILLING
+  BUG
+  REPORT_USER
+  FORGE
+  OTHER
+}
 
+enum SupportStatus {
+  /// Waiting for staff.
+  OPEN
+  /// Staff replied; waiting for the player.
+  WAITING_ON_USER
+  RESOLVED
+  CLOSED
+}
+
+/// A help request from a player. Staff (admin roles) can see and answer every ticket.
+model SupportTicket {
+  id             String           @id @default(uuid())
+  number         Int              @unique @default(autoincrement())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  category       SupportCategory  @default(OTHER)
+  status         SupportStatus    @default(OPEN)
+  messages       SupportMessage[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  lastActivityAt DateTime         @default(now())
+
+  @@index([userId, lastActivityAt])
+  @@index([status, lastActivityAt])
+}
+
+model SupportMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// Written by staff, shown with a staff badge.
+  fromStaff Boolean       @default(false)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+/// Extra invite links with optional expiry and use limits. The forge's own inviteCode
+/// stays as the permanent default link.
+model ForgeInvite {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  forgeId   String
+  creatorId String
+  maxUses   Int?
+  uses      Int       @default(0)
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  forge     Forge     @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+
+  @@index([forgeId, createdAt])
+}
+
+/// A legal document (Terms, Privacy Policy...). Its text lives in versions; the public
+/// only ever sees PUBLISHED and ARCHIVED (historical) versions, never drafts.
+model LegalPolicy {
+  id        String               @id @default(uuid())
+  slug      String               @unique
+  title     String
+  summary   String?
+  sortOrder Int                  @default(0)
+  /// Asked for at sign-up (and again when a new version needs renewed consent).
+  requiredAtSignup Boolean       @default(false)
+  createdAt DateTime             @default(now())
+  versions  LegalPolicyVersion[]
+}
+
+/// One version of a policy. Lifecycle: DRAFT -> IN_REVIEW -> PUBLISHED -> ARCHIVED.
+/// Published and archived text is never edited; changes always make a new version.
+model LegalPolicyVersion {
+  id              String      @id @default(uuid())
+  policyId        String
+  version         Int
+  status          String      @default("DRAFT")
+  content         String
+  changeSummary   String?
+  /// When it takes effect (shown on the page). Set at publish time.
+  effectiveAt     DateTime?
+  /// Material change: users who accepted an older version must accept this one.
+  requiresConsent Boolean     @default(false)
+  /// The exact sentence users tick to accept this version.
+  consentText     String?
+  createdById     String
+  publishedById   String?
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  /// Set when this draft was restored from an older version.
+  restoredFromId  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  policy          LegalPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  acceptances     PolicyAcceptance[]
+
+  @@unique([policyId, version])
+  @@index([policyId, status])
+}
+
+/// Proof that a user accepted a specific version: who, which version, the wording they
+/// agreed to, and a server timestamp. No passwords, tokens or other personal data.
+model PolicyAcceptance {
+  id              String             @id @default(uuid())
+  userId          String
+  policyVersionId String
+  policySlug      String
+  version         Int
+  consentText     String
+  /// SIGNUP or RENEWAL
+  source          String
+  acceptedAt      DateTime           @default(now())
+  policyVersion   LegalPolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, policyVersionId])
+  @@index([userId, policySlug])
+}
+
+/// Who changed what in the legal documents.
+model LegalAuditEntry {
+  id         String   @id @default(uuid())
+  actorId    String
+  action     String
+  policySlug String
+  versionId  String?
+  version    Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([policySlug, createdAt])
+}
+
+/// A forge's AutoMod rule (see lib/automod.ts). Checked before messages are saved.
+model ForgeAutoModRule {
+  id               String   @id @default(uuid())
+  forgeId          String
+  name             String
+  enabled          Boolean  @default(true)
+  /// KEYWORDS, LINKS, INVITES or MENTION_SPAM
+  type             String
+  keywords         String[] @default([])
+  /// Allowed phrases (KEYWORDS) or allowed domains (LINKS).
+  allowList        String[] @default([])
+  mentionLimit     Int?
+  blockMessage     Boolean  @default(true)
+  alertModerators  Boolean  @default(true)
+  timeoutMinutes   Int?
+  customMessage    String?
+  exemptRoleIds    String[] @default([])
+  exemptChannelIds String[] @default([])
+  position         Int      @default(0)
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([forgeId, position])
+}
+
+/// An incoming webhook: a secret URL that posts messages into one channel (stream
+/// alerts, game-server logs, GitHub...). Only a hash of the token is stored.
+model ChannelWebhook {
+  id         String    @id @default(uuid())
+  forgeId    String
+  channelId  String
+  name       String
+  avatarUrl  String?
+  tokenHash  String
+  creatorId  String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([forgeId])
+  @@index([channelId])
+}
+
+/// A forge's own emoji, used in messages and reactions as :name:.
+model ForgeEmoji {
+  id        String   @id @default(uuid())
+  forgeId   String
+  name      String
+  imageUrl  String
+  creatorId String
+  createdAt DateTime @default(now())
+
+  @@unique([forgeId, name])
+}
+
+/// A forge's stickers: larger images sent on their own as a message.
+model ForgeSticker {
+  id          String    @id @default(uuid())
+  forgeId     String
+  name        String
+  description String?   @db.VarChar(100)
+  imageUrl    String
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  messages    Message[]
+
+  @@unique([forgeId, name])
+}
+
+/// A forge's soundboard: short clips anyone in a voice channel can play for the room.
+model ForgeSound {
+  id        String   @id @default(uuid())
+  forgeId   String
+  name      String
+  emoji     String?  @db.VarChar(16)
+  soundUrl  String
+  /// 0.1 to 1.0
+  volume    Float    @default(1)
+  creatorId String
+  createdAt DateTime @default(now())
+
+  @@unique([forgeId, name])
+}
+
+/// One-time code for linking a Discord account: shown in Vexora settings, typed into the
+/// bot's /link command. Stored hashed; valid for 10 minutes.
+model DiscordLinkCode {
+  codeHash  String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// "Report a problem" from the website (signed in or not). Staff work through these at
+/// /admin/problem-reports; contactEmail is only for replying and is never shown publicly.
+model ProblemReport {
+  id           String    @id @default(uuid())
+  /// BUG, SIGN_IN, BILLING, SAFETY or OTHER.
+  kind         String    @db.VarChar(16)
+  message      String    @db.Text
+  contactEmail String?   @db.VarChar(254)
+  pageUrl      String?   @db.VarChar(300)
+  userAgent    String?   @db.VarChar(300)
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// OPEN or RESOLVED.
+  status       String    @default("OPEN") @db.VarChar(12)
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// A crash or server error, grouped: the same problem bumps `count` instead of adding rows.
+/// Shown to staff at /admin/errors; rows unseen for 30 days are cleaned up.
+model ErrorEvent {
+  id          String   @id @default(uuid())
+  /// "server" (an API request that failed) or "web" (a crash in someone's browser).
+  source      String   @db.VarChar(12)
+  fingerprint String   @unique @db.VarChar(64)
+  message     String   @db.VarChar(400)
+  detail      String?  @db.Text
+  path        String?  @db.VarChar(200)
+  count       Int      @default(1)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@index([lastSeenAt])
+}
+
+/// A "What's new" post from Vexora staff. Shown as a popup to everyone once it's published.
+model AppUpdate {
+  id          String    @id @default(uuid())
+  title       String    @db.VarChar(120)
+  /// Simple Markdown (headings, lists, bold, links).
+  body        String    @db.Text
+  version     String?   @db.VarChar(24)
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([publishedAt])
+}
+
+/// A member reporting a message. Server-channel reports go to that forge's moderators;
+/// DM reports go to platform staff. The message is copied at report time so deleting it
+/// doesn't destroy the evidence.
+/// A platform-level suspension applied by Vexora staff. Rows are kept as history (for
+/// appeals); one is in force while liftedAt is null and until is null or in the future.
+model AccountSuspension {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Staff member who applied it.
+  actorId     String
+  reason      String    @db.VarChar(500)
+  /// null = until lifted
+  until       DateTime?
+  createdAt   DateTime  @default(now())
+  liftedAt    DateTime?
+  liftedById  String?
+  liftNote    String?   @db.VarChar(500)
+  /// STAFF = a staff suspension (the original kind). VAC = a ban from the VAC ban system.
+  kind        String    @default("STAFF") @db.VarChar(16)
+  /// STAFF = applied by a person. AUTO = applied by the VAC escalation rules after upheld reports.
+  source      String    @default("STAFF") @db.VarChar(16)
+  /// VAC bans only: SCAM, HARASSMENT, SPAM, EXPLOIT or OTHER.
+  category    String?   @db.VarChar(16)
+  /// Short, factual summary for staff: counts and report IDs. Never message text.
+  evidence    String?   @db.VarChar(1000)
+  /// True while an automatic ban is waiting for a staff decision.
+  needsReview Boolean   @default(false)
+  appealedAt  DateTime?
+  appealNote  String?   @db.VarChar(1000)
+
+  @@index([userId, liftedAt])
+  @@index([kind, liftedAt])
+}
+
+/// A poll attached to a message (the message text is the question). Like Discord, votes
+/// are not anonymous. Closed once endsAt passes or someone ends it early (closedAt).
+model Poll {
+  id            String     @id @default(uuid())
+  messageId     String     @unique
+  message       Message    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  /// [{ id, text }]
+  options       Json
+  allowMultiple Boolean    @default(false)
+  endsAt        DateTime
+  closedAt      DateTime?
+  createdAt     DateTime   @default(now())
+  votes         PollVote[]
+}
+
+model PollVote {
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([pollId, userId, optionId])
+  @@index([pollId, optionId])
+}
+
+/// "Save for later": a bookmark on a channel message or a direct message (exactly one).
+/// Only the person who saved it sees it; it disappears if they lose access.
+model SavedMessage {
+  id           String          @id @default(uuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId    String?
+  message      Message?        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  dmMessageId  String?
+  dmMessage    DirectMessage?  @relation(fields: [dmMessageId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+
+  @@unique([userId, messageId])
+  @@unique([userId, dmMessageId])
   @@index([userId, createdAt])
+}
+
+/// A private note one user keeps about another (only the author ever sees it).
+model UserNote {
+  authorId  String
+  author    User     @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    User     @relation("NoteTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  note      String   @db.VarChar(256)
+  updatedAt DateTime @updatedAt
+
+  @@id([authorId, targetId])
+}
+
+model MessageReport {
+  id                  String    @id @default(uuid())
+  reporterId          String
+  /// CHANNEL or DM
+  kind                String
+  messageId           String
+  forgeId             String?
+  channelId           String?
+  threadId            String?
+  authorId            String?
+  authorUsername      String?
+  contentSnapshot     String
+  attachmentsSnapshot String[]  @default([])
+  /// SPAM, HARASSMENT, HATE, SEXUAL, VIOLENCE, SELF_HARM, SCAM, OTHER
+  reason              String
+  details             String?
+  /// OPEN, RESOLVED, DISMISSED
+  status              String    @default("OPEN")
+  handledById         String?
+  handledAt           DateTime?
+  resolutionNote      String?
+  createdAt           DateTime  @default(now())
+
+  @@unique([reporterId, messageId])
+  @@index([forgeId, status, createdAt])
+  @@index([kind, status, createdAt])
+}
+
+/// Who did what in a forge (moderation and settings changes), for its owner and admins.
+model ForgeAuditEntry {
+  id          String   @id @default(uuid())
+  forgeId     String
+  actorId     String
+  action      String
+  targetType  String?
+  targetId    String?
+  targetLabel String?
+  details     Json?
+  createdAt   DateTime @default(now())
+  forge       Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
+
+  @@index([forgeId, createdAt])
 }
 
 model WebhookSubscription {
@@ -469,16 +925,29 @@ model OAuthAuthorizationCode {
   @@index([clientId, userId, expiresAt])
 }
 
+/// One row per refresh token. Rotation (every refresh) revokes the row and creates a new
+/// one; sessionId, signedInAt and the device fields carry over, so a "session" is the chain
+/// of rows sharing sessionId and its live row is the one with revokedAt = null.
 model RefreshToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  revokedAt DateTime?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String?
+  signedInAt  DateTime?
+  lastUsedAt  DateTime?
+  /// "Chrome on Windows", "Vexora Desktop on Windows", ...
+  deviceLabel String?
+  userAgent   String?
+  /// Anonymised (network prefix only), for display.
+  ipPrefix    String?
 
   @@index([userId])
+  @@index([userId, deviceLabel])
+  @@index([sessionId])
 }
 
 model Forge {
@@ -501,6 +970,8 @@ model Forge {
   botCommands BotCommand[]
   inviteSources InviteSourceStat[]
   bans        ForgeBan[]
+  invites     ForgeInvite[]
+  auditLog    ForgeAuditEntry[]
   events      Event[]
   isPublic    Boolean         @default(true)
   category    String          @default("gaming")
@@ -603,11 +1074,20 @@ model ForgeMember {
   forgeId   String
   nickname  String?
   joinedAt  DateTime @default(now())
+  /// Timed out until this moment: can read, but not send, react or join voice.
+  timeoutUntil DateTime?
+  /// This member's own notification settings for the forge (Discord's per-server mute):
+  /// ALL, MENTIONS or NONE; muted until a time (far future = until turned off);
+  /// and whether @everyone / @here pings them.
+  notifyLevel      String    @default("MENTIONS")
+  mutedUntil       DateTime?
+  suppressEveryone Boolean   @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   forge     Forge    @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   roleLinks MemberRole[]
 
   @@unique([userId, forgeId])
+  @@index([forgeId])
 }
 
 model Channel {
@@ -618,6 +1098,19 @@ model Channel {
   type                ChannelType           @default(TEXT)
   position            Int                   @default(0)
   permissionOverrides Json?
+  /// Category this channel sits under (a CATEGORY channel in the same forge).
+  parentId            String?
+  parent              Channel?              @relation("ChannelCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children            Channel[]             @relation("ChannelCategory")
+  /// Seconds a member must wait between messages here. 0 = off. Moderators are exempt.
+  slowmodeSeconds     Int                   @default(0)
+  /// Private channels are visible only to the owner, members who can manage channels,
+  /// and the roles/members listed here.
+  isPrivate           Boolean               @default(false)
+  allowedRoleIds      String[]              @default([])
+  allowedUserIds      String[]              @default([])
+  /// Forum channels: the tags posts can be labelled with.
+  forumTags           String[]              @default([])
   forge               Forge                 @relation(fields: [forgeId], references: [id], onDelete: Cascade)
   messages            Message[]
   threads             Thread[]
@@ -648,6 +1141,8 @@ model Message {
   botId        String?
   botName      String?
   botAvatar    String?
+  /// Set when the message was posted through a channel webhook.
+  webhookId    String?
   content      String       @db.Text
   attachments  Json?
   edited       Boolean      @default(false)
@@ -665,8 +1160,14 @@ model Message {
   replyTo      Message?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies      Message[]    @relation("MessageReplies")
   startedThread Thread?     @relation("ThreadStarter")
+  poll          Poll?
+  /// A sticker sent as the message (content may be empty).
+  stickerId     String?
+  sticker       ForgeSticker? @relation(fields: [stickerId], references: [id], onDelete: SetNull)
+  savedBy       SavedMessage[]
 
   @@index([channelId, botId])
+  @@index([threadId, createdAt])
 
   @@index([channelId, createdAt])
   @@index([authorId, createdAt])
@@ -683,16 +1184,27 @@ model MessageReaction {
   @@unique([messageId, userId, emoji])
 }
 
+/// A side conversation started from a message. Its messages are ordinary channel
+/// messages with threadId set, so channel access, timeouts, slowmode and moderation all
+/// apply unchanged; they're left out of the main channel history and unread counts.
 model Thread {
   id             String    @id @default(uuid())
   channelId      String
   title          String
-  starterPostId  String    @unique
+  /// Null once the starting message is deleted; the thread and its replies stay.
+  starterPostId  String?   @unique
+  creatorId      String?
+  archived       Boolean   @default(false)
+  /// Forum posts: tags picked from the channel's forumTags.
+  tags           String[]  @default([])
+  messageCount   Int       @default(0)
+  lastMessageAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  starterMessage Message   @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: Cascade)
+  starterMessage Message?  @relation("ThreadStarter", fields: [starterPostId], references: [id], onDelete: SetNull)
   messages       Message[]
+  @@index([channelId, lastMessageAt])
 }
 
 model Role {
@@ -716,6 +1228,7 @@ model MemberRole {
   role          Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([forgeMemberId, roleId])
+  @@index([roleId])
 }
 
 model Friend {
@@ -723,12 +1236,15 @@ model Friend {
   senderId   String
   receiverId String
   status     FriendshipStatus @default(PENDING)
+  /// Who set status BLOCKED. Only they can lift or change it. Null on rows blocked before this was tracked.
+  blockedById String?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   sender     User             @relation("FriendSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver   User             @relation("FriendReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@unique([senderId, receiverId])
+  @@index([receiverId])
 }
 
 model DirectMessageThread {
@@ -751,6 +1267,7 @@ model DirectMessageParticipant {
   user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([threadId, userId])
+  @@index([userId])
 }
 
 model DirectMessage {
@@ -764,6 +1281,7 @@ model DirectMessage {
   updatedAt   DateTime            @updatedAt
   thread      DirectMessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   author      User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  savedBy     SavedMessage[]
 
   @@index([threadId, createdAt])
 }
@@ -816,6 +1334,8 @@ enum VerificationPurpose {
   VERIFY_PHONE
   LOGIN
   SENSITIVE_CHANGE
+  RESET_PASSWORD
+  CHANGE_EMAIL
 }
 
 model VerificationCode {
@@ -833,6 +1353,45 @@ model VerificationCode {
 
   @@index([userId, purpose, createdAt])
   @@index([expiresAt])
+}
+
+enum EmailMessageStatus {
+  QUEUED
+  ACCEPTED
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  FAILED
+  UNKNOWN
+}
+
+enum EmailCategory {
+  ESSENTIAL
+  OPTIONAL
+}
+
+/// Delivery record for every email the server sends. It never holds a body, token, code or link:
+/// the recipient is a SHA-256 hash plus a masked display form, and the error text is redacted.
+model EmailMessage {
+  id                String             @id @default(uuid())
+  kind              String             @db.VarChar(64)
+  category          EmailCategory
+  transport         String             @db.VarChar(16)
+  userId            String?
+  recipientHash     String             @db.VarChar(64)
+  recipientMasked   String             @db.VarChar(160)
+  subject           String             @db.VarChar(200)
+  status            EmailMessageStatus @default(QUEUED)
+  providerMessageId String?            @db.VarChar(255)
+  attempts          Int                @default(0)
+  lastError         String?            @db.VarChar(200)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, kind, createdAt])
+  @@index([providerMessageId])
 }
 
 model StreamSession {
@@ -873,9 +1432,22 @@ model Post {
   updatedAt DateTime   @updatedAt
   author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   likes     PostLike[]
+  comments  PostComment[]
 
   @@index([authorId, createdAt])
   @@index([kind, createdAt])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
 }
 
 model PostLike {
@@ -963,6 +1535,10 @@ model AvatarPreset {
   name      String   @db.VarChar(40)
   tagline   String?  @db.VarChar(60)
   config    Json
+  /// Shown to other members only when true. Private by default.
+  isPublic  Boolean  @default(false)
+  /// Rendered portrait (an uploaded PNG) used on the gallery and on the profile.
+  previewUrl String? @db.VarChar(500)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1141,6 +1717,48 @@ model PaymentTransaction {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([featureCode, createdAt])
+}
+
+/// Every Stripe webhook event the app has accepted. The id is Stripe's event id, so a repeated delivery is applied once.
+/// APPLYING while processing, APPLIED once recorded, and the row is removed if processing fails so Stripe's retry runs it.
+model StripeWebhookEvent {
+  id              String   @id @db.VarChar(120)
+  type            String   @db.VarChar(80)
+  livemode        Boolean
+  stripeCreatedAt DateTime
+  status          String   @default("APPLYING") @db.VarChar(16)
+  receivedAt      DateTime @default(now())
+  appliedAt       DateTime?
+
+  @@index([type, receivedAt])
+}
+
+/// A purchase made through an app store (Apple, Google, Microsoft or Amazon). One row per store transaction, so a
+/// receipt that is submitted twice grants once. Written only after the store has confirmed the purchase.
+model StorePurchase {
+  id                    String          @id @default(uuid())
+  userId                String
+  provider              BillingProvider
+  productId             String          @db.VarChar(120)
+  transactionId         String          @db.VarChar(120)
+  originalTransactionId String?         @db.VarChar(120)
+  /// The Core+ tier this product grants, or null for an add-on.
+  tier                  String?         @db.VarChar(16)
+  /// The add-on this product grants, or null for a subscription.
+  featureCode           PaidFeatureCode?
+  /// ACTIVE, EXPIRED, REVOKED or REFUNDED. Store notifications move a purchase out of ACTIVE.
+  status                String          @default("ACTIVE") @db.VarChar(16)
+  environment           String          @db.VarChar(16)
+  purchasedAt           DateTime
+  expiresAt             DateTime?
+  /// SHA-256 of the receipt the client sent, so a record can be matched to a submission without storing the receipt.
+  receiptHash           String          @db.VarChar(64)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, transactionId])
+  @@index([userId])
 }
 
 model FeatureEntitlement {

@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { allowedOriginList, isAllowedOrigin } from "../lib/origins.js";
 
 export const ageRouter = Router();
 
@@ -8,10 +9,24 @@ const verifySchema = z.object({
   confirmed: z.boolean(),
 });
 
+const allowedOrigins = allowedOriginList({ clientOrigin: env.CLIENT_ORIGIN, appWebUrl: env.APP_WEB_URL, nodeEnv: env.NODE_ENV });
+
+/** The page the request came from: its Origin, or the origin of its Referer when Origin is missing. */
+export function requestOrigin(req: Request): string | undefined {
+  if (req.headers.origin) return req.headers.origin;
+  if (req.headers.referer) {
+    try {
+      return new URL(req.headers.referer).origin;
+    } catch {
+      return "invalid";
+    }
+  }
+  return undefined;
+}
+
 ageRouter.post("/verify", (req, res) => {
-  // Impenetrable check: CSRF protection + strict cookie options
-  const origin = req.headers.origin || req.headers.referer;
-  if (origin && !origin.includes("nexusforge.app") && !origin.includes("vexoragaming.com") && !origin.includes("127.0.0.1") && !origin.includes("localhost")) {
+  // CSRF guard: the request must come from one of the app's own origins, matched exactly.
+  if (!isAllowedOrigin(requestOrigin(req), allowedOrigins, env.NODE_ENV)) {
     res.setHeader("Cache-Control", "no-store, no-cache");
     res.status(403).json({ error: "Cross-origin age gate bypass blocked" });
     return;

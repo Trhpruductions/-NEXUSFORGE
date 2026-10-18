@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { runningLiveEventWhere } from "../lib/event-status.js";
 import { requireAuth } from "../middleware/auth.js";
+import { hiddenChannelIdsForUser } from "../lib/channel-access.js";
 
 /** Aggregated data for the Home dashboard of the selected forge. */
 export const homeRouter = Router();
@@ -64,7 +65,11 @@ homeRouter.get("/summary", async (req, res) => {
     }),
     forge
       ? prisma.message.findMany({
-          where: { channel: { forgeId: forge.id, type: { in: ["TEXT", "ANNOUNCEMENT"] } }, authorId: { not: null } },
+          where: {
+            channel: { forgeId: forge.id, type: { in: ["TEXT", "ANNOUNCEMENT"] } },
+            authorId: { not: null },
+            channelId: { notIn: await hiddenChannelIdsForUser(req.user!.id, forge.id) },
+          },
           orderBy: { createdAt: "desc" },
           take: 6,
           include: {

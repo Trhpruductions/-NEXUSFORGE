@@ -1,5 +1,5 @@
-import { prisma } from "./prisma.js";
-import { EconomyAuthority } from "./economy-authority.js";
+import { randomUUID } from "node:crypto";
+import { EconomyAuthority, type CurrencyType } from "./economy-authority.js";
 
 export interface CryptoAssetStats {
   symbol: string;
@@ -61,28 +61,37 @@ export class CryptoAuthority {
     const rawRate = fromAsset.price / toAsset.price;
     const finalRate = rawRate * (1 - industrialFee);
 
-    return prisma.$transaction(async (tx) => {
-      // 1. Verify and Debit Source
-      const debitResult = await EconomyAuthority.adjustBalance({
+    // Exact integer maths (the rate is fixed to 9 decimal places), and both legs in ONE
+    // transaction: before, the debit and credit were separate, so a failure in between
+    // took the coins without paying out.
+    const RATE_SCALE = 1_000_000_000n;
+    const scaledRate = BigInt(Math.floor(finalRate * Number(RATE_SCALE)));
+    const creditAmount = (params.amount * scaledRate) / RATE_SCALE;
+    if (creditAmount <= 0n) {
+      throw new Error("That amount is too small to swap.");
+    }
+    const txId = randomUUID();
+
+    return EconomyAuthority.serializable(async (tx, retryCount) => {
+      await EconomyAuthority.applyChange(tx, {
         userId: params.userId,
         amount: -params.amount,
-        currencyType: params.fromSymbol as any,
-        reason: `Industrial Swap: ${params.fromSymbol} -> ${params.toSymbol}`,
-        metadata: { rate: finalRate, fee: industrialFee }
-      });
-
-      // 2. Credit Destination
-      const creditAmount = BigInt(Math.floor(Number(params.amount) * finalRate));
-      const creditResult = await EconomyAuthority.adjustBalance({
+        currencyType: params.fromSymbol as CurrencyType,
+        reason: `Swap: ${params.fromSymbol} -> ${params.toSymbol}`,
+        referenceId: `swap:${txId}`,
+        metadata: { rate: finalRate, fee: industrialFee },
+      }, retryCount);
+      await EconomyAuthority.applyChange(tx, {
         userId: params.userId,
         amount: creditAmount,
-        currencyType: params.toSymbol as any,
-        reason: `Industrial Swap: Value Received from ${params.fromSymbol}`,
-        metadata: { sourceAmount: params.amount.toString(), rate: finalRate }
-      });
+        currencyType: params.toSymbol as CurrencyType,
+        reason: `Swap: received from ${params.fromSymbol}`,
+        referenceId: `swap:${txId}`,
+        metadata: { sourceAmount: params.amount.toString(), rate: finalRate },
+      }, retryCount);
 
       return {
-        txId: Math.random().toString(36).substring(7).toUpperCase(),
+        txId,
         finalRate,
         debited: params.amount.toString(),
         credited: creditAmount.toString(),

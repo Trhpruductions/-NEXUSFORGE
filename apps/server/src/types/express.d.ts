@@ -6,6 +6,8 @@ declare global {
         username: string;
         email: string;
         appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
+        /** The access token's id, so a request can be matched to its own socket. */
+        jti?: string;
       };
     }
   }

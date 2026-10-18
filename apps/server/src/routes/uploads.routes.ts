@@ -1,6 +1,7 @@
 import express, { Router, type RequestHandler } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { cheapestTierWith, limitsFor, PLANS, upgradeRequired } from "../lib/plans.js";
 import {
   createLocalUploadUrl,
   createUploadUrl,
@@ -33,7 +34,7 @@ uploadsRouter.post("/presign", async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { premium: true },
+    select: { premium: true, premiumTier: true },
   });
 
   if (!user) {
@@ -41,11 +42,21 @@ uploadsRouter.post("/presign", async (req, res) => {
     return;
   }
 
-  const maxBytes = user.premium ? env.PREMIUM_UPLOAD_MAX_BYTES : env.UPLOAD_MAX_BYTES;
+  const limits = limitsFor(user);
+  const maxBytes = limits.uploadBytes;
+  // Local storage behind https is capped by the proxy (see the proxy branch below). A plan that is only
+  // allowed above that cap cannot be delivered, so the upgrade offer and the message use the deliverable size.
+  const deliverableCap = !storageConfigured() && /^https:/i.test(env.API_PUBLIC_URL ?? "") ? env.LOCAL_UPLOAD_PROXY_MAX_BYTES : Number.POSITIVE_INFINITY;
+  const deliverable = (bytes: number) => Math.min(bytes, deliverableCap);
   if (parsed.data.size > maxBytes) {
-    res.status(413).json({
-      error: `File exceeds upload limit (${maxBytes} bytes)` ,
-    });
+    const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
+    const biggest = PLANS.INFINITE.uploadBytes;
+    // A bigger plan would allow it: offer the upgrade. Otherwise it's just too big.
+    if (limits.enforced && parsed.data.size <= biggest) {
+      res.status(402).json(upgradeRequired(`Files can be up to ${mb(deliverable(maxBytes))} on your plan.`, "UPLOAD_SIZE", cheapestTierWith((plan) => deliverable(plan.uploadBytes) >= parsed.data.size)));
+      return;
+    }
+    res.status(413).json({ error: `Files can be up to ${mb(deliverable(maxBytes))}.` });
     return;
   }
 
@@ -55,7 +66,19 @@ uploadsRouter.post("/presign", async (req, res) => {
       res.status(415).json({ error: "That file type can't be uploaded. Use an image, video, audio, PDF or text file." });
       return;
     }
-    res.status(201).json(createLocalUploadUrl({ userId: req.user!.id, filename: parsed.data.filename, contentType: parsed.data.contentType, maxBytes }));
+    // Behind the public tunnel every upload passes through Cloudflare, which drops bodies over
+    // 100 MB before they reach us. Say so here, in plain words, instead of letting the browser
+    // hit an HTML error page mid-upload. Direct-to-bucket uploads (S3/R2) don't have this cap.
+    const throughProxy = /^https:/i.test(env.API_PUBLIC_URL ?? "");
+    const proxyCap = Math.min(maxBytes, env.LOCAL_UPLOAD_PROXY_MAX_BYTES);
+    if (throughProxy && parsed.data.size > proxyCap) {
+      res.status(413).json({
+        error: `Files over ${Math.round(proxyCap / (1024 * 1024))} MB can't be uploaded yet. Our hosting caps single uploads at ${Math.round(env.LOCAL_UPLOAD_PROXY_MAX_BYTES / (1024 * 1024))} MB during the beta; bigger uploads come with the storage upgrade.`,
+        code: "UPLOAD_PROXY_LIMIT",
+      });
+      return;
+    }
+    res.status(201).json(createLocalUploadUrl({ userId: req.user!.id, filename: parsed.data.filename, contentType: parsed.data.contentType, maxBytes: throughProxy ? proxyCap : maxBytes }));
     return;
   }
 

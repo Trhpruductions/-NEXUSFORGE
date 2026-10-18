@@ -76,7 +76,7 @@ export const profileRoleBadges = {
     label: "Developer",
     src: "/brand/profile-badge-developer.png",
     rarity: "epic",
-    description: "Core builder of Vexora Gaming systems.",
+    description: "Core builder of Nexus Forge Gaming systems.",
   },
   VIP: {
     key: "vip",
@@ -90,7 +90,7 @@ export const profileRoleBadges = {
     label: "Investor",
     src: "/brand/profile-badge-investor.png",
     rarity: "legendary",
-    description: "Strategic investor backing Vexora Gaming growth.",
+    description: "Strategic investor backing Nexus Forge Gaming growth.",
   },
   STAFF: {
     key: "staff",
@@ -105,6 +105,34 @@ export const profileRoleBadges = {
     src: "/brand/profile-badge-legend.png",
     rarity: "legendary",
     description: "Elite status from top-tier progression.",
+  },
+  BETA_USER: {
+    key: "beta-user",
+    label: "Beta User",
+    src: "/brand/profile-badge-beta-user.png",
+    rarity: "rare",
+    description: "Beta user rank.",
+  },
+  MEMBER: {
+    key: "member",
+    label: "Member",
+    src: "/brand/profile-badge-member.png",
+    rarity: "common",
+    description: "Member rank.",
+  },
+  VERIFIED_MEMBER: {
+    key: "verified-member",
+    label: "Verified Member",
+    src: "/brand/profile-badge-verified-member.png",
+    rarity: "rare",
+    description: "Verified member rank.",
+  },
+  REP: {
+    key: "rep",
+    label: "Rep",
+    src: "/brand/profile-badge-rep.png",
+    rarity: "epic",
+    description: "Rep rank.",
   },
 } as const;
 
@@ -122,6 +150,10 @@ export const badgeKeyMap = {
   investor: profileRoleBadges.INVESTOR,
   staff: profileRoleBadges.STAFF,
   legend: profileRoleBadges.LEGEND,
+  "beta-user": profileRoleBadges.BETA_USER,
+  member: profileRoleBadges.MEMBER,
+  "verified-member": profileRoleBadges.VERIFIED_MEMBER,
+  rep: profileRoleBadges.REP,
 } as const;
 
 export type BadgeKey = keyof typeof badgeKeyMap;

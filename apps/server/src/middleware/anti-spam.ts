@@ -61,7 +61,15 @@ export function sweepCooldowns(now: number, entries: Map<string, CooldownEntry> 
 export function antiSpam(req: Request, res: Response, next: NextFunction): void {
   const userId = req.user?.id;
   const channelId = req.body?.channelId;
-  const content = typeof req.body?.content === "string" ? req.body.content : "";
+  // Compare the whole message, not just its text: two different stickers (no text) or two
+  // different files (sent with the same "Shared a file" text) aren't duplicates.
+  const text = typeof req.body?.content === "string" ? req.body.content : "";
+  const extras = [
+    typeof req.body?.stickerId === "string" ? `sticker:${req.body.stickerId}` : "",
+    Array.isArray(req.body?.attachments) ? `files:${req.body.attachments.join("|")}` : "",
+    req.body?.poll && Array.isArray(req.body.poll.options) ? `poll:${req.body.poll.options.join("|")}` : "",
+  ].filter(Boolean);
+  const content = extras.length ? `${text}\u0000${extras.join("\u0000")}` : text;
 
   if (!userId || !channelId) {
     next();

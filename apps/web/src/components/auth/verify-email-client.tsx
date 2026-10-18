@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
+import { authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { verifyEmail } from "@/lib/api";
 
 export function VerifyEmailClient({ token }: { token: string }) {
@@ -33,34 +34,41 @@ export function VerifyEmailClient({ token }: { token: string }) {
     verify();
   }, [token]);
 
+  const text =
+    status === "loading"
+      ? "Verifying your email..."
+      : status === "success"
+        ? message || "Email verified successfully."
+        : message || "Ready to verify your email.";
+
+  const tone =
+    status === "success"
+      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
+      : status === "error"
+        ? "border-rose-400/30 bg-rose-500/10 text-rose-200"
+        : "border-white/10 bg-white/[0.03] text-slate-300";
+
   return (
     <AuthFormCard
-      title="Verify Email"
-      subtitle="Confirm your token and return to the login flow"
+      title="Verify your email"
+      subtitle="We're confirming the email address on your account."
       footer={
         <div className="flex items-center justify-end gap-4">
-          <Link href="/login" className="text-amber-200 hover:text-amber-200">
-            Back to login
+          <Link href="/login" className="font-semibold text-amber-200 transition hover:text-white">
+            Back to sign in
           </Link>
-          <Link href="/forgot-password" className="text-amber-200 hover:text-amber-200">
+          <Link href="/forgot-password" className="font-semibold text-amber-200 transition hover:text-white">
             Forgot password?
           </Link>
         </div>
       }
     >
-      <div className="grid gap-4">
-        <p role="status" aria-live="polite" className="text-sm text-slate-400">
-          {status === "loading"
-            ? "Verifying your email..."
-            : status === "success"
-            ? message || "Email verified successfully."
-            : message || "Ready to verify your email."}
+      <div className="grid gap-5">
+        <p role="status" aria-live="polite" className={`rounded-2xl border px-4 py-3 text-sm ${tone}`}>
+          {text}
         </p>
-        <Link
-          href="/login"
-          className="nexus-interactive-btn inline-flex min-h-11 items-center justify-center rounded-full border border-amber-300/45 bg-[linear-gradient(180deg,var(--button-top),var(--button-mid)_42%,var(--button-bottom))] px-5 text-sm font-semibold tracking-wide text-[var(--button-ink)] shadow-[0_16px_34px_rgba(255,184,108,0.24),inset_0_1px_0_rgba(255,255,255,0.32)] hover:-translate-y-[1px]"
-        >
-          Continue to login
+        <Link href="/login" className={authPrimaryButtonClass}>
+          Continue to sign in
         </Link>
       </div>
     </AuthFormCard>

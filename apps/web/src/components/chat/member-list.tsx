@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Crown } from "lucide-react";
 import type { ForgeMemberEntry, ForgeRole } from "@/lib/api";
+import { hueFor, tileGradient } from "@/lib/colors";
 import { UserCard } from "@/components/social/user-card";
 
 type MemberListProps = {
@@ -134,7 +135,7 @@ export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: 
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={member.user.avatar} alt="" className="h-7 w-7 rounded-full border border-slate-700 object-cover" />
                           ) : (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[10px] font-semibold text-slate-200">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-slate-950" style={{ background: tileGradient(hueFor(member.userId)) }}>
                               {initials(member.user.username)}
                             </span>
                           )}
@@ -142,7 +143,7 @@ export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: 
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-sm" style={{ color: top?.color ?? "#e2e8f0" }}>
+                            <span className="truncate text-sm" style={{ color: top?.color ?? hueFor(member.userId).light }}>
                               {member.nickname || member.user.username}
                             </span>
                             {member.userId === ownerId ? <Crown className="h-3 w-3 shrink-0 text-amber-300" /> : null}

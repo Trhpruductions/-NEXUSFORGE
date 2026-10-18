@@ -2,10 +2,12 @@ import { Router } from "express";
 import xss from "xss";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { messageLengthProblem } from "../lib/user-limits.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { messageRateLimit } from "../middleware/rate-limit.js";
 
 const createDmSchema = z.object({
   userId: z.string().uuid(),
@@ -18,7 +20,8 @@ const createGroupSchema = z.object({
 
 const messageSchema = z.object({
   content: z.string().min(1).max(4000),
-  attachments: z.array(z.string().url()).max(8).optional(),
+  // http(s) only: these render as links, and z.url() alone accepts javascript: URLs.
+  attachments: z.array(z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Attachments must be http(s) links")).max(8).optional(),
 });
 
 export const dmsRouter = Router();
@@ -224,7 +227,7 @@ dmsRouter.post("/groups", async (req, res) => {
   );
 
   const users = await prisma.user.findMany({
-    where: { id: { in: uniqueIds } },
+    where: { id: { in: uniqueIds }, deletedAt: null },
     select: { id: true },
   });
 
@@ -281,19 +284,26 @@ dmsRouter.get("/threads/:threadId/messages", async (req, res) => {
         select: { id: true, username: true, avatar: true, premium: true },
       },
     },
-    orderBy: { createdAt: "asc" },
+    // The newest 200, returned oldest-first for display. (Ascending + take kept the
+    // oldest 200, so long conversations stopped showing new messages after a reload.)
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 200,
   });
 
-  res.json({ messages });
+  res.json({ messages: messages.reverse() });
 });
 
-dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
+dmsRouter.post("/threads/:threadId/messages", messageRateLimit, async (req, res) => {
   const parsed = messageSchema.safeParse(req.body);
   if (!parsed.success) {
     res
       .status(400)
       .json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
     return;
   }
 
@@ -311,6 +321,25 @@ dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
     res.status(403).json({ error: "Not a participant" });
     return;
   }
+  // A block between the two people in a 1:1 conversation stops new messages either way.
+  const others = await prisma.directMessageParticipant.findMany({ where: { threadId, NOT: { userId: req.user!.id } }, select: { userId: true } });
+  if (others.length === 1) {
+    const blocked = await prisma.friend.findFirst({
+      where: {
+        status: "BLOCKED",
+        OR: [
+          { senderId: req.user!.id, receiverId: others[0].userId },
+          { senderId: others[0].userId, receiverId: req.user!.id },
+        ],
+      },
+      select: { id: true },
+    });
+    if (blocked) {
+      res.status(403).json({ error: "You can't message this player" });
+      return;
+    }
+  }
+
 
   const message = await prisma.directMessage.create({
     data: {
@@ -353,4 +382,50 @@ dmsRouter.post("/threads/:threadId/messages", async (req, res) => {
   for (const participant of participants) getIo().to(`user:${participant.userId}`).emit("dm:activity", { threadId, messageId: message.id, authorId: req.user!.id });
 
   res.status(201).json({ message });
+});
+
+const editDmSchema = z.object({ content: z.string().min(1).max(4000) });
+
+/** Author-only: load a DM the caller wrote, in a thread they're still part of. */
+async function ownDm(userId: string, messageId: string) {
+  const message = await prisma.directMessage.findUnique({ where: { id: messageId }, select: { id: true, threadId: true, authorId: true } });
+  if (!message || message.authorId !== userId) return null;
+  const participant = await prisma.directMessageParticipant.findUnique({ where: { threadId_userId: { threadId: message.threadId, userId } }, select: { id: true } });
+  return participant ? message : null;
+}
+
+dmsRouter.patch("/messages/:messageId", messageRateLimit, async (req, res) => {
+  const parsed = editDmSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    return;
+  }
+  const tooLong = await messageLengthProblem(req.user!.id, parsed.data.content);
+  if (tooLong) {
+    res.status(402).json(tooLong);
+    return;
+  }
+  const own = await ownDm(req.user!.id, String(req.params.messageId));
+  if (!own) {
+    res.status(403).json({ error: "You can only edit your own messages" });
+    return;
+  }
+  const message = await prisma.directMessage.update({
+    where: { id: own.id },
+    data: { content: xss(parsed.data.content.trim()), edited: true },
+    include: { author: { select: { id: true, username: true, avatar: true, premium: true } } },
+  });
+  getIo().to(`dm:${own.threadId}`).emit("dm:message:updated", { threadId: own.threadId, message });
+  res.json({ message });
+});
+
+dmsRouter.delete("/messages/:messageId", async (req, res) => {
+  const own = await ownDm(req.user!.id, String(req.params.messageId));
+  if (!own) {
+    res.status(403).json({ error: "You can only delete your own messages" });
+    return;
+  }
+  await prisma.directMessage.delete({ where: { id: own.id } });
+  getIo().to(`dm:${own.threadId}`).emit("dm:message:deleted", { threadId: own.threadId, messageId: own.id });
+  res.status(204).send();
 });

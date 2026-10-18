@@ -5,9 +5,9 @@ import { jackpotRefundReference, jackpotTicketReference, jackpotWinReference } f
 import { createNotification } from "./notifications.js";
 import { prisma } from "./prisma.js";
 
-// Hourly Vexora Coin jackpot.
+// Hourly Nexus Forge Coin jackpot.
 //
-// Vexora Coins are earn-only: they are never sold for money and can't be cashed out.
+// Nexus Forge Coins are earn-only: they are never sold for money and can't be cashed out.
 // That is what keeps this a game rather than real-money gambling. If coins ever become
 // purchasable or redeemable, this feature needs a legal review before that ships.
 //
@@ -189,7 +189,7 @@ async function announce(outcome: SettleOutcome) {
   } else if (outcome.kind === "won") {
     await Promise.all(outcome.players.map((userId) =>
       createNotification(userId === outcome.winnerId
-        ? { userId, type: "SYSTEM", title: `You won Jackpot #${outcome.roundNumber}!`, body: `${outcome.payout.toLocaleString("en-US")} Vexora Coins are in your wallet.`, data: { kind: "jackpot" } }
+        ? { userId, type: "SYSTEM", title: `You won Jackpot #${outcome.roundNumber}!`, body: `${outcome.payout.toLocaleString("en-US")} Nexus Forge Coins are in your wallet.`, data: { kind: "jackpot" } }
         : { userId, type: "SYSTEM", title: `Jackpot #${outcome.roundNumber} drawn`, body: "Not this time. A new round is open now.", data: { kind: "jackpot" } }).catch(() => undefined),
     ));
   }

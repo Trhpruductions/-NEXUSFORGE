@@ -1,4 +1,4 @@
-$report = Get-Content "var\stability-report-24h.json" | ConvertFrom-Json
+﻿$report = Get-Content "var\stability-report-24h.json" | ConvertFrom-Json
 Write-Host ""
 Write-Host "CHECKPOINT STABILITY SUMMARY" -ForegroundColor Cyan
 Write-Host ""

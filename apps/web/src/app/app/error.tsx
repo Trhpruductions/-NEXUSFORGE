@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RefreshCcw, Terminal, ShieldAlert } from "lucide-react";
+import { RefreshCcw, Terminal, ShieldAlert } from "lucide-react";
 
 export default function GlobalAppError({
   error,
@@ -17,7 +17,7 @@ export default function GlobalAppError({
 
   return (
     <div className="relative flex h-full items-center justify-center overflow-hidden bg-slate-950 p-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.12)_0%,_transparent_70%)] animate-pulse" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(99,192,255,0.12)_0%,_transparent_70%)] animate-pulse" />
       
       <div className="relative z-10 w-full max-w-xl space-y-8 rounded-[28px] border border-slate-700/70 bg-slate-900/80 p-12 shadow-[0_24px_60px_rgba(15,23,42,0.1)] backdrop-blur-xl">
         <div className="flex items-center gap-6">
@@ -66,7 +66,7 @@ export default function GlobalAppError({
         <div className="flex items-center justify-between border-t border-slate-700/70 pt-6 opacity-60">
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
             <Terminal className="w-3 h-3" />
-            Vexora Gaming recovery mode
+            Nexus Forge Gaming recovery mode
           </div>
           <span className="text-[10px] font-semibold text-slate-500">Code: 0xRECOVER</span>
         </div>

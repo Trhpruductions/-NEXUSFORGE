@@ -13,7 +13,7 @@ function RegularUserAccessView() {
     <ExperienceShell
       eyebrow="Regular User Workspace"
       title="This Area Is Built For Admin Operations"
-      subtitle="Your account is fully active for community, mining, rewards, and profile features. Admin governance tools remain restricted to administrator roles."
+      subtitle="Your account is fully active for community, rewards, and profile features. Admin governance tools remain restricted to administrator roles."
       metrics={[
         { label: "Access", value: "User Workspace", tone: "emerald" },
         { label: "Admin Console", value: "Restricted", tone: "amber" },
@@ -65,7 +65,8 @@ export default function AdminPage() {
         offset: 0,
         status: "blocked",
       }),
-    enabled: Boolean(accessToken && csrfToken),
+    // Only staff can see the review queue; don't ask for it on behalf of everyone else.
+    enabled: Boolean(accessToken && csrfToken && user?.isAdmin),
     staleTime: 30_000,
   });
 
@@ -136,6 +137,10 @@ export default function AdminPage() {
         { label: "Open Workspace", href: "/app", tone: "ghost" },
         { label: `Age Gate Review${pendingAgeGateCount > 0 ? ` (${pendingAgeGateCount})` : ""}` , href: "/admin/age-gate-review", tone: "primary" },
         { label: "ID Review Queue", href: "/admin/age-verification", tone: "ghost" },
+        { label: "Legal Documents", href: "/admin/legal", tone: "ghost" },
+        { label: "Reported Messages", href: "/admin/reports", tone: "ghost" },
+        { label: "Problem Reports", href: "/admin/problem-reports", tone: "ghost" },
+        { label: "Error Log", href: "/admin/errors", tone: "ghost" },
         { label: "Review Notifications", href: "/notifications", tone: "ghost" },
       ]}
       maxWidthClassName="max-w-7xl"

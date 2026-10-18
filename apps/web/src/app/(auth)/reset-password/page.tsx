@@ -1,7 +1,13 @@
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { ResetPasswordClient } from "@/components/auth/reset-password-client";
+
+export const metadata: Metadata = {
+  title: "Choose a new password",
+  description: "Use the reset token from your email to set a new Nexus Forge Gaming password.",
+};
 
 export default async function ResetPasswordPage({ searchParams }: any) {
   const token = (await searchParams)?.token ?? "";
@@ -15,7 +21,7 @@ export default async function ResetPasswordPage({ searchParams }: any) {
             Redeem your reset token and restore access.
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Enter the one-time code from your recovery flow, set a fresh password, and return to Vexora Gaming.
+            Enter the one-time code from your recovery flow, set a fresh password, and return to Nexus Forge Gaming.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-3">
             <article className="nexus-metric-card auth-hero-card rounded-[20px] px-3 py-2">
@@ -36,9 +42,9 @@ export default async function ResetPasswordPage({ searchParams }: any) {
               <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200">Token validation</p>
               <p className="mt-2 text-sm text-slate-400">The reset token links your recovery action to your account securely.</p>
             </div>
-            <div className="glass-cut rounded-[20px] border border-cyan-200 bg-cyan-50 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-700">Secure restore</p>
-              <p className="mt-2 text-sm text-cyan-800">Choose a strong new password and get back into command flow.</p>
+            <div className="glass-cut auth-hero-card rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-sky-300">Secure restore</p>
+              <p className="mt-2 text-sm text-slate-400">Choose a strong new password and get back into the app.</p>
             </div>
           </div>
         </>

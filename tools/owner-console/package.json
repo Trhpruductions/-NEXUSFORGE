@@ -1,0 +1,14 @@
+{
+  "name": "nexusforge-owner-console",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Read-only owner control room for Nexus Forge Gaming, bound to 127.0.0.1. Writes only to its own triage store in ./data.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

@@ -7,6 +7,7 @@ import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
+import { messageRateLimit } from "../middleware/rate-limit.js";
 
 /** Follows, posts/clips, and the public profile summary used by the Profile page. */
 export const socialRouter = Router();
@@ -23,7 +24,7 @@ const createPostSchema = z.object({
 
 const postInclude = {
   author: { select: { id: true, username: true, displayName: true, avatar: true, isStaff: true, isPartner: true, isCreator: true } },
-  _count: { select: { likes: true } },
+  _count: { select: { likes: true, comments: true } },
 } as const;
 
 async function attachLiked<T extends { id: string }>(posts: T[], userId: string) {
@@ -86,7 +87,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       ? null
       : await prisma.friend.findFirst({
           where: { OR: [{ senderId: req.user!.id, receiverId: userId }, { senderId: userId, receiverId: req.user!.id }] },
-          select: { id: true, status: true, senderId: true },
+          select: { id: true, status: true, senderId: true, blockedById: true },
         });
   const [isFollowing, followsYou, reputationAccount] = await Promise.all([
     userId === req.user!.id
@@ -118,7 +119,12 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,
-    friendship: friendship ? { id: friendship.id, status: friendship.status, incoming: friendship.senderId === userId } : null,
+    // Someone else's block on you is theirs: you just see no relationship.
+    friendship:
+      friendship && !(friendship.status === "BLOCKED" && friendship.blockedById && friendship.blockedById !== req.user!.id)
+        ? { id: friendship.id, status: friendship.status, incoming: friendship.senderId === userId }
+        : null,
+    blockedByMe: Boolean(friendship && friendship.status === "BLOCKED" && friendship.blockedById === req.user!.id),
   });
 });
 
@@ -144,7 +150,7 @@ socialRouter.post("/follow/:userId", async (req, res) => {
     res.status(400).json({ error: "You cannot follow yourself" });
     return;
   }
-  const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true } });
+  const target = await prisma.user.findUnique({ where: { id: targetId, deletedAt: null }, select: { id: true } });
   if (!target) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -213,17 +219,23 @@ socialRouter.get("/posts", async (req, res) => {
     authorFilter = { in: [...following.map((entry) => entry.followingId), req.user!.id] };
   }
 
-  const posts = await prisma.post.findMany({
+  // Cursor paging for the feed: pass the last post's id as ?cursor= to get older posts.
+  const cursor = typeof req.query.cursor === "string" && /^[0-9a-f-]{36}$/i.test(req.query.cursor) ? req.query.cursor : undefined;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+
+  const rows = await prisma.post.findMany({
     where: {
       ...(authorFilter ? { authorId: authorFilter } : {}),
       ...(kind ? { kind } : {}),
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: postInclude,
   });
+  const posts = rows.slice(0, limit);
 
-  res.json({ posts: await attachLiked(posts, req.user!.id) });
+  res.json({ posts: await attachLiked(posts, req.user!.id), nextCursor: rows.length > limit ? posts[posts.length - 1].id : null });
 });
 
 socialRouter.post("/posts", async (req, res) => {
@@ -280,16 +292,91 @@ socialRouter.post("/posts/:id/like", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Comments on posts
+// ---------------------------------------------------------------------------
+
+const commentAuthorSelect = { id: true, username: true, displayName: true, avatar: true, isStaff: true } as const;
+const commentSchema = z.object({ content: z.string().trim().min(1).max(1000) });
+
+function canModerate(role: string | undefined) {
+  return role === "ADMIN" || role === "OWNER" || role === "EXEC";
+}
+
+socialRouter.get("/posts/:id/comments", async (req, res) => {
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const comments = await prisma.postComment.findMany({
+    where: { postId: post.id },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+    include: { author: { select: commentAuthorSelect } },
+  });
+  res.json({ comments });
+});
+
+socialRouter.post("/posts/:id/comments", messageRateLimit, async (req, res) => {
+  const parsed = commentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Write a comment (up to 1,000 characters)." });
+    return;
+  }
+  const post = await prisma.post.findUnique({ where: { id: req.params.id }, select: { id: true, authorId: true, content: true } });
+  if (!post) {
+    res.status(404).json({ error: "Post not found" });
+    return;
+  }
+  const comment = await prisma.postComment.create({
+    data: { postId: post.id, authorId: req.user!.id, content: xss(parsed.data.content) },
+    include: { author: { select: commentAuthorSelect } },
+  });
+  if (post.authorId !== req.user!.id) {
+    void createNotification({
+      userId: post.authorId,
+      type: "SYSTEM",
+      title: `@${comment.author.username} commented on your post`,
+      body: comment.content.slice(0, 140),
+      data: { kind: "post-comment", postId: post.id, commentId: comment.id },
+    }).catch(() => undefined);
+  }
+  res.status(201).json({ comment });
+});
+
+/** The commenter, the post's author, or staff can remove a comment. */
+socialRouter.delete("/comments/:id", async (req, res) => {
+  const comment = await prisma.postComment.findUnique({ where: { id: req.params.id }, select: { id: true, authorId: true, post: { select: { authorId: true } } } });
+  if (!comment) {
+    res.status(404).json({ error: "Comment not found" });
+    return;
+  }
+  const allowed = comment.authorId === req.user!.id || comment.post.authorId === req.user!.id || canModerate(req.user!.appRole);
+  if (!allowed) {
+    res.status(403).json({ error: "You can't delete this comment" });
+    return;
+  }
+  await prisma.postComment.delete({ where: { id: comment.id } });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // Presence status chosen by the user (Online / Idle / Do not disturb)
 // ---------------------------------------------------------------------------
 
 socialRouter.put("/status", async (req, res) => {
-  const parsed = z.object({ status: z.enum(["ONLINE", "IDLE", "DND"]) }).safeParse(req.body);
+  const parsed = z.object({ status: z.enum(["ONLINE", "IDLE", "DND", "INVISIBLE"]) }).safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid status" });
     return;
   }
-  const user = await prisma.user.update({ where: { id: req.user!.id }, data: { status: parsed.data.status, lastSeenAt: new Date() }, select: { id: true, status: true } });
+  // Invisible: you're connected, but everyone else sees you offline.
+  const shown = parsed.data.status === "INVISIBLE" ? "OFFLINE" : parsed.data.status;
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { status: shown, chosenStatus: shown, lastSeenAt: new Date() },
+    select: { id: true, status: true },
+  });
   const memberships = await prisma.forgeMember.findMany({ where: { userId: user.id }, select: { forgeId: true } });
   try {
     const io = getIo();
@@ -297,7 +384,7 @@ socialRouter.put("/status", async (req, res) => {
   } catch {
     // realtime not ready
   }
-  res.json({ status: user.status });
+  res.json({ status: user.status, chosen: parsed.data.status });
 });
 
 // ---------------------------------------------------------------------------
@@ -306,9 +393,10 @@ socialRouter.put("/status", async (req, res) => {
 
 const liveSchema = z.object({
   live: z.boolean(),
-  platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Vexora"]).optional(),
+  platform: z.enum(["Twitch", "Kick", "YouTube", "TikTok", "Nexus Forge"]).optional(),
   title: z.string().trim().max(140).optional(),
-  url: z.string().url().optional(),
+  // http(s) only: z.url() alone accepts javascript: links, and this one is shown to followers.
+  url: z.string().url().max(2048).refine((value) => /^https?:\/\//i.test(value), "Use an http(s) link").optional(),
   game: z.string().trim().max(80).optional(),
 });
 
@@ -332,7 +420,7 @@ socialRouter.put("/live", async (req, res) => {
       ? {
           isCreator: true,
           creatorStatus: "LIVE",
-          livePlatform: parsed.data.platform ?? "Vexora",
+          livePlatform: parsed.data.platform ?? "Nexus Forge",
           liveStreamTitle: parsed.data.title || null,
           liveStreamUrl: parsed.data.url || null,
           liveGameCategory: parsed.data.game || null,
@@ -350,12 +438,12 @@ socialRouter.put("/live", async (req, res) => {
   void (async () => {
     if (parsed.data.live && before?.creatorStatus !== "LIVE") {
       await prisma.streamSession.create({
-        data: { userId: user.id, platform: user.livePlatform ?? "Vexora", title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl },
+        data: { userId: user.id, platform: user.livePlatform ?? "Nexus Forge", title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl },
       });
     } else if (parsed.data.live) {
       await prisma.streamSession.updateMany({
         where: { userId: user.id, endedAt: null },
-        data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Vexora" },
+        data: { title: user.liveStreamTitle, game: user.liveGameCategory, url: user.liveStreamUrl, platform: user.livePlatform ?? "Nexus Forge" },
       });
     } else {
       await prisma.streamSession.updateMany({ where: { userId: user.id, endedAt: null }, data: { endedAt: new Date() } });
@@ -373,7 +461,7 @@ socialRouter.put("/live", async (req, res) => {
             userId: entry.followerId,
             type: "LIVE",
             title: `${name} is live`,
-            body: user.liveStreamTitle ? `${user.liveStreamTitle}${user.liveGameCategory ? ` · ${user.liveGameCategory}` : ""}` : `Streaming now on ${user.livePlatform ?? "Vexora"}`,
+            body: user.liveStreamTitle ? `${user.liveStreamTitle}${user.liveGameCategory ? ` · ${user.liveGameCategory}` : ""}` : `Streaming now on ${user.livePlatform ?? "Nexus Forge"}`,
             data: { creatorId: user.id, url: user.liveStreamUrl },
           }).catch(() => undefined),
         ),

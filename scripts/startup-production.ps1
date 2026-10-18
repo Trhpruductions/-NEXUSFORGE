@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Production Startup Script with Pre-Flight Validation
 # Usage: .\scripts\startup-production.ps1 [-AutoFix] [-SkipValidation]
 

@@ -5,10 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import {
-  listDeveloperApiKeys,
-  createDeveloperApiKey,
-  updateDeveloperApiKey,
-  revokeDeveloperApiKey,
   listDeveloperOAuthClients,
   createDeveloperOAuthClient,
   updateDeveloperOAuthClient,
@@ -22,9 +18,6 @@ export default function DeveloperSettingsPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
   const isSignedIn = Boolean(user && accessToken && csrfToken);
   const queryClient = useQueryClient();
-  const [keyName, setKeyName] = useState("");
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [apiSecretCopyStatus, setApiSecretCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const [clientName, setClientName] = useState("");
   const [clientRedirectUris, setClientRedirectUris] = useState("");
   const [createdOauthSecret, setCreatedOauthSecret] = useState<string | null>(null);
@@ -35,27 +28,11 @@ export default function DeveloperSettingsPage() {
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editingClients, setEditingClients] = useState<Record<string, { name: string; redirectUris: string }>>({});
 
-  const keysQuery = useQuery({
-    queryKey: ["developer-api-keys", accessToken],
-    queryFn: () => listDeveloperApiKeys(accessToken!),
-    enabled: isSignedIn,
-    staleTime: 30_000,
-  });
-
   const oauthClientsQuery = useQuery({
     queryKey: ["developer-oauth-clients", accessToken],
     queryFn: () => listDeveloperOAuthClients(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
-  });
-
-  const createKeyMutation = useMutation({
-    mutationFn: async () => createDeveloperApiKey(accessToken!, csrfToken!, { name: keyName }),
-    onSuccess: async (data) => {
-      setKeyName("");
-      setCreatedSecret(data.secret);
-      await queryClient.invalidateQueries({ queryKey: ["developer-api-keys", accessToken] });
-    },
   });
 
   const createOAuthClientMutation = useMutation({
@@ -72,21 +49,6 @@ export default function DeveloperSettingsPage() {
       setClientRedirectUris("");
       setCreatedOauthSecret(data.secret);
       await queryClient.invalidateQueries({ queryKey: ["developer-oauth-clients", accessToken] });
-    },
-  });
-
-  const updateKeyMutation = useMutation({
-    mutationFn: async (payload: { keyId: string; enabled: boolean }) =>
-      updateDeveloperApiKey(accessToken!, csrfToken!, payload.keyId, { enabled: payload.enabled }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-api-keys", accessToken] });
-    },
-  });
-
-  const revokeKeyMutation = useMutation({
-    mutationFn: async (keyId: string) => revokeDeveloperApiKey(accessToken!, csrfToken!, keyId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["developer-api-keys", accessToken] });
     },
   });
 
@@ -189,8 +151,8 @@ export default function DeveloperSettingsPage() {
     <ExperienceShell
       eyebrow="Settings"
       title="Developer settings"
-      subtitle="Manage API keys, webhook secrets, and integration security from one place."
-      metrics={isSignedIn ? [{ label: "API keys", value: String(keysQuery.data?.keys.length ?? 0), tone: "amber" }] : []}
+      subtitle="Register apps that use “Sign in with Nexus Forge” and manage their secrets."
+      metrics={isSignedIn ? [{ label: "OAuth apps", value: String(oauthClientsQuery.data?.clients.length ?? 0), tone: "amber" }] : []}
       actions={[]}
       maxWidthClassName="max-w-5xl"
     >
@@ -199,57 +161,6 @@ export default function DeveloperSettingsPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
           <div className="space-y-6">
-            <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">API key management</p>
-              <h2 className="mt-4 text-2xl font-semibold text-white">Create a new API key</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-400">Generate a key for your integrations and keep your secret safe. You will only see the secret once.</p>
-
-              <div className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-sm text-slate-400">
-                  Key name
-                  <input
-                    value={keyName}
-                    onChange={(event) => setKeyName(event.target.value)}
-                    placeholder="My integration key"
-                    className="w-full rounded-[20px] border border-white/10 bg-[#0d1119] px-4 py-3 text-sm text-white outline-none focus:border-amber-300"
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={!keyName.trim() || createKeyMutation.isPending}
-                  onClick={() => void createKeyMutation.mutateAsync()}
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {createKeyMutation.isPending ? "Creating key..." : "Generate API key"}
-                </button>
-                {createdSecret ? (
-                  <div className="rounded-[24px] border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-800">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-emerald-900">API key secret</p>
-                        <p className="mt-2 break-all text-white">{createdSecret}</p>
-                        <p className="mt-2 text-xs text-slate-500">Save this secret now. It will not be shown again.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void copyText(createdSecret, setApiSecretCopyStatus)}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-amber-400 px-4 text-xs font-semibold text-slate-950 transition hover:bg-[#0d1119]"
-                      >
-                        {apiSecretCopyStatus === "copied"
-                          ? "Copied"
-                          : apiSecretCopyStatus === "failed"
-                          ? "Copy failed"
-                          : "Copy secret"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-                {createKeyMutation.isError ? (
-                  <p className="text-sm text-rose-300">Failed to create the key. Please try again.</p>
-                ) : null}
-              </div>
-            </section>
-
             <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
               <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">OAuth client management</p>
               <h2 className="mt-4 text-2xl font-semibold text-white">Create a new OAuth client</h2>
@@ -311,53 +222,6 @@ export default function DeveloperSettingsPage() {
               </div>
             </section>
           </div>
-
-          <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Your API keys</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Active credentials</h2>
-            <div className="mt-6 space-y-3">
-              {keysQuery.isLoading ? (
-                <p className="text-sm text-slate-400">Loading your API keys...</p>
-              ) : keysQuery.data?.keys.length ? (
-                keysQuery.data.keys.map((key) => (
-                  <div key={key.id} className="rounded-[24px] border border-white/10 bg-[#0d1119] p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-white">{key.name}</p>
-                        <p className="mt-1 text-xs text-slate-400">Created {new Date(key.createdAt).toLocaleDateString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-3 py-1 text-xs uppercase tracking-[0.24em] ${key.enabled ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-white/10 bg-amber-400 text-slate-400"}`}>
-                          {key.enabled ? "Enabled" : "Disabled"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void updateKeyMutation.mutateAsync({ keyId: key.id, enabled: !key.enabled })}
-                          className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-amber-400 px-4 text-xs font-semibold text-slate-950 transition hover:bg-[#0d1119]"
-                        >
-                          {key.enabled ? "Disable" : "Enable"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm("Revoke this API key? This action cannot be undone.")) {
-                              void revokeKeyMutation.mutateAsync(key.id);
-                            }
-                          }}
-                          className="inline-flex h-10 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/10 px-4 text-xs font-semibold text-rose-200 transition hover:bg-rose-100"
-                        >
-                          Revoke
-                        </button>
-                      </div>
-                    </div>
-                    {key.lastUsedAt ? <p className="mt-3 text-xs text-slate-500">Last used {new Date(key.lastUsedAt).toLocaleString()}</p> : null}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-400">No API keys created yet. Generate one to get started.</p>
-              )}
-            </div>
-          </section>
 
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[10px] uppercase tracking-[0.28em] text-sky-300">OAuth clients</p>

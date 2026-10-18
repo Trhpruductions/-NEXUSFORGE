@@ -5,9 +5,11 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
-import { listBotCatalog, listDeveloperApiKeys, listDeveloperOAuthClients, listMyBots, createBotApp } from "@/lib/api";
+import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp, listPublicDeveloperBots, listPublicDeveloperUpdates } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
+import { DeveloperIntro } from "@/components/developer/developer-intro";
+import { DeveloperUpdates, PublicBots } from "@/components/developer/developer-public-sections";
 
 export default function DeveloperPortalPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
@@ -18,16 +20,22 @@ export default function DeveloperPortalPage() {
   const [botDescription, setBotDescription] = useState("");
   const [botCopyStatuses, setBotCopyStatuses] = useState<Record<string, CopyStatus>>({});
 
-  const myBotsQuery = useQuery({
-    queryKey: ["developer-my-bots", accessToken],
-    queryFn: () => listMyBots(accessToken!),
-    enabled: isSignedIn,
+  // Public: anyone can read the updates and public bots, with or without an account.
+  const updatesQuery = useQuery({
+    queryKey: ["public-developer-updates"],
+    queryFn: () => listPublicDeveloperUpdates(),
+    staleTime: 60_000,
+  });
+  const publicBotsQuery = useQuery({
+    queryKey: ["public-developer-bots"],
+    queryFn: () => listPublicDeveloperBots(),
+    enabled: !isSignedIn,
     staleTime: 30_000,
   });
 
-  const apiKeysQuery = useQuery({
-    queryKey: ["developer-api-keys", accessToken],
-    queryFn: () => listDeveloperApiKeys(accessToken!),
+  const myBotsQuery = useQuery({
+    queryKey: ["developer-my-bots", accessToken],
+    queryFn: () => listMyBots(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
   });
@@ -61,10 +69,9 @@ export default function DeveloperPortalPage() {
   });
 
   const totalApps = myBotsQuery.data?.bots.length ?? 0;
-  const totalApiKeys = apiKeysQuery.data?.keys.length ?? 0;
   const totalOAuthClients = oauthClientsQuery.data?.clients.length ?? 0;
   const totalListings = catalogQuery.data?.bots.length ?? 0;
-  const loading = myBotsQuery.isLoading || catalogQuery.isLoading || apiKeysQuery.isLoading || oauthClientsQuery.isLoading;
+  const loading = myBotsQuery.isLoading || catalogQuery.isLoading || oauthClientsQuery.isLoading;
 
   const copyInviteCode = async (inviteCode: string, botId: string) => {
     try {
@@ -80,13 +87,12 @@ export default function DeveloperPortalPage() {
   return (
     <ExperienceShell
       eyebrow="Developer Portal"
-      title="Build and manage your Vexora Gaming integrations"
-      subtitle="Create bots, manage API tools, and monitor developer activity from one streamlined portal."
+      title="Build and manage your Nexus Forge Gaming integrations"
+      subtitle="Create bots, register apps that use “Sign in with Nexus Forge”, and set up webhooks."
       metrics={
         isSignedIn
           ? [
               { label: "Your Applications", value: totalApps.toString(), tone: "amber" },
-              { label: "API keys", value: totalApiKeys.toString(), tone: "cyan" },
               { label: "OAuth clients", value: totalOAuthClients.toString(), tone: "emerald" },
               { label: "Marketplace listings", value: totalListings.toString(), tone: "emerald" },
             ]
@@ -107,13 +113,18 @@ export default function DeveloperPortalPage() {
       }
       maxWidthClassName="max-w-5xl"
     >
+      <DeveloperIntro />
+      <DeveloperUpdates data={updatesQuery.data} loading={updatesQuery.isLoading} failed={updatesQuery.isError} />
       {!isSignedIn ? (
-        <GuestAuthCallout
-          title="Developer tools require a Vexora Gaming account."
-          description="Sign in to access bot creation, API key management, slash commands, and integration analytics."
-          loginHref="/login?redirect=/developer"
-          registerHref="/register?redirect=/developer"
-        />
+        <>
+          <PublicBots data={publicBotsQuery.data} loading={publicBotsQuery.isLoading} failed={publicBotsQuery.isError} />
+          <GuestAuthCallout
+            title="Sign in to build with Nexus Forge Gaming."
+            description="Create bots, set up slash commands, register apps for Sign in with Nexus Forge, and manage webhooks. Reading the updates and public bots needs no account."
+            loginHref="/login?redirect=/developer"
+            registerHref="/register?redirect=/developer"
+          />
+        </>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.25fr_0.9fr]">
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
@@ -170,7 +181,7 @@ export default function DeveloperPortalPage() {
                     <input
                       value={botName}
                       onChange={(event) => setBotName(event.target.value)}
-                      placeholder="e.g. Vexora Gaming Helper"
+                      placeholder="e.g. Nexus Forge Gaming Helper"
                         className="w-full rounded-[20px] border border-white/10 bg-[#0d1119] px-4 py-3 text-sm text-white outline-none transition focus:border-amber-300"
                     />
                   </label>
@@ -244,12 +255,12 @@ export default function DeveloperPortalPage() {
 
           <section className="rounded-[28px] border border-white/10 bg-[#11151e] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
             <p className="text-[10px] uppercase tracking-[0.28em] text-amber-300">Marketplace preview</p>
-            <h2 className="mt-4 text-2xl font-semibold text-white">Live integration listings</h2>
+            <h2 className="mt-4 text-2xl font-semibold text-white">Public bots</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">Browse public bot apps and discover how other developers publish their work.</p>
 
             <div className="mt-6 space-y-3">
               {loading ? (
-                <p className="text-sm text-slate-400">Loading marketplace preview...</p>
+                <p className="text-sm text-slate-400">Loading public bots...</p>
               ) : catalogQuery.data?.bots.length ? (
                 catalogQuery.data.bots.slice(0, 5).map((bot) => (
                   <div key={bot.id} className="rounded-[24px] border border-white/10 bg-[#0d1119] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]">
@@ -274,16 +285,16 @@ export default function DeveloperPortalPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-slate-400">No marketplace listings are available right now.</p>
+                <p className="text-sm text-slate-400">No public bots yet. Create one above and make it public.</p>
               )}
             </div>
 
             <div className="mt-8 rounded-[24px] border border-white/10 bg-[#0d1119] p-5">
               <p className="text-sm text-white">Developer resources</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                <li>• API keys and webhook configuration are available in the Developer settings.</li>
-                <li>• Slash command creation and permissions management.</li>
-                <li>• Analytics, logs, and bot publishing tools.</li>
+                <li>• Bots with preset commands that server owners can install.</li>
+                <li>• &quot;Sign in with Nexus Forge&quot; (OAuth) for your own apps and sites.</li>
+                <li>• Webhooks that tell your server when your bots are created, installed or used.</li>
               </ul>
             </div>
           </section>

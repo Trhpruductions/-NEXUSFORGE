@@ -4,8 +4,42 @@ import { prisma } from "../lib/prisma.js";
 import { hashPassword, comparePassword } from "../lib/password.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { issueCode, verifyCode } from "../lib/verification.js";
+import { issueCode, maskEmail, verifyCode } from "../lib/verification.js";
+import { PASSWORD_REQUIRED, confirmCurrentPassword, sendSecurityAlert } from "../lib/reauth.js";
 import { grantWelcomeBonus, WELCOME_BONUS } from "../lib/rewards.js";
+import { sha256 } from "../lib/jwt.js";
+import { HHMM, isValidTimeZone } from "../lib/quiet-hours.js";
+import { emailOptInSchema } from "../lib/email-policy.js";
+import { REFRESH_COOKIE_NAME } from "./auth.routes.js";
+import { disconnectUserSockets } from "../lib/realtime.js";
+
+const REFRESH_COOKIE = REFRESH_COOKIE_NAME;
+
+type SessionRow = {
+  id: string; tokenHash: string; createdAt: Date; expiresAt: Date;
+  signedInAt: Date | null; lastUsedAt: Date | null; deviceLabel: string | null; ipPrefix: string | null;
+};
+
+/**
+ * Active sessions for the settings page. "Current" is decided by the refresh cookie the
+ * request carries, not by recency: the newest session is often another device.
+ */
+function describeSessions(rows: SessionRow[], refreshCookie: string | undefined) {
+  const currentHash = refreshCookie ? sha256(refreshCookie) : null;
+  return rows
+    .map((row) => ({
+      id: row.id,
+      current: row.tokenHash === currentHash,
+      deviceLabel: row.deviceLabel ?? "Unknown device",
+      ipPrefix: row.ipPrefix,
+      // Rows issued before sessions were tracked only know when they were last rotated.
+      signedInAt: row.signedInAt ?? row.createdAt,
+      lastUsedAt: row.lastUsedAt ?? row.createdAt,
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    }))
+    .sort((a, b) => Number(b.current) - Number(a.current) || b.lastUsedAt.getTime() - a.lastUsedAt.getTime());
+}
 
 /** Account, privacy, and linked-account settings for the signed-in user. */
 export const settingsRouter = Router();
@@ -25,6 +59,13 @@ export const privacySchema = z.object({
 
 export type PrivacySettings = z.infer<typeof privacySchema>;
 
+export const HOME_WIDGET_IDS = ["hero", "stats", "event", "activity", "creators", "live", "actions", "posts", "jackpot"] as const;
+
+// Appearance & Sounds. The web app holds the matching theme definitions (apps/web/src/lib/appearance/themes.ts).
+export const THEME_IDS = ["forge-dark", "midnight-neon", "cyber-grid", "ember-forge", "frost", "aurora", "minimal-dark", "high-contrast"] as const;
+export const LOADING_STYLES = ["forge", "pulse", "minimal"] as const;
+export const SOUND_PACKS = ["forge", "soft"] as const;
+
 export const preferencesSchema = z.object({
   notifications: z
     .object({
@@ -36,6 +77,14 @@ export const preferencesSchema = z.object({
       system: z.boolean().default(true),
       sounds: z.boolean().default(true),
       push: z.boolean().default(true),
+      quietHours: z
+        .object({
+          enabled: z.boolean().default(false),
+          start: z.string().regex(HHMM).default("22:00"),
+          end: z.string().regex(HHMM).default("08:00"),
+          timeZone: z.string().refine(isValidTimeZone, "Unknown time zone").default("UTC"),
+        })
+        .prefault({}),
     })
     .prefault({}),
   appearance: z
@@ -45,6 +94,28 @@ export const preferencesSchema = z.object({
       fontScale: z.enum(["small", "default", "large"]).default("default"),
       reduceMotion: z.boolean().default(false),
       showAvatarsInChat: z.boolean().default(true),
+      theme: z.enum(THEME_IDS).default("forge-dark"),
+      // "full" plays every animation, "subtle" stops the looping decorative ones, "off" stops all of them.
+      animation: z.enum(["full", "subtle", "off"]).default("full"),
+      decorativeEffects: z.boolean().default(true),
+      noFlashing: z.boolean().default(false),
+      seasonal: z.boolean().default(true),
+      loadingStyle: z.enum(LOADING_STYLES).default("forge"),
+      easterEggs: z.boolean().default(true),
+    })
+    .prefault({}),
+  // Sound effects. Message and notification sounds stay under notifications.sounds.
+  sounds: z
+    .object({
+      enabled: z.boolean().default(true),
+      volume: z.number().int().min(0).max(100).default(70),
+      pack: z.enum(SOUND_PACKS).default("forge"),
+      voice: z.boolean().default(true),
+      screenShare: z.boolean().default(true),
+      // Clicks and confirmations are off until the person turns them on.
+      ui: z.boolean().default(false),
+      seasonal: z.boolean().default(true),
+      easterEggs: z.boolean().default(true),
     })
     .prefault({}),
   voice: z
@@ -57,6 +128,20 @@ export const preferencesSchema = z.object({
       noiseSuppression: z.boolean().default(true),
       echoCancellation: z.boolean().default(true),
       cameraDeviceId: z.string().max(200).nullable().default(null),
+    })
+    .prefault({}),
+  // Optional email (product announcements, release notes, promotions). Every flag is OFF until the
+  // person opts in. Essential mail (codes, security notices) is not controlled here.
+  email: emailOptInSchema.prefault({}),
+  // Home dashboard layout: widget order (within each column) and visibility. An empty
+  // list means "default layout"; the client appends any widget missing from it.
+  home: z
+    .object({
+      widgets: z
+        .array(z.object({ id: z.enum(HOME_WIDGET_IDS), visible: z.boolean() }))
+        .max(HOME_WIDGET_IDS.length)
+        .refine((list) => new Set(list.map((w) => w.id)).size === list.length, "Duplicate widget")
+        .default([]),
     })
     .prefault({}),
 });
@@ -121,7 +206,12 @@ settingsRouter.get("/", async (req, res) => {
       privacySettings: true,
       preferences: true,
       createdAt: true,
-      refreshTokens: { where: { revokedAt: null }, select: { id: true, createdAt: true, expiresAt: true }, orderBy: { createdAt: "desc" }, take: 10 },
+      refreshTokens: {
+        where: { revokedAt: null, expiresAt: { gt: new Date() } },
+        select: { id: true, tokenHash: true, createdAt: true, expiresAt: true, signedInAt: true, lastUsedAt: true, deviceLabel: true, ipPrefix: true },
+        orderBy: { createdAt: "desc" },
+        take: 25,
+      },
     },
   });
   if (!user) {
@@ -147,7 +237,7 @@ settingsRouter.get("/", async (req, res) => {
     privacy: privacy.success ? privacy.data : privacySchema.parse({}),
     preferences: parsePreferences(user.preferences),
     linkedAccounts: (user.socialLinks as Record<string, string | null> | null) ?? {},
-    sessions: user.refreshTokens,
+    sessions: describeSessions(user.refreshTokens, req.cookies?.[REFRESH_COOKIE] as string | undefined),
     twoFactor: { enabled: user.twoFactorEnabled, available: true },
   });
 });
@@ -178,13 +268,19 @@ settingsRouter.patch("/account", async (req, res) => {
     res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
     return;
   }
-  if (parsed.data.email) {
+  const previous = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true, username: true } });
+  const emailChanging = Boolean(parsed.data.email && previous && parsed.data.email.toLowerCase() !== previous.email);
+  if (emailChanging) {
+    if (!(await confirmCurrentPassword(req.user!.id, req.body?.password))) {
+      res.status(403).json(PASSWORD_REQUIRED);
+      return;
+    }
     const gate = await requireSensitiveCode(req.user!.id, typeof req.body?.code === "string" ? req.body.code : undefined);
     if (!gate.ok) {
       res.status(403).json({ error: gate.error, needsCode: gate.needsCode });
       return;
     }
-    const taken = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase(), id: { not: req.user!.id } }, select: { id: true } });
+    const taken = await prisma.user.findFirst({ where: { email: parsed.data.email!.toLowerCase(), id: { not: req.user!.id } }, select: { id: true } });
     if (taken) {
       res.status(409).json({ error: "That email is already in use" });
       return;
@@ -194,13 +290,18 @@ settingsRouter.patch("/account", async (req, res) => {
     where: { id: req.user!.id },
     data: {
       displayName: parsed.data.displayName === undefined ? undefined : parsed.data.displayName || null,
-      email: parsed.data.email?.toLowerCase(),
-      emailVerified: parsed.data.email ? false : undefined,
+      email: emailChanging ? parsed.data.email!.toLowerCase() : undefined,
+      emailVerified: emailChanging ? false : undefined,
+      // A reset link already emailed to the old address stops working.
+      ...(emailChanging ? { resetToken: null, resetTokenExpires: null } : {}),
       bio: parsed.data.bio === undefined ? undefined : parsed.data.bio || null,
       clanTag: parsed.data.clanTag === undefined ? undefined : parsed.data.clanTag || null,
     },
     select: { id: true, username: true, displayName: true, email: true, emailVerified: true, bio: true, clanTag: true },
   });
+  if (emailChanging && previous) {
+    sendSecurityAlert(previous.email, previous.username, `Your account email was changed from this address to ${maskEmail(user.email)}.`);
+  }
   res.json({ account: user });
 });
 
@@ -228,7 +329,10 @@ settingsRouter.put("/preferences", async (req, res) => {
   const merged = {
     notifications: { ...base.notifications, ...(incoming.notifications ?? {}) },
     appearance: { ...base.appearance, ...(incoming.appearance ?? {}) },
+    sounds: { ...base.sounds, ...(incoming.sounds ?? {}) },
     voice: { ...base.voice, ...(incoming.voice ?? {}) },
+    home: { ...base.home, ...(incoming.home ?? {}) },
+    email: { ...base.email, ...(incoming.email ?? {}) },
   };
   const parsed = preferencesSchema.safeParse(merged);
   if (!parsed.success) {
@@ -281,7 +385,25 @@ settingsRouter.post("/password", async (req, res) => {
     // Sign out every other device.
     prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
+  // The other devices' sockets close now; this one stays connected.
+  void disconnectUserSockets(req.user!.id, { reason: "password_changed", exceptAccessJti: req.user!.jti }).catch((error) =>
+    console.error("[SETTINGS] socket revocation failed", error),
+  );
   res.json({ ok: true, message: "Password updated. Other sessions were signed out." });
+});
+
+/** Signs out every session except the one making the request. */
+settingsRouter.delete("/sessions", async (req, res) => {
+  const cookie = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  const result = await prisma.refreshToken.updateMany({
+    where: { userId: req.user!.id, revokedAt: null, ...(cookie ? { NOT: { tokenHash: sha256(cookie) } } : {}) },
+    data: { revokedAt: new Date() },
+  });
+  // Every other device's sockets close; the device that asked stays connected.
+  void disconnectUserSockets(req.user!.id, { reason: "signed_out_everywhere", exceptAccessJti: req.user!.jti }).catch((error) =>
+    console.error("[SETTINGS] socket revocation failed", error),
+  );
+  res.json({ ok: true, signedOut: result.count });
 });
 
 settingsRouter.delete("/sessions/:id", async (req, res) => {

@@ -29,8 +29,8 @@ const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] p
 const steps = ["Avatar", "Community", "Friends", "Done"] as const;
 
 const skinTones = ["#f5d0b0", "#e8b894", "#d9a577", "#c48a5a", "#a66a3f", "#7a4a2b", "#5b3520", "#3f2417"];
-const hairColors = ["#22d3ee", "#e6b325", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a"];
-const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#4c1d95", "#e6b325", "#e2e8f0", "#0f766e"];
+const hairColors = ["#22d3ee", "#2ea4ff", "#f472b6", "#a855f7", "#ef4444", "#10b981", "#f8fafc", "#0f172a"];
+const outfitColors = ["#111318", "#1d4ed8", "#7f1d1d", "#334155", "#4c1d95", "#2ea4ff", "#e2e8f0", "#0f766e"];
 
 function pick<T>(list: readonly T[]): T {
   return list[Math.floor(Math.random() * list.length)];
@@ -44,14 +44,15 @@ function randomConfig(): AvatarConfig {
     hairColor: pick(hairColors),
     hairLength: Math.floor(Math.random() * 100),
     eyes: pick(["sharp", "round", "calm", "visor"] as const),
-    eyeColor: pick(["#38bdf8", "#22c55e", "#a855f7", "#e6b325", "#ef4444"]),
+    eyeColor: pick(["#38bdf8", "#22c55e", "#a855f7", "#2ea4ff", "#ef4444"]),
     face: pick(["focused", "neutral", "smirk", "grin"] as const),
     accessory: pick(["none", "shades", "headset", "mask", "bandana"] as const),
     topColor: pick(outfitColors),
     bottomColor: pick(outfitColors),
     shoeColor: pick(outfitColors),
-    accent: pick(["#e6b325", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]),
+    accent: pick(["#2ea4ff", "#22d3ee", "#f472b6", "#a855f7", "#22c55e"]),
     background: pick(["city", "forge", "void", "arena"] as const),
+    outfit: "base",
   };
 }
 
@@ -125,14 +126,14 @@ export function WelcomeWizard() {
   }, [discoverQuery.data]);
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[#070a10] text-slate-100">
-      <Image src="/brand/vexora-gaming-poster-gold.png" alt="" fill priority className="object-cover opacity-20" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(230,179,37,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,16,0.55),#070a10_70%)]" />
-      <main className="relative mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-4 py-8 sm:px-6">
+    <div className="relative min-h-app overflow-hidden bg-[#070a10] text-slate-100">
+      <Image src="/brand/nexusforge-logo-full.png" alt="" fill priority className="object-cover opacity-20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(46,164,255,0.18),transparent_38%),linear-gradient(180deg,rgba(7,10,16,0.55),#070a10_70%)]" />
+      <main className="relative mx-auto flex min-h-app w-full max-w-4xl flex-col px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/brand/vexora-mark-gold-256.png" alt="Vexora Gaming" width={40} height={40} className="h-10 w-10" />
-            <span className="nf-heading text-sm font-bold uppercase tracking-[0.28em] text-amber-300">Vexora Gaming</span>
+            <Image src="/brand/nexusforge-emblem-256.png" alt="Nexus Forge Gaming" width={40} height={40} className="h-10 w-10" />
+            <span className="nf-heading text-sm font-bold uppercase tracking-[0.28em] text-amber-300">Nexus Forge Gaming</span>
           </div>
           <ol className="flex items-center gap-2">
             {steps.map((label, index) => (
@@ -275,12 +276,12 @@ export function WelcomeWizard() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-amber-300">You are set</p>
               <h1 className="nf-heading mt-2 text-2xl font-bold text-white">Built for gamers. Connected by community.</h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-                One last thing once you are in: verify your email and phone under Settings so nobody can take your account. The banner at the top of the app will walk you through it.
+                One last thing once you are in: verify your email and turn on two-factor under Settings so nobody can take your account. The banner at the top of the app will walk you through it.
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <button type="button" onClick={() => setStep(2)} className={ghostBtn}>Back</button>
                 <button type="button" onClick={() => finishMutation.mutate()} disabled={finishMutation.isPending} className={goldBtn}>
-                  {finishMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Enter Vexora
+                  {finishMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Enter Nexus Forge
                 </button>
               </div>
             </div>

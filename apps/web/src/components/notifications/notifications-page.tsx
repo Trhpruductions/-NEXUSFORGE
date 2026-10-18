@@ -3,14 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Bell, Calendar, Check, CheckCheck, Loader2, MessageSquare, Radio, ShieldAlert, UserPlus, Users } from "lucide-react";
+import { AtSign, Bell, Calendar, Check, CheckCheck, MessageSquare, Radio, ShieldAlert, UserPlus, Users } from "lucide-react";
+import { LoadingNote } from "@/components/ui/loading-note";
 import { listNotifications, markNotificationsRead, type NotificationItem } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+import { plainText } from "@/lib/plain-text";
 
 type Filter = "all" | "unread" | "mentions" | "friends" | "system";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const ghostBtn = "inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-amber-400/50 disabled:opacity-50";
 
 const typeMeta: Record<NotificationItem["type"], { icon: typeof Bell; tone: string; label: string }> = {
@@ -112,7 +114,7 @@ export function NotificationsPage() {
           </div>
 
           {query.isLoading ? (
-            <p className="flex items-center gap-2 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</p>
+            <LoadingNote label="Loading..." onRetry={() => void query.refetch()} />
           ) : items.length ? (
             <ul className="space-y-1.5">
               {items.map((item) => {
@@ -127,7 +129,7 @@ export function NotificationsPage() {
                         <span className="rounded border border-white/10 px-1.5 text-[9px] uppercase tracking-[0.12em] text-slate-500">{meta.label}</span>
                         {!item.read ? <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> : null}
                       </div>
-                      <p className="text-xs text-slate-400">{item.body}</p>
+                      <p className="text-xs text-slate-400">{plainText(item.body)}</p>
                       <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-600">{timeAgo(item.createdAt)}</p>
                     </div>
                     {!item.read ? (

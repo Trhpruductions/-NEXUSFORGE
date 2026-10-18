@@ -19,7 +19,7 @@ export async function processDiscordCommand(interaction: DiscordInteraction) {
   const commandName = interaction.data?.name;
 
   if (commandName === "ping") {
-    return reply("Pong from Vexora Gaming interactions webhook.");
+    return reply("Pong from Nexus Forge Gaming interactions webhook.");
   }
 
   if (commandName === "app") {
@@ -30,7 +30,7 @@ export async function processDiscordCommand(interaction: DiscordInteraction) {
   if (commandName === "status") {
     const snapshot = await getOpsSummarySnapshot();
     return reply({
-      content: snapshot.lines[0] || "Vexora Gaming API: online",
+      content: snapshot.lines[0] || "Nexus Forge Gaming API: online",
       embeds: [snapshot.embed],
     });
   }

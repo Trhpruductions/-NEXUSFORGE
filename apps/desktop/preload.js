@@ -3,7 +3,12 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("nexusforgeDesktop", {
   platform: process.platform,
   runtime: "electron",
+  // What this version can do, so the website can show only what works here (1.0.16+).
+  features: ["popouts", "titlebar", "window-reset"],
+  resetWindowLayout: () => ipcRenderer.invoke("nexusforge-desktop:reset-window-layout"),
   getStartupHealth: () => ipcRenderer.invoke("nexusforge-desktop:get-startup-health"),
+  // Splash screen buttons only ("minimize" or "close"); main.js ignores it from any other window.
+  splashControl: (action) => ipcRenderer.send("nexusforge-desktop:splash-control", action === "close" ? "close" : "minimize"),
   getLocalStackStatus: () => ipcRenderer.invoke("nexusforge-desktop:get-local-stack-status"),
   getUpdateState: () => ipcRenderer.invoke("nexusforge-desktop:get-update-state"),
   getPricingCatalog: () => ipcRenderer.invoke("nexusforge-desktop:get-pricing-catalog"),

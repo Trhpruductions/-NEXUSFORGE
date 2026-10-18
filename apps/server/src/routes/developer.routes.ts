@@ -2,17 +2,10 @@ import { randomBytes, createHash } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { safePostJson } from "../lib/link-preview.js";
+import { webhookHeaders } from "../lib/webhooks.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-
-const createApiKeySchema = z.object({
-  name: z.string().min(2).max(80),
-});
-
-const updateApiKeySchema = z.object({
-  name: z.string().min(2).max(80).optional(),
-  enabled: z.boolean().optional(),
-});
 
 const createWebhookSchema = z.object({
   url: z.string().url(),
@@ -42,111 +35,6 @@ const updateOAuthClientSchema = z.object({
 export const developerRouter = Router();
 
 developerRouter.use(requireAuth);
-
-developerRouter.get("/keys", async (req, res) => {
-  const keys = await prisma.apiKey.findMany({
-    where: { userId: req.user!.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.json({ keys });
-});
-
-developerRouter.post("/keys", requireCsrf, async (req, res) => {
-  const parsed = createApiKeySchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
-    return;
-  }
-
-  const secret = randomBytes(32).toString("hex");
-  const secretHash = createHash("sha256").update(secret).digest("hex");
-
-  const apiKey = await prisma.apiKey.create({
-    data: {
-      userId: req.user!.id,
-      name: parsed.data.name,
-      secretHash,
-      enabled: true,
-    },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.status(201).json({ apiKey, secret });
-});
-
-developerRouter.patch("/keys/:keyId", requireCsrf, async (req, res) => {
-  const parsed = updateApiKeySchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
-    return;
-  }
-
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { id: req.params.keyId },
-    select: { id: true, userId: true },
-  });
-
-  if (!apiKey) {
-    res.status(404).json({ error: "API key not found" });
-    return;
-  }
-
-  if (apiKey.userId !== req.user!.id) {
-    res.status(403).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const updated = await prisma.apiKey.update({
-    where: { id: apiKey.id },
-    data: {
-      ...(parsed.data.name ? { name: parsed.data.name } : {}),
-      ...(parsed.data.enabled !== undefined ? { enabled: parsed.data.enabled } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      lastUsedAt: true,
-      createdAt: true,
-    },
-  });
-
-  res.json({ apiKey: updated });
-});
-
-developerRouter.delete("/keys/:keyId", requireCsrf, async (req, res) => {
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { id: req.params.keyId },
-    select: { id: true, userId: true },
-  });
-
-  if (!apiKey) {
-    res.status(404).json({ error: "API key not found" });
-    return;
-  }
-
-  if (apiKey.userId !== req.user!.id) {
-    res.status(403).json({ error: "Unauthorized" });
-    return;
-  }
-
-  await prisma.apiKey.delete({ where: { id: apiKey.id } });
-  res.status(204).send();
-});
 
 developerRouter.get("/oauth-clients", async (req, res) => {
   const clients = await prisma.oAuthClient.findMany({
@@ -420,44 +308,27 @@ developerRouter.post("/webhooks/:webhookId/test", requireCsrf, async (req, res) 
     event: "webhook.test",
     timestamp: new Date().toISOString(),
     subscriptionId: webhook.id,
-    message: "This is a test payload from Vexora Gaming webhook delivery.",
+    message: "This is a test payload from Nexus Forge Gaming webhook delivery.",
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
   try {
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-NexusForge-Webhook-Event": "webhook.test",
-        "X-NexusForge-Webhook-Subscription-Id": webhook.id,
-      },
-      body: JSON.stringify(payload),
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    // Guarded like real deliveries: public http(s) addresses only, no redirects.
+    const response = await safePostJson(webhook.url, JSON.stringify(payload), webhookHeaders("webhook.test", webhook.id), 10000);
 
-    const responseText = await response.text();
-
-    if (!response.ok) {
-      res.status(502).json({
-        error: "Webhook delivery failed",
-        status: response.status,
-        statusText: response.statusText,
-        response: responseText.slice(0, 1000),
-      });
+    if (!response) {
+      res.status(502).json({ error: "Webhook delivery failed", details: "The URL couldn't be reached, or points to a private or local address (only public http/https on ports 80 and 443 are allowed)." });
+      return;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      res.status(502).json({ error: "Webhook delivery failed", status: response.status, response: response.text.slice(0, 1000) });
       return;
     }
 
-    res.json({ ok: true, status: response.status, response: responseText.slice(0, 1000) });
+    res.json({ ok: true, status: response.status, response: response.text.slice(0, 1000) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Webhook test delivery failed:", message);
     res.status(502).json({ error: "Webhook test delivery failed", details: message });
-  } finally {
-    clearTimeout(timeoutId);
   }
 });
 

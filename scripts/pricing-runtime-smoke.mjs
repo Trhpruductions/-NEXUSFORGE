@@ -93,8 +93,9 @@ async function loginAdmin() {
   };
 }
 
-async function verifyRevenueContract(catalogInfo, auth) {
-  const { response, json, text } = await fetchJson(`${apiBaseUrl}/api/admin/revenue`, {
+// Financial data lives in the owner console on this PC, not on the website. The website must not serve it.
+async function verifyRevenueNotOnWebsite(auth) {
+  const { response, text } = await fetchJson(`${apiBaseUrl}/api/admin/revenue`, {
     method: "GET",
     headers: {
       authorization: `Bearer ${auth.accessToken}`,
@@ -102,41 +103,17 @@ async function verifyRevenueContract(catalogInfo, auth) {
     },
   });
 
-  assert(response.ok, `Admin revenue failed (${response.status}): ${text.slice(0, 300)}`);
-  assert(Array.isArray(json?.featureRevenue), "Revenue payload missing featureRevenue array");
-
-  for (const row of json.featureRevenue) {
-    assert(typeof row.featureCode === "string", "featureRevenue row missing featureCode");
-    assert(typeof row.revenueCents === "number", `featureRevenue.${row.featureCode} missing revenueCents`);
-    assert(typeof row.transactions === "number", `featureRevenue.${row.featureCode} missing transactions`);
-
-    if (catalogInfo.expectedFeatures.includes(row.featureCode)) {
-      assert(typeof row.featureLabel === "string" && row.featureLabel.length > 0, `featureRevenue.${row.featureCode} missing featureLabel`);
-      assert(
-        row.priceLabel === null || typeof row.priceLabel === "string",
-        `featureRevenue.${row.featureCode} priceLabel must be string or null`,
-      );
-
-      const expectedLabel = catalogInfo.catalogLabelByFeature[row.featureCode];
-      if (typeof expectedLabel === "string") {
-        assert(row.featureLabel === expectedLabel, `featureRevenue.${row.featureCode} featureLabel mismatch`);
-      }
-    }
-  }
-
-  return {
-    rows: json.featureRevenue.length,
-  };
+  assert(response.status === 404, `Website still serves revenue (${response.status}): ${text.slice(0, 200)}`);
 }
 
 async function main() {
   const catalogInfo = await verifyCatalog();
   const auth = await loginAdmin();
-  const revenueResult = await verifyRevenueContract(catalogInfo, auth);
+  await verifyRevenueNotOnWebsite(auth);
 
   console.log("[pricing-smoke] catalog endpoint: ok");
   console.log(`[pricing-smoke] admin auth: ok (${auth.username})`);
-  console.log(`[pricing-smoke] admin revenue contract: ok (rows=${revenueResult.rows})`);
+  console.log("[pricing-smoke] revenue is not served by the website: ok");
 }
 
 main().catch((error) => {

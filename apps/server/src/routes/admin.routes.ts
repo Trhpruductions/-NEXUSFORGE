@@ -1,10 +1,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { env } from "../config/env.js";
+import { safeUser } from "../lib/safe-user.js";
 import {
   buildSampleGenerationConflictResponse,
   buildSampleGenerationCooldownResponse,
@@ -14,6 +16,7 @@ import {
   SAMPLE_PROFILE_GENERATION_STALE_MS,
 } from "../lib/profile-tool-generation.js";
 import {
+  appRoleRank,
   canAssignRole,
   canModifyTarget,
   hasAdminAccess,
@@ -21,11 +24,14 @@ import {
   resolveEffectiveRole,
 } from "../lib/app-roles.js";
 import { getLaunchMode, setLaunchModeDesktopOnly } from "../lib/launch-mode.js";
-import { getRemotePricingCatalog } from "../lib/pricing-catalog-client.js";
 import type { AppRole } from "../lib/app-roles.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
+import { cachedSuspension, describeSuspension, liftSuspension, suspendAccount, SUSPENSION_MAX_DAYS, SUSPENSION_REASON_MAX } from "../lib/account-suspension.js";
+import { confirmVacBan, issueVacBan, listVacBans, vacBanTargetUserId } from "../lib/vac-bans.js";
+import { VAC_EVIDENCE_MAX } from "../lib/account-suspension.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
+import { adminAnalytics, ANALYTICS_RANGES, type AnalyticsRange } from "../lib/admin-analytics.js";
 
 export const adminRouter = Router();
 
@@ -46,6 +52,10 @@ const manualBadgeKeySchema = z.enum([
   "moderator",
   "admin",
   "owner",
+  "beta-user",
+  "member",
+  "verified-member",
+  "rep",
 ]);
 
 const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> = {
@@ -58,6 +68,10 @@ const manualBadgeMedalMap: Record<z.infer<typeof manualBadgeKeySchema>, string> 
   moderator: "badge-moderator",
   admin: "badge-admin",
   owner: "badge-owner",
+  "beta-user": "badge-beta-user",
+  member: "badge-member",
+  "verified-member": "badge-verified-member",
+  rep: "badge-rep",
 };
 
 const manualBadgeReverseMap = Object.entries(manualBadgeMedalMap).reduce<Record<string, z.infer<typeof manualBadgeKeySchema>>>(
@@ -69,7 +83,7 @@ const manualBadgeReverseMap = Object.entries(manualBadgeMedalMap).reduce<Record<
 );
 
 const sampleMedalCatalog = [
-  { key: "founding-member", name: "Founding Member", description: "Early supporter of Vexora Gaming.", icon: "🏛" },
+  { key: "founding-member", name: "Founding Member", description: "Early supporter of Nexus Forge Gaming.", icon: "🏛" },
   { key: "forge-commander", name: "Forge Commander", description: "Leads high-signal communities.", icon: "🛡" },
   { key: "signal-booster", name: "Signal Booster", description: "Maintains a strong Core+ streak.", icon: "⚡" },
   { key: "legendary-builder", name: "Legendary Builder", description: "Built and scaled a thriving forge.", icon: "🏗" },
@@ -349,6 +363,13 @@ adminRouter.get("/summary", async (_req, res) => {
   });
 });
 
+/** Daily growth, activity and coin-economy series for the last 7, 30 or 90 days. */
+adminRouter.get("/analytics", async (req, res) => {
+  const requested = Number(req.query.days);
+  const range = (ANALYTICS_RANGES as readonly number[]).includes(requested) ? (requested as AnalyticsRange) : 30;
+  res.json(await adminAnalytics(range));
+});
+
 adminRouter.get("/live-users", async (req, res) => {
   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
   const users = await prisma.user.findMany({
@@ -365,113 +386,6 @@ adminRouter.get("/live-users", async (req, res) => {
   });
 
   res.json({ users });
-});
-
-adminRouter.get("/revenue", async (_req, res) => {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-
-  const [
-    succeededTransactions,
-    succeededTransactionsPreviousWindow,
-    transactionByFeature,
-    activeSubscriptions,
-    activeUsersByTier,
-    failedPayments,
-  ] = await Promise.all([
-    prisma.paymentTransaction.findMany({
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      select: {
-        amountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.findMany({
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
-      },
-      select: {
-        amountCents: true,
-      },
-    }),
-    prisma.paymentTransaction.groupBy({
-      by: ["featureCode"],
-      where: {
-        status: "SUCCEEDED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-      _sum: { amountCents: true },
-      _count: { _all: true },
-    }),
-    prisma.billingSubscription.count({
-      where: {
-        status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] },
-      },
-    }),
-    prisma.user.groupBy({
-      by: ["premiumTier"],
-      where: {
-        premium: true,
-        premiumTier: { not: "NONE" },
-      },
-      _count: { _all: true },
-    }),
-    prisma.paymentTransaction.count({
-      where: {
-        status: "FAILED",
-        createdAt: { gte: thirtyDaysAgo },
-      },
-    }),
-  ]);
-
-  const revenueCents = succeededTransactions.reduce((sum, row) => sum + row.amountCents, 0);
-  const previousRevenueCents = succeededTransactionsPreviousWindow.reduce((sum, row) => sum + row.amountCents, 0);
-
-  const growthPct =
-    previousRevenueCents > 0
-      ? Number((((revenueCents - previousRevenueCents) / previousRevenueCents) * 100).toFixed(2))
-      : revenueCents > 0
-        ? 100
-        : 0;
-
-  const tierDistribution = {
-    CORE: 0,
-    PLUS: 0,
-    ELITE: 0,
-    INFINITE: 0,
-  };
-
-  for (const row of activeUsersByTier) {
-    if (row.premiumTier in tierDistribution) {
-      tierDistribution[row.premiumTier as keyof typeof tierDistribution] = row._count._all;
-    }
-  }
-
-  const pricingCatalog = await getRemotePricingCatalog();
-  const paidFeatureLabels = pricingCatalog?.paidFeatureLabels ?? {};
-  const paidFeaturePrices = pricingCatalog?.paidFeaturePrices ?? {};
-
-  res.json({
-    revenue: {
-      last30DaysCents: revenueCents,
-      previous30DaysCents: previousRevenueCents,
-      growthPct,
-      activeSubscriptions,
-      failedPayments,
-    },
-    tierDistribution,
-    featureRevenue: transactionByFeature.map((row) => ({
-      featureCode: row.featureCode,
-      featureLabel: paidFeatureLabels[row.featureCode] ?? row.featureCode,
-      priceLabel: paidFeaturePrices[row.featureCode] ?? null,
-      revenueCents: row._sum.amountCents ?? 0,
-      transactions: row._count._all,
-    })),
-  });
 });
 
 adminRouter.get("/users", async (req, res) => {
@@ -521,6 +435,174 @@ adminRouter.get("/users", async (req, res) => {
       manualBadges: user.medals
         .map((entry) => manualBadgeReverseMap[entry.medal.key])
         .filter((value): value is z.infer<typeof manualBadgeKeySchema> => Boolean(value)),
+      suspension: (() => {
+        const active = cachedSuspension(user.id);
+        return active ? describeSuspension(active) : null;
+      })(),
+    })),
+  });
+});
+
+// ---------------------------------------------------------------- suspensions
+const suspendSchema = z.object({
+  reason: z.string().trim().min(3).max(SUSPENSION_REASON_MAX),
+  /** null = until lifted */
+  days: z.number().int().min(1).max(SUSPENSION_MAX_DAYS).nullable(),
+});
+const liftSchema = z.object({ note: z.string().trim().max(SUSPENSION_REASON_MAX).optional() });
+
+/** Staff can only suspend accounts ranked below them, and never their own. */
+async function suspensionTargets(req: Request, res: Response, userId: string = String(req.params.id)) {
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: req.user!.id }, select: { id: true, appRole: true, isAdmin: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { id: true, username: true, appRole: true, isAdmin: true, deletedAt: true } }),
+  ]);
+  if (!actor) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  if (!target || target.deletedAt) {
+    res.status(404).json({ error: "User not found" });
+    return null;
+  }
+  if (actor.id === target.id) {
+    res.status(400).json({ error: "You can't suspend your own account" });
+    return null;
+  }
+  const actorRole = resolveEffectiveRole(actor.appRole as AppRole | null, actor.isAdmin);
+  const targetRole = resolveEffectiveRole(target.appRole as AppRole | null, target.isAdmin);
+  if (appRoleRank[targetRole] >= appRoleRank[actorRole]) {
+    res.status(403).json({ error: "You can only suspend accounts ranked below you" });
+    return null;
+  }
+  return { actor, target };
+}
+
+adminRouter.post("/users/:id/suspend", async (req, res) => {
+  const parsed = suspendSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give a reason (3 to 500 characters) and a length", details: parsed.error.flatten() });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const entry = await suspendAccount({ actorId: targets.actor.id, userId: targets.target.id, reason: parsed.data.reason, days: parsed.data.days });
+  if (!entry) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  console.log(`[SUSPENSION] ${targets.actor.id} suspended ${targets.target.id} (${parsed.data.days ?? "until lifted"} days)`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, suspension: describeSuspension(entry) });
+});
+
+const vacSchema = z.object({
+  reason: z.string().trim().min(3).max(SUSPENSION_REASON_MAX),
+  category: z.enum(["SCAM", "HARASSMENT", "SPAM", "EXPLOIT", "OTHER"]),
+  /** null = until staff lift it */
+  days: z.number().int().min(1).max(SUSPENSION_MAX_DAYS).nullable(),
+  evidence: z.string().trim().max(VAC_EVIDENCE_MAX).optional(),
+});
+const vacReviewSchema = z.object({
+  decision: z.enum(["CONFIRM", "LIFT"]),
+  note: z.string().trim().max(SUSPENSION_REASON_MAX).optional(),
+});
+
+/** Active VAC bans, with automatic bans waiting for review first. */
+adminRouter.get("/vac-bans", async (_req, res) => {
+  res.json({ bans: await listVacBans() });
+});
+
+/** A staff VAC ban. Staff choose the category and length, and write a short evidence summary (never message text). */
+adminRouter.post("/users/:id/vac-ban", async (req, res) => {
+  const parsed = vacSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Give a reason, a category and a length (or permanent)", details: parsed.error.flatten() });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const entry = await issueVacBan({
+    actorId: targets.actor.id,
+    userId: targets.target.id,
+    category: parsed.data.category,
+    days: parsed.data.days,
+    reason: parsed.data.reason,
+    evidence: parsed.data.evidence || null,
+    automatic: false,
+  });
+  if (!entry) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  console.log(`[VAC] ${targets.actor.id} banned ${targets.target.id} (${parsed.data.category}, ${parsed.data.days ?? "until lifted"} days)`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, ban: describeSuspension(entry) });
+});
+
+/** Staff decide on a VAC ban: CONFIRM keeps an automatic ban, LIFT ends it. Staff can only act on accounts ranked below them. */
+adminRouter.post("/vac-bans/:id/review", async (req, res) => {
+  const parsed = vacReviewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Choose CONFIRM or LIFT", details: parsed.error.flatten() });
+    return;
+  }
+  const banId = String(req.params.id);
+  const userId = await vacBanTargetUserId(banId);
+  if (!userId) {
+    res.status(404).json({ error: "This ban isn't active" });
+    return;
+  }
+  const targets = await suspensionTargets(req, res, userId);
+  if (!targets) return;
+  if (parsed.data.decision === "CONFIRM") {
+    const confirmed = await confirmVacBan(banId);
+    if (!confirmed) {
+      res.status(404).json({ error: "This ban isn't active" });
+      return;
+    }
+    res.json({ ok: true, decision: "CONFIRM" });
+    return;
+  }
+  const lifted = await liftSuspension({ actorId: targets.actor.id, userId, note: parsed.data.note ?? null });
+  if (!lifted) {
+    res.status(404).json({ error: "This ban isn't active" });
+    return;
+  }
+  res.json({ ok: true, decision: "LIFT" });
+});
+
+adminRouter.post("/users/:id/unsuspend", async (req, res) => {
+  const parsed = liftSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  const targets = await suspensionTargets(req, res);
+  if (!targets) return;
+  const lifted = await liftSuspension({ actorId: targets.actor.id, userId: targets.target.id, note: parsed.data.note ?? null });
+  if (!lifted) {
+    res.status(404).json({ error: "This account isn't suspended" });
+    return;
+  }
+  console.log(`[SUSPENSION] ${targets.actor.id} lifted the suspension on ${targets.target.id}`);
+  res.json({ user: { id: targets.target.id, username: targets.target.username }, suspension: null });
+});
+
+/** Every suspension on an account, newest first (for appeals). */
+adminRouter.get("/users/:id/suspensions", async (req, res) => {
+  const rows = await prisma.accountSuspension.findMany({ where: { userId: req.params.id }, orderBy: { createdAt: "desc" }, take: 50 });
+  const staffIds = Array.from(new Set(rows.flatMap((row) => [row.actorId, row.liftedById]).filter((id): id is string => Boolean(id))));
+  const staff = await prisma.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, username: true } });
+  const nameOf = (id: string | null) => (id ? staff.find((entry) => entry.id === id)?.username ?? "Former staff" : null);
+  res.json({
+    suspensions: rows.map((row) => ({
+      id: row.id,
+      reason: row.reason,
+      since: row.createdAt,
+      until: row.until,
+      by: nameOf(row.actorId),
+      liftedAt: row.liftedAt,
+      liftedBy: nameOf(row.liftedById),
+      liftNote: row.liftNote,
     })),
   });
 });
@@ -797,6 +879,12 @@ adminRouter.post("/profile-tools/reset-generation-lock", async (req, res) => {
 });
 
 adminRouter.post("/profile-tools/generate-sample-data", async (req, res) => {
+  // This writes made-up reputation, medals and activity onto the newest REAL accounts, so it
+  // must never run on the live app. Development databases only.
+  if (env.NODE_ENV === "production") {
+    res.status(403).json({ error: "Sample data can't be generated on the live app: it would change real people's profiles." });
+    return;
+  }
   await markStaleSampleGenerationJobsAsFailed();
 
   const activeJob = await getActiveSampleGenerationJob();
@@ -1085,7 +1173,7 @@ adminRouter.post("/profile-tools/reputation", async (req, res) => {
     },
   );
 
-  res.json({ user: updatedUser });
+  res.json({ user: safeUser(updatedUser) });
 });
 
 adminRouter.get("/profile-tools/audit", async (req, res) => {
@@ -1512,7 +1600,7 @@ adminRouter.post("/users/:userId/creator-config", async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.issues });
@@ -1530,7 +1618,8 @@ const adminLiveStatusSchema = z.object({
   creatorStatus: z.enum(["OFFLINE", "LIVE"]),
   livePlatform: z.string().optional(),
   liveStreamTitle: z.string().optional(),
-  liveStreamUrl: z.string().optional(),
+  // Shown to everyone as a link, so only plain web addresses (never javascript: and the like).
+  liveStreamUrl: z.string().trim().max(500).regex(/^https?:\/\/\S+$/i, "Use an http(s) link").optional(),
   liveGameCategory: z.string().optional(),
   liveViewerCount: z.number().int().optional(),
 });
@@ -1553,7 +1642,7 @@ adminRouter.post("/users/:userId/live-status", async (req, res) => {
       },
     });
 
-    res.json(updated);
+    res.json(safeUser(updated));
   } catch (error) {
     res.status(400).json({ error: "Failed to update live status" });
   }

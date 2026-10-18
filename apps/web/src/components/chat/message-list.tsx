@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CornerUpLeft, Loader2, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { Bookmark, BookmarkCheck, Check, CornerUpLeft, Flag, Loader2, MessagesSquare, Pencil, Pin, PinOff, SmilePlus, Trash2, X } from "lucide-react";
+import { useSavedMessages } from "@/components/chat/use-saved";
 import { UserCard } from "@/components/social/user-card";
 import type { ForgeMemberEntry, ForgeRole, Message } from "@/lib/api";
 import { topRoleFor } from "@/components/chat/member-list";
+import { plainText } from "@/lib/plain-text";
+import { hueFor, tileGradient } from "@/lib/colors";
+import { MessageAttachments } from "@/components/chat/message-attachments";
+import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
+import { CustomEmoji, mentionsReader, RichText, type MentionContext } from "@/components/chat/rich-text";
+import { PollCard } from "@/components/chat/poll-card";
 
 export const quickReactions = ["👍", "❤️", "😂", "🔥", "🎮", "👀"] as const;
 
@@ -23,6 +30,15 @@ type MessageListProps = {
   onDelete: (messageId: string) => Promise<void>;
   onReact: (messageId: string, emoji: string) => void;
   onPin?: (messageId: string, pinned: boolean) => void;
+  /** Report someone else's message to the server's moderators. */
+  onReport?: (message: Message) => void;
+  /** This forge's custom emoji (name -> image URL). */
+  emojis?: Record<string, string>;
+  /** Start a thread from a message, or open the one it already has. */
+  onStartThread?: (message: Message) => void;
+  onOpenThread?: (threadId: string) => void;
+  /** When the reader last read this channel; draws a "New messages" line before anything newer. */
+  lastReadAt?: string | null;
 };
 
 function formatTime(date: string): string {
@@ -68,6 +84,11 @@ export function MessageList({
   onDelete,
   onReact,
   onPin,
+  onReport,
+  onStartThread,
+  onOpenThread,
+  emojis,
+  lastReadAt,
 }: MessageListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
@@ -82,22 +103,45 @@ export function MessageList({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [lastMessageId]);
 
+  const saved = useSavedMessages();
   const memberByUserId = useMemo(() => new Map(members.map((member) => [member.userId, member] as const)), [members]);
+
+  // For mention pills and highlighting: who's reading, the forge's roles, and id -> name.
+  const mentionContext = useMemo<MentionContext & { selfRoleNames: string[] }>(() => {
+    const self = memberByUserId.get(selfId);
+    const roleNameById = new Map(roles.map((role) => [role.id, role.name] as const));
+    return {
+      selfUsername: self?.user.username ?? null,
+      roleNames: roles.map((role) => role.name),
+      usernamesById: Object.fromEntries(members.map((member) => [member.userId, member.user.username])),
+      selfRoleNames: (self?.roleLinks ?? []).map((link) => roleNameById.get(link.roleId)).filter((name): name is string => Boolean(name)),
+      emojis,
+    };
+  }, [memberByUserId, members, roles, selfId, emojis]);
+
+  // First message from someone else that arrived after the last read: the "New" line goes above it.
+  const firstUnreadId = useMemo(() => {
+    if (!lastReadAt) return null;
+    const cutoff = new Date(lastReadAt).getTime();
+    return messages.find((message) => message.authorId !== selfId && !message.optimistic && new Date(message.createdAt).getTime() > cutoff)?.id ?? null;
+  }, [lastReadAt, messages, selfId]);
 
   const authorMeta = (message: Message) => {
     if (message.botId) return { name: message.botName ?? "Bot", color: "#e879f9", nickname: null as string | null };
+    if (message.webhookId) return { name: message.botName ?? "Webhook", color: "#7dd3fc", nickname: null as string | null };
     const member = message.authorId ? memberByUserId.get(message.authorId) : undefined;
     const top = member ? topRoleFor(member, roles, ownerId) : null;
+    // Role color when they have one; otherwise everyone still gets their own color.
     return {
       name: member?.nickname || message.author?.username || "Unknown",
-      color: top?.color ?? "#e2e8f0",
+      color: top?.color ?? hueFor(message.authorId).light,
       nickname: member?.nickname ?? null,
     };
   };
 
   const startEdit = (message: Message) => {
     setEditingId(message.id);
-    setEditDraft(message.content);
+    setEditDraft(plainText(message.content));
     setPickerFor(null);
     setConfirmDeleteId(null);
   };
@@ -132,7 +176,8 @@ export function MessageList({
         const showDay = index === 0 || day !== formatDay(messages[index - 1].createdAt);
         const meta = authorMeta(message);
         const isSelf = message.authorId === selfId;
-        const canEdit = isSelf && !message.botId;
+        // Polls can't be edited: people may already have voted on the question.
+        const canEdit = isSelf && !message.botId && !message.poll && !message.sticker;
         const canDelete = (isSelf || canModerate) && !message.optimistic;
         const isEditing = editingId === message.id;
 
@@ -146,11 +191,17 @@ export function MessageList({
 
         return (
           <div key={message.id}>
+            {message.id === firstUnreadId ? (
+              <div className="my-2 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-rose-400" role="separator" aria-label="New messages">
+                <span className="h-px flex-1 bg-rose-500/60" />
+                New
+              </div>
+            ) : null}
             {showDay ? (
-              <div className="my-2 flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                <span className="h-px flex-1 bg-slate-800" />
-                {day}
-                <span className="h-px flex-1 bg-slate-800" />
+              <div className="my-3 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em]">
+                <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-500/40 to-violet-500/60" />
+                <span className="rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-0.5 text-violet-200">{day}</span>
+                <span className="h-px flex-1 bg-gradient-to-l from-transparent via-cyan-500/40 to-cyan-500/60" />
               </div>
             ) : null}
 
@@ -158,7 +209,9 @@ export function MessageList({
               className={`nf-message group relative rounded-[14px] border px-3 py-2 transition ${
                 message.optimistic
                   ? "border-dashed border-amber-600/60 bg-amber-950/20"
-                  : "border-transparent hover:border-slate-700/70 hover:bg-slate-900/60"
+                  : !isSelf && mentionsReader(message.content, mentionContext)
+                    ? "border-transparent border-l-amber-400 bg-amber-500/[0.07] hover:bg-amber-500/10"
+                    : "border-transparent hover:border-slate-700/70 hover:bg-slate-900/60"
               }`}
             >
               {message.replyTo ? (
@@ -167,7 +220,7 @@ export function MessageList({
                   <span className="shrink-0 font-semibold text-slate-300">
                     {message.replyTo.botName ?? message.replyTo.author?.username ?? "someone"}
                   </span>
-                  <span className="truncate">{message.replyTo.content}</span>
+                  <span className="truncate">{plainText(message.replyTo.content)}</span>
                 </div>
               ) : null}
 
@@ -178,8 +231,8 @@ export function MessageList({
                     <img src={message.botAvatar ?? message.author?.avatar ?? ""} alt="" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
                   ) : (
                     <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[11px] font-semibold"
-                      style={{ color: meta.color }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-[11px] font-bold text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
+                      style={{ background: message.botId ? tileGradient(hueFor("bot")) : message.webhookId ? tileGradient(hueFor(message.webhookId)) : tileGradient(hueFor(message.authorId)) }}
                     >
                       {initials(meta.name)}
                     </span>
@@ -199,6 +252,10 @@ export function MessageList({
                     {message.botId ? (
                       <span className="rounded-[14px] border border-fuchsia-500/40 bg-fuchsia-950/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-fuchsia-200">
                         Bot
+                      </span>
+                    ) : message.webhookId ? (
+                      <span className="rounded-[14px] border border-sky-500/40 bg-sky-950/40 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-sky-200">
+                        Webhook
                       </span>
                     ) : null}
                     <span className="text-[11px]">{formatTime(message.createdAt)}</span>
@@ -231,24 +288,41 @@ export function MessageList({
                         <span>Enter to save, Esc to cancel</span>
                       </div>
                     </div>
+                  ) : message.sticker ? (
+                    <div className="mt-1">
+                      {message.content.trim() ? <RichText content={message.content} context={mentionContext} /> : null}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={message.sticker.imageUrl} alt={`Sticker: ${message.sticker.name}`} title={message.sticker.name} className="h-40 w-40 object-contain" style={{ display: "block" }} />
+                    </div>
+                  ) : message.poll ? (
+                    <PollCard
+                      message={message}
+                      selfId={selfId}
+                      canModerate={canModerate}
+                      nameOf={(userId) => {
+                        const member = memberByUserId.get(userId);
+                        return member?.nickname || member?.user.username || "Former member";
+                      }}
+                    />
                   ) : (
-                    <p className="whitespace-pre-wrap break-words text-sm text-slate-100">{message.content}</p>
+                    <RichText content={message.content} context={mentionContext} />
                   )}
 
-                  {message.attachments?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      {message.attachments.map((url) => (
-                        <a
-                          key={url}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-[14px] border border-amber-600/40 bg-amber-950/40 px-2 py-1 text-amber-200 hover:bg-amber-900/50"
-                        >
-                          Attachment
-                        </a>
-                      ))}
-                    </div>
+                  {message.attachments?.length ? <MessageAttachments urls={message.attachments} /> : null}
+                  {!message.optimistic && !isEditing && !message.poll && !message.attachments?.length && firstLink(message.content) ? <LinkPreviewCard url={firstLink(message.content)!} /> : null}
+                  {message.startedThread ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenThread?.(message.startedThread!.id)}
+                      className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-xs text-violet-100 transition hover:border-violet-300/60"
+                    >
+                      <MessagesSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate font-semibold">{message.startedThread.title}</span>
+                      <span className="shrink-0 text-violet-300/80">
+                        {message.startedThread.messageCount} repl{message.startedThread.messageCount === 1 ? "y" : "ies"}
+                        {message.startedThread.archived ? " · archived" : ""}
+                      </span>
+                    </button>
                   ) : null}
 
                   {reactionGroups.size ? (
@@ -265,7 +339,7 @@ export function MessageList({
                           }`}
                           title={entry.mine ? "Remove your reaction" : "React"}
                         >
-                          <span>{emoji}</span>
+                          <span>{/^:[a-z0-9_]{2,30}:$/.test(emoji) ? <CustomEmoji name={emoji.slice(1, -1)} emojis={emojis} size={16} /> : emoji}</span>
                           <span className="text-[11px]">{entry.count}</span>
                         </button>
                       ))}
@@ -282,9 +356,28 @@ export function MessageList({
                   <button type="button" className={iconBtn} title="Reply" onClick={() => onReply(message)}>
                     <CornerUpLeft className="h-3.5 w-3.5" />
                   </button>
+                  {saved.isSaved("CHANNEL", message.id) ? (
+                    <button type="button" className={iconBtn} title="Remove from saved" aria-label="Remove from saved" onClick={() => saved.setSaved("CHANNEL", message.id, false)}>
+                      <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" />
+                    </button>
+                  ) : (
+                    <button type="button" className={iconBtn} title="Save for later" aria-label="Save for later" onClick={() => saved.setSaved("CHANNEL", message.id, true)}>
+                      <Bookmark className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {canModerate && onPin ? (
                     <button type="button" className={iconBtn} title={message.pinnedAt ? "Unpin" : "Pin"} onClick={() => onPin(message.id, !message.pinnedAt)}>
                       {message.pinnedAt ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                    </button>
+                  ) : null}
+                  {onStartThread && !message.threadId ? (
+                    <button type="button" className={iconBtn} title={message.startedThread ? "Open thread" : "Create thread"} onClick={() => (message.startedThread && onOpenThread ? onOpenThread(message.startedThread.id) : onStartThread(message))}>
+                      <MessagesSquare className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                  {onReport && message.authorId && message.authorId !== selfId ? (
+                    <button type="button" className={iconBtn} title="Report" onClick={() => onReport(message)}>
+                      <Flag className="h-3.5 w-3.5" />
                     </button>
                   ) : null}
                   {canEdit ? (
@@ -328,6 +421,20 @@ export function MessageList({
                       {emoji}
                     </button>
                   ))}
+                  {Object.keys(emojis ?? {}).slice(0, 12).map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      title={`:${name}:`}
+                      className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-slate-800"
+                      onClick={() => {
+                        onReact(message.id, `:${name}:`);
+                        setPickerFor(null);
+                      }}
+                    >
+                      <CustomEmoji name={name} emojis={emojis} size={20} />
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </article>
@@ -335,7 +442,7 @@ export function MessageList({
         );
       })}
 
-      {!messages.length ? <p className="text-sm text-slate-500">No messages yet. Start the channel.</p> : null}
+      {!messages.length ? <p className="text-sm text-slate-500">No messages yet. Say hello and start the conversation.</p> : null}
       <div ref={bottomRef} />
     </div>
   );

@@ -9,12 +9,13 @@ import { getApiErrorMessage, getLiveCreators, getProfileSummary, setLiveStatus, 
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/store/auth-store";
 import { resolveClipEmbed } from "@/components/media/clip-embed";
+import { safeHref } from "@/lib/safe-href";
 
-const panel = "rounded-2xl border border-amber-500/15 bg-[#0d1119] p-4";
+const panel = "vx-panel rounded-2xl p-4";
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
 const goldBtn = "inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-950 transition hover:bg-amber-300 disabled:opacity-50";
 
-const platforms = ["Vexora", "Twitch", "Kick", "YouTube", "TikTok"] as const;
+const platforms = ["Nexus Forge", "Twitch", "Kick", "YouTube", "TikTok"] as const;
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
@@ -45,7 +46,7 @@ function LivePageInner() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
-  const [platform, setPlatform] = useState<(typeof platforms)[number]>("Vexora");
+  const [platform, setPlatform] = useState<(typeof platforms)[number]>("Nexus Forge");
   const [title, setTitle] = useState("");
   const [game, setGame] = useState("");
   const [url, setUrl] = useState("");
@@ -66,7 +67,7 @@ function LivePageInner() {
   const me = meQuery.data?.user;
   const iAmLive = me?.creatorStatus === "LIVE";
 
-  // Watching inside Vexora counts as a real viewer; counts update live for everyone.
+  // Watching inside Nexus Forge counts as a real viewer; counts update live for everyone.
   useEffect(() => {
     if (!accessToken) return;
     const socket = getSocket(accessToken);
@@ -107,7 +108,7 @@ function LivePageInner() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="nf-heading text-xl font-bold text-white">Live Now</h1>
-          <p className="text-xs text-slate-400">Creators streaming right now across Vexora Gaming.</p>
+          <p className="text-xs text-slate-400">Creators streaming right now across Nexus Forge Gaming.</p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-rose-400/40 bg-rose-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-rose-200"><Radio className="h-3.5 w-3.5" /> {creators.length} live</span>
       </div>
@@ -131,7 +132,7 @@ function LivePageInner() {
                 <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_50%_40%,rgba(244,63,94,0.18),transparent_60%),#0b0e15] text-center">
                   <Radio className="h-8 w-8 text-rose-400" />
                   <p className="text-sm text-slate-300">{watching.livePlatform ?? "This platform"} does not allow embedding here.</p>
-                  {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className={goldBtn}>Open on {watching.livePlatform ?? "platform"} <ExternalLink className="h-3 w-3" /></a> : null}
+                  {safeHref(watching.liveStreamUrl) ? <a href={safeHref(watching.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className={goldBtn}>Open on {watching.livePlatform ?? "platform"} <ExternalLink className="h-3 w-3" /></a> : null}
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-3 border-t border-white/5 p-3">
@@ -140,7 +141,7 @@ function LivePageInner() {
                   <p className="truncate text-sm font-semibold text-white">{watching.liveStreamTitle || `${watching.username} is live`}</p>
                   <p className="truncate text-[11px] text-slate-400">{[watching.displayName || watching.username, watching.liveGameCategory, watching.livePlatform].filter(Boolean).join(" · ")} · <Eye className="inline h-3 w-3" /> {compact(watching.liveViewerCount ?? 0)} watching</p>
                 </div>
-                {watching.liveStreamUrl ? <a href={watching.liveStreamUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Open <ExternalLink className="h-3 w-3" /></a> : null}
+                {safeHref(watching.liveStreamUrl) ? <a href={safeHref(watching.liveStreamUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-amber-400/50">Open <ExternalLink className="h-3 w-3" /></a> : null}
                 <button type="button" onClick={() => setWatchingId(null)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-200 hover:border-rose-400/50"><X className="h-3 w-3" /> Close</button>
               </div>
             </div>
@@ -151,7 +152,7 @@ function LivePageInner() {
             <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
               {creators.map((creator) => (
                 <div key={creator.id} className="overflow-hidden rounded-2xl border border-amber-500/15 bg-[#0d1119] transition hover:border-amber-400/50">
-                  <div className="relative h-36 bg-[radial-gradient(circle_at_30%_30%,rgba(230,179,37,0.3),transparent_60%),linear-gradient(160deg,#141a26,#0b0e15)]">
+                  <div className="relative h-36 bg-[radial-gradient(circle_at_30%_30%,rgba(46,164,255,0.3),transparent_60%),linear-gradient(160deg,#141a26,#0b0e15)]">
                     <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded bg-rose-500 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white"><Radio className="h-3 w-3" /> Live</span>
                     <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded bg-black/60 px-1.5 text-[10px] text-white"><Eye className="h-3 w-3" /> {compact(creator.liveViewerCount ?? 0)}</span>
                     <span className="absolute bottom-3 right-3 rounded bg-black/60 px-1.5 text-[10px] text-slate-200">{elapsed(creator.liveStartedAt)}</span>
@@ -206,7 +207,7 @@ function LivePageInner() {
               </button>
             )}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">The viewer count is the number of people watching your stream inside Vexora right now.</p>
+          <p className="mt-3 text-[11px] text-slate-500">The viewer count is the number of people watching your stream inside Nexus Forge right now.</p>
         </aside>
       </div>
     </div>
