@@ -71,3 +71,38 @@ if (uploadDir && fs.existsSync(uploadDir)) {
 for (const name of list(path.join(backupDir, "db"), /\.dump$/).slice(0, -KEEP)) fs.rmSync(path.join(backupDir, "db", name));
 for (const name of list(path.join(backupDir, "uploads"), /^uploads-/).slice(0, -KEEP)) fs.rmSync(path.join(backupDir, "uploads", name), { recursive: true, force: true });
 console.log(`[backup] done (keeping the newest ${KEEP})`);
+
+// 4. Optional encrypted copy off this PC. Off unless BOTH are set (in apps/server/.env or the environment):
+//    BACKUP_OFFSITE_DIR      a folder that leaves this PC, e.g. a cloud-synced folder or a network drive
+//    BACKUP_ENCRYPTION_KEY   32 random bytes, base64 (see scripts/lib/backup-crypto.mjs)
+// A failure here never undoes the local backup above; it is reported and the task exits non-zero.
+const offsiteDir = process.env.BACKUP_OFFSITE_DIR;
+if (offsiteDir && process.env.BACKUP_ENCRYPTION_KEY) {
+  try {
+    const { backupKey, encryptFile } = await import("./lib/backup-crypto.mjs");
+    const key = backupKey();
+    const keepOffsite = Number(process.env.BACKUP_OFFSITE_KEEP || KEEP);
+    fs.mkdirSync(offsiteDir, { recursive: true });
+    await encryptFile(dumpFile, path.join(offsiteDir, `${path.basename(dumpFile)}.enc`), key);
+    if (uploadDir && fs.existsSync(uploadDir)) {
+      // One archive of the uploads folder (Windows' built-in tar), encrypted, then the plain archive is removed.
+      const tarFile = path.join(backupDir, `uploads-${stamp}.tar`);
+      const tar = spawnSync(process.env.TAR_BIN || "C:\\Windows\\System32\\tar.exe", ["-cf", tarFile, "-C", uploadDir, "."], { encoding: "utf8" });
+      if (tar.status !== 0) throw new Error(`tar failed: ${(tar.stderr || tar.error?.message || "").trim()}`);
+      try {
+        await encryptFile(tarFile, path.join(offsiteDir, `uploads-${stamp}.tar.enc`), key);
+      } finally {
+        fs.rmSync(tarFile, { force: true });
+      }
+    }
+    for (const name of list(offsiteDir, /^vexora-.*\.dump\.enc$/).slice(0, -keepOffsite)) fs.rmSync(path.join(offsiteDir, name));
+    for (const name of list(offsiteDir, /^uploads-.*\.tar\.enc$/).slice(0, -keepOffsite)) fs.rmSync(path.join(offsiteDir, name));
+    console.log(`[backup] encrypted off-site copy -> ${offsiteDir} (keeping the newest ${keepOffsite})`);
+  } catch (error) {
+    console.error(`[backup] off-site copy FAILED (the local backup is fine): ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  }
+} else if (offsiteDir || process.env.BACKUP_ENCRYPTION_KEY) {
+  console.error("[backup] off-site copy skipped: set both BACKUP_OFFSITE_DIR and BACKUP_ENCRYPTION_KEY");
+  process.exitCode = 1;
+}
