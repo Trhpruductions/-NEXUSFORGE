@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Exo_2, Orbitron } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { RouteTransition } from "@/components/layout/route-transition";
+import { TitleBarFullscreen } from "@/components/desktop/title-bar-fullscreen";
 import "./globals.css";
 import "./themes.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
+        <TitleBarFullscreen />
         <AppProviders>
           <RouteTransition>{children}</RouteTransition>
         </AppProviders>

@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { verifyAccessToken } from "../lib/jwt.js";
+import { isAppToken, verifyAccessToken } from "../lib/jwt.js";
 import { reportDiscordAlert } from "../lib/discord-bot.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
@@ -43,7 +43,9 @@ const reportSchema = z.object({
 function signedInUserId(header: string | undefined) {
   if (!header?.startsWith("Bearer ")) return null;
   try {
-    return verifyAccessToken(header.slice(7)).sub ?? null;
+    const payload = verifyAccessToken(header.slice(7));
+    // A third-party app can't file reports in someone's name: its token counts as anonymous here.
+    return isAppToken(payload) ? null : payload.sub ?? null;
   } catch {
     return null;
   }

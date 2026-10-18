@@ -7,6 +7,7 @@ import { getMyLimits, getSettings } from "@/lib/api";
 // loaded on demand (it used to ship in the app shell bundle for every page).
 import type { Room } from "livekit-client";
 import { getSocket } from "@/lib/socket";
+import { openPopoutWindows, watchPopoutWindows } from "@/components/popout/popout-window";
 import { useAuthStore } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MeshVoice, type MeshPeer } from "@/components/chat/mesh-voice";
@@ -216,8 +217,10 @@ export function VoiceEngine() {
     meshRef.current?.setPushToTalk(pushToTalk);
     store.setPushToTalk({ enabled: pushToTalk, talking: false });
     if (!pushToTalk) return;
-    const isTyping = () => {
-      const el = document.activeElement as HTMLElement | null;
+    // Typing in a field of whichever window the key was pressed in (the main window or a popout).
+    const isTyping = (event: KeyboardEvent) => {
+      const doc = (event.target as Node | null)?.ownerDocument ?? document;
+      const el = doc.activeElement as HTMLElement | null;
       return Boolean(el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable));
     };
     const set = (talking: boolean) => {
@@ -225,7 +228,7 @@ export function VoiceEngine() {
       useVoiceStore.getState().setPushToTalk({ enabled: true, talking });
     };
     const down = (event: KeyboardEvent) => {
-      if (event.code === "Backquote" && !event.repeat && !isTyping()) {
+      if (event.code === "Backquote" && !event.repeat && !isTyping(event)) {
         event.preventDefault();
         set(true);
       }
@@ -234,13 +237,38 @@ export function VoiceEngine() {
       if (event.code === "Backquote") set(false);
     };
     const blur = () => set(false);
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", blur);
+    // The main window and every open popout: with the voice room popped out, the key is pressed in that window.
+    const attached = new Map<Window, () => void>();
+    const attach = (target: Window) => {
+      if (attached.has(target) || target.closed) return;
+      target.addEventListener("keydown", down);
+      target.addEventListener("keyup", up);
+      target.addEventListener("blur", blur);
+      attached.set(target, () => {
+        try {
+          target.removeEventListener("keydown", down);
+          target.removeEventListener("keyup", up);
+          target.removeEventListener("blur", blur);
+        } catch {
+          // the popout is already gone
+        }
+      });
+    };
+    const sync = () => {
+      attach(window);
+      openPopoutWindows().forEach(attach);
+      for (const [target, detach] of attached) {
+        if (target !== window && target.closed) {
+          detach();
+          attached.delete(target);
+        }
+      }
+    };
+    sync();
+    const stopWatching = watchPopoutWindows(sync);
     return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", blur);
+      stopWatching();
+      attached.forEach((detach) => detach());
       meshRef.current?.setPushToTalk(false);
     };
   }, [pushToTalk, session]);

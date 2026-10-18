@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { verifyAccessToken } from "../lib/jwt.js";
+import { isAppToken, verifyAccessToken } from "../lib/jwt.js";
 
 const isLocalLoopback = (ip?: string) => {
   if (!ip) return false;
@@ -14,7 +14,9 @@ function signedInUserId(req: Request): string | null {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return null;
   try {
-    return verifyAccessToken(header.slice(7)).sub ?? null;
+    const payload = verifyAccessToken(header.slice(7));
+    // A third-party app's token doesn't get the signed-in allowance; it is counted per address like anyone else.
+    return isAppToken(payload) ? null : payload.sub ?? null;
   } catch {
     return null;
   }

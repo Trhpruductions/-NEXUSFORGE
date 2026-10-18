@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
+import { badgeKeysFromRow, profileBadgeSelect } from "../lib/profile-badges.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -75,12 +76,14 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
       createdAt: true,
       lastSeenAt: true,
       _count: { select: { followers: true, following: true, posts: true, medals: true, memberships: true } },
+      ...profileBadgeSelect,
     },
   });
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  const badges = badgeKeysFromRow(user);
 
   const friendship =
     userId === req.user!.id
@@ -115,7 +118,7 @@ socialRouter.get("/users/:userId/summary", async (req, res) => {
   ]);
 
   res.json({
-    user: { ...user, loadout: undefined, points, profileEmote, equippedCosmetics },
+    user: { ...user, loadout: undefined, emailVerified: undefined, medals: undefined, badges, points, profileEmote, equippedCosmetics },
     isSelf: userId === req.user!.id,
     isFollowing,
     followsYou,

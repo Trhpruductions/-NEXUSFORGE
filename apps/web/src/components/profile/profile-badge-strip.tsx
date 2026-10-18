@@ -69,11 +69,13 @@ export function ProfileBadgeStrip({
             alt={`${badge.label} badge`}
             width={resolvedWidth}
             height={resolvedHeight}
-            className={cx("h-6 w-6 object-contain", imageClassName)}
+            className={cx(imageClassName ?? "h-6 w-6", "object-contain")}
+            // A global img rule (height: auto) outranks the size classes, so the icon size is set inline.
+            style={showLabel ? undefined : { width: resolvedWidth, height: resolvedHeight }}
             onError={(event) => {
               event.currentTarget.src = "/brand/profile-badge-vip.png";
             }}
-            sizes={showLabel ? "(max-width: 640px) 100vw, 320px" : "24px"}
+            sizes={showLabel ? "(max-width: 640px) 100vw, 320px" : `${resolvedWidth}px`}
           />
           {showLabel ? <div className={cx("px-3 py-2 text-xs font-semibold text-slate-300", labelClassName)}>{badge.label}</div> : null}
         </div>

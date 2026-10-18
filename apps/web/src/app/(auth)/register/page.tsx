@@ -14,6 +14,7 @@ import { getApiErrorMessage, register as registerApi } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { getRequiredPolicies } from "@/lib/legal-api";
 import { useAuthStore } from "@/store/auth-store";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 const schema = z
   .object({
@@ -30,12 +31,7 @@ const schema = z
 
 type RegisterForm = z.infer<typeof schema>;
 
-function sanitizeRedirectTarget(raw: string | null): string | null {
-  if (!raw) return null;
-  if (!raw.startsWith("/")) return null;
-  if (raw.startsWith("//")) return null;
-  return raw;
-}
+const sanitizeRedirectTarget = safeRedirectPath;
 
 const pillars = [
   { icon: Gamepad2, label: "Play", note: "Squads, scrims and LFG channels." },

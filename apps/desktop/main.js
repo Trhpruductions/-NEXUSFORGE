@@ -2452,6 +2452,15 @@ function createWindow() {
     saveWindowState();
   });
 
+  // The page hides its title bar strip in full screen (Windows hides the window buttons then); tell it when that
+  // changes, whether by F11 or a video's full screen button.
+  // The event says which way it went; isFullScreen() can still report the old state while the event runs.
+  const sendFullScreen = (fullScreen) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("nexusforge-desktop:fullscreen", fullScreen);
+  };
+  mainWindow.on("enter-full-screen", () => sendFullScreen(true));
+  mainWindow.on("leave-full-screen", () => sendFullScreen(false));
+
   // F11 toggles full screen, and is the way back out of it. Only plain F11; other keys go to the page as usual.
   mainWindow.webContents.on("before-input-event", (event, input) => {
     const keyDown = input.type === "keyDown" || input.type === "rawKeyDown";
@@ -2605,6 +2614,10 @@ app.whenReady().then(async () => {
     }
   });
   ipcMain.handle("nexusforge-desktop:get-desktop-preferences", async () => ({ ...desktopPreferences }));
+  ipcMain.handle("nexusforge-desktop:is-fullscreen", async (event) => {
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
+    return mainWindow.isFullScreen();
+  });
   // Settings > Appearance > Layout > Reset layout: the window goes back to its default size, centred on the screen it
   // is on. Only the main window's page may ask.
   ipcMain.handle("nexusforge-desktop:reset-window-layout", async (event) => {

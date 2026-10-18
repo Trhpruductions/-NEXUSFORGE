@@ -212,6 +212,13 @@ body {
     --nf-titlebar-h: 0px;
   }
 }
+/* Electron doesn't report display-mode: fullscreen, so the page marks full screen itself (TitleBarFullscreen). */
+html[data-nf-fullscreen] {
+  --nf-titlebar-h: 0px;
+}
+html[data-nf-fullscreen]::before {
+  display: none;
+}
 html::before {
   content: "Nexus Forge Gaming";
   position: fixed;

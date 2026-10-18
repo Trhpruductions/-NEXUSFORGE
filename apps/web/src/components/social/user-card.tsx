@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,8 @@ import { createDmThread, followUser, getApiErrorMessage, getProfileSummary, send
 import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-renderer";
 import { useAuthStore } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
+import { badgesFromKeys } from "@/lib/brand-badges";
 
 const presence: Record<string, { label: string; dot: string }> = {
   ONLINE: { label: "Online", dot: "bg-emerald-400" },
@@ -19,28 +22,92 @@ const presence: Record<string, { label: string; dot: string }> = {
   OFFLINE: { label: "Offline", dot: "bg-slate-600" },
 };
 
+const EDGE = 8;
+const GAP = 4;
+
 /**
- * Mini profile popover used from chat authors and the member list.
- * Anchored to the trigger; closes on outside click or Escape.
+ * Mini profile popover used from chat authors and the member list. Render it inside the trigger's `relative`
+ * wrapper: it anchors to that wrapper but is drawn over the whole window, so a narrow or scrolling panel (the
+ * member list, the message list) can't cut it off. Opens below the trigger, or above it when there's no room
+ * below. Closes on outside click, Escape, or when the trigger scrolls out of view.
  */
 export function UserCard({ userId, onClose, align = "left" }: { userId: string; onClose: () => void; align?: "left" | "right" }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
   const ref = useRef<HTMLDivElement | null>(null);
+  // Covers the trigger's wrapper: where the card anchors, and which window it belongs to.
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // The member list can be popped out into its own window: the card goes into that window's page, not the main one.
+  useLayoutEffect(() => {
+    setHost(anchorRef.current?.ownerDocument.body ?? null);
+  }, []);
+
+  const place = useCallback(() => {
+    const anchorEl = anchorRef.current;
+    const card = ref.current;
+    const view = anchorEl?.ownerDocument.defaultView;
+    if (!anchorEl || !card || !view) return;
+    const anchor = anchorEl.getBoundingClientRect();
+    const viewWidth = anchorEl.ownerDocument.documentElement.clientWidth || view.innerWidth;
+    const viewHeight = view.innerHeight;
+    if (anchor.bottom < 0 || anchor.top > viewHeight) {
+      onClose();
+      return;
+    }
+    const width = card.offsetWidth;
+    const height = card.offsetHeight;
+    const left = Math.max(EDGE, Math.min(align === "right" ? anchor.right - width : anchor.left, viewWidth - width - EDGE));
+    let top = anchor.bottom + GAP;
+    if (top + height > viewHeight - EDGE) {
+      const above = anchor.top - GAP - height;
+      top = above >= EDGE ? above : Math.max(EDGE, viewHeight - height - EDGE);
+    }
+    setPosition((current) => (current && current.top === top && current.left === left ? current : { top, left }));
+  }, [align, onClose]);
+
+  // Re-measure after every render (the card grows once the profile loads), and follow the trigger on scroll/resize.
+  useLayoutEffect(() => {
+    place();
+  });
+  useEffect(() => {
+    const view = anchorRef.current?.ownerDocument.defaultView;
+    if (!view) return;
+    let frame = 0;
+    const onMove = () => {
+      view.cancelAnimationFrame(frame);
+      frame = view.requestAnimationFrame(place);
+    };
+    view.addEventListener("scroll", onMove, true);
+    view.addEventListener("resize", onMove);
+    return () => {
+      view.cancelAnimationFrame(frame);
+      view.removeEventListener("scroll", onMove, true);
+      view.removeEventListener("resize", onMove);
+    };
+  }, [place]);
 
   useEffect(() => {
     const onDown = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+      const target = event.target as Node;
+      if (ref.current?.contains(target)) return;
+      // A press on the trigger itself is left to its own click, which toggles the card closed.
+      if (anchorRef.current?.parentElement?.contains(target)) return;
+      onClose();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
+    // The document the card is shown in: clicks and keys in a popout window never reach the main window's document.
+    const doc = anchorRef.current?.ownerDocument ?? document;
+    doc.addEventListener("mousedown", onDown);
+    doc.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
+      doc.removeEventListener("mousedown", onDown);
+      doc.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
 
@@ -88,8 +155,13 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
         : "Blocked";
   const friendDisabled = profile?.friendship?.status === "ACCEPTED" || (profile?.friendship?.status === "PENDING" && !profile.friendship.incoming) || profile?.friendship?.status === "BLOCKED";
 
-  return (
-    <div ref={ref} className={`absolute z-40 mt-1 w-72 overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_20px_50px_rgba(0,0,0,0.6)] ${align === "right" ? "right-0" : "left-0"}`}>
+  const card = (
+    <div
+      ref={ref}
+      className="fixed z-50 max-h-[calc(100dvh-16px)] w-72 overflow-y-auto overflow-x-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+      // Measured off-screen first, then shown in place (all before the first paint).
+      style={position ? { top: position.top, left: position.left } : { top: 0, left: 0, visibility: "hidden" }}
+    >
       <div className="relative h-16 bg-[radial-gradient(circle_at_30%_40%,rgba(46,164,255,0.35),transparent_60%),linear-gradient(160deg,#141a26,#0b0e15)]">
         {person?.banner ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -117,6 +189,7 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
           <>
             <p className="mt-2 truncate text-base font-bold text-white">{person.displayName || person.username}</p>
             <p className="truncate text-xs text-slate-400">@{person.username}{person.clanTag ? ` · [${person.clanTag}]` : ""} · {status.label}</p>
+            <ProfileBadgeStrip badges={badgesFromKeys(person.badges)} containerClassName="mt-2" imageWidth={36} imageHeight={36} />
             <div className="mt-2 flex flex-wrap gap-1">
               {person.creatorStatus === "LIVE" ? <span className="inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white"><Radio className="h-3 w-3" /> Live</span> : null}
               {person.ageVerificationLevel === "VERIFIED" ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-emerald-200"><BadgeCheck className="h-3 w-3" /> Verified 18+</span> : null}
@@ -162,5 +235,12 @@ export function UserCard({ userId, onClose, align = "left" }: { userId: string; 
         )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <span ref={anchorRef} aria-hidden="true" className="pointer-events-none absolute inset-0" />
+      {host ? createPortal(card, host) : null}
+    </>
   );
 }

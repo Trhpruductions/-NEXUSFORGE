@@ -3,6 +3,7 @@ import xss from "xss";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { messageLengthProblem } from "../lib/user-limits.js";
+import { groupMemberProblem } from "../lib/dm-groups.js";
 import { createNotification } from "../lib/notifications.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -236,6 +237,23 @@ dmsRouter.post("/groups", async (req, res) => {
     return;
   }
 
+  // Same rule as one-to-one DMs: accepted friends only, and never across a block.
+  const others = uniqueIds.filter((id) => id !== req.user!.id);
+  const relations = await prisma.friend.findMany({
+    where: {
+      OR: [
+        { senderId: req.user!.id, receiverId: { in: others } },
+        { senderId: { in: others }, receiverId: req.user!.id },
+      ],
+    },
+    select: { senderId: true, receiverId: true, status: true },
+  });
+  const problem = groupMemberProblem(req.user!.id, others, relations);
+  if (problem) {
+    res.status(403).json({ error: problem });
+    return;
+  }
+
   const thread = await prisma.directMessageThread.create({
     data: {
       isGroup: true,
@@ -258,6 +276,26 @@ dmsRouter.post("/groups", async (req, res) => {
   });
 
   res.status(201).json({ thread });
+});
+
+/**
+ * Leave a group DM. Until now there was no way out of a group someone else put you in. One-to-one threads
+ * can't be left this way (block the player instead). The thread and its messages stay for the others.
+ */
+dmsRouter.post("/threads/:threadId/leave", async (req, res) => {
+  const threadId = req.params.threadId;
+  const thread = await prisma.directMessageThread.findUnique({ where: { id: threadId }, select: { isGroup: true } });
+  const removed = thread?.isGroup
+    ? await prisma.directMessageParticipant.deleteMany({ where: { threadId, userId: req.user!.id } })
+    : { count: 0 };
+  if (!thread || !removed.count) {
+    res.status(thread && !thread.isGroup ? 400 : 404).json({ error: thread && !thread.isGroup ? "Only group conversations can be left" : "Thread not found" });
+    return;
+  }
+  // Their open sockets stop receiving the group's messages, and the others see who left.
+  getIo().in(`user:${req.user!.id}`).socketsLeave(`dm:${threadId}`);
+  getIo().to(`dm:${threadId}`).emit("dm:left", { threadId, userId: req.user!.id, username: req.user!.username });
+  res.json({ ok: true });
 });
 
 dmsRouter.get("/threads/:threadId/messages", async (req, res) => {

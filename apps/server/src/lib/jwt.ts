@@ -8,7 +8,19 @@ export type AccessTokenPayload = {
   email: string;
   appRole?: "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER";
   jti: string; // Add a unique token ID to prevent reuse if revoked
+  /**
+   * Set only on tokens issued to a third-party app through OAuth (the app's client id). Such tokens never carry
+   * staff powers and are accepted only where app tokens are allowed (see APP_TOKEN_ROUTES in middleware/auth.ts).
+   */
+  cid?: string;
+  /** The scopes the user approved for that app (space-separated), e.g. "identify email". */
+  scope?: string;
 };
+
+/** True for a token issued to a third-party app rather than to Nexus Forge's own website or desktop app. */
+export function isAppToken(payload: AccessTokenPayload): boolean {
+  return typeof payload.cid === "string" && payload.cid.length > 0;
+}
 
 export function signAccessToken(payload: AccessTokenPayload): string {
   return jwt.sign(payload, env.JWT_ACCESS_SECRET, {

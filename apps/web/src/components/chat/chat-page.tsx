@@ -35,6 +35,7 @@ import {
   listPinnedMessages,
   pinMessage,
   markDmThreadRead,
+  leaveDmGroup,
   createDmGroup,
   listFriends,
   type Channel,
@@ -775,6 +776,24 @@ function ChatInner() {
         <>
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-500/15 text-pink-300"><AtSign className="h-4 w-4" /></span>
           <span className="text-sm font-semibold text-white">{dmThread ? dmLabel(dmThread) : "Direct messages"}</span>
+          {dmThread?.isGroup && accessToken && csrfToken ? (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!window.confirm(`Leave ${dmLabel(dmThread)}? You'll stop getting its messages. Someone in the group can't add you back unless you're friends.`)) return;
+                try {
+                  await leaveDmGroup(accessToken, csrfToken, dmThread.id);
+                  await queryClient.invalidateQueries({ queryKey: ["dm-threads"] });
+                  router.replace("/app/chat");
+                } catch (error) {
+                  setStatus(getApiErrorMessage(error));
+                }
+              }}
+              className="ml-1 rounded-lg border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-rose-400/50 hover:text-rose-200"
+            >
+              Leave group
+            </button>
+          ) : null}
         </>
       ) : (
         <>

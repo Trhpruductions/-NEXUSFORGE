@@ -188,10 +188,35 @@ export class MeshVoice {
     socket.on("voice:occupancy", this.handleOccupancy);
     socket.on("voice:state", this.handleState);
     socket.on("voice:full", this.handleFull);
+    socket.on("connect", this.handleReconnect);
+    this.socketId = socket.connected ? socket.id ?? null : null;
     socket.emit("voice:join", channelId);
     this.broadcastState();
     this.meter = window.setInterval(() => this.sampleLevels(), 120);
   }
+
+  /** The realtime connection the call was joined on (null until it is open). */
+  private socketId: string | null = null;
+
+  /**
+   * The realtime connection came back after a drop (network blip, server restart). The server took us out of the
+   * room when it dropped, and everyone else closed their links to us, so the call was dead while still showing
+   * "Connected". Start the room afresh on the new connection: the others then connect to us again as usual.
+   * The first connect after joining (the connection was still opening) is not a reconnect.
+   */
+  private handleReconnect = () => {
+    const { socket, channelId } = this.options;
+    if (this.closed) return;
+    const previous = this.socketId;
+    this.socketId = socket.id ?? null;
+    if (!previous || previous === this.socketId) return;
+    for (const peer of Array.from(this.peers.values())) this.drop(peer.userId, false);
+    this.present.clear();
+    this.restarts.clear();
+    this.emitPeers();
+    socket.emit("voice:join", channelId);
+    this.broadcastState();
+  };
 
   stop() {
     this.closed = true;
@@ -201,6 +226,7 @@ export class MeshVoice {
     socket.off("voice:occupancy", this.handleOccupancy);
     socket.off("voice:state", this.handleState);
     socket.off("voice:full", this.handleFull);
+    socket.off("connect", this.handleReconnect);
     socket.emit("voice:leave", channelId);
     for (const timer of this.timers) window.clearTimeout(timer);
     this.timers.clear();

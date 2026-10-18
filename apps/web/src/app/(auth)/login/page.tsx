@@ -12,6 +12,7 @@ import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";
 import { getApiErrorMessage, login, resendTwoFactorLogin, verifyTwoFactorLogin } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 const schema = z.object({
   // An email, or a phone number that's been verified on the account.
@@ -24,12 +25,7 @@ const schema = z.object({
 
 type LoginForm = z.infer<typeof schema>;
 
-function sanitizeRedirectTarget(raw: string | null): string | null {
-  if (!raw) return null;
-  if (!raw.startsWith("/")) return null;
-  if (raw.startsWith("//")) return null;
-  return raw;
-}
+const sanitizeRedirectTarget = safeRedirectPath;
 
 const highlights = [
   { icon: Gamepad2, label: "Forges", note: "Your squads, channels and invites" },

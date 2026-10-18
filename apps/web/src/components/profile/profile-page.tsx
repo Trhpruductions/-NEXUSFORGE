@@ -27,6 +27,8 @@ import { AvatarRenderer, defaultAvatarConfig } from "@/components/avatar/avatar-
 import { PostCard } from "@/components/social/post-card";
 import { useAuthStore } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
+import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
+import { badgesFromKeys } from "@/lib/brand-badges";
 import { safeHref } from "@/lib/safe-href";
 
 type Tab = "posts" | "clips" | "streams" | "achievements" | "friends";
@@ -241,6 +243,12 @@ function ProfileInner() {
                 {person.clanTag ? <span className="rounded border border-amber-400/40 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200">{person.clanTag}</span> : null}
               </div>
               <p className="text-sm text-slate-400">@{person.username}</p>
+              <ProfileBadgeStrip
+                badges={badgesFromKeys(person.badges)}
+                containerClassName="mt-2"
+                imageWidth={56}
+                imageHeight={56}
+              />
               {badges.length || person.profileEmote ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {badges.map((badge) => (

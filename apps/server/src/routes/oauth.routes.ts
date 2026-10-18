@@ -76,6 +76,7 @@ export async function issueClientCredentialsToken(
               id: string;
               clientId: string;
               redirectUri: string;
+              scope?: string | null;
               expiresAt: Date;
               usedAt: Date | null;
               client: { clientId: string };
@@ -166,12 +167,16 @@ export async function issueClientCredentialsToken(
     }
 
     const user = authorizationCode.user;
+    // An app token: marked with the app's client id, limited to what the user approved, and never carrying the
+    // user's staff role (an admin who authorises an app must not hand it admin powers).
     const accessToken = signAccessToken({
       sub: user.id,
       username: user.username,
       email: user.email,
-      appRole: (user.appRole as "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER") ?? "USER",
+      appRole: "USER",
       jti: randomToken(16),
+      cid: client.clientId,
+      scope: authorizationCode.scope ?? undefined,
     });
 
     return {
@@ -196,12 +201,16 @@ export async function issueClientCredentialsToken(
     } as const;
   }
 
+  // The app acting as its developer's own account: still an app token, so a leaked client secret gives basic
+  // profile access only, never the developer's full account (or staff powers) without two-factor sign-in.
   const accessToken = signAccessToken({
     sub: user.id,
     username: user.username,
     email: user.email,
-    appRole: (user.appRole as "USER" | "MODERATOR" | "ADMIN" | "EXEC" | "OWNER") ?? "USER",
+    appRole: "USER",
     jti: randomToken(16),
+    cid: client.clientId,
+    scope: "identify",
   });
 
   return {
@@ -212,6 +221,18 @@ export async function issueClientCredentialsToken(
       expires_in: parseExpiresInSeconds(env.ACCESS_TOKEN_EXPIRES_IN),
     },
   } as const;
+}
+
+/** What an app may read about the signed-in user: basic profile, and the email address only with the "email" scope. */
+export function userInfoFor(user: { id: string; username: string; displayName?: string | null; avatar?: string | null; email?: string | null }, scope: string | undefined) {
+  const scopes = new Set((scope ?? "").split(/\s+/).filter(Boolean));
+  return {
+    id: user.id,
+    username: user.username,
+    display_name: user.displayName ?? null,
+    avatar: user.avatar ?? null,
+    ...(scopes.has("email") && user.email ? { email: user.email } : {}),
+  };
 }
 
 
@@ -381,6 +402,23 @@ oauthRouter.post("/authorize/deny", requireAuth, requireCsrf, async (req, res) =
   const separator = redirectUri.includes("?") ? "&" : "?";
   const state = typeof body.state === "string" ? `&state=${encodeURIComponent(body.state)}` : "";
   res.json({ redirect: `${redirectUri}${separator}error=access_denied${state}` });
+});
+
+/**
+ * Who signed in, for an app holding an app token (the one route such tokens may use): id, username, display
+ * name and avatar, plus the email address only if the user approved the "email" scope.
+ */
+oauthRouter.get("/userinfo", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: { id: true, username: true, displayName: true, avatar: true, email: true },
+  });
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+  // Nexus Forge's own sign-in (no app) sees its own email; an app sees what its scopes allow.
+  res.json(userInfoFor(user, req.user!.appClientId ? req.user!.appScope : "email"));
 });
 
 oauthRouter.post("/token", async (req, res) => {

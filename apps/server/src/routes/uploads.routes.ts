@@ -5,10 +5,12 @@ import { cheapestTierWith, limitsFor, PLANS, upgradeRequired } from "../lib/plan
 import {
   createLocalUploadUrl,
   createUploadUrl,
+  EmptyUploadError,
   LOCAL_UPLOAD_TYPES,
   storageConfigured,
+  UploadTooLargeError,
   verifyLocalUploadToken,
-  writeLocalUpload,
+  writeLocalUploadStream,
 } from "../lib/storage.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -96,9 +98,12 @@ uploadsRouter.post("/presign", async (req, res) => {
  * Receives the bytes for a local presigned upload. Mounted in index.ts ahead of the JSON
  * parser and the auth/CSRF middleware: like an S3 presigned PUT, the token is the
  * credential, and the browser sends the raw file body.
+ *
+ * The link is checked before a single byte is read, and the body is streamed to disk with a hard cap, so a
+ * request without a valid link costs nothing and no upload is ever held in memory. (It used to read the whole
+ * body, up to the largest plan's limit, into memory before checking the link: an easy way to exhaust memory.)
  */
 export const localUploadPutHandler: RequestHandler[] = [
-  express.raw({ type: () => true, limit: Math.max(env.UPLOAD_MAX_BYTES, env.PREMIUM_UPLOAD_MAX_BYTES) }),
   async (req, res) => {
     const claims = typeof req.query.token === "string" ? verifyLocalUploadToken(req.query.token) : null;
     if (!claims) {
@@ -110,18 +115,24 @@ export const localUploadPutHandler: RequestHandler[] = [
       res.status(400).json({ error: "Content type doesn't match the upload link." });
       return;
     }
-    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    if (body.length === 0 || body.length > claims.maxBytes) {
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && (declared > claims.maxBytes || declared === 0)) {
       res.status(413).json({ error: "File is empty or larger than allowed." });
       return;
     }
     try {
-      await writeLocalUpload(claims.key, body);
+      await writeLocalUploadStream(claims.key, req, claims.maxBytes);
     } catch (error) {
+      if (error instanceof UploadTooLargeError || error instanceof EmptyUploadError) {
+        if (!res.headersSent) res.status(413).json({ error: "File is empty or larger than allowed." });
+        return;
+      }
       if ((error as NodeJS.ErrnoException).code === "EEXIST") {
         res.status(409).json({ error: "This upload link was already used." });
         return;
       }
+      // The sender gave up part-way: the partial file is already gone and there is nobody to answer.
+      if (req.destroyed || (error as NodeJS.ErrnoException).code === "ERR_STREAM_PREMATURE_CLOSE") return;
       throw error;
     }
     res.status(200).end();

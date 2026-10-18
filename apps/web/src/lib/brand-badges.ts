@@ -111,21 +111,21 @@ export const profileRoleBadges = {
     label: "Beta User",
     src: "/brand/profile-badge-beta-user.png",
     rarity: "rare",
-    description: "Beta user rank.",
+    description: "On Nexus Forge Gaming during the open beta.",
   },
   MEMBER: {
     key: "member",
     label: "Member",
     src: "/brand/profile-badge-member.png",
     rarity: "common",
-    description: "Member rank.",
+    description: "Member of Nexus Forge Gaming.",
   },
   VERIFIED_MEMBER: {
     key: "verified-member",
     label: "Verified Member",
     src: "/brand/profile-badge-verified-member.png",
     rarity: "rare",
-    description: "Verified member rank.",
+    description: "Member with a verified email address.",
   },
   REP: {
     key: "rep",
@@ -160,6 +160,21 @@ export type BadgeKey = keyof typeof badgeKeyMap;
 
 export function resolveBadgeByKey(key: string): BrandBadge | null {
   return badgeKeyMap[key as BadgeKey] ?? null;
+}
+
+/** Badges from the keys the API sends with a profile or leaderboard row, in order; unknown keys are skipped. */
+export function badgesFromKeys(keys: readonly string[] | null | undefined): BrandBadge[] {
+  return (keys ?? []).map(resolveBadgeByKey).filter((badge): badge is BrandBadge => Boolean(badge));
+}
+
+/** Joins badge lists, keeping the first of each badge. */
+export function mergeBadges(...lists: BrandBadge[][]): BrandBadge[] {
+  const seen = new Set<string>();
+  return lists.flat().filter((badge) => {
+    if (seen.has(badge.key)) return false;
+    seen.add(badge.key);
+    return true;
+  });
 }
 
 export function getTierLogoBadge(tier?: User["premiumTier"]): BrandBadge | null {

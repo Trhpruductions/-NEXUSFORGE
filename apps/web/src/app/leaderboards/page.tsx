@@ -6,7 +6,7 @@ import { getLeaderboard, LeaderboardEntry } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
 import { ExperienceShell } from "@/components/layout/experience-shell";
-import { getProfileBadgesForUser } from "@/lib/brand-badges";
+import { badgesFromKeys, getProfileBadgesForUser, mergeBadges } from "@/lib/brand-badges";
 import { ProfileBadgeStrip } from "@/components/profile/profile-badge-strip";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
 
@@ -136,12 +136,15 @@ export default function LeaderboardsPage() {
           ) : (
             <ol className="space-y-2">
               {leaderboard.map((entry, index) => {
-                const rowBadges = getProfileBadgesForUser({
-                  premiumTier: (entry.premiumTier as "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ?? "NONE",
-                  appRole: undefined,
-                  isAdmin: false,
-                  corePlusBoostLevel: entry.corePlusBoostLevel,
-                });
+                const rowBadges = mergeBadges(
+                  getProfileBadgesForUser({
+                    premiumTier: (entry.premiumTier as "NONE" | "CORE" | "PLUS" | "ELITE" | "INFINITE" | undefined) ?? "NONE",
+                    appRole: undefined,
+                    isAdmin: false,
+                    corePlusBoostLevel: entry.corePlusBoostLevel,
+                  }),
+                  badgesFromKeys(entry.badges),
+                );
 
                 return (
                   <li key={entry.id}>

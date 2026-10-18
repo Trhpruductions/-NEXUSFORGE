@@ -34,6 +34,24 @@ export function focusPopout(name: string) {
   if (entry && !entry.win.closed) entry.win.focus();
 }
 
+/**
+ * The popout windows open right now. Page-wide keyboard handling (push-to-talk) listens in these too: keys pressed
+ * while a popout has focus never reach the main window.
+ */
+const windowWatchers = new Set<() => void>();
+export function openPopoutWindows(): Window[] {
+  return [...openWindows.values()].map((entry) => entry.win).filter((win) => !win.closed);
+}
+export function watchPopoutWindows(onChange: () => void): () => void {
+  windowWatchers.add(onChange);
+  return () => {
+    windowWatchers.delete(onChange);
+  };
+}
+function popoutWindowsChanged() {
+  for (const watcher of windowWatchers) watcher();
+}
+
 function copyNode(node: Node, target: Document): Node | null {
   if (node instanceof HTMLLinkElement && node.rel === "stylesheet") {
     const link = target.createElement("link");
@@ -150,6 +168,7 @@ export function PopoutWindow({
       doc.body.replaceChildren(root);
     }
     setContainer(root);
+    popoutWindowsChanged();
 
     // The user closed the window (or it navigated away): tell the owner so the panel comes back.
     let reported = false;
@@ -157,6 +176,7 @@ export function PopoutWindow({
       if (reported) return;
       reported = true;
       openWindows.delete(name);
+      popoutWindowsChanged();
       onClosedRef.current("closed");
     };
     win.addEventListener("pagehide", report);
@@ -181,6 +201,7 @@ export function PopoutWindow({
         } catch {
           // already gone
         }
+        popoutWindowsChanged();
       }, 50);
     };
     // Opening is keyed on the name; size changes don't reopen the window.

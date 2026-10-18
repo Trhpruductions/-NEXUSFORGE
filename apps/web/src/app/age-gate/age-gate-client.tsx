@@ -8,6 +8,7 @@ import axios from "axios";
 import { BadgeCheck, Loader2, ShieldAlert } from "lucide-react";
 import { attestAge } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { BirthdateForm } from "@/components/settings/age-verification";
 
 function errorText(error: unknown) {
@@ -41,8 +42,7 @@ function collectDeviceProfile() {
 export function AgeGateClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const rawNext = searchParams?.get("next") ?? "/app";
-  const nextTarget = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/app";
+  const nextTarget = safeRedirectPath(searchParams?.get("next")) ?? "/app";
   const deniedParam = searchParams?.get("denied") === "1";
   const { user, accessToken, csrfToken, fetchMe, clearSession } = useAuthStore();
   const [denied, setDenied] = useState(deniedParam);

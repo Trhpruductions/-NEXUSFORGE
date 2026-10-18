@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { safeUser } from "../lib/safe-user.js";
 import { achievementProgress, evaluateAchievements } from "../lib/achievements.js";
 import { hasAdminAccess } from "../lib/app-roles.js";
+import { attachProfileBadges } from "../lib/profile-badges.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { hasActiveFeatureEntitlement } from "../middleware/entitlements.js";
@@ -436,7 +437,7 @@ profilesRouter.get("/leaderboards/:type", requireAuth, async (req, res) => {
     const total = await prisma.user.count();
 
     res.json({
-      leaderboard: users,
+      leaderboard: await attachProfileBadges(users ?? []),
       type,
       total,
       limit,

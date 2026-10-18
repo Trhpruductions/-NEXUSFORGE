@@ -17,7 +17,7 @@ import { allowedOriginList, LOCAL_ORIGIN_PATTERN } from "./lib/origins.js";
 import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
 import { hasForgePermission } from "./lib/forge-permissions.js";
 import { stageJoin, stageRaise, stageSetSpeaker, stageSnapshot, stageSync } from "./lib/stage.js";
-import { verifyAccessToken } from "./lib/jwt.js";
+import { isAppToken, verifyAccessToken } from "./lib/jwt.js";
 import { globalRateLimit, authRateLimit } from "./middleware/rate-limit.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { dmsRouter } from "./routes/dms.routes.js";
@@ -160,7 +160,8 @@ app.post("/api/discord/interactions", express.raw({ type: "application/json" }),
 // Email provider webhook: needs the raw bytes for its HMAC signature, so it sits ahead of express.json().
 app.post("/api/email/webhooks", express.raw({ type: "application/json", limit: "64kb" }), emailWebhookHandler);
 // Local (no-S3) uploads: the presigned token is the credential, so these sit ahead of the JSON parser and auth.
-app.put("/api/uploads/local", ...localUploadPutHandler);
+// The global rate limit applies here too (this route answers before the app-wide limiter below would run).
+app.put("/api/uploads/local", globalRateLimit, ...localUploadPutHandler);
 app.use("/uploads", ...localUploadsStatic);
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
@@ -228,6 +229,8 @@ io.use((socket, next) => {
   const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
   try {
     const payload = verifyAccessToken(token);
+    // Third-party app tokens can't open a realtime connection (DMs, voice, presence belong to Nexus Forge's own apps).
+    if (isAppToken(payload)) return next(new Error("App tokens can't connect here"));
     if (cachedSuspension(payload.sub)) return next(new Error("Account suspended"));
     socket.data.jti = payload.jti;
     socket.data.user = {

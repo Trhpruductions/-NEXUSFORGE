@@ -3,9 +3,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("nexusforgeDesktop", {
   platform: process.platform,
   runtime: "electron",
-  // What this version can do, so the website can show only what works here (1.0.16+).
-  features: ["popouts", "titlebar", "window-reset"],
+  // What this version can do, so the website can show only what works here (1.0.16+; fullscreen-state 1.0.17+).
+  features: ["popouts", "titlebar", "window-reset", "fullscreen-state"],
   resetWindowLayout: () => ipcRenderer.invoke("nexusforge-desktop:reset-window-layout"),
+  isFullScreen: () => ipcRenderer.invoke("nexusforge-desktop:is-fullscreen"),
+  onFullScreenChange: (callback) => {
+    const handler = (_event, fullScreen) => callback(Boolean(fullScreen));
+    ipcRenderer.on("nexusforge-desktop:fullscreen", handler);
+    return () => ipcRenderer.removeListener("nexusforge-desktop:fullscreen", handler);
+  },
   getStartupHealth: () => ipcRenderer.invoke("nexusforge-desktop:get-startup-health"),
   // Splash screen buttons only ("minimize" or "close"); main.js ignores it from any other window.
   splashControl: (action) => ipcRenderer.send("nexusforge-desktop:splash-control", action === "close" ? "close" : "minimize"),

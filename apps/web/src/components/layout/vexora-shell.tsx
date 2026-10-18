@@ -42,6 +42,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ResizeHandle } from "@/components/layout/resize-handle";
 import { PopoutHost } from "@/components/popout/popout-host";
@@ -542,6 +543,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const serverView = useServerViewStore((state) => state.active);
   // Chat (servers, voice and messages) uses the whole content area; other pages keep a readable, centred width.
   const fullBleed = pathname.startsWith("/app/chat");
+  const reduceMotion = useReducedMotion();
   // Channel list size and visibility (desktop). A list that doesn't fit the window steps aside without forgetting
   // the saved choice; the member list on the chat page counts towards that.
   const layoutPrefs = useLayoutPrefs();
@@ -1098,7 +1100,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Flex column so full-height pages (chat) can size to what is left under the header and banner. */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {/* Chat fills the area edge to edge (it sizes and scrolls its own panels); other pages are centred and padded. */}
-          <div className={cn("w-full flex-1", fullBleed ? "flex min-h-0 flex-col" : "mx-auto max-w-[1400px] p-4 md:p-6")}>{children}</div>
+          {/* Pages fade in here, inside the shell, so a page change never rebuilds the shell (voice, popouts). */}
+          <motion.div
+            key={pathname}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
+            className={cn("w-full flex-1", fullBleed ? "flex min-h-0 flex-col" : "mx-auto max-w-[1400px] p-4 md:p-6")}
+          >
+            {children}
+          </motion.div>
         </div>
       </main>
       {showTabBar ? <MobileTabBar pathname={pathname} onMore={() => setMobileOpen(true)} /> : null}

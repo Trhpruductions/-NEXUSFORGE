@@ -34,6 +34,11 @@ export function RouteTransition({ children }: RouteTransitionProps) {
     document.documentElement.setAttribute("data-theme-mode", themeMode);
   }, [themeMode]);
 
+  // The key decides what gets rebuilt on a page change. Everything under /app shares one key: its shell holds the
+  // voice call, popout windows and realtime connection, and rebuilding it on every page change dropped and
+  // rejoined the call (and asked for screen sharing again). Pages inside the app fade in within the shell instead.
+  const transitionKey = pathname?.startsWith("/app") ? "/app" : pathname;
+
   return (
     <div className="flex min-h-app w-full flex-col overflow-x-hidden transition-colors duration-300">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
@@ -41,7 +46,7 @@ export function RouteTransition({ children }: RouteTransitionProps) {
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={pathname}
+          key={transitionKey}
           initial={reduceMotion ? false : { opacity: 0, y: 6, filter: "blur(3px)" }}
           animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0, filter: "blur(0px)" }}
           exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4, filter: "blur(2px)" }}

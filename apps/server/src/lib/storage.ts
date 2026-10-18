@@ -1,6 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createWriteStream } from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
+import { Transform, type Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { S3Client, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "../config/env.js";
@@ -114,6 +117,48 @@ export async function writeLocalUpload(key: string, bytes: Buffer) {
   await mkdir(dirname(full), { recursive: true });
   // "wx": a presigned key is written once; a replayed token can't overwrite the file.
   await writeFile(full, bytes, { flag: "wx" });
+}
+
+export class UploadTooLargeError extends Error {
+  constructor() {
+    super("Upload is larger than allowed");
+  }
+}
+export class EmptyUploadError extends Error {
+  constructor() {
+    super("Upload is empty");
+  }
+}
+
+/**
+ * Streams an upload straight to disk, never holding the whole file in memory, and stops as soon as it passes
+ * maxBytes. Written once ("wx"): a replayed link gets EEXIST and the existing file is left alone. A partial file
+ * (too big, empty, or the sender gave up) is deleted. Returns the number of bytes written.
+ */
+export async function writeLocalUploadStream(key: string, source: Readable, maxBytes: number): Promise<number> {
+  const full = localUploadPath(key);
+  if (!full) throw new Error("Invalid upload key");
+  await mkdir(dirname(full), { recursive: true });
+  let received = 0;
+  const limit = new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      received += chunk.length;
+      if (received > maxBytes) done(new UploadTooLargeError());
+      else done(null, chunk);
+    },
+  });
+  try {
+    await pipeline(source, limit, createWriteStream(full, { flags: "wx" }));
+  } catch (error) {
+    // EEXIST means the file was already there (a replayed link): it isn't ours to delete.
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") await unlink(full).catch(() => undefined);
+    throw error;
+  }
+  if (received === 0) {
+    await unlink(full).catch(() => undefined);
+    throw new EmptyUploadError();
+  }
+  return received;
 }
 
 export async function createUploadUrl(input: {

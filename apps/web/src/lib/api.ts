@@ -2173,6 +2173,7 @@ export type LeaderboardEntry = {
   corePlusStreakDays?: number;
   medalCount?: number;
   createdAt: string;
+  badges?: string[];
 };
 
 export async function getLeaderboard(accessToken: string, type: "reputation" | "streaks" | "medals", limit = 20, offset = 0) {
@@ -2380,6 +2381,8 @@ export type ProfileSummary = {
     createdAt: string;
     lastSeenAt?: string | null;
     points: number;
+    /** App badge keys (see brand-badges.ts): Beta User and a member rank for everyone, plus any given by an admin. */
+    badges?: string[];
     _count: { followers: number; following: number; posts: number; medals: number; memberships: number };
   };
   isSelf: boolean;
@@ -3099,6 +3102,12 @@ export async function getDmUnread(accessToken: string) {
 
 export async function markDmThreadRead(accessToken: string, csrfToken: string, threadId: string) {
   const response = await api.post<{ ok: true }>(`/api/dms/threads/${threadId}/read`, {}, { headers: authHeaders(accessToken, csrfToken) });
+  return response.data;
+}
+
+/** Leave a group DM (one-to-one conversations can't be left; block the player instead). */
+export async function leaveDmGroup(accessToken: string, csrfToken: string, threadId: string) {
+  const response = await api.post<{ ok: true }>(`/api/dms/threads/${encodeURIComponent(threadId)}/leave`, {}, { headers: authHeaders(accessToken, csrfToken) });
   return response.data;
 }
 
