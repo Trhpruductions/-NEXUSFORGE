@@ -14,7 +14,7 @@ import {
   sendTwoFactorChallenge,
   setTwoFactor,
 } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { AuthenticatorCard } from "@/components/settings/authenticator-card";
 
 const inputClass = "h-10 w-full rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-400/60";
@@ -46,6 +46,7 @@ function DevCode({ code }: { code?: string }) {
 export function AccountProtection({ highlight = false }: { highlight?: boolean }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, fetchMe } = useAuthStore();
+  const queryScope = useQueryScope();
   const [emailCode, setEmailCode] = useState("");
   const [emailSent, setEmailSent] = useState<{ devCode?: string; sentTo?: string } | null>(null);
   const [phone, setPhone] = useState("");
@@ -58,7 +59,7 @@ export function AccountProtection({ highlight = false }: { highlight?: boolean }
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const statusQuery = useQuery({
-    queryKey: ["protection", accessToken],
+    queryKey: ["protection", queryScope],
     queryFn: () => getProtectionStatus(accessToken!),
     enabled: Boolean(accessToken),
   });

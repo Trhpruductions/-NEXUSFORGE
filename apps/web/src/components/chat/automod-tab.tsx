@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AtSign, Bot, Check, Link2, Loader2, Plus, ShieldAlert, Trash2, Type, UserPlus } from "lucide-react";
 import { createAutoModRule, deleteAutoModRule, getApiErrorMessage, listAutoModRules, updateAutoModRule, type AutoModRule, type ForgeDetail } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const input = "w-full rounded-lg border border-white/10 bg-[#11151e] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-400/60";
 const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 transition hover:border-violet-400/50 disabled:opacity-40";
@@ -131,8 +131,9 @@ function RuleEditor({ forge, initial, onSave, onCancel, saving }: { forge: Forge
 export function AutoModTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: (notice: { tone: "ok" | "error"; text: string } | null) => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null);
-  const key = ["automod", forge.id, accessToken];
+  const key = ["automod", forge.id, queryScope];
   const rulesQuery = useQuery({ queryKey: key, queryFn: () => listAutoModRules(accessToken!, forge.id), enabled: Boolean(accessToken) });
   const rules = rulesQuery.data?.rules ?? [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["automod", forge.id] });

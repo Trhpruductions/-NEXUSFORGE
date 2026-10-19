@@ -113,12 +113,17 @@ export async function buyTickets(params: { userId: string; count: number; idempo
         metadata: { roundId: current.id, roundNumber: current.number, tickets: count },
       }, retryCount);
 
-      const entry = await tx.jackpotEntry.create({
-        data: { roundId: current.id, userId, tickets: count, firstTicket: current.totalTickets, amountPaid: cost },
-      });
-      const updated = await tx.jackpotRound.update({
-        where: { id: current.id },
+      // Reserve the ticket numbers with the round's own counter (an atomic increment, and only while
+      // the round is still open), then number the entry from what that increment returned. Numbering
+      // it from the totalTickets read earlier let two simultaneous buyers get the same numbers.
+      const reserved = await tx.jackpotRound.updateMany({
+        where: { id: current.id, status: "OPEN", closesAt: { gt: new Date() } },
         data: { totalTickets: { increment: count }, pot: { increment: cost } },
+      });
+      if (reserved.count !== 1) throw new JackpotError("CLOSED", "This round just closed. The next one opens in a moment.");
+      const updated = await tx.jackpotRound.findUniqueOrThrow({ where: { id: current.id } });
+      const entry = await tx.jackpotEntry.create({
+        data: { roundId: current.id, userId, tickets: count, firstTicket: updated.totalTickets - count, amountPaid: cost },
       });
       return { round: updated, entry, balance: account.balance as bigint, ticketsHeld: already + count };
     });

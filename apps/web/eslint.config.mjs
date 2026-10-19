@@ -19,6 +19,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".next-dev/**",
     ".next-build/**",
+    // Copies of the live build kept before each deploy, and check builds made into a separate folder.
+    ".next-build-backup-*/**",
+    ".next-buildcheck/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

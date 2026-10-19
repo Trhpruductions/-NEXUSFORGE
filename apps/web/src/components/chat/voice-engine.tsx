@@ -8,7 +8,7 @@ import { getMyLimits, getSettings } from "@/lib/api";
 import type { Room } from "livekit-client";
 import { getSocket } from "@/lib/socket";
 import { openPopoutWindows, watchPopoutWindows } from "@/components/popout/popout-window";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { MeshVoice, type MeshPeer } from "@/components/chat/mesh-voice";
 import { watchMediaDevices } from "@/lib/media/media-devices";
@@ -21,6 +21,7 @@ import { useMediaPrefsSync, useMediaStore } from "@/lib/media/media-store";
  */
 export function VoiceEngine() {
   const { user, accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   // The call is built once per voice session. A token refresh (every 15 minutes) or a profile reload hands the store a
   // new token or user object, and the call must survive both: the realtime socket is shared and takes the new token in
   // place (lib/socket.ts). Depending on these stable values instead of the token and user object stops a refresh from
@@ -34,9 +35,9 @@ export function VoiceEngine() {
   const audioHostRef = useRef<HTMLDivElement | null>(null);
   const flagsRef = useRef(flags);
   // Saved account settings. Used only to seed this PC the first time (see useMediaPrefsSync).
-  const settingsQuery = useQuery({ queryKey: ["settings", accessToken], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
+  const settingsQuery = useQuery({ queryKey: ["settings", queryScope], queryFn: () => getSettings(accessToken!), enabled: Boolean(accessToken) });
   // Plan limits: ultra video (1440p60) is a Core+ Plus perk; everyone gets HD.
-  const limitsQuery = useQuery({ queryKey: ["my-limits", accessToken], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
+  const limitsQuery = useQuery({ queryKey: ["my-limits", queryScope], queryFn: () => getMyLimits(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
   const hdVideo = Boolean(limitsQuery.data?.ultraVideo);
   const hdVideoRef = useRef(hdVideo);
   useEffect(() => {

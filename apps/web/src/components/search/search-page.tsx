@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Hash, Loader2, MessageSquare, Search, Users } from "lucide-react";
 import { searchForges, searchMessages, searchUsers } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { plainText } from "@/lib/plain-text";
 
@@ -42,6 +42,7 @@ function SearchInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const setSelectedForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
   const initial = params?.get("q") ?? "";
@@ -60,12 +61,12 @@ function SearchInner() {
 
   const enabled = Boolean(accessToken && term.length >= 2);
   const messagesQuery = useQuery({
-    queryKey: ["search-messages", term, scope, selectedForgeId, accessToken],
+    queryKey: ["search-messages", term, scope, selectedForgeId, queryScope],
     queryFn: () => searchMessages(accessToken!, term, scope === "forge" ? selectedForgeId ?? undefined : undefined),
     enabled,
   });
-  const usersQuery = useQuery({ queryKey: ["search-users", words, accessToken], queryFn: () => searchUsers(accessToken!, words), enabled: enabled && words.length >= 2 });
-  const forgesQuery = useQuery({ queryKey: ["search-forges", words, accessToken], queryFn: () => searchForges(accessToken!, words), enabled: enabled && words.length >= 2 });
+  const usersQuery = useQuery({ queryKey: ["search-users", words, queryScope], queryFn: () => searchUsers(accessToken!, words), enabled: enabled && words.length >= 2 });
+  const forgesQuery = useQuery({ queryKey: ["search-forges", words, queryScope], queryFn: () => searchForges(accessToken!, words), enabled: enabled && words.length >= 2 });
   const filters = messagesQuery.data?.filters;
   const activeChips = filters
     ? [

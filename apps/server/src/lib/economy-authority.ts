@@ -28,6 +28,9 @@ export class InsufficientBalanceError extends Error {
   }
 }
 
+/** Balances stop here (1 quadrillion), well past anything the game can pay out. */
+const MAX_BALANCE = 1_000_000_000_000_000n;
+
 function isTransientConflict(error: any) {
   return error?.code === "P2034" || error?.message?.includes("deadlock") || error?.message?.includes("conflict");
 }
@@ -62,27 +65,31 @@ export class EconomyAuthority {
       });
     }
 
-    const newBalance = account.balance + params.amount;
-
-    // 2. Prevent negative balance
-    if (newBalance < 0n) {
-      throw new InsufficientBalanceError(params.currencyType, account.balance);
-    }
-
-    // 3. Prevent overflow (safety guard at 1 quadrillion)
-    if (newBalance > 1_000_000_000_000_000n) {
-      throw new Error(`Economy overflow safeguard triggered: Balance would exceed 1 quadrillion for user ${params.userId}.`);
-    }
-
-    // 4. Update balance
-    const updatedAccount = await tx.economyAccount.update({
-      where: { id: account.id },
+    // 2-4. Change the balance in ONE conditional write: the database adds the amount only if the
+    // result stays between zero and the cap. It used to write back a balance worked out from the
+    // row read above, so two spends racing each other could both pass the check on the same old
+    // balance and overdraw it (or one could overwrite the other's change). Now the guard and the
+    // change are the same statement, whatever the transaction's isolation level.
+    const amount = params.amount;
+    const earns = amount > 0n && !NON_EARNING_CREDIT_TYPES.has(params.type ?? "");
+    const changed = await tx.economyAccount.updateMany({
+      where: {
+        id: account.id,
+        balance: amount < 0n ? { gte: -amount } : { lte: MAX_BALANCE - amount },
+      },
       data: {
-        balance: newBalance,
-        lifetimeEarnings: params.amount > 0n && !NON_EARNING_CREDIT_TYPES.has(params.type ?? "") ? account.lifetimeEarnings + params.amount : account.lifetimeEarnings,
+        balance: { increment: amount },
+        ...(earns ? { lifetimeEarnings: { increment: amount } } : {}),
         lastSyncAt: new Date(),
       },
     });
+    const updatedAccount = await tx.economyAccount.findUniqueOrThrow({ where: { id: account.id } });
+    if (changed.count !== 1) {
+      if (amount < 0n) throw new InsufficientBalanceError(params.currencyType, updatedAccount.balance);
+      throw new Error(`Economy overflow safeguard triggered: Balance would exceed 1 quadrillion for user ${params.userId}.`);
+    }
+    const newBalance = updatedAccount.balance;
+    const previousBalance = newBalance - amount;
 
     // 5. Log transaction
     await tx.economyTransaction.create({
@@ -93,11 +100,11 @@ export class EconomyAuthority {
         type: params.type ?? (params.amount >= 0n ? "CREDIT" : "DEBIT"),
         reason: params.reason,
         referenceId: params.referenceId,
-        balanceBefore: account.balance,
+        balanceBefore: previousBalance,
         balanceAfter: newBalance,
         metadata: {
           ...(params.metadata || {}),
-          preBalance: account.balance.toString(),
+          preBalance: previousBalance.toString(),
           postBalance: newBalance.toString(),
           timestamp: new Date().toISOString(),
           retry: retryCount

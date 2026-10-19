@@ -7,6 +7,7 @@ import { Check, Flag, Loader2, X } from "lucide-react";
 import { getApiErrorMessage, reportMessage, type ReportReason } from "@/lib/api";
 import { plainText } from "@/lib/plain-text";
 import { useAuthStore } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 export type ReportTarget = { kind: "CHANNEL" | "DM"; messageId: string; authorName: string; content: string };
 
@@ -34,14 +35,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget | null;
     setDone(false);
   }, [target?.messageId]);
 
-  useEffect(() => {
-    if (!target) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [target, onClose]);
+  const dialog = useDialogFocus({ open: Boolean(target), onClose, labelledBy: "report-title" });
 
   const mutation = useMutation({
     mutationFn: () => reportMessage(accessToken!, csrfToken!, { kind: target!.kind, messageId: target!.messageId, reason: reason!, details: details.trim() || undefined }),
@@ -53,7 +47,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget | null;
   return createPortal(
     <div className="fixed inset-0 z-[1100] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="report-title" className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="flex items-start justify-between gap-3 border-b border-white/5 px-4 py-3">
           <div>
             <h2 id="report-title" className="flex items-center gap-2 text-sm font-semibold"><Flag className="h-4 w-4 text-rose-300" /> Report message</h2>
@@ -61,7 +55,7 @@ export function ReportDialog({ target, onClose }: { target: ReportTarget | null;
               {target.kind === "CHANNEL" ? "This server's moderators will review it." : "Nexus Forge staff will review it."} The person you report won&apos;t see who reported them.
             </p>
           </div>
-          <button type="button" onClick={onClose} title="Close" className="rounded-lg p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} title="Close" aria-label="Close" className="rounded-lg p-1 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
         </header>
 
         {done ? (

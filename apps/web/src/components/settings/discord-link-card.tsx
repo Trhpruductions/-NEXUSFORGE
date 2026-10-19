@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Unlink } from "lucide-react";
 import { api, authHeaders, getApiErrorMessage } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 type LinkStatus = { linked: boolean; linkedAt: string | null };
 
@@ -14,8 +14,9 @@ type LinkStatus = { linked: boolean; linkedAt: string | null };
  */
 export function DiscordLinkCard() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const key = ["discord-link", accessToken];
+  const key = ["discord-link", queryScope];
   const status = useQuery({ queryKey: key, queryFn: async () => (await api.get<LinkStatus>("/api/me/discord", { headers: authHeaders(accessToken) })).data, enabled: Boolean(accessToken) });
   const [code, setCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [copied, setCopied] = useState(false);

@@ -5,16 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { AudioLines } from "lucide-react";
 import { listForgeSounds } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useVoiceStore } from "@/store/voice-store";
 
 /** Voice room soundboard: pick one of the forge's sounds to play for everyone in the room. */
 export function SoundboardButton({ forgeId, channelId, nameOf }: { forgeId: string; channelId: string; nameOf: (userId: string) => string }) {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   const lastSound = useVoiceStore((state) => state.lastSound);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const query = useQuery({ queryKey: ["forge-sounds", forgeId, accessToken], queryFn: () => listForgeSounds(accessToken!, forgeId), enabled: Boolean(accessToken && open), staleTime: 60_000 });
+  const query = useQuery({ queryKey: ["forge-sounds", forgeId, queryScope], queryFn: () => listForgeSounds(accessToken!, forgeId), enabled: Boolean(accessToken && open), staleTime: 60_000 });
 
   // "X played Y" for a few seconds after each sound.
   useEffect(() => {

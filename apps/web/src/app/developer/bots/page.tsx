@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import { listBotCatalog, listPublicDeveloperBots } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
@@ -10,11 +10,12 @@ import { PublicBots } from "@/components/developer/developer-public-sections";
 
 export default function DeveloperBotsPage() {
   const { user, accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken);
   const [copyStatuses, setCopyStatuses] = useState<Record<string, CopyStatus>>({});
 
   const catalogQuery = useQuery({
-    queryKey: ["developer-bot-catalog", accessToken],
+    queryKey: ["developer-bot-catalog", queryScope],
     queryFn: () => listBotCatalog(accessToken!, undefined),
     enabled: isSignedIn,
     staleTime: 30_000,

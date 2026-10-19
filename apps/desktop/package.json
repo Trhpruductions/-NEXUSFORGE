@@ -6,8 +6,8 @@
   "author": "Nexus Forge Gaming",
   "main": "main.js",
   "scripts": {
-    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
-    "dev:full": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-desktop.ps1",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$port = if ($env:NF_DEV_WEB_PORT) { $env:NF_DEV_WEB_PORT } else { '3301' }; if (-not $env:NEXUSFORGE_DESKTOP_URL) { $env:NEXUSFORGE_DESKTOP_URL = 'http://127.0.0.1:' + $port + '/app' }; & ./scripts/start-desktop.ps1\"",
+    "dev:full": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$port = if ($env:NF_DEV_WEB_PORT) { $env:NF_DEV_WEB_PORT } else { '3301' }; if (-not $env:NEXUSFORGE_DESKTOP_URL) { $env:NEXUSFORGE_DESKTOP_URL = 'http://127.0.0.1:' + $port + '/app' }; & ./scripts/start-desktop.ps1\"",
     "dev:hosted": "powershell -NoProfile -Command \"$env:NEXUSFORGE_ALLOW_HOSTED_DEV='true'; $env:NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS='true'; if (-not $env:NEXUSFORGE_DESKTOP_URL -or [string]::IsNullOrWhiteSpace($env:NEXUSFORGE_DESKTOP_URL)) { $env:NEXUSFORGE_DESKTOP_URL='https://nfgcord.com/app' }; npx --yes electron --user-data-dir=\"$PWD\\.electron-profile\" --disk-cache-dir=\"$PWD\\.electron-cache\" --disable-gpu-shader-disk-cache .\"",
     "test": "node --test \"test/*.test.js\"",
     "package:win": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; if (Test-Path 'release\\Nexus Forge Gaming Desktop-win32-x64') { Remove-Item 'release\\Nexus Forge Gaming Desktop-win32-x64' -Recurse -Force }; if (Test-Path 'release\\win-unpacked') { Remove-Item 'release\\win-unpacked' -Recurse -Force }; exit 0\" && set \"PATH=%CD%\\node_modules\\7zip-bin\\win\\x64;%PATH%\" && npx electron-builder --win nsis --publish never"

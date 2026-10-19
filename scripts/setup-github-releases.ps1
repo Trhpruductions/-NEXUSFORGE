@@ -7,10 +7,18 @@ param(
     [string]$Version = "1.0.11",
     [string]$InstallerPath = "apps/desktop/release/NexusForge Desktop Setup $Version.exe",
     [string]$ReleaseTitle = "NexusForge Desktop v$Version",
-    [string]$ReleaseNotes = "Stable production release - NexusForge Gaming Platform"
+    [string]$ReleaseNotes = "Stable production release - NexusForge Gaming Platform",
+    # The owner must approve each release before it is published. Pass this only after that approval.
+    [switch]$OwnerApproved
 )
 
 $ErrorActionPreference = "Stop"
+
+# This deletes an existing GitHub release with the same tag and publishes the installer as a new public release.
+# Stop before anything is changed unless the owner has approved this release.
+if (-not $OwnerApproved) {
+    throw "Not publishing: a GitHub release of the desktop installer needs the owner's approval first. Show the owner the version and notes, then re-run with -OwnerApproved."
+}
 
 Write-Host "`n=== GitHub Releases Distribution Setup ===" -ForegroundColor Cyan
 

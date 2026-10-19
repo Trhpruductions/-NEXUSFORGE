@@ -12,7 +12,9 @@ const transientWebBuildPatterns = [
 ];
 
 function cleanWebBuildArtifacts() {
-  const webBuildPath = path.join(process.cwd(), "apps", "web", ".next-build");
+  // Clean the folder this build writes to. With NF_BUILD_DIR set (a check build), that is not .next-build,
+  // which is the folder the live site serves and must not be deleted by a check.
+  const webBuildPath = path.join(process.cwd(), "apps", "web", process.env.NF_BUILD_DIR || ".next-build");
   const nextPath = path.join(process.cwd(), "apps", "web", ".next");
 
   for (const target of [webBuildPath, nextPath]) {

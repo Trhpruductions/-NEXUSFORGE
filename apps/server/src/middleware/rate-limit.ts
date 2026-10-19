@@ -54,9 +54,33 @@ const CREDENTIAL_AUTH_PATHS = new Set([
   "/verify-email",
   "/forgot-password",
   "/reset-password",
+  // Checks a texted code and sets a new password: as guessable as /reset-password.
+  "/reset-password/phone",
+  // Checks an email and password, so it can be used to guess passwords like /login.
+  "/vac-appeal",
   "/core-plus/activate",
 ]);
 
+/**
+ * The path as the router will match it. Express matches routes case-insensitively and ignores a
+ * trailing slash, so "/LOGIN" and "/login/" reach the /login handler. They must count against the
+ * same budget, or changing the case of one letter would skip the limit entirely.
+ */
+export function credentialPathKey(path: string): string {
+  const trimmed = path.toLowerCase().replace(/\/+$/, "");
+  return trimmed || "/";
+}
+
+/** Whether a path (relative to /api/auth) is one of the guessable sign-in endpoints. */
+export function isCredentialAuthPath(path: string): boolean {
+  return CREDENTIAL_AUTH_PATHS.has(credentialPathKey(path));
+}
+
+/**
+ * Mounted in front of the whole /api/auth router (see index.ts); only the credential paths above
+ * are counted. Use accountSecurityRateLimit on individual routes elsewhere: this one skips any
+ * path that isn't in the list, so on another router it would silently do nothing.
+ */
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 40,
@@ -64,7 +88,24 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many auth attempts. Please slow down." },
   // req.path is relative to the /api/auth mount point.
-  skip: (req) => shouldBypassRateLimit(req.ip) || !CREDENTIAL_AUTH_PATHS.has(req.path),
+  skip: (req) => shouldBypassRateLimit(req.ip) || !isCredentialAuthPath(req.path),
+});
+
+/**
+ * For account-security actions of a signed-in user, used on individual routes: sending and
+ * checking verification codes, changing two-factor, confirming age and submitting an ID. Counted
+ * per account (per address when signed out), with its own budget so settings changes can never
+ * use up the sign-in allowance. These routes used to carry authRateLimit, which skipped them
+ * because their paths aren't sign-in paths, so they had no tight limit at all.
+ */
+export const accountSecurityRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  keyGenerator: accountOrIpKey,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please wait a few minutes and try again." },
+  skip: (req) => shouldBypassRateLimit(req.ip),
 });
 
 // 45 messages a minute per account (people on one shared connection no longer share it),

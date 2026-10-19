@@ -8,6 +8,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requireCsrf } from "../middleware/csrf.js";
 import { accountOrIpKey } from "../middleware/rate-limit.js";
+import { anonymousPerIpLimit } from "../middleware/anonymous-limit.js";
 
 export const problemReportsRouter = Router();
 
@@ -28,6 +29,15 @@ const reportLimit = rateLimit({
   standardHeaders: false,
   legacyHeaders: false,
   message: { error: "You've sent a few reports already. Please wait a bit before sending another." },
+});
+
+// Signed out: fewer reports per internet address (each one is stored and alerts staff on Discord), so a
+// script can't flood the queue. Signed-in reports only use the per-account limit above.
+export const ANONYMOUS_PROBLEM_REPORTS_PER_HOUR = 3;
+const anonymousReportLimit = anonymousPerIpLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: ANONYMOUS_PROBLEM_REPORTS_PER_HOUR,
+  message: "You've sent a few reports already. Please wait a bit before sending another, or sign in to send more.",
 });
 
 const reportSchema = z.object({
@@ -52,7 +62,7 @@ function signedInUserId(header: string | undefined) {
 }
 
 /** "Report a problem" from the website. */
-problemReportsRouter.post("/", reportLimit, async (req, res) => {
+problemReportsRouter.post("/", reportLimit, anonymousReportLimit, async (req, res) => {
   const parsed = reportSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Please check the form." });

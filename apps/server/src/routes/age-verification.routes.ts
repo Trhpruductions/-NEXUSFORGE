@@ -2,10 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { createNotification } from "../lib/notifications.js";
-import { ageFromBirthdate, deleteDocument, isAdult, MIN_AGE, parseBirthdate, storeDocument } from "../lib/age-verification.js";
+import { ageFromBirthdate, deleteDocument, DocumentRejectedError, isAdult, MIN_AGE, parseBirthdate, storeDocument } from "../lib/age-verification.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
-import { authRateLimit } from "../middleware/rate-limit.js";
+import { accountSecurityRateLimit } from "../middleware/rate-limit.js";
 
 /**
  * Age verification for the signed-in user.
@@ -70,7 +70,7 @@ ageVerificationRouter.get("/", async (req, res) => {
 });
 
 /** Step 1: declare a date of birth. Under-18 dates are refused and the account is flagged. */
-ageVerificationRouter.post("/attest", authRateLimit, async (req, res) => {
+ageVerificationRouter.post("/attest", accountSecurityRateLimit, async (req, res) => {
   const parsed = attestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Enter your date of birth and confirm it is accurate" });
@@ -108,7 +108,7 @@ ageVerificationRouter.post("/attest", authRateLimit, async (req, res) => {
 });
 
 /** Step 2: submit a government ID (and optional selfie) for admin review. */
-ageVerificationRouter.post("/submit", authRateLimit, async (req, res) => {
+ageVerificationRouter.post("/submit", accountSecurityRateLimit, async (req, res) => {
   const parsed = submitSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Choose a document type and attach the document image" });
@@ -148,7 +148,13 @@ ageVerificationRouter.post("/submit", authRateLimit, async (req, res) => {
     selfie = parsed.data.selfie ? await storeDocument(parsed.data.selfie, "selfie") : null;
   } catch (error) {
     if (document) await deleteDocument(document.relativePath);
-    res.status(400).json({ error: error instanceof Error ? error.message : "Upload failed" });
+    if (error instanceof DocumentRejectedError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    // A disk or encryption problem: its message can name server paths, so it stays in the log.
+    console.error("[AGE] storing an ID document failed", { userId: user.id, error: (error as Error)?.message });
+    res.status(500).json({ error: "The upload could not be saved. Please try again." });
     return;
   }
 

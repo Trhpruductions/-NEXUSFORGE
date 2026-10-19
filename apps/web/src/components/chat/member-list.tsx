@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Crown } from "lucide-react";
 import type { ForgeMemberEntry, ForgeRole } from "@/lib/api";
 import { hueFor, tileGradient } from "@/lib/colors";
@@ -53,7 +53,8 @@ export function topRoleFor(member: ForgeMemberEntry, roles: ForgeRole[], ownerId
   return top;
 }
 
-export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: MemberListProps) {
+// Memoised: the chat page re-renders on every keystroke in the message box, and the member list doesn't need to.
+export const MemberList = memo(function MemberList({ members, roles, ownerId, selfId, onSelectMember }: MemberListProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [cardFor, setCardFor] = useState<string | null>(null);
 
@@ -163,4 +164,4 @@ export function MemberList({ members, roles, ownerId, selfId, onSelectMember }: 
       })}
     </div>
   );
-}
+});

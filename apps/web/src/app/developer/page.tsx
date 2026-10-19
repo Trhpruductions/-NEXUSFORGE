@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { copyToClipboard, type CopyStatus } from "@/lib/clipboard";
 import { listBotCatalog, listDeveloperOAuthClients, listMyBots, createBotApp, listPublicDeveloperBots, listPublicDeveloperUpdates } from "@/lib/api";
 import { ExperienceShell } from "@/components/layout/experience-shell";
@@ -13,6 +13,7 @@ import { DeveloperUpdates, PublicBots } from "@/components/developer/developer-p
 
 export default function DeveloperPortalPage() {
   const { user, accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const isSignedIn = Boolean(user && accessToken && csrfToken);
   const queryClient = useQueryClient();
 
@@ -34,21 +35,21 @@ export default function DeveloperPortalPage() {
   });
 
   const myBotsQuery = useQuery({
-    queryKey: ["developer-my-bots", accessToken],
+    queryKey: ["developer-my-bots", queryScope],
     queryFn: () => listMyBots(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
   });
 
   const oauthClientsQuery = useQuery({
-    queryKey: ["developer-oauth-clients", accessToken],
+    queryKey: ["developer-oauth-clients", queryScope],
     queryFn: () => listDeveloperOAuthClients(accessToken!),
     enabled: isSignedIn,
     staleTime: 30_000,
   });
 
   const catalogQuery = useQuery({
-    queryKey: ["developer-bot-catalog", accessToken],
+    queryKey: ["developer-bot-catalog", queryScope],
     queryFn: () => listBotCatalog(accessToken!, undefined),
     enabled: isSignedIn,
     staleTime: 30_000,
@@ -63,8 +64,8 @@ export default function DeveloperPortalPage() {
     onSuccess: async () => {
       setBotName("");
       setBotDescription("");
-      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", accessToken] });
-      await queryClient.invalidateQueries({ queryKey: ["developer-bot-catalog", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-my-bots", queryScope] });
+      await queryClient.invalidateQueries({ queryKey: ["developer-bot-catalog", queryScope] });
     },
   });
 

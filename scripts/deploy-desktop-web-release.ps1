@@ -8,11 +8,19 @@ param(
   [string] $SshKeyPath = "",
   [string] $RemoteNginxSnippetPath = "",
   [switch] $SkipNginxReload,
-  [switch] $VerifyInsecure
+  [switch] $VerifyInsecure,
+  # The owner must approve each release before it is published. Pass this only after that approval.
+  [switch] $OwnerApproved
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# This uploads the installers and desktop-update.json to the public download host, which changes the version every
+# installed copy updates to. Stop before anything is uploaded unless the owner has approved this release.
+if (-not $OwnerApproved) {
+  throw "Not publishing: deploying a desktop release needs the owner's approval first. Show the owner the version and notes, then re-run with -OwnerApproved."
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $repoRoot

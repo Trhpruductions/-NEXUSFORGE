@@ -3,6 +3,12 @@
 # Run this with: powershell -NoProfile -ExecutionPolicy Bypass -File setup-tasks-direct.ps1
 # REQUIRES: "Run as Administrator"
 
+# DISABLED (2026-10-18): this registered SYSTEM scheduled tasks that run scripts/startup-production.ps1 at every
+# startup and logon, and that script runs "pm2 save" (forbidden on this PC: the pm2 dump is shared with other bots).
+# The site comes back at logon through scripts/vexora-autostart.cmd. New scheduled tasks need the owner's OK.
+Write-Host "setup-tasks-direct.ps1 is disabled: its startup task ran 'pm2 save' as SYSTEM, which must never run on this PC. Logon start-up is handled by scripts/vexora-autostart.cmd; see README.md." -ForegroundColor Red
+exit 1
+
 Write-Host ""
 Write-Host "=== NexusForge Production Task Registration ===" -ForegroundColor Cyan
 Write-Host ""

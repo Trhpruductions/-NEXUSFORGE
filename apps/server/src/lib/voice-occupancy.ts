@@ -46,6 +46,29 @@ export function leaveAllVoice(userId: string, socketId: string) {
   return mine;
 }
 
+/**
+ * Takes a user out of these voice channels on the server side, on every device they joined from.
+ * Used when they are kicked, banned, leave the forge or lose access to the channel: without it they
+ * stayed in the member list, so everyone else kept sending them call signalling (and audio/video).
+ * Returns the channels they were actually in.
+ */
+export function removeUserFromVoiceChannels(userId: string, channelIds: string[]) {
+  const left: string[] = [];
+  for (const channelId of new Set(channelIds)) {
+    const sockets = channels.get(channelId)?.get(userId);
+    if (!sockets?.size) continue;
+    for (const socketId of Array.from(sockets)) leaveVoice(channelId, userId, socketId);
+    left.push(channelId);
+  }
+  return left;
+}
+
+/** Empties the registry (tests only). */
+export function resetVoiceOccupancyForTests() {
+  channels.clear();
+  socketChannels.clear();
+}
+
 export function voiceMembers(channelId: string) {
   return Array.from(channels.get(channelId)?.keys() ?? []);
 }

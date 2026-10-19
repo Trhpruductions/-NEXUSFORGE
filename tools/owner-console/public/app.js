@@ -295,7 +295,7 @@
 
     const host = s.host;
     const hostCard = host
-      ? `<dl class="detail-grid"><dt>CPU</dt><dd>${host.cpuPct === null ? "Measuring" : `${host.cpuPct.toFixed(0)}%`} across ${num(host.cpuCores)} cores</dd><dt>RAM</dt><dd>${host.ramPct.toFixed(0)}% (${host.ramUsedGb.toFixed(1)} of ${host.ramTotalGb.toFixed(1)} GB)</dd><dt>Disk free</dt><dd>${host.diskFreeGb.toFixed(1)} GB on ${esc(host.diskDrive)}</dd></dl>${meter(host.cpuPct === null ? 0 : host.cpuPct)}<div class="section-divider"></div>${spark(s.history.cpuPct)}<div class="card-foot">CPU over the last few minutes</div>`
+      ? `<dl class="detail-grid"><dt>CPU</dt><dd>${host.cpuPct === null ? "Measuring" : `${host.cpuPct.toFixed(0)}%`} across ${num(host.cpuCores)} cores</dd><dt>RAM</dt><dd>${host.ramPct.toFixed(0)}% (${host.ramUsedGb.toFixed(1)} of ${host.ramTotalGb.toFixed(1)} GB)</dd><dt>Disk free</dt><dd>${(host.drives && host.drives.length ? host.drives : [{ drive: host.diskDrive, freeGb: host.diskFreeGb, low: false }]).map((d) => `${d.freeGb.toFixed(1)} GB on ${esc(d.drive)}${d.low ? " (low)" : ""}`).join("<br>")}</dd></dl>${meter(host.cpuPct === null ? 0 : host.cpuPct)}<div class="section-divider"></div>${spark(s.history.cpuPct)}<div class="card-foot">CPU over the last few minutes</div>`
       : loading("Waiting for host metrics.");
 
     const feed = s.feed.slice(-12).reverse().map((item) => `<li><span class="feed-time">${esc(clock(item.at))}</span>${pill(sentence(item.kind), item.level === "error" ? "bad" : item.level === "warn" ? "warn" : item.level === "ok" ? "good" : "")}<span class="feed-text">${esc(item.text)}</span></li>`).join("");

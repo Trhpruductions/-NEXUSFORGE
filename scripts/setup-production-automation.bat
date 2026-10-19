@@ -4,6 +4,13 @@ REM This script registers both startup and health check tasks with full admin pr
 
 setlocal enabledelayedexpansion
 
+REM DISABLED (2026-10-18): the startup task this registered runs scripts\startup-production.ps1 as SYSTEM, and
+REM that script runs "pm2 save" (forbidden on this PC: the pm2 dump is shared with other bots). Logon start-up is
+REM handled by scripts\vexora-autostart.cmd. New scheduled tasks need the owner's OK.
+echo setup-production-automation.bat is disabled: its startup task ran "pm2 save" as SYSTEM, which must never run on this PC.
+echo Logon start-up is handled by scripts\vexora-autostart.cmd. See README.md.
+exit /b 1
+
 echo.
 echo === NexusForge Production Task Setup ===
 echo.

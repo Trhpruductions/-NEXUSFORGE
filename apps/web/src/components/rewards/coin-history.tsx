@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ArrowDownLeft, ArrowUpRight, Loader2, Send } from "lucide-react";
 import { getCoinHistory, type CoinHistoryKind, type CoinTransaction } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const tabs: Array<{ key: CoinHistoryKind; label: string }> = [
   { key: "all", label: "All" },
@@ -20,9 +20,10 @@ function describe(entry: CoinTransaction) {
 
 export function CoinHistory({ className = "" }: { className?: string }) {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [kind, setKind] = useState<CoinHistoryKind>("all");
   const query = useInfiniteQuery({
-    queryKey: ["coin-history", kind, accessToken],
+    queryKey: ["coin-history", kind, queryScope],
     queryFn: ({ pageParam }) => getCoinHistory(accessToken!, { cursor: pageParam, kind }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,

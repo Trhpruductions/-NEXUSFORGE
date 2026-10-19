@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, Loader2, ShieldCheck, Ticket, Timer, Trophy, Users } from "lucide-react";
 import { buyJackpotTickets, getApiErrorMessage, getJackpotCurrent, type JackpotRound } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { CoverArt } from "@/components/ui/cover-art";
 
 const QUICK = [1, 5, 10, 25];
@@ -79,6 +79,7 @@ function RecentRound({ round }: { round: JackpotRound }) {
 
 export function JackpotPanel({ balance }: { balance: string }) {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [count, setCount] = useState(1);
   const [confirming, setConfirming] = useState(false);
@@ -86,7 +87,7 @@ export function JackpotPanel({ balance }: { balance: string }) {
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
 
   const query = useQuery({
-    queryKey: ["jackpot", accessToken],
+    queryKey: ["jackpot", queryScope],
     queryFn: () => getJackpotCurrent(accessToken!),
     enabled: Boolean(accessToken),
     refetchInterval: 10_000,

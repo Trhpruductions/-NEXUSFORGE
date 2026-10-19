@@ -9,7 +9,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { confirmCheckout, createCheckoutSession, createPortalSession, getBillingEntitlements, getBillingPlans, getBillingReadiness, type PlanInfo } from "@/lib/api";
 import { PREVIOUS_TIER, megabytes, perksFor, shownUploadBytes } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING, type CorePlusTier } from "@/lib/pricing-catalog";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const tierCheckoutMeta = {
   CORE: {
@@ -69,9 +70,10 @@ const portalAssurances = [
 export function CorePlusExperience({ checkoutState, checkoutSessionId }: { checkoutState?: string; checkoutSessionId?: string }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user, fetchMe } = useAuthStore();
+  const queryScope = useQueryScope();
   // Back from Stripe: confirm the payment with the server (works without Stripe's webhook).
   const confirmQuery = useQuery({
-    queryKey: ["checkout-confirm", checkoutSessionId, accessToken],
+    queryKey: ["checkout-confirm", checkoutSessionId, queryScope],
     queryFn: async () => {
       const result = await confirmCheckout(accessToken!, csrfToken!, checkoutSessionId!);
       await Promise.all([queryClient.invalidateQueries({ queryKey: ["billing-entitlements"] }), fetchMe()]);
@@ -86,7 +88,7 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
   const [billingInterval, setBillingInterval] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
 
   const entitlementsQuery = useQuery({
-    queryKey: ["billing-entitlements", accessToken],
+    queryKey: ["billing-entitlements", queryScope],
     queryFn: () => getBillingEntitlements(accessToken!),
     enabled: Boolean(accessToken),
   });
@@ -106,8 +108,8 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
       quantity: 1,
     }),
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["core-plus-telemetry", accessToken] });
-      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["core-plus-telemetry", queryScope] });
+      await queryClient.invalidateQueries({ queryKey: ["billing-entitlements", queryScope] });
       if (result.url) {
         window.location.assign(result.url);
       }
@@ -142,6 +144,8 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
   const displayedPrice = billingInterval === "YEARLY" ? selectedPlan.yearly : selectedPlan.monthly;
   const displayedPriceSuffix = billingInterval === "YEARLY" ? "per year" : "per month";
   const activationCta = activationMutation.isPending ? "Securing checkout..." : `Upgrade to ${selectedPlan.label}`;
+  // Blocks the page while checkout opens; nothing to press, and it can't be dismissed.
+  const checkoutDialog = useDialogFocus({ open: activationMutation.isPending, label: "Preparing Core+ checkout" });
   const billing = billingStatusQuery.data?.billing ?? null;
   const billingReady = billing?.ready ?? false;
   const missingTierPrices = billing?.missing.tierPrices ?? [];
@@ -176,6 +180,8 @@ export function CorePlusExperience({ checkoutState, checkoutSessionId }: { check
     <section className="mx-auto grid w-full max-w-[1300px] gap-4 py-8 lg:grid-cols-[1.2fr_1fr]">
       {activationMutation.isPending ? (
         <motion.div
+          {...checkoutDialog}
+          aria-busy="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-700/35 px-4 backdrop-blur-md"

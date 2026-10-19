@@ -18,20 +18,47 @@ function usableSecret(value: string | undefined) {
   return trimmed;
 }
 
-function getAgeGateSecret() {
+/** HKDF label for the fallback key. Used for nothing else, so the derived key is only ever this cookie's. */
+const AGE_GATE_KEY_LABEL = "nexusforge/age-gate-cookie/hmac-sha256/v1";
+
+/**
+ * Turns the API's JWT secret into a separate key for this cookie (HKDF-SHA256 with its own
+ * label). The cookie used to be signed with the JWT secret itself, so the same secret did two
+ * jobs: anything that exposed or misused one key exposed the other.
+ */
+async function deriveFromJwtSecret(jwtSecret: string) {
+  const encoder = new TextEncoder();
+  const base = await crypto.subtle.importKey("raw", encoder.encode(jwtSecret), "HKDF", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: encoder.encode(AGE_GATE_KEY_LABEL) },
+    base,
+    256,
+  );
+  return new Uint8Array(bits);
+}
+
+/** The signing key's bytes, or null when no usable secret is configured (production). */
+async function getAgeGateKey(): Promise<Uint8Array | null> {
   // VEXORA_AGE_GATE_SECRET lives in apps/web/.env.local (not in git). The older
   // NEXUSFORGE_AGE_GATE_SECRET is still honoured, but never a sample value: one was
   // committed to the pm2 config, and anyone with it could forge "18+ confirmed" passes.
-  const secret = usableSecret(process.env.VEXORA_AGE_GATE_SECRET) || usableSecret(process.env.NEXUSFORGE_AGE_GATE_SECRET) || usableSecret(process.env.JWT_ACCESS_SECRET);
-  if (secret) {
-    return secret;
+  const dedicated = usableSecret(process.env.VEXORA_AGE_GATE_SECRET) || usableSecret(process.env.NEXUSFORGE_AGE_GATE_SECRET);
+  if (dedicated) {
+    return new TextEncoder().encode(dedicated);
+  }
+
+  // No dedicated secret: a key derived from the JWT secret, never the JWT secret itself. Changing
+  // this invalidated cookies signed with the JWT secret directly; those visitors confirm once more.
+  const jwtSecret = usableSecret(process.env.JWT_ACCESS_SECRET);
+  if (jwtSecret) {
+    return deriveFromJwtSecret(jwtSecret);
   }
 
   if (process.env.NODE_ENV !== "production") {
-    return "nexusforge-dev-age-gate-secret-change-me";
+    return new TextEncoder().encode("nexusforge-dev-age-gate-secret-change-me");
   }
 
-  return "";
+  return null;
 }
 
 function bufferToHex(buffer: ArrayBuffer) {
@@ -57,18 +84,17 @@ function hexToBytes(hex: string) {
   return bytes;
 }
 
-async function importHmacKey(secret: string) {
-  const encoder = new TextEncoder();
+async function importHmacKey(secret: Uint8Array) {
   return crypto.subtle.importKey(
     "raw",
-    encoder.encode(secret),
+    secret as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
   );
 }
 
-async function signValue(value: string, secret: string) {
+async function signValue(value: string, secret: Uint8Array) {
   const encoder = new TextEncoder();
   const key = await importHmacKey(secret);
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
@@ -83,7 +109,7 @@ async function hashUserAgentFingerprint(userAgent: string | null | undefined) {
 }
 
 export async function createAgeGateToken(nowMs = Date.now(), userAgent?: string | null) {
-  const secret = getAgeGateSecret();
+  const secret = await getAgeGateKey();
   if (!secret) {
     throw new Error("NEXUSFORGE_AGE_GATE_SECRET is not configured");
   }
@@ -96,7 +122,7 @@ export async function createAgeGateToken(nowMs = Date.now(), userAgent?: string 
 }
 
 export async function verifyAgeGateToken(token: string, nowMs = Date.now(), userAgent?: string | null) {
-  const secret = getAgeGateSecret();
+  const secret = await getAgeGateKey();
   if (!secret) {
     return false;
   }

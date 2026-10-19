@@ -8,7 +8,8 @@ import { Megaphone, X } from "lucide-react";
 import { listUnseenUpdates, markUpdatesSeen } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { LegalMarkdown } from "@/components/legal/legal-markdown";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 function when(value: string | null) {
   return value ? new Date(value).toLocaleDateString(undefined, { dateStyle: "medium" }) : "";
@@ -20,8 +21,9 @@ function when(value: string | null) {
  */
 export function WhatsNewDialog() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const key = ["updates-unseen", accessToken];
+  const key = ["updates-unseen", queryScope];
   const unseen = useQuery({ queryKey: key, queryFn: () => listUnseenUpdates(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
   const [dismissed, setDismissed] = useState<string | null>(null);
 
@@ -51,22 +53,14 @@ export function WhatsNewDialog() {
     void queryClient.invalidateQueries({ queryKey: ["updates"] });
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  const dialog = useDialogFocus({ open, onClose: close, labelledBy: "whats-new-title" });
 
   if (!open || !newest || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[1150] flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={close} />
-      <div role="dialog" aria-modal="true" aria-labelledby="whats-new-title" className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-violet-400/30 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-violet-400/30 bg-[#0d1119] text-slate-100 shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <header className="border-b border-white/5 bg-[radial-gradient(circle_at_20%_0%,rgba(139,92,246,0.25),transparent_60%)] px-5 pb-4 pt-5">
           <button type="button" onClick={close} className="absolute right-3 top-3 rounded p-1 text-slate-400 hover:text-white" aria-label="Close"><X className="h-4 w-4" /></button>
           <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-300"><Megaphone className="h-3.5 w-3.5" /> What&apos;s new{newest.version ? ` · ${newest.version}` : ""}</p>

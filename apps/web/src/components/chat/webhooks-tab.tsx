@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Plus, RefreshCw, Trash2, Webhook } from "lucide-react";
 import { createWebhook, deleteWebhook, getApiErrorMessage, listWebhooks, resetWebhook, updateWebhook, type ForgeDetail } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const input = "h-9 rounded-lg border border-white/10 bg-[#11151e] px-3 text-sm text-slate-100 outline-none focus:border-violet-400/60";
 const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 transition hover:border-violet-400/50 disabled:opacity-40";
@@ -13,13 +13,14 @@ const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white
 export function WebhooksTab({ forge, setNotice }: { forge: ForgeDetail; setNotice: (notice: { tone: "ok" | "error"; text: string } | null) => void }) {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const textChannels = forge.channels.filter((channel) => channel.type === "TEXT" || channel.type === "ANNOUNCEMENT");
   const [name, setName] = useState("");
   const [channelId, setChannelId] = useState(textChannels[0]?.id ?? "");
   const [secret, setSecret] = useState<{ id: string; url: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const key = ["webhooks", forge.id, accessToken];
+  const key = ["webhooks", forge.id, queryScope];
   const listQuery = useQuery({ queryKey: key, queryFn: () => listWebhooks(accessToken!, forge.id), enabled: Boolean(accessToken) });
   const webhooks = listQuery.data?.webhooks ?? [];
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["webhooks", forge.id] });

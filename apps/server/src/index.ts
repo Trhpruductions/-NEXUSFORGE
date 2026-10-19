@@ -3,16 +3,22 @@
   return this.toString();
 };
 
+// First import on purpose: from here on every console line gets a timestamp (see lib/log-format.ts).
+import "./lib/install-console-timestamps.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import morgan from "morgan";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
-import { setIo } from "./lib/realtime.js";
+import { onVoiceRemoved, setIo } from "./lib/realtime.js";
+import { createAccessLogger } from "./lib/access-log.js";
+import { createShutdown } from "./lib/shutdown.js";
+import { stopDailyPulse } from "./lib/daily-pulse.js";
+import { pushSubscriptionGuard } from "./middleware/push-subscription-guard.js";
+import { reportBodyParser } from "./middleware/anonymous-limit.js";
 import { allowedOriginList, LOCAL_ORIGIN_PATTERN } from "./lib/origins.js";
 import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
 import { hasForgePermission } from "./lib/forge-permissions.js";
@@ -86,13 +92,7 @@ import { JackpotEngine } from "./lib/jackpot-engine.js";
 import { reportDiscordAlert, startDiscordBot, stopDiscordBot } from "./lib/discord-bot.js";
 import { discordInteractionHandler } from "./routes/discord.routes.js";
 import { globalErrorHandler } from "./middleware/error-handler.js";
-import { anonymizeIP } from "./lib/ip-security.js";
 import { initializeAuditLogger } from "./utils/audit-logger.js";
-
-// Custom morgan token for anonymized IP
-morgan.token('remote-addr-masked', (req: any) => {
-  return anonymizeIP(req.ip || req.connection.remoteAddress || 'unknown').substring(0, 12) + "...";
-});
 
 const app = express();
 // Behind a tunnel or reverse proxy on this machine (cloudflared, nginx), every request
@@ -154,7 +154,8 @@ app.use(
   }),
 );
 app.use(helmet());
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms [GHOST-IP: :remote-addr-masked]'));
+// Access log: timestamped, masked visitor address, and URLs with their tokens removed (lib/access-log.ts).
+app.use(createAccessLogger());
 app.post("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookHandler);
 app.post("/api/discord/interactions", express.raw({ type: "application/json" }), discordInteractionHandler);
 // Email provider webhook: needs the raw bytes for its HMAC signature, so it sits ahead of express.json().
@@ -163,11 +164,21 @@ app.post("/api/email/webhooks", express.raw({ type: "application/json", limit: "
 // The global rate limit applies here too (this route answers before the app-wide limiter below would run).
 app.put("/api/uploads/local", globalRateLimit, ...localUploadPutHandler);
 app.use("/uploads", ...localUploadsStatic);
+// The public report endpoints take input from anyone, signed out too: at most 16 KB there (the app-wide
+// parser below allows 10 MB). A body this parser has already read is skipped by the next one.
+app.use(["/api/errors/client", "/api/problem-reports"], reportBodyParser);
+// ID verification sends the document and an optional selfie as base64 in one JSON body: two 8 MB photos are about
+// 22 MB of text, more than the 10 MB app-wide limit, so a normal phone photo pair was refused as "too large".
+// Only signed-in people get the bigger limit (checked before a byte is parsed); the router still checks CSRF.
+app.post("/api/age-verification/submit", requireAuth, express.json({ limit: "24mb" }));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(globalRateLimit);
 
 app.use("/api", healthRouter);
+// Push subscriptions (the routes are in auth.routes.ts): known browser push services only, at most 10
+// devices per account, and a limit on test sends.
+app.use("/api/auth/push-subscriptions", ...pushSubscriptionGuard);
 app.use("/api/auth", authRateLimit, authRouter);
 app.use("/api/forges", forgesRouter);
 app.use("/api/forges", forgeManagementRouter);
@@ -320,6 +331,13 @@ async function broadcastVoiceOccupancy(channelId: string) {
     broadcastStage(channelId);
   }
 }
+
+// Kicks, bans, leaving a forge and losing access to a channel take people out of voice on the server
+// side (lib/realtime.ts). Tell the forge, so everyone's app drops its connection to them.
+onVoiceRemoved((channelId, userId) => {
+  void broadcastVoiceOccupancy(channelId).catch((error) => console.error("[realtime] voice occupancy update failed", error));
+  io.to(`voice:${channelId}`).emit("voice:presence", { channelId, userId, action: "left" });
+});
 
 const SOUNDBOARD_COOLDOWN_MS = 2500;
 const soundboardLastPlayed = new Map<string, number>();
@@ -652,8 +670,8 @@ setIo(io);
 void runStartupTask("cosmetics catalog", ensureCosmeticCatalog);
 void runStartupTask("legal policies", ensureLegalPolicies);
 void runStartupTask("active suspensions", loadActiveSuspensions, { attempts: 30 });
-startEventReminders();
-startDeletionSweeper();
+const stopEventReminders = startEventReminders();
+const deletionSweeper = startDeletionSweeper();
 startCleanup();
 startStoreBillingSweep();
 startDailyPulse();
@@ -692,18 +710,54 @@ httpServer.listen(env.PORT, () => {
   });
 });
 
-async function gracefulShutdown(): Promise<void> {
-  await stopDiscordBot();
-  await prisma.$disconnect();
-  httpServer.close();
-}
+/** Longest a shutdown may take before the process exits anyway. */
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+/** How long requests already being answered get to finish before their connections are closed. */
+const HTTP_DRAIN_MS = 5_000;
+
+// Order matters: stop taking requests and close live connections while the database is still there (socket
+// disconnects update voice and presence), then the background jobs, then the database last.
+const shutdown = createShutdown(
+  [
+    {
+      name: "HTTP and realtime",
+      run: async () => {
+        httpServer.close(); // no new connections from here on
+        const forceClose = setTimeout(() => httpServer.closeAllConnections(), HTTP_DRAIN_MS);
+        try {
+          // Disconnects every socket, then waits until the HTTP server has no connections left.
+          await io.close();
+        } finally {
+          clearTimeout(forceClose);
+        }
+      },
+    },
+    {
+      name: "background jobs",
+      run: () => {
+        JackpotEngine.stop();
+        stopEventReminders();
+        clearInterval(deletionSweeper);
+        stopDailyPulse();
+      },
+    },
+    { name: "Discord bot", run: () => stopDiscordBot() },
+    { name: "database", run: () => prisma.$disconnect() },
+  ],
+  { timeoutMs: SHUTDOWN_TIMEOUT_MS },
+);
 
 process.on("SIGINT", () => {
-  void gracefulShutdown();
+  void shutdown("SIGINT");
 });
 
 process.on("SIGTERM", () => {
-  void gracefulShutdown();
+  void shutdown("SIGTERM");
+});
+
+// pm2 can't send signals to a process on Windows; with shutdown_with_message set it sends this message instead.
+process.on("message", (message) => {
+  if (message === "shutdown") void shutdown("shutdown message");
 });
 
 // A forgotten .catch() somewhere shouldn't take the whole server (and everyone's calls)

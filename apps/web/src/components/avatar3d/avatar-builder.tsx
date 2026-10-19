@@ -39,7 +39,7 @@ import { CurrentSelections } from "@/components/avatar3d/current-selections";
 import { STUDIO_CATEGORIES, armorOptions, headwear, onlyHoodies, otherAccessories, remember, topsWithoutHoodies, type RecentPick, type StudioCategory } from "@/components/avatar3d/studio-model";
 import { EmotePanel, OwnedInventory, OwnershipLegend, ProfileCard, RecentlyUsed, SavedOutfitsSummary } from "@/components/avatar3d/studio-panels";
 import type { EmoteId } from "@/components/avatar3d/emote-poses";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const POSE_CHOICES: Array<{ id: ViewerPose; label: string }> = [
   { id: "relaxed", label: "Relaxed" },
@@ -119,13 +119,14 @@ export function AvatarBuilder({ initial = DEFAULT_DESIGN, presetId = null, initi
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const queryScope = useQueryScope();
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const reduced = usePrefersReducedMotion();
 
-  const ownershipQuery = useQuery({ queryKey: ["avatar-ownership", accessToken], queryFn: () => loadOwnership(accessToken!), enabled: Boolean(accessToken) });
+  const ownershipQuery = useQuery({ queryKey: ["avatar-ownership", queryScope], queryFn: () => loadOwnership(accessToken!), enabled: Boolean(accessToken) });
   const ownership: OwnershipSnapshot | null = ownershipQuery.data ?? null;
   const owned = ownership?.owned ?? EMPTY_OWNED;
-  const looksQuery = useQuery({ queryKey: ["avatar", accessToken], queryFn: () => loadLooks(accessToken!), enabled: Boolean(accessToken) });
+  const looksQuery = useQuery({ queryKey: ["avatar", queryScope], queryFn: () => loadLooks(accessToken!), enabled: Boolean(accessToken) });
   const looks = looksQuery.data?.presets ?? [];
   const maxLooks = looksQuery.data?.maxPresets ?? 10;
   const mainId = looksQuery.data?.mainPresetId ?? null;

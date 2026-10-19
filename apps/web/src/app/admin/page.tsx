@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { ExperienceShell } from "@/components/layout/experience-shell";
 import { GuestAuthCallout } from "@/components/auth/guest-auth-callout";
@@ -56,9 +56,10 @@ function RegularUserAccessView() {
 
 export default function AdminPage() {
   const { accessToken, csrfToken, user, hydrated } = useAuthStore();
+  const queryScope = useQueryScope();
 
   const ageGateReviewQuery = useQuery({
-    queryKey: ["admin-age-gate-review-count", accessToken, csrfToken],
+    queryKey: ["admin-age-gate-review-count", queryScope, csrfToken],
     queryFn: () =>
       getAdminAgeGateAudit(accessToken!, csrfToken!, {
         limit: 1,

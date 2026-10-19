@@ -59,7 +59,7 @@ import { alpha, channelHue, hues, hueFor, sectionHue, tileGradient } from "@/lib
 import { markAllForgesRead, markForgeRead, listUnseenUpdates, cancelAccountDeletion, getApiErrorMessage, getForge, getForgePermissions, getForgeUnreads, getProtectionStatus, getDmUnread, getSettings, getUnreadSummary, getVoiceOccupancy, listForges, markChannelRead, setPresenceStatus, type Channel } from "@/lib/api";
 import { listNotifications } from "@/lib/notifications-api";
 import { getSocket } from "@/lib/socket";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { ServerContextMenu } from "@/components/layout/server-context-menu";
 import { serverMenuItems, type ServerMenuItem } from "@/components/layout/server-menu-model";
 import { useWorkspaceStore } from "@/store/workspace-store";
@@ -69,7 +69,7 @@ import { serverLandingHref } from "@/lib/server-routes";
 import { VoiceEngine } from "@/components/chat/voice-engine";
 import { AppearanceRuntime } from "@/components/appearance/appearance-runtime";
 import { playCue } from "@/lib/sound/sound-engine";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 // The sidebar, grouped so people can find their way: Home, then Community, Create, Shop and Account.
 // `matches` lists older paths that should still light up this entry (the Shop covers the outfit store).
@@ -118,6 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, accessToken, csrfToken, clearSession } = useAuthStore();
+  const queryScope = useQueryScope();
   const {
     selectedForgeId,
     setSelectedForgeId,
@@ -166,7 +167,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("mousedown", onDown);
   }, [statusMenuOpen]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  useEscapeKey(mobileOpen, () => setMobileOpen(false));
   const [search, setSearch] = useState("");
   const voiceSession = useVoiceStore((state) => state.session);
   const voiceFlags = useVoiceStore((state) => state.flags);
@@ -177,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const forgeMenuRef = useRef<HTMLDivElement | null>(null);
 
   const forgesQuery = useQuery({
-    queryKey: ["forges", accessToken],
+    queryKey: ["forges", queryScope],
     queryFn: () => listForges(accessToken!),
     enabled: Boolean(accessToken),
   });
@@ -192,7 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [forges, selectedForgeId, setSelectedForgeId]);
 
   const forgeQuery = useQuery({
-    queryKey: ["forge", selectedForgeId, accessToken],
+    queryKey: ["forge", selectedForgeId, queryScope],
     queryFn: () => getForge(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
@@ -230,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Who is actually sitting in each voice channel right now.
   const [voiceCounts, setVoiceCounts] = useState<Record<string, number>>({});
   const occupancyQuery = useQuery({
-    queryKey: ["voice-occupancy", selectedForgeId, accessToken],
+    queryKey: ["voice-occupancy", selectedForgeId, queryScope],
     queryFn: () => getVoiceOccupancy(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
@@ -242,7 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [occupancyQuery.data]);
 
   const unreadsQuery = useQuery({
-    queryKey: ["forge-unreads", selectedForgeId, accessToken],
+    queryKey: ["forge-unreads", selectedForgeId, queryScope],
     queryFn: () => getForgeUnreads(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
     refetchInterval: 60_000,
@@ -255,7 +255,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [unreadsQuery.data, setChannelCounts]);
 
   const summaryQuery = useQuery({
-    queryKey: ["unread-summary", accessToken],
+    queryKey: ["unread-summary", queryScope],
     queryFn: () => getUnreadSummary(accessToken!),
     enabled: Boolean(accessToken),
     refetchInterval: 60_000,
@@ -270,11 +270,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mutedForgeIds = useMemo(() => new Set((summaryQuery.data?.forges ?? []).filter((entry) => entry.muted).map((entry) => entry.forgeId)), [summaryQuery.data]);
   const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
-  const unseenUpdatesQuery = useQuery({ queryKey: ["updates-unseen", accessToken], queryFn: () => listUnseenUpdates(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
+  const unseenUpdatesQuery = useQuery({ queryKey: ["updates-unseen", queryScope], queryFn: () => listUnseenUpdates(accessToken!), enabled: Boolean(accessToken), staleTime: 5 * 60_000 });
   const hasUnseenUpdates = Boolean(unseenUpdatesQuery.data?.length);
 
   const dmUnreadQuery = useQuery({
-    queryKey: ["dm-unread", accessToken],
+    queryKey: ["dm-unread", queryScope],
     queryFn: () => getDmUnread(accessToken!),
     enabled: Boolean(accessToken),
     refetchInterval: 60_000,
@@ -282,7 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const dmUnread = dmUnreadQuery.data?.unread ?? 0;
 
   const notificationsQuery = useQuery({
-    queryKey: ["notifications", accessToken],
+    queryKey: ["notifications", queryScope],
     queryFn: () => listNotifications(accessToken!, csrfToken ?? ""),
     enabled: Boolean(accessToken),
     refetchInterval: 45_000,
@@ -290,14 +290,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const unreadNotifications = notificationsQuery.data?.unreadCount ?? 0;
 
   const protectionQuery = useQuery({
-    queryKey: ["protection", accessToken],
+    queryKey: ["protection", queryScope],
     queryFn: () => getProtectionStatus(accessToken!),
     enabled: Boolean(accessToken),
     staleTime: 60_000,
   });
   // Appearance preferences (Settings → Appearance) apply to the whole app.
   const settingsQuery = useQuery({
-    queryKey: ["settings", accessToken],
+    queryKey: ["settings", queryScope],
     queryFn: () => getSettings(accessToken!),
     enabled: Boolean(accessToken),
     staleTime: 5 * 60_000,
@@ -341,7 +341,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       bumpChannel(payload.forgeId, payload.channelId, mentioned);
     };
     const handleChannels = (payload: { forgeId: string }) => {
-      void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, queryScope] });
     };
     const handleDmActivity = (payload: { authorId: string }) => {
       if (payload.authorId === user?.id) return;
@@ -358,7 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setVoiceCounts((current) => ({ ...current, [payload.channelId]: payload.count }));
     };
     const handlePresence = (payload: { forgeId: string; userId?: string }) => {
-      void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["forge", payload.forgeId, queryScope] });
       // Profile pages and friend lists show the same status; keep them live too.
       void queryClient.invalidateQueries({ queryKey: ["profile-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["friends"] });
@@ -380,7 +380,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       socket.off("forge:channels", handleChannels);
       socket.off("presence:changed", handlePresence);
     };
-  }, [accessToken, forges, user?.id, bumpChannel, queryClient, fetchMe]);
+  }, [accessToken, forges, user?.id, bumpChannel, queryClient, queryScope, fetchMe]);
 
   // Leaving the chat page clears the active channel so new messages count as unread again.
   useEffect(() => {
@@ -449,7 +449,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setServerMenu({ forgeId, name, x, y, loading: Boolean(accessToken), access: undefined });
     if (!accessToken) return;
     queryClient
-      .fetchQuery({ queryKey: ["server-menu-access", forgeId, accessToken], queryFn: () => getForgePermissions(accessToken, forgeId), staleTime: 30_000 })
+      .fetchQuery({ queryKey: ["server-menu-access", forgeId, queryScope], queryFn: () => getForgePermissions(accessToken, forgeId), staleTime: 30_000 })
       .then((data) =>
         setServerMenu((menu) => (menu && menu.forgeId === forgeId ? { ...menu, loading: false, access: { isOwner: data.isOwner, permissions: { ...data.permissions } } } : menu)),
       )
@@ -556,6 +556,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const leftMax = maxDragWidth("left", viewportWidth || 1920, layout.right);
   // The narrow-window case: the channel list opens over the page instead (like on a phone).
   const [sidebarOverlay, setSidebarOverlay] = useState(false);
+  // The channel list over the page (phones, or a window too narrow to dock it): a modal drawer.
+  const navDialog = useDialogFocus({
+    open: mobileOpen || sidebarOverlay,
+    onClose: () => {
+      setMobileOpen(false);
+      setSidebarOverlay(false);
+    },
+    label: "Navigation",
+  });
 
   const renderSidebar = (width: number) => (
     <aside style={{ width }} className="flex h-full shrink-0 flex-col border-r border-white/[0.06] bg-[#0b0e17]/85 backdrop-blur-xl">
@@ -966,7 +975,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
 
       {mobileOpen || sidebarOverlay ? (
-        <div role="dialog" aria-modal="true" aria-label="Navigation" className={cn("fixed inset-0 z-50 flex", !sidebarOverlay && "lg:hidden")}>
+        <div {...navDialog} className={cn("fixed inset-0 z-50 flex", !sidebarOverlay && "lg:hidden")}>
           <div
             className="absolute inset-0 bg-black/70"
             onClick={() => {

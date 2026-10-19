@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LogOut, Scale } from "lucide-react";
 import { getApiErrorMessage } from "@/lib/api";
 import { acceptPolicies, getPendingConsents } from "@/lib/legal-api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 /**
  * Shown inside the app when a required policy has a version this person hasn't accepted
@@ -16,20 +17,23 @@ import { useAuthStore } from "@/store/auth-store";
 export function ConsentRenewal() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, clearSession } = useAuthStore();
+  const queryScope = useQueryScope();
   const [checked, setChecked] = useState<Record<string, boolean>>({});
 
   const pendingQuery = useQuery({
-    queryKey: ["legal-pending", accessToken],
+    queryKey: ["legal-pending", queryScope],
     queryFn: () => getPendingConsents(accessToken!),
     enabled: Boolean(accessToken),
     staleTime: 5 * 60_000,
   });
   const pending = pendingQuery.data?.pending ?? [];
+  // Can't be dismissed (no onClose): accepting or signing out are the only ways on.
+  const dialog = useDialogFocus({ open: pending.length > 0, labelledBy: "consent-title" });
 
   const acceptMutation = useMutation({
     mutationFn: () => acceptPolicies(accessToken!, csrfToken!, pending.map((policy) => policy.versionId)),
     onSuccess: (data) => {
-      queryClient.setQueryData(["legal-pending", accessToken], { pending: data.pending });
+      queryClient.setQueryData(["legal-pending", queryScope], { pending: data.pending });
       setChecked({});
     },
   });
@@ -40,7 +44,7 @@ export function ConsentRenewal() {
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
-      <div role="dialog" aria-modal="true" aria-labelledby="consent-title" className="relative w-full max-w-md overflow-hidden rounded-2xl border border-violet-400/30 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative w-full max-w-md overflow-hidden rounded-2xl border border-violet-400/30 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-violet-500/70 via-amber-400/80 to-cyan-400/70" />
         <div className="space-y-4 p-5">
           <div className="flex items-start gap-3">

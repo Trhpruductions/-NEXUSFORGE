@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Eye, Loader2, Radio, Square, X } from "lucide-react";
 import { getApiErrorMessage, getLiveCreators, getProfileSummary, setLiveStatus, type User } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { resolveClipEmbed } from "@/components/media/clip-embed";
 import { safeHref } from "@/lib/safe-href";
 
@@ -46,6 +46,7 @@ function LivePageInner() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [platform, setPlatform] = useState<(typeof platforms)[number]>("Nexus Forge");
   const [title, setTitle] = useState("");
   const [game, setGame] = useState("");
@@ -54,13 +55,13 @@ function LivePageInner() {
   const [watchingId, setWatchingId] = useState<string | null>(searchParams?.get("watch") ?? null);
 
   const liveQuery = useQuery({
-    queryKey: ["live-creators", accessToken],
+    queryKey: ["live-creators", queryScope],
     queryFn: () => getLiveCreators(accessToken!, csrfToken ?? ""),
     enabled: Boolean(accessToken),
     refetchInterval: 20_000,
   });
   const meQuery = useQuery({
-    queryKey: ["profile-summary", "me", accessToken],
+    queryKey: ["profile-summary", "me", queryScope],
     queryFn: () => getProfileSummary(accessToken!, "me"),
     enabled: Boolean(accessToken),
   });

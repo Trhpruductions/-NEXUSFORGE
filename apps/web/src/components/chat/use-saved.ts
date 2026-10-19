@@ -2,13 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listSavedIds, setSaved, type SavedKind } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 /** Which messages you've saved, and a toggle. Shared by every message list. */
 export function useSavedMessages() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const key = ["saved-ids", accessToken];
+  const key = ["saved-ids", queryScope];
   const ids = useQuery({ queryKey: key, queryFn: () => listSavedIds(accessToken!), enabled: Boolean(accessToken), staleTime: 60_000 });
 
   const toggle = useMutation({

@@ -20,9 +20,9 @@ import {
   type VexoraEvent,
 } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 type Scope = "upcoming" | "live" | "past";
 
@@ -68,6 +68,7 @@ function roundLabel(index: number, total: number) {
 export function EventsPage() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const [scope, setScope] = useState<Scope>("upcoming");
   const [month, setMonth] = useState(() => {
@@ -81,22 +82,22 @@ export function EventsPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const eventsQuery = useQuery({
-    queryKey: ["events", scope, accessToken],
+    queryKey: ["events", scope, queryScope],
     queryFn: () => listEvents(accessToken!, { scope }),
     enabled: Boolean(accessToken),
   });
   const upcomingAllQuery = useQuery({
-    queryKey: ["events", "upcoming", accessToken],
+    queryKey: ["events", "upcoming", queryScope],
     queryFn: () => listEvents(accessToken!, { scope: "upcoming" }),
     enabled: Boolean(accessToken),
   });
   const liveQuery = useQuery({
-    queryKey: ["events", "live", accessToken],
+    queryKey: ["events", "live", queryScope],
     queryFn: () => listEvents(accessToken!, { scope: "live" }),
     enabled: Boolean(accessToken),
   });
   const activeEventQuery = useQuery({
-    queryKey: ["events", "detail", activeEventId, accessToken],
+    queryKey: ["events", "detail", activeEventId, queryScope],
     queryFn: () => getEvent(accessToken!, activeEventId!),
     enabled: Boolean(accessToken && activeEventId),
   });
@@ -518,13 +519,7 @@ function BracketModal({
   onReport: (round: number, match: number, winnerUserId: string) => void;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialog = useDialogFocus({ open: true, onClose, label: "Event details" });
 
   if (typeof document === "undefined") return null;
 
@@ -532,7 +527,7 @@ function BracketModal({
   const rounds = event.bracket?.rounds?.length ?? 0;
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Event details" className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
+    <div {...dialog} className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
       <div className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_90px_rgba(0,0,0,0.65)]">
         <header className="flex items-start justify-between gap-3 border-b border-white/5 px-5 py-4">
@@ -549,6 +544,7 @@ function BracketModal({
             type="button"
             onClick={onClose}
             title="Close"
+            aria-label="Close"
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-slate-300 transition hover:border-amber-400/50 hover:text-amber-100"
           >
             <X className="h-4 w-4" />
@@ -564,9 +560,10 @@ function BracketModal({
 }
 
 function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForgeId: string | null; onClose: () => void; onCreated: (event: VexoraEvent) => void }) {
-  useEscapeKey(true, onClose);
+  const dialog = useDialogFocus({ open: true, onClose, label: "Create an event" });
   const { accessToken, csrfToken } = useAuthStore();
-  const forgesQuery = useQuery({ queryKey: ["forges", accessToken], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
+  const queryScope = useQueryScope();
+  const forgesQuery = useQuery({ queryKey: ["forges", queryScope], queryFn: () => listForges(accessToken!), enabled: Boolean(accessToken) });
   const [type, setType] = useState<"EVENT" | "TOURNAMENT">("EVENT");
   const [title, setTitle] = useState("");
   const [game, setGame] = useState("");
@@ -598,12 +595,12 @@ function CreateEventDialog({ defaultForgeId, onClose, onCreated }: { defaultForg
   });
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Create an event" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+    <div {...dialog} className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="nf-heading text-base font-bold text-white">Create {type === "TOURNAMENT" ? "tournament" : "event"}</h2>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:text-white" title="Close"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-400 hover:text-white" title="Close" aria-label="Close"><X className="h-4 w-4" /></button>
         </div>
         <div className="mb-3 flex gap-1 rounded-lg border border-white/5 bg-[#11151e] p-1">
           {(["EVENT", "TOURNAMENT"] as const).map((entry) => (

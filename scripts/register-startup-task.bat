@@ -5,6 +5,14 @@ REM Usage: Double-click this file
 
 setlocal enabledelayedexpansion
 
+REM DISABLED (2026-10-18): the task this registers runs scripts\startup-production.ps1 as SYSTEM, and that
+REM script runs "pm2 save" (forbidden on this PC: the pm2 dump is shared with other bots). Logon start-up is
+REM handled by scripts\vexora-autostart.cmd. To remove an old copy of the task, run (as administrator):
+REM   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\register-startup-task.ps1 -Uninstall
+echo register-startup-task.bat is disabled: its task ran "pm2 save" as SYSTEM, which must never run on this PC.
+echo Logon start-up is handled by scripts\vexora-autostart.cmd. See README.md.
+exit /b 1
+
 REM Check if running as admin
 net session >nul 2>&1
 if %errorLevel% neq 0 (

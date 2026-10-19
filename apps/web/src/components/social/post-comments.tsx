@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Send, Trash2 } from "lucide-react";
 import { addPostComment, deletePostComment, getApiErrorMessage, listPostComments, type PostComment } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { plainText } from "@/lib/plain-text";
 
 function ago(iso: string) {
@@ -19,10 +19,11 @@ function ago(iso: string) {
 /** The comment thread under a post. Reports count changes so the card's counter stays right. */
 export function PostComments({ postId, postAuthorId, onCountChange }: { postId: string; postAuthorId: string; onCountChange: (delta: number) => void }) {
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const key = ["post-comments", postId, accessToken] as const;
+  const key = ["post-comments", postId, queryScope] as const;
 
   const query = useQuery({ queryKey: key, queryFn: () => listPostComments(accessToken!, postId), enabled: Boolean(accessToken) });
   const add = useMutation({

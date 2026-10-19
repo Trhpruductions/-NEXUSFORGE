@@ -9,6 +9,7 @@
  *   gateway   http://127.0.0.1:3400/api/health
  *   public    https://nfgcord.com/api/health through Cloudflare (DNS looked up at 1.1.1.1,
  *             so this PC's cached resolver can't fool it)
+ *   disk      free space on C: and D: (alert only: nothing is deleted or restarted)
  *
  * After three failed checks in a row it posts to the bot's #bot-alerts channel and restarts
  * the stuck piece (pm2 restart, or pg_ctl start for the database), at most once every
@@ -44,6 +45,10 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const PGBIN = process.env.PGBIN || "C:\\Program Files\\PostgreSQL\\17\\bin";
 const PGDATA = process.env.PGDATA || "D:\\NexusForgeDB\\data";
 const PGLOG = process.env.PGLOG || "D:\\NexusForgeDB\\postgres.log";
+// C: holds Windows, temp files and the pm2 logs; D: holds the database, uploads and backups. A full drive stops
+// Postgres or the logs, so warn while there is still room to clean up.
+const DISK_MIN_FREE_GB = Number(process.env.WATCHDOG_DISK_MIN_FREE_GB || 5);
+const WATCHED_DRIVES = (process.env.WATCHDOG_DRIVES || "C:\\,D:\\").split(",").map((drive) => drive.trim()).filter(Boolean);
 const pm2Script = resolvePm2Script();
 
 /**
@@ -281,6 +286,19 @@ async function startPostgres() {
   return "tried to start Postgres; still not ready (see D:\\NexusForgeDB\\postgres.log)";
 }
 
+async function diskSpace() {
+  const report = [];
+  const low = [];
+  for (const drive of WATCHED_DRIVES) {
+    const stats = await fs.promises.statfs(drive);
+    const freeGb = (Number(stats.bavail) * Number(stats.bsize)) / 1024 ** 3;
+    report.push(`${drive} ${freeGb.toFixed(1)} GB free`);
+    if (freeGb < DISK_MIN_FREE_GB) low.push(`${drive} has ${freeGb.toFixed(1)} GB free`);
+  }
+  if (low.length) throw new Error(`low disk space: ${low.join(", ")} (alert below ${DISK_MIN_FREE_GB} GB)`);
+  return report.join(", ");
+}
+
 const checks = [
   { key: "db", label: "Database (Postgres on 5433)", probe: postgresReady, heal: startPostgres },
   // /health/ready also runs a query, so an API that is up but has lost its database counts as down.
@@ -294,6 +312,8 @@ const checks = [
     heal: () => restartApp("vexora-tunnel"),
     needs: ["gateway", "api"],
   },
+  // No heal: freeing space means deciding what to delete, which is the owner's call.
+  { key: "disk", label: "Free disk space", probe: diskSpace },
 ];
 
 const state = new Map(
@@ -428,7 +448,7 @@ log(`watchdog started: ${checks.length} checks every ${INTERVAL_MS / 1000}s, act
 await discordPost(
   "status",
   "🛡️ Watchdog online",
-  `Checking the database, API, web app, gateway and https://${PUBLIC_HOST} every ${INTERVAL_MS / 1000} s. A piece that fails ${FAILS_BEFORE_ACTION} checks in a row is restarted and reported in #bot-alerts.`,
+  `Checking the database, API, web app, gateway, https://${PUBLIC_HOST} and free disk space every ${INTERVAL_MS / 1000} s. A piece that fails ${FAILS_BEFORE_ACTION} checks in a row is restarted and reported in #bot-alerts (low disk space is reported only).`,
   BLUE,
 );
 await tick();

@@ -2,11 +2,19 @@ param(
   [string] $ConfigPath = "./scripts/desktop-release-deploy.env",
   [string] $BundleDir = "",
   [switch] $VerifyInsecure,
-  [switch] $SkipNginxReload
+  [switch] $SkipNginxReload,
+  # The owner must approve each release before it is published. Pass this only after that approval.
+  [switch] $OwnerApproved
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+# Runs deploy-desktop-web-release.ps1, which uploads the installers and desktop-update.json to the public host.
+# Stop before anything is loaded or uploaded unless the owner has approved this release.
+if (-not $OwnerApproved) {
+  throw "Not publishing: deploying a desktop release needs the owner's approval first. Show the owner the version and notes, then re-run with -OwnerApproved."
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $repoRoot
@@ -125,7 +133,7 @@ try {
 
   $deployScriptPath = Join-Path $PSScriptRoot "deploy-desktop-web-release.ps1"
 
-  & $deployScriptPath -BundleDir $effectiveBundleDir -VerifyInsecure:$VerifyInsecure -SkipNginxReload:$SkipNginxReload
+  & $deployScriptPath -BundleDir $effectiveBundleDir -VerifyInsecure:$VerifyInsecure -SkipNginxReload:$SkipNginxReload -OwnerApproved:$OwnerApproved
   if ($LASTEXITCODE -ne 0) {
     throw "Deploy command failed."
   }

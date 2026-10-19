@@ -7,7 +7,7 @@ import { Check, Loader2, MessageSquare, Search, UserMinus, UserPlus, Users, X, E
 import { LoadingNote } from "@/components/ui/loading-note";
 import { getApiErrorMessage, listFriends, removeFriend, searchUsers, sendFriendRequest, updateFriendStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 type Tab = "online" | "all" | "pending" | "add";
 
@@ -38,19 +38,20 @@ function Avatar({ src, name, size = 44 }: { src?: string | null; name: string; s
 export function FriendsPage() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [tab, setTab] = useState<Tab>("online");
   const [filter, setFilter] = useState("");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const friendsQuery = useQuery({
-    queryKey: ["friends", accessToken],
+    queryKey: ["friends", queryScope],
     queryFn: () => listFriends(accessToken!),
     enabled: Boolean(accessToken),
     refetchInterval: 30_000,
   });
   const searchQuery = useQuery({
-    queryKey: ["user-search", query, accessToken],
+    queryKey: ["user-search", query, queryScope],
     queryFn: () => searchUsers(accessToken!, query),
     enabled: Boolean(accessToken && tab === "add" && query.trim().length >= 2),
   });

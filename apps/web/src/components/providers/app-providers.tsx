@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { setApiUnauthorizedHandler } from "@/lib/api";
 import { installErrorReporting } from "@/lib/report-error";
-import { useAuthStore } from "@/store/auth-store";
+import { shouldClearQueryCache, useAuthStore } from "@/store/auth-store";
 import { GlobalNotificationProvider } from "@/context/global-notifications";
 import { GlobalNotificationCenter } from "@/components/notifications/global-notification-center";
 import { DesktopUpdateBanner } from "@/components/desktop/desktop-update-banner";
@@ -55,6 +55,17 @@ export function AppProviders({ children }: AppProvidersProps) {
     if (!hydrated || !accessToken) return;
     void fetchMe();
   }, [hydrated, accessToken, fetchMe]);
+
+  // Query keys carry the signed-in user's id, not the token (useQueryScope), so a token refresh keeps the cache. On
+  // sign-out, an expired session, or a different account signing in, drop everything: one person's data (DMs,
+  // notifications, settings) must never show for the next, even for a moment.
+  useEffect(
+    () =>
+      useAuthStore.subscribe((state, previous) => {
+        if (shouldClearQueryCache(previous, state)) queryClient.clear();
+      }),
+    [queryClient],
+  );
 
   useEffect(() => {
     setApiUnauthorizedHandler(() => {

@@ -8,6 +8,12 @@ param(
   [switch]$Resurrect = $false
 )
 
+# DISABLED (2026-10-18): this script ends with "pm2 save". On this PC the pm2 dump is shared with the owner's
+# other bots, and a save once wiped them. The site is brought back at logon by scripts/vexora-autostart.cmd
+# (no pm2 save). Old setup scripts registered this file as a SYSTEM scheduled task; they are disabled too.
+Write-Host "startup-production.ps1 is disabled: it runs 'pm2 save', which must never run on this PC (the pm2 dump is shared with other bots). Use scripts/vexora-autostart.cmd; see README.md." -ForegroundColor Red
+exit 1
+
 $ErrorActionPreference = "Stop"
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootPath = Split-Path -Parent $scriptPath

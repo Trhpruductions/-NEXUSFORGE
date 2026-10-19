@@ -32,6 +32,7 @@ import { confirmVacBan, issueVacBan, listVacBans, vacBanTargetUserId } from "../
 import { VAC_EVIDENCE_MAX } from "../lib/account-suspension.js";
 import { requirePaidFeature } from "../middleware/entitlements.js";
 import { adminAnalytics, ANALYTICS_RANGES, type AnalyticsRange } from "../lib/admin-analytics.js";
+import { recordStaffAction, toggleAdminDenial, toggledAdminRole } from "../lib/staff-actions.js";
 
 export const adminRouter = Router();
 
@@ -642,6 +643,11 @@ adminRouter.post("/users/:id/badges/grant", async (req, res) => {
     },
   });
 
+  const hadBadge = await prisma.userMedal.findUnique({
+    where: { userId_medalId: { userId: targetUser.id, medalId: medal.id } },
+    select: { userId: true },
+  });
+
   await prisma.userMedal.upsert({
     where: {
       userId_medalId: {
@@ -654,6 +660,14 @@ adminRouter.post("/users/:id/badges/grant", async (req, res) => {
       userId: targetUser.id,
       medalId: medal.id,
     },
+  });
+
+  await recordStaffAction(req, {
+    action: "grant-profile-badge",
+    targetUserId: targetUser.id,
+    before: { badgeKey, hasBadge: Boolean(hadBadge) },
+    after: { badgeKey, hasBadge: true },
+    metadata: { targetUsername: targetUser.username, medalKey },
   });
 
   await logAdminProfileAction(
@@ -699,14 +713,24 @@ adminRouter.post("/users/:id/badges/revoke", async (req, res) => {
   const medalKey = manualBadgeMedalMap[badgeKey];
   const medal = await prisma.medal.findUnique({ where: { key: medalKey }, select: { id: true } });
 
+  let hadBadge = false;
   if (medal) {
-    await prisma.userMedal.deleteMany({
+    const removed = await prisma.userMedal.deleteMany({
       where: {
         userId: targetUser.id,
         medalId: medal.id,
       },
     });
+    hadBadge = removed.count > 0;
   }
+
+  await recordStaffAction(req, {
+    action: "revoke-profile-badge",
+    targetUserId: targetUser.id,
+    before: { badgeKey, hasBadge: hadBadge },
+    after: { badgeKey, hasBadge: false },
+    metadata: { targetUsername: targetUser.username, medalKey },
+  });
 
   await logAdminProfileAction(
     req.user!.id,
@@ -1407,20 +1431,17 @@ adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
     return;
   }
 
-  const actorRole = resolveEffectiveRole(actor.appRole as AppRole | null, actor.isAdmin);
-  const targetRole = resolveEffectiveRole(user.appRole as AppRole | null, user.isAdmin);
+  const actorSubject = { id: actor.id, appRole: actor.appRole as AppRole | null, isAdmin: actor.isAdmin };
+  const targetSubject = { id: user.id, appRole: user.appRole as AppRole | null, isAdmin: user.isAdmin };
 
-  if (!hasAdminAccess(actorRole, actor.isAdmin)) {
-    res.status(403).json({ error: "Admin access required" });
+  // The same hierarchy rules as set-role: only accounts ranked below you, never your own.
+  const denial = toggleAdminDenial(actorSubject, targetSubject);
+  if (denial) {
+    res.status(denial.status).json({ error: denial.error });
     return;
   }
 
-  if (targetRole === "OWNER" || targetRole === "EXEC") {
-    res.status(403).json({ error: "Cannot modify protected higher-up roles" });
-    return;
-  }
-
-  const nextRole: AppRole = hasAdminAccess(targetRole, user.isAdmin) ? "USER" : "ADMIN";
+  const nextRole: AppRole = toggledAdminRole(targetSubject);
 
   if (nextRole === "USER") {
     const privilegedCount = await prisma.user.count({
@@ -1451,6 +1472,14 @@ adminRouter.post("/users/:id/toggle-admin", async (req, res) => {
       isAdmin: true,
     },
   });
+
+  await recordStaffAction(req, {
+    action: "toggle-admin",
+    targetUserId: user.id,
+    before: { appRole: user.appRole, isAdmin: user.isAdmin },
+    after: { appRole: updated.appRole, isAdmin: updated.isAdmin },
+  });
+  console.log(`[ROLES] ${actor.id} toggled admin on ${user.id}: ${user.appRole ?? (user.isAdmin ? "ADMIN" : "USER")} -> ${updated.appRole}`);
 
   res.json({
     user: {
@@ -1559,6 +1588,14 @@ adminRouter.post("/users/:id/set-role", async (req, res) => {
       isAdmin: true,
     },
   });
+
+  await recordStaffAction(req, {
+    action: "set-role",
+    targetUserId: target.id,
+    before: { appRole: target.appRole, isAdmin: target.isAdmin },
+    after: { appRole: updated.appRole, isAdmin: updated.isAdmin },
+  });
+  console.log(`[ROLES] ${actor.id} set the role of ${target.id}: ${targetRole} -> ${updated.appRole}`);
 
   res.json({
     user: {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, ChevronRight, Globe, Loader2, RefreshCcw, Server, Trash2 } from "lucide-react";
 import { getApiErrorMessage, listErrorEvents, resolveErrorEvent, type ErrorEventRow } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 function ago(iso: string) {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -18,11 +18,12 @@ function ago(iso: string) {
 /** Staff: grouped crashes and server errors, newest first. "Fixed" removes a group; it returns if it happens again. */
 export function ErrorLogAdmin() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "server" | "web">("all");
   const [notice, setNotice] = useState<string | null>(null);
-  const query = useQuery({ queryKey: ["error-log", accessToken], queryFn: () => listErrorEvents(accessToken!), enabled: Boolean(accessToken), refetchInterval: 60_000 });
+  const query = useQuery({ queryKey: ["error-log", queryScope], queryFn: () => listErrorEvents(accessToken!), enabled: Boolean(accessToken), refetchInterval: 60_000 });
 
   const resolve = useMutation({
     mutationFn: (id?: string) => resolveErrorEvent(accessToken!, csrfToken!, id),

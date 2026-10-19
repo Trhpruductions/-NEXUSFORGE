@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, BarChart3, Bookmark, BookmarkCheck, Sticker, Check, Clock, ExternalLink, Flag, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pencil, Pin, Plus, Radio, Search, Send, Settings2, Timer, Trash2, Users, Volume2, X } from "lucide-react";
+import { AtSign, BarChart3, Sticker, Check, Clock, ExternalLink, Hash, MessagesSquare, Smile, Loader2, Megaphone, MessageSquare, Mic, Paperclip, Pin, Plus, Radio, Search, Send, Settings2, Timer, Users, Volume2, X } from "lucide-react";
 import { ResizeHandle } from "@/components/layout/resize-handle";
 import { LAYOUT_LIMITS, effectiveLayout, maxDragWidth } from "@/lib/layout/layout-prefs";
 import { popoutsSupported } from "@/lib/popout/popout-support";
@@ -41,19 +41,21 @@ import {
   type Channel,
   type DmMessage,
   type DmThread,
+  type ForgeMemberEntry,
+  type ForgeRole,
   type Message,
   type PollDraft,
 } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useVoiceStore } from "@/store/voice-store";
 import { useServerViewStore } from "@/store/server-view-store";
 import { MessageList } from "@/components/chat/message-list";
+import { DmMessageList } from "@/components/chat/dm-message-list";
+import { useStableCallback } from "@/lib/use-stable-callback";
 import { PollComposer } from "@/components/chat/poll-composer";
-import { MessageAttachments } from "@/components/chat/message-attachments";
-import { useSavedMessages } from "@/components/chat/use-saved";
 import { MemberList } from "@/components/chat/member-list";
 import dynamic from "next/dynamic";
 // The server settings panel is large and only opened on demand.
@@ -61,24 +63,25 @@ const ForgeSettingsPanel = dynamic(() => import("@/components/chat/forge-setting
 import { VoiceRoomPanel } from "@/components/chat/voice-room-panel";
 import { ReportDialog, type ReportTarget } from "@/components/chat/report-dialog";
 import { isManageTab } from "@/components/chat/forge-manage-tabs";
-import { firstLink, LinkPreviewCard } from "@/components/chat/link-preview-card";
 import { ThreadPanel } from "@/components/chat/thread-panel";
 import { ForumView } from "@/components/chat/forum-view";
 import { createThread, listForgeEmojis, listForgeStickers, listThreads } from "@/lib/api";
 import { CustomEmoji } from "@/components/chat/rich-text";
 import { plainText } from "@/lib/plain-text";
-import { RichText } from "@/components/chat/rich-text";
 
 
 const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/5 hover:text-amber-200";
+
+// Shared empty lists, so a missing forge or thread doesn't hand the memoised lists a new [] on every render.
+const NO_MESSAGES: Message[] = [];
+const NO_DM_MESSAGES: DmMessage[] = [];
+const NO_MEMBERS: ForgeMemberEntry[] = [];
+const NO_ROLES: ForgeRole[] = [];
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("") || "VX";
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 export function ChatPage() {
   return (
@@ -93,6 +96,7 @@ function ChatInner() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const selectedForgeId = useWorkspaceStore((state) => state.selectedForgeId);
   const setSelectedForgeId = useWorkspaceStore((state) => state.setSelectedForgeId);
   const setActiveChannelId = useWorkspaceStore((state) => state.setActiveChannelId);
@@ -151,7 +155,7 @@ function ChatInner() {
   }, [requestedForge, selectedForgeId, setSelectedForgeId]);
 
   const forgeQuery = useQuery({
-    queryKey: ["forge", selectedForgeId, accessToken],
+    queryKey: ["forge", selectedForgeId, queryScope],
     queryFn: () => getForge(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
@@ -160,7 +164,7 @@ function ChatInner() {
   const voiceChannels = useMemo(() => (forge?.channels ?? []).filter((channel) => channel.type === "VOICE" || channel.type === "STAGE"), [forge]);
 
   const accessQuery = useQuery({
-    queryKey: ["forge-permissions", selectedForgeId, accessToken],
+    queryKey: ["forge-permissions", selectedForgeId, queryScope],
     queryFn: () => getForgePermissions(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
   });
@@ -237,7 +241,7 @@ function ChatInner() {
   }, [mode, channelId, selectedForgeId, accessToken, csrfToken, setActiveChannelId, clearChannel, queryClient]);
 
   const messagesQuery = useQuery({
-    queryKey: ["messages", channelId, accessToken],
+    queryKey: ["messages", channelId, queryScope],
     queryFn: () => getMessages(accessToken!, channelId!),
     enabled: Boolean(accessToken && channelId && mode === "channel"),
   });
@@ -254,7 +258,7 @@ function ChatInner() {
       void queryClient.invalidateQueries({ queryKey: ["messages", channelId] });
     };
     socket.on("connect", rejoin);
-    const key = ["messages", channelId, accessToken];
+    const key = ["messages", channelId, queryScope];
     const patch = (fn: (current: { messages: Message[]; nextCursor: string | null }) => { messages: Message[]; nextCursor: string | null }) =>
       queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(key, (current) => (current ? fn(current) : current));
 
@@ -312,7 +316,7 @@ function ChatInner() {
       socket.off("typing:start", onTypingStart);
       socket.off("typing:stop", onTypingStop);
     };
-  }, [accessToken, csrfToken, channelId, mode, queryClient, user?.id, forge?.members]);
+  }, [accessToken, csrfToken, channelId, mode, queryClient, queryScope, user?.id, forge?.members]);
 
   const slashCommands = useMemo(
     () => (forge?.botInstallations ?? []).filter((install) => install.enabled).flatMap((install) => install.commands.filter((command) => command.enabled).map((command) => ({ ...command, botName: install.bot.name }))),
@@ -361,7 +365,7 @@ function ChatInner() {
     mutationFn: (payload: { channelId: string; content: string; optimisticId: string; attachments?: string[]; replyToId?: string; poll?: PollDraft; stickerId?: string; sticker?: Message["sticker"] }) =>
       postMessage(accessToken!, csrfToken!, { channelId: payload.channelId, content: payload.content, optimisticId: payload.optimisticId, attachments: payload.attachments, replyToId: payload.replyToId, poll: payload.poll, stickerId: payload.stickerId }),
     onMutate: async (payload) => {
-      const key = ["messages", payload.channelId, accessToken];
+      const key = ["messages", payload.channelId, queryScope];
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<{ messages: Message[]; nextCursor: string | null }>(key);
       const optimistic: Message = {
@@ -392,23 +396,23 @@ function ChatInner() {
       setStatus(getApiErrorMessage(error));
     },
     onSuccess: (data, payload) => {
-      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", payload.channelId, accessToken], (current) =>
+      queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", payload.channelId, queryScope], (current) =>
         current ? { ...current, messages: current.messages.map((msg) => (msg.id === payload.optimisticId ? { ...data.message, optimistic: false } : msg)) } : current,
       );
     },
   });
   const editMutation = useMutation({
     mutationFn: (input: { messageId: string; content: string }) => editMessage(accessToken!, csrfToken!, input.messageId, input.content),
-    onSuccess: (data) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", data.message.channelId, accessToken], (current) => (current ? { ...current, messages: current.messages.map((msg) => (msg.id === data.message.id ? data.message : msg)) } : current)),
+    onSuccess: (data) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", data.message.channelId, queryScope], (current) => (current ? { ...current, messages: current.messages.map((msg) => (msg.id === data.message.id ? data.message : msg)) } : current)),
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
   const deleteMutation = useMutation({
     mutationFn: (messageId: string) => deleteMessage(accessToken!, csrfToken!, messageId),
-    onSuccess: (_data, messageId) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, accessToken], (current) => (current ? { ...current, messages: current.messages.filter((msg) => msg.id !== messageId) } : current)),
+    onSuccess: (_data, messageId) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, queryScope], (current) => (current ? { ...current, messages: current.messages.filter((msg) => msg.id !== messageId) } : current)),
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
   const pinsQuery = useQuery({
-    queryKey: ["pins", channelId, accessToken],
+    queryKey: ["pins", channelId, queryScope],
     queryFn: () => listPinnedMessages(accessToken!, channelId!),
     enabled: Boolean(accessToken && channelId && mode === "channel" && pinsOpen),
   });
@@ -419,13 +423,13 @@ function ChatInner() {
 
   const reactMutation = useMutation({
     mutationFn: (input: { messageId: string; emoji: string }) => toggleReaction(accessToken!, csrfToken!, input.messageId, input.emoji),
-    onSuccess: (data, input) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, accessToken], (current) => (current ? { ...current, messages: current.messages.map((msg) => (msg.id === input.messageId ? { ...msg, reactions: data.reactions } : msg)) } : current)),
+    onSuccess: (data, input) => queryClient.setQueryData<{ messages: Message[]; nextCursor: string | null }>(["messages", channelId, queryScope], (current) => (current ? { ...current, messages: current.messages.map((msg) => (msg.id === input.messageId ? { ...msg, reactions: data.reactions } : msg)) } : current)),
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
 
   const loadOlder = async () => {
     if (!accessToken || !channelId) return;
-    const key = ["messages", channelId, accessToken];
+    const key = ["messages", channelId, queryScope];
     const current = queryClient.getQueryData<{ messages: Message[]; nextCursor: string | null }>(key);
     if (!current?.nextCursor) return;
     setLoadingOlder(true);
@@ -497,14 +501,13 @@ function ChatInner() {
         // Not sent: give the text back so nothing is lost.
         if (!files.length) setDraft(content);
         if (data.code === "SLOWMODE" && data.retryAfter) setSlowUntil((current) => ({ ...current, [channelId]: Date.now() + data.retryAfter! * 1000 }));
-        if (data.code === "TIMED_OUT") void queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, accessToken] });
+        if (data.code === "TIMED_OUT") void queryClient.invalidateQueries({ queryKey: ["forge", selectedForgeId, queryScope] });
       }
     } finally {
       setUploading(false);
     }
   };
 
-  const saved = useSavedMessages();
   // Polls: the question is sent as the message text.
   const [pollOpen, setPollOpen] = useState(false);
   const sendPoll = async (question: string, poll: PollDraft) => {
@@ -536,7 +539,7 @@ function ChatInner() {
 
   // ---------------------------------------------------------------- DMs
   const dmThreadsQuery = useQuery({
-    queryKey: ["dm-threads", accessToken],
+    queryKey: ["dm-threads", queryScope],
     queryFn: () => listDmThreads(accessToken!),
     enabled: Boolean(accessToken && mode === "dm"),
   });
@@ -545,7 +548,7 @@ function ChatInner() {
   const [groupName, setGroupName] = useState("");
   const [groupMembers, setGroupMembers] = useState<Set<string>>(new Set());
   const friendsQuery = useQuery({
-    queryKey: ["friends", accessToken],
+    queryKey: ["friends", queryScope],
     queryFn: () => listFriends(accessToken!),
     enabled: Boolean(accessToken && mode === "dm" && groupOpen),
   });
@@ -584,7 +587,7 @@ function ChatInner() {
     }
   }, [mode, requestedDm, accessToken, csrfToken, queryClient, router]);
   const dmMessagesQuery = useQuery({
-    queryKey: ["dm-messages", dmThreadId, accessToken],
+    queryKey: ["dm-messages", dmThreadId, queryScope],
     queryFn: () => getDmMessages(accessToken!, dmThreadId!),
     enabled: Boolean(accessToken && dmThreadId && mode === "dm"),
   });
@@ -610,7 +613,7 @@ function ChatInner() {
     socket.on("connect", rejoin);
     const onDm = (payload: { threadId: string; message: DmMessage }) => {
       if (payload.threadId !== dmThreadId) return;
-      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) => {
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) => {
         const messages = current?.messages ?? [];
         return messages.some((msg) => msg.id === payload.message.id) ? current : { messages: [...messages, payload.message] };
       });
@@ -618,13 +621,13 @@ function ChatInner() {
     };
     const onDmUpdated = (payload: { threadId: string; message: DmMessage }) => {
       if (payload.threadId !== dmThreadId) return;
-      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) =>
         current ? { messages: current.messages.map((msg) => (msg.id === payload.message.id ? payload.message : msg)) } : current,
       );
     };
     const onDmDeleted = (payload: { threadId: string; messageId: string }) => {
       if (payload.threadId !== dmThreadId) return;
-      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) =>
         current ? { messages: current.messages.filter((msg) => msg.id !== payload.messageId) } : current,
       );
     };
@@ -638,7 +641,7 @@ function ChatInner() {
       socket.off("dm:message:updated", onDmUpdated);
       socket.off("dm:message:deleted", onDmDeleted);
     };
-  }, [accessToken, csrfToken, dmThreadId, mode, queryClient, user?.id]);
+  }, [accessToken, csrfToken, dmThreadId, mode, queryClient, queryScope, user?.id]);
   const dmSend = useMutation({
     mutationFn: async () => {
       const attachments = dmFiles.length ? await uploadFiles(dmFiles) : undefined;
@@ -647,19 +650,17 @@ function ChatInner() {
     onSuccess: (data) => {
       setDmDraft("");
       setDmFiles([]);
-      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) => {
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) => {
         const messages = current?.messages ?? [];
         return messages.some((msg) => msg.id === data.message.id) ? current : { messages: [...messages, data.message] };
       });
     },
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
-  // Editing / deleting your own DMs.
-  const [dmEditing, setDmEditing] = useState<{ id: string; text: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   // This forge's custom emoji, for :name: in messages, reactions and the picker.
   const emojiQuery = useQuery({
-    queryKey: ["forge-emojis", selectedForgeId, accessToken],
+    queryKey: ["forge-emojis", selectedForgeId, queryScope],
     queryFn: () => listForgeEmojis(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
     staleTime: 60_000,
@@ -668,7 +669,7 @@ function ChatInner() {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   // This forge's stickers, for the sticker picker.
   const stickerQuery = useQuery({
-    queryKey: ["forge-stickers", selectedForgeId, accessToken],
+    queryKey: ["forge-stickers", selectedForgeId, queryScope],
     queryFn: () => listForgeStickers(accessToken!, selectedForgeId!),
     enabled: Boolean(accessToken && selectedForgeId),
     staleTime: 60_000,
@@ -708,7 +709,7 @@ function ChatInner() {
     setThreadsOpen(false);
   }, [channelId]);
   const threadsQuery = useQuery({
-    queryKey: ["threads", channelId, accessToken],
+    queryKey: ["threads", channelId, queryScope],
     queryFn: () => listThreads(accessToken!, channelId!),
     enabled: Boolean(accessToken && channelId && threadsOpen),
   });
@@ -724,24 +725,20 @@ function ChatInner() {
       setStatus(getApiErrorMessage(error));
     }
   };
-  const [dmConfirmDelete, setDmConfirmDelete] = useState<string | null>(null);
+  // Editing / deleting your own DMs (which message is being edited lives in DmMessageList).
   const putDm = (message: DmMessage) =>
-    queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+    queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) =>
       current ? { messages: current.messages.map((msg) => (msg.id === message.id ? message : msg)) } : current,
     );
   const dmEdit = useMutation({
     mutationFn: (input: { id: string; text: string }) => editDmMessage(accessToken!, csrfToken!, input.id, input.text),
-    onSuccess: (data) => {
-      putDm(data.message);
-      setDmEditing(null);
-    },
+    onSuccess: (data) => putDm(data.message),
     onError: (error) => setStatus(getApiErrorMessage(error)),
   });
   const dmDelete = useMutation({
     mutationFn: (id: string) => deleteDmMessage(accessToken!, csrfToken!, id),
     onSuccess: (_data, id) => {
-      setDmConfirmDelete(null);
-      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, accessToken], (current) =>
+      queryClient.setQueryData<{ messages: DmMessage[] }>(["dm-messages", dmThreadId, queryScope], (current) =>
         current ? { messages: current.messages.filter((msg) => msg.id !== id) } : current,
       );
     },
@@ -754,10 +751,34 @@ function ChatInner() {
     dmBottomRef.current?.scrollIntoView({ block: "end" });
   }, [dmMessagesQuery.data?.messages.length]);
 
+  // The message lists are memoised: everything handed to them must keep its identity between renders, or every
+  // keystroke in the message box (draft state lives in this component) would re-render and re-parse every message.
+  const visibleMessages = useMemo(() => {
+    const all = messagesQuery.data?.messages ?? NO_MESSAGES;
+    const needle = search.trim().toLowerCase();
+    if (!needle) return all;
+    return all.filter((msg) => msg.content.toLowerCase().includes(needle) || (msg.author?.username ?? "").toLowerCase().includes(needle));
+  }, [messagesQuery.data, search]);
+  const handleLoadOlder = useStableCallback(() => void loadOlder());
+  const handleReply = useStableCallback((message: Message) => setReplyTarget(message));
+  const handleEdit = useStableCallback(async (messageId: string, content: string) => {
+    await editMutation.mutateAsync({ messageId, content });
+  });
+  const handleDelete = useStableCallback(async (messageId: string) => {
+    await deleteMutation.mutateAsync(messageId);
+  });
+  const handleReact = useStableCallback((messageId: string, emoji: string) => reactMutation.mutate({ messageId, emoji }));
+  const handlePin = useStableCallback((messageId: string, pinned: boolean) => pinMutation.mutate({ messageId, pinned }));
+  const handleReport = useStableCallback((message: Message) => setReportTarget({ kind: "CHANNEL", messageId: message.id, authorName: message.author?.username ?? "this member", content: message.content }));
+  const handleStartThread = useStableCallback((message: Message) => void startThread(message));
+  const handleOpenThread = useStableCallback((threadId: string) => setOpenThreadId(threadId));
+  const handleDmEdit = useStableCallback((id: string, text: string) => dmEdit.mutateAsync({ id, text }));
+  const handleDmDelete = useStableCallback((id: string) => dmDelete.mutateAsync(id));
+  const handleDmReport = useStableCallback((message: DmMessage) => setReportTarget({ kind: "DM", messageId: message.id, authorName: message.author.username, content: message.content }));
+
   // ---------------------------------------------------------------- render
   if (!user) return null;
 
-  const visibleMessages = (messagesQuery.data?.messages ?? []).filter((msg) => !search.trim() || msg.content.toLowerCase().includes(search.trim().toLowerCase()) || (msg.author?.username ?? "").toLowerCase().includes(search.trim().toLowerCase()));
   const typingNames = channelId ? typing[channelId] ?? [] : [];
   // What fits: the member list steps aside first when the window is narrow (the saved choice stays as it is).
   const layout = effectiveLayout(layoutPrefs, viewportWidth || 1920, { hasLeft: true, hasRight: Boolean(forge) && mode !== "dm" });
@@ -993,75 +1014,7 @@ function ChatInner() {
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
                 {dmThreadId ? (
                   <div className="space-y-1.5">
-                    {(dmMessagesQuery.data?.messages ?? []).map((msg) => (
-                      <div key={msg.id} className="group relative flex gap-3 rounded-[14px] px-3 py-2 hover:bg-slate-900/60">
-                        {msg.author.avatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={msg.author.avatar} alt="" className="h-9 w-9 rounded-full border border-slate-700 object-cover" />
-                        ) : (
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[11px] font-semibold text-amber-100">{initials(msg.author.username)}</span>
-                        )}
-                        <div className="min-w-0">
-                          <p className="flex items-baseline gap-2 text-xs text-slate-400"><span className="text-sm font-semibold text-white">{msg.author.username}</span>{formatTime(msg.createdAt)}</p>
-                          {dmEditing?.id === msg.id ? (
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <input
-                                autoFocus
-                                value={dmEditing.text}
-                                onChange={(event) => setDmEditing({ id: msg.id, text: event.target.value })}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Escape") setDmEditing(null);
-                                  if (event.key === "Enter" && !event.shiftKey && dmEditing.text.trim()) {
-                                    event.preventDefault();
-                                    dmEdit.mutate({ id: msg.id, text: dmEditing.text.trim() });
-                                  }
-                                }}
-                                maxLength={4000}
-                                aria-label="Edit message"
-                                className="h-8 min-w-[200px] flex-1 rounded-lg border border-amber-400/50 bg-[#11151e] px-2 text-sm text-slate-100 outline-none"
-                              />
-                              <span className="text-[10px] text-slate-500">Enter to save · Esc to cancel</span>
-                            </div>
-                          ) : (
-                            <>
-                              {msg.attachments?.length && msg.content === "Shared a file" ? null : <RichText content={msg.content} />}
-                              {msg.edited ? <span className="text-[10px] text-slate-500">(edited)</span> : null}
-                              {msg.attachments?.length ? <MessageAttachments urls={msg.attachments} /> : null}
-                              {!msg.attachments?.length && firstLink(msg.content) ? <LinkPreviewCard url={firstLink(msg.content)!} /> : null}
-                            </>
-                          )}
-                        </div>
-                        {msg.authorId !== user?.id ? (
-                          <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
-                            <button type="button" title={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} aria-label={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => saved.setSaved("DM", msg.id, !saved.isSaved("DM", msg.id))}>
-                              {saved.isSaved("DM", msg.id) ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" /> : <Bookmark className="h-3.5 w-3.5" />}
-                            </button>
-                            <button type="button" title="Report" className="rounded p-1 text-slate-400 hover:text-rose-300" onClick={() => setReportTarget({ kind: "DM", messageId: msg.id, authorName: msg.author.username, content: msg.content })}>
-                              <Flag className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ) : null}
-                        {msg.authorId === user?.id && dmEditing?.id !== msg.id ? (
-                          <div className="absolute right-2 top-1 hidden items-center gap-1 rounded-lg border border-white/10 bg-[#0d1119] p-0.5 group-hover:flex group-focus-within:flex">
-                            <button type="button" title={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} aria-label={saved.isSaved("DM", msg.id) ? "Remove from saved" : "Save for later"} className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => saved.setSaved("DM", msg.id, !saved.isSaved("DM", msg.id))}>
-                              {saved.isSaved("DM", msg.id) ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-300" /> : <Bookmark className="h-3.5 w-3.5" />}
-                            </button>
-                            <button type="button" title="Edit" className="rounded p-1 text-slate-400 hover:text-amber-200" onClick={() => { setDmEditing({ id: msg.id, text: plainText(msg.content) }); setDmConfirmDelete(null); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            {dmConfirmDelete === msg.id ? (
-                              <button type="button" className="rounded px-1.5 py-0.5 text-[11px] font-semibold text-rose-200 hover:bg-rose-500/20" disabled={dmDelete.isPending} onClick={() => dmDelete.mutate(msg.id)}>
-                                Delete?
-                              </button>
-                            ) : (
-                              <button type="button" title="Delete" className="rounded p-1 text-slate-400 hover:text-rose-300" onClick={() => setDmConfirmDelete(msg.id)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
+                    <DmMessageList messages={dmMessagesQuery.data?.messages ?? NO_DM_MESSAGES} selfId={user.id} onEdit={handleDmEdit} onDelete={handleDmDelete} onReport={handleDmReport} />
                     {!dmMessagesQuery.data?.messages.length && !dmMessagesQuery.isLoading ? <p className="text-sm text-slate-500">Say hi.</p> : null}
                     <div ref={dmBottomRef} />
                   </div>
@@ -1121,21 +1074,21 @@ function ChatInner() {
                     messages={visibleMessages}
                     selfId={user.id}
                     canModerate={canModerate}
-                    members={forge?.members ?? []}
-                    roles={forge?.roles ?? []}
+                    members={forge?.members ?? NO_MEMBERS}
+                    roles={forge?.roles ?? NO_ROLES}
                     ownerId={forge?.ownerId ?? ""}
                     hasOlder={Boolean(messagesQuery.data?.nextCursor) && !search}
                     loadingOlder={loadingOlder}
-                    onLoadOlder={() => void loadOlder()}
-                    onReply={(message) => setReplyTarget(message)}
-                    onEdit={async (messageId, content) => { await editMutation.mutateAsync({ messageId, content }); }}
-                    onDelete={async (messageId) => { await deleteMutation.mutateAsync(messageId); }}
-                    onReact={(messageId, emoji) => reactMutation.mutate({ messageId, emoji })}
-                    onPin={(messageId, pinned) => pinMutation.mutate({ messageId, pinned })}
-                    onReport={(message) => setReportTarget({ kind: "CHANNEL", messageId: message.id, authorName: message.author?.username ?? "this member", content: message.content })}
-                    onStartThread={(message) => void startThread(message)}
+                    onLoadOlder={handleLoadOlder}
+                    onReply={handleReply}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onReact={handleReact}
+                    onPin={handlePin}
+                    onReport={handleReport}
+                    onStartThread={handleStartThread}
                     emojis={emojiMap}
-                    onOpenThread={(threadId) => setOpenThreadId(threadId)}
+                    onOpenThread={handleOpenThread}
                     lastReadAt={unreadSince?.channelId === channelId ? unreadSince.at : null}
                   />
                   {pinsOpen ? (

@@ -10,6 +10,7 @@ import { createCheckoutSession, getBillingPlans, getBillingReadiness, type PaidF
 import { megabytes, PREVIOUS_TIER, perksFor, shownUploadBytes } from "@/lib/plan-perks";
 import { CORE_PLUS_TIER_PRICING } from "@/lib/pricing-catalog";
 import { useAuthStore } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 const tierCards = [
   {
@@ -171,6 +172,8 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
   };
 
   const checkoutPreview = pendingCheckout ? checkoutPreviewCopy[pendingCheckout.featureCode] : null;
+  // Blocks the page while checkout opens; nothing to press, and it can't be dismissed.
+  const checkoutDialog = useDialogFocus({ open: Boolean(checkoutMutation.isPending && checkoutPreview), label: "Launching secure checkout" });
   const pendingTierName = pendingCheckout?.tier ? tierCards.find((tier) => tier.id === pendingCheckout.tier)?.name : null;
   const pendingBillingLabel = pendingCheckout?.featureCode === "CORE_PLUS" ? interval : "One-time";
   const checkoutErrorMessage = axios.isAxiosError(checkoutMutation.error)
@@ -183,6 +186,8 @@ export function PricingAndPayments({ checkoutState }: { checkoutState?: string }
     <section className="grid gap-4">
       {checkoutMutation.isPending && checkoutPreview ? (
         <motion.div
+          {...checkoutDialog}
+          aria-busy="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-700/35 px-4 backdrop-blur-md"

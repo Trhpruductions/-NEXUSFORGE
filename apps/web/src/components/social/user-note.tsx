@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2 } from "lucide-react";
 import { getUserNote, saveUserNote } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 /**
  * A private note about someone. Only you ever see it. Saves itself a moment after you stop
@@ -13,8 +13,9 @@ import { useAuthStore } from "@/store/auth-store";
  */
 export function UserNote({ userId }: { userId: string }) {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const key = ["user-note", userId, accessToken];
+  const key = ["user-note", userId, queryScope];
   const query = useQuery({ queryKey: key, queryFn: () => getUserNote(accessToken!, userId), enabled: Boolean(accessToken) });
   const [draft, setDraft] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);

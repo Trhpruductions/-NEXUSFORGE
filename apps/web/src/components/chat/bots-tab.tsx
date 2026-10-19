@@ -13,7 +13,7 @@ import {
   type BotCommand,
   type ForgeDetail,
 } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const input = "w-full rounded-lg border border-white/10 bg-[#11151e] px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-400/60";
 const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-200 transition hover:border-violet-400/50 disabled:opacity-40";
@@ -38,6 +38,7 @@ const emptyDraft: CommandDraft = { name: "", description: "", responseTemplate: 
 /** Server owners: add bots to the forge and set up the /commands people can run in chat. */
 export function BotsTab({ forge, setNotice, invalidate }: { forge: ForgeDetail; setNotice: Notice; invalidate: () => Promise<void> }) {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [inviteCode, setInviteCode] = useState("");
   const [search, setSearch] = useState("");
@@ -47,7 +48,7 @@ export function BotsTab({ forge, setNotice, invalidate }: { forge: ForgeDetail; 
 
   const installedBotIds = new Set(forge.botInstallations.map((installation) => installation.bot.id));
   const catalog = useQuery({
-    queryKey: ["bot-catalog", search, accessToken],
+    queryKey: ["bot-catalog", search, queryScope],
     queryFn: () => listBotCatalog(accessToken!, search.trim() || undefined),
     enabled: Boolean(accessToken),
     staleTime: 60_000,

@@ -5,15 +5,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, Loader2, Pencil, Send, Trash2 } from "lucide-react";
 import { deleteUpdate, getApiErrorMessage, listAllUpdatesForStaff, publishUpdate, saveUpdate, type AppUpdate } from "@/lib/api";
 import { LegalMarkdown } from "@/components/legal/legal-markdown";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const input = "w-full rounded-lg border border-white/10 bg-[#11151e] px-3 py-2 text-sm text-slate-100 outline-none focus:border-violet-400/60";
 
 /** Staff: write "What's new" updates and publish them to everyone. */
 export function UpdatesAdmin() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["updates-admin", accessToken], queryFn: () => listAllUpdatesForStaff(accessToken!), enabled: Boolean(accessToken) });
+  const query = useQuery({ queryKey: ["updates-admin", queryScope], queryFn: () => listAllUpdatesForStaff(accessToken!), enabled: Boolean(accessToken) });
   const [editing, setEditing] = useState<AppUpdate | null>(null);
   const [title, setTitle] = useState("");
   const [version, setVersion] = useState("");

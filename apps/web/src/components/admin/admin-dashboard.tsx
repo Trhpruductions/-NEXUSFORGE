@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { api, authHeaders } from "@/lib/api";
 import { adminAdjustReputation, adminGenerateSampleProfiles, adminResetGenerationLock, adminSeedMedals, approveAdminAgeGateAudit, getAdminAiInsights, getAdminAgeGateAudit, getAdminLaunchMode, getAdminProfileAudit, getAdminProfileToolsStatus, rejectAdminAgeGateAudit, setAdminLaunchMode } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ function extractAdminErrorNote(error: unknown, fallback: string) {
 
 export function AdminDashboard() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -74,7 +75,7 @@ export function AdminDashboard() {
   const auditPageSize = 30;
 
   const summaryQuery = useQuery({
-    queryKey: ["admin-summary", accessToken],
+    queryKey: ["admin-summary", queryScope],
     queryFn: async () => {
       const response = await api.get<{ users: number; forges: number; messages: number; notifications: number; pendingFriends: number }>(
         "/api/admin/summary",
@@ -86,7 +87,7 @@ export function AdminDashboard() {
   });
 
   const usersQuery = useQuery({
-    queryKey: ["admin-users", accessToken],
+    queryKey: ["admin-users", queryScope],
     queryFn: async () => {
       const response = await api.get<{
         actorRole: AppRole;
@@ -102,14 +103,14 @@ export function AdminDashboard() {
   });
 
   const aiInsightsQuery = useQuery({
-    queryKey: ["admin-ai-insights", accessToken],
+    queryKey: ["admin-ai-insights", queryScope],
     queryFn: () => getAdminAiInsights(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
     retry: false,
   });
 
   const profileAuditQuery = useQuery({
-    queryKey: ["admin-profile-audit", accessToken, auditActionFilter, auditActorFilter, auditOffset],
+    queryKey: ["admin-profile-audit", queryScope, auditActionFilter, auditActorFilter, auditOffset],
     queryFn: () =>
       getAdminProfileAudit(accessToken!, csrfToken!, {
         limit: auditPageSize,
@@ -121,7 +122,7 @@ export function AdminDashboard() {
   });
 
   const ageGateAuditQuery = useQuery({
-    queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset],
+    queryKey: ["admin-age-gate-audit", queryScope, ageGateOffset],
     queryFn: () =>
       getAdminAgeGateAudit(accessToken!, csrfToken!, {
         limit: 15,
@@ -136,7 +137,7 @@ export function AdminDashboard() {
     mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
       approveAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", queryScope, ageGateOffset] });
       setActionNote("Age gate event approved and allowlisted.");
     },
     onError: (error) => {
@@ -148,7 +149,7 @@ export function AdminDashboard() {
     mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
       rejectAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, ageGateOffset] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", queryScope, ageGateOffset] });
       setActionNote("Age gate event rejected and recorded.");
     },
     onError: (error) => {
@@ -157,14 +158,14 @@ export function AdminDashboard() {
   });
 
   const profileToolsStatusQuery = useQuery({
-    queryKey: ["admin-profile-tools-status", accessToken],
+    queryKey: ["admin-profile-tools-status", queryScope],
     queryFn: () => getAdminProfileToolsStatus(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
     refetchInterval: 5000,
   });
 
   const launchModeQuery = useQuery({
-    queryKey: ["admin-launch-mode", accessToken],
+    queryKey: ["admin-launch-mode", queryScope],
     queryFn: () => getAdminLaunchMode(accessToken!, csrfToken!),
     enabled: Boolean(accessToken && csrfToken),
   });
@@ -179,8 +180,8 @@ export function AdminDashboard() {
       return response.data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
-      await queryClient.invalidateQueries({ queryKey: ["admin-summary", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-summary", queryScope] });
     },
   });
 
@@ -195,8 +196,8 @@ export function AdminDashboard() {
     },
     onSuccess: async (data) => {
       setActionNote(`Role updated: ${data.user.username} is now ${data.user.appRole}.`);
-      await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
-      await queryClient.invalidateQueries({ queryKey: ["admin-summary", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-summary", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to update user role."));
@@ -214,7 +215,7 @@ export function AdminDashboard() {
     },
     onSuccess: async (data) => {
       setActionNote(`Granted ${data.badgeKey.toUpperCase()} badge to ${data.user.username}.`);
-      await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to grant manual profile badge."));
@@ -232,7 +233,7 @@ export function AdminDashboard() {
     },
     onSuccess: async (data) => {
       setActionNote(`Revoked ${data.badgeKey.toUpperCase()} badge from ${data.user.username}.`);
-      await queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to revoke manual profile badge."));
@@ -243,9 +244,9 @@ export function AdminDashboard() {
     mutationFn: async () => adminSeedMedals(accessToken!, csrfToken!),
     onSuccess: (data) => {
       setActionNote(`Medal catalog synced: ${data.created} created, ${data.updated} updated.`);
-      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to seed medal catalog."));
@@ -265,13 +266,13 @@ export function AdminDashboard() {
       setActionNote(
         `Sample data generated for ${data.usersProcessed} users with ${data.createdActivities} activities.`,
       );
-      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to generate sample profiles."));
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", queryScope] });
     },
   });
 
@@ -284,8 +285,8 @@ export function AdminDashboard() {
       }),
     onSuccess: (data) => {
       setActionNote(`Reputation updated: ${data.user.username} is now ${data.user.reputation}.`);
-      void queryClient.invalidateQueries({ queryKey: ["admin-users", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to adjust user reputation."));
@@ -296,8 +297,8 @@ export function AdminDashboard() {
     mutationFn: async () => adminResetGenerationLock(accessToken!, csrfToken!),
     onSuccess: (data) => {
       setActionNote(data.message);
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", accessToken] });
-      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-audit", queryScope] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-profile-tools-status", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to reset generation lock."));
@@ -308,7 +309,7 @@ export function AdminDashboard() {
     mutationFn: async () => setAdminLaunchMode(accessToken!, csrfToken!, desktopOnlyDraft),
     onSuccess: (data) => {
       setActionNote(`Launch mode updated: desktop-only is now ${data.desktopOnly ? "ENABLED" : "DISABLED"}.`);
-      void queryClient.invalidateQueries({ queryKey: ["admin-launch-mode", accessToken] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-launch-mode", queryScope] });
     },
     onError: (error) => {
       setActionNote(extractAdminErrorNote(error, "Failed to update launch mode."));

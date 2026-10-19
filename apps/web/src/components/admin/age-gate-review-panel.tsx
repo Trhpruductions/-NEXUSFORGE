@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { approveAdminAgeGateAudit, getAdminAgeGateAudit, rejectAdminAgeGateAudit } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { Button } from "@/components/ui/button";
 
 export function AgeGateReviewPanel() {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [statusFilter, setStatusFilter] = useState<"blocked" | "denied" | "error" | "approved" | "rejected">("blocked");
   const [actionFilter, setActionFilter] = useState<"verify" | "reject">("verify");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const ageGateAuditQuery = useQuery({
-    queryKey: ["admin-age-gate-audit", accessToken, statusFilter, actionFilter],
+    queryKey: ["admin-age-gate-audit", queryScope, statusFilter, actionFilter],
     queryFn: () =>
       getAdminAgeGateAudit(accessToken!, csrfToken!, {
         limit: 50,
@@ -30,7 +31,7 @@ export function AgeGateReviewPanel() {
     mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
       approveAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, statusFilter, actionFilter] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", queryScope, statusFilter, actionFilter] });
     },
   });
 
@@ -38,7 +39,7 @@ export function AgeGateReviewPanel() {
     mutationFn: async ({ auditId, note }: { auditId: string; note?: string }) =>
       rejectAdminAgeGateAudit(accessToken!, csrfToken!, auditId, note),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", accessToken, statusFilter, actionFilter] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-age-gate-audit", queryScope, statusFilter, actionFilter] });
     },
   });
 

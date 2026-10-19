@@ -15,7 +15,7 @@ import {
   type SupportCategory,
   type SupportStatus,
 } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
 const panel = "vx-panel rounded-2xl";
 const inputClass = "w-full rounded-lg border border-white/10 bg-[#0a0d14] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-400/60";
@@ -106,11 +106,12 @@ function NewTicketForm({ onCreated }: { onCreated: (id: string) => void }) {
 
 function TicketThread({ ticketId }: { ticketId: string }) {
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const query = useQuery({
-    queryKey: ["support-ticket", ticketId, accessToken],
+    queryKey: ["support-ticket", ticketId, queryScope],
     queryFn: () => getSupportTicket(accessToken!, ticketId),
     enabled: Boolean(accessToken),
     refetchInterval: 20_000,
@@ -206,6 +207,7 @@ function TicketThread({ ticketId }: { ticketId: string }) {
 
 function SupportDesk() {
   const { accessToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const router = useRouter();
   const params = useSearchParams();
   const selected = params.get("ticket");
@@ -213,10 +215,10 @@ function SupportDesk() {
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const [staffFilter, setStaffFilter] = useState<SupportStatus | "unresolved" | "any">("unresolved");
 
-  const meQuery = useQuery({ queryKey: ["support-me", accessToken], queryFn: () => getSupportMe(accessToken!), enabled: Boolean(accessToken) });
+  const meQuery = useQuery({ queryKey: ["support-me", queryScope], queryFn: () => getSupportMe(accessToken!), enabled: Boolean(accessToken) });
   const staff = meQuery.data?.staff ?? false;
   const listQuery = useQuery({
-    queryKey: ["support-tickets", scope, scope === "all" ? staffFilter : "any", accessToken],
+    queryKey: ["support-tickets", scope, scope === "all" ? staffFilter : "any", queryScope],
     queryFn: () => listSupportTickets(accessToken!, scope, scope === "all" ? staffFilter : "any"),
     enabled: Boolean(accessToken),
     refetchInterval: 30_000,

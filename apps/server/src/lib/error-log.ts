@@ -1,8 +1,20 @@
 import crypto from "node:crypto";
 import { prisma } from "./prisma.js";
+import { redactPathForLog } from "./log-format.js";
 
 /** Most distinct problems kept at once, so a flood of junk reports can't fill the database. */
-const MAX_GROUPS = 2000;
+export const MAX_GROUPS = 2000;
+/**
+ * Browser reports can come from anyone (signed out too), so they may only use part of the room. A flood of
+ * made-up crash reports used to fill all 2000 slots, after which real server errors were no longer recorded.
+ */
+export const MAX_WEB_GROUPS = 1000;
+
+/** Whether a new problem of this kind may start a group, given how many groups exist now. */
+export function hasRoomForNewGroup(source: ErrorReport["source"], counts: { total: number; web: number }): boolean {
+  if (counts.total >= MAX_GROUPS) return false;
+  return source !== "web" || counts.web < MAX_WEB_GROUPS;
+}
 
 export type ErrorReport = {
   source: "server" | "web";
@@ -11,7 +23,11 @@ export type ErrorReport = {
   path?: string | null;
 };
 
-/** Paths without query strings or ids, so reset tokens never land in the log and repeats group together. */
+/**
+ * Paths without query strings or ids, so reset tokens never land in the log and repeats group together.
+ * Token path segments (incoming webhooks: /api/webhooks/:id/:token) are removed too; the server error handler
+ * prints this path and sends it to Discord.
+ */
 export function cleanPath(raw: string | null | undefined): string | null {
   if (!raw) return null;
   let path = raw;
@@ -20,7 +36,7 @@ export function cleanPath(raw: string | null | undefined): string | null {
   } catch {
     path = raw.split("?")[0];
   }
-  return path
+  return redactPathForLog(path)
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ":id")
     .replace(/\/\d{3,}(?=\/|$)/g, "/:n")
     .slice(0, 200);
@@ -54,7 +70,11 @@ export async function recordError(report: ErrorReport) {
     const fingerprint = errorFingerprint({ ...report, message });
     const bumped = await prisma.errorEvent.updateMany({ where: { fingerprint }, data: { count: { increment: 1 }, lastSeenAt: new Date() } });
     if (bumped.count) return;
-    if ((await prisma.errorEvent.count()) >= MAX_GROUPS) return;
+    const [total, web] = await Promise.all([
+      prisma.errorEvent.count(),
+      report.source === "web" ? prisma.errorEvent.count({ where: { source: "web" } }) : Promise.resolve(0),
+    ]);
+    if (!hasRoomForNewGroup(report.source, { total, web })) return;
     await prisma.errorEvent.create({ data: { source: report.source, fingerprint, message, detail, path } }).catch(async (error) => {
       // Two copies of a brand-new problem at once: the other one created it, so count this one.
       if ((error as { code?: string }).code === "P2002") {

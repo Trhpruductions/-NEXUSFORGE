@@ -1,3 +1,9 @@
+# DISABLED (2026-10-18): part of the retired ops watchdog (docs/remediation/ops-watchdog-retired-2026-10-16.md).
+# When its doctor check failed it ran "pm2:workspace:delete:all" (removes the live API and website from pm2) and
+# rebuilt them. vexora-watchdog restarts a stuck service without deleting it.
+Write-Host "ops-managed-heal.ps1 is disabled: it deletes the live pm2 apps and rebuilds them. vexora-watchdog restarts stuck services; for a manual restart use: pm2 restart <app> --update-env." -ForegroundColor Red
+exit 1
+
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")

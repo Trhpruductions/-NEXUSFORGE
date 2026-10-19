@@ -6,6 +6,8 @@ const path = require("node:path");
 const { REPO_ROOT } = require("../config");
 
 let previousCpu = null;
+// Same threshold as the watchdog's low-disk alert (scripts/vexora-watchdog.mjs).
+const LOW_DISK_GB = 5;
 
 function cpuTotals() {
   let idle = 0;
@@ -34,6 +36,18 @@ async function collectHost() {
   const stats = await fs.statfs(drive);
   const diskTotal = stats.blocks * stats.bsize;
   const diskFree = stats.bavail * stats.bsize;
+  // The system drive matters too: Windows, temp files and the pm2 logs live there, and it is the one that fills up.
+  const systemDrive = `${process.env.SystemDrive || path.parse(os.homedir()).root.replace(/[\\/]+$/, "")}\\`;
+  const drives = [];
+  for (const name of [...new Set([systemDrive.toUpperCase(), drive.toUpperCase()])]) {
+    try {
+      const s = name === drive.toUpperCase() ? stats : await fs.statfs(name);
+      const freeGb = (s.bavail * s.bsize) / 1024 ** 3;
+      drives.push({ drive: name, freeGb, totalGb: (s.blocks * s.bsize) / 1024 ** 3, low: freeGb < LOW_DISK_GB });
+    } catch {
+      // A drive that can't be read is left out rather than failing the whole card.
+    }
+  }
 
   return {
     checkedAt: new Date().toISOString(),
@@ -47,6 +61,7 @@ async function collectHost() {
     diskFreeGb: diskFree / 1024 ** 3,
     diskTotalGb: diskTotal / 1024 ** 3,
     diskUsedPct: diskTotal > 0 ? ((diskTotal - diskFree) / diskTotal) * 100 : null,
+    drives,
     hostUptimeSec: os.uptime(),
   };
 }

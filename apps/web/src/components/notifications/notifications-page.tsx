@@ -7,7 +7,7 @@ import { AtSign, Bell, Calendar, Check, CheckCheck, MessageSquare, Radio, Shield
 import { LoadingNote } from "@/components/ui/loading-note";
 import { listNotifications, markNotificationsRead, type NotificationItem } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { plainText } from "@/lib/plain-text";
 
 type Filter = "all" | "unread" | "mentions" | "friends" | "system";
@@ -51,10 +51,11 @@ function linkFor(item: NotificationItem): string | null {
 export function NotificationsPage() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [filter, setFilter] = useState<Filter>("all");
 
   const query = useQuery({
-    queryKey: ["notifications", accessToken],
+    queryKey: ["notifications", queryScope],
     queryFn: () => listNotifications(accessToken!, csrfToken ?? ""),
     enabled: Boolean(accessToken),
     refetchInterval: 30_000,

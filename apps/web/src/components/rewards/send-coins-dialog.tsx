@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Coins, Loader2, Send, X } from "lucide-react";
 import { getApiErrorMessage, getCoinTransferLimits, sendCoins } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 type SendCoinsDialogProps = {
   open: boolean;
@@ -23,6 +24,7 @@ function newKey() {
 
 export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" }: SendCoinsDialogProps) {
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const titleId = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -36,7 +38,7 @@ export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" 
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
 
   const limitsQuery = useQuery({
-    queryKey: ["coin-transfer-limits", accessToken],
+    queryKey: ["coin-transfer-limits", queryScope],
     queryFn: () => getCoinTransferLimits(accessToken!),
     enabled: open && Boolean(accessToken),
   });
@@ -54,14 +56,7 @@ export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" 
     return () => window.clearTimeout(timer);
   }, [open, defaultRecipient]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const dialog = useDialogFocus({ open, onClose, labelledBy: titleId, initialFocus: firstFieldRef });
 
   const sendMutation = useMutation({
     mutationFn: () => sendCoins(accessToken!, csrfToken!, { recipient: recipient.trim().replace(/^@/, ""), amount, note: note.trim() || undefined, idempotencyKey }),
@@ -101,7 +96,7 @@ export function SendCoinsDialog({ open, onClose, balance, defaultRecipient = "" 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-md overflow-clip rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+      <div {...dialog} className="relative w-full max-w-md overflow-clip rounded-2xl border border-amber-500/25 bg-[#0d1119] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,#9fd8ff,#2ea4ff,transparent)]" />
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
           <h2 id={titleId} className="nf-heading inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-white">

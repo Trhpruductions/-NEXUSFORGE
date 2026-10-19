@@ -14,52 +14,26 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 10000) {
 const { app, BrowserWindow, shell, session, ipcMain, dialog, Tray, Menu, screen } = require("electron");
 const screenPicker = require("./lib/screen-picker");
 const { TITLE_BAR_HEIGHT, isPopoutRequest, popoutSize, restoreBounds } = require("./lib/window-rules");
-const crypto = require("node:crypto");
 const fs = require("node:fs");
-const https = require("node:https");
 const net = require("node:net");
 const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 const integrity = require("./lib/integrity");
+const launchConfig = require("./lib/launch-config");
+const originRules = require("./lib/origin-rules");
+const { createIpcGuard } = require("./lib/ipc-policy");
+const { decidePermission } = require("./lib/permission-rules");
+const updateDownload = require("./lib/update-download");
+const { createRotatingLog, formatConsoleMessage } = require("./lib/log-rotation");
+const { createRendererRecovery } = require("./lib/crash-recovery");
+const offlinePage = require("./lib/offline-page");
+const desktopPrefs = require("./lib/desktop-preferences");
 
 // Shown when a manifest has no valid hash. The update is not downloaded or installed in that case.
 const NO_HASH_MESSAGE = "The update manifest has no valid SHA-256 hash, so this update was refused. Nothing was downloaded or installed.";
 
-const localStartUrl = "http://127.0.0.1:3300/app";
-const localHostPattern = /^(?:localhost|127\.0\.0\.1|::1)$/i;
-function isLocalHostTarget(value) {
-  try {
-    const normalized = normalizeUrl(value);
-    if (!normalized) {
-      return false;
-    }
-    const hostname = new URL(normalized).hostname;
-    return localHostPattern.test(hostname);
-  } catch {
-    return false;
-  }
-}
-function normalizeUrl(value) {
-  const candidate = String(value).trim();
-  if (!candidate) {
-    return null;
-  }
-
-  try {
-    return new URL(candidate).toString();
-  } catch {
-    // Support host-only values like "localhost:3300/app" or "nexusforge.app/app".
-  }
-
-  try {
-    return new URL(`http://${candidate}`).toString();
-  } catch {
-    // Best effort only.
-  }
-
-  return null;
-}
+const localStartUrl = launchConfig.LOCAL_START_URL;
+const { isLocalHostTarget, normalizeUrl } = launchConfig;
 
 function resolvePricingCatalogUrl() {
   const normalizedStartUrl = normalizeUrl(startUrl) || localStartUrl;
@@ -85,41 +59,40 @@ async function fetchPricingCatalog(timeoutMs = 6000) {
 
   return response.json();
 }
-function parseBooleanEnv(name, defaultValue = false) {
-  const raw = String(process.env[name] ?? "").trim().toLowerCase();
-  if (raw === "" || raw === undefined) {
-    return Boolean(defaultValue);
-  }
-  return ["1", "true", "yes", "y", "on"].includes(raw);
-}
-const configuredDesktopUrl = normalizeUrl(process.env.NEXUSFORGE_DESKTOP_URL || "") || "";
-const configuredPublicBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PUBLIC_BASE_URL || "") || "";
-const configuredPublicDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PUBLIC_DOWNLOAD_BASE_URL || "") || "";
-const configuredPersistentDownloadBaseUrl = normalizeUrl(process.env.NEXUSFORGE_PERSISTENT_DOWNLOAD_BASE_URL || "") || "";
-const effectiveDownloadBaseUrl = configuredPersistentDownloadBaseUrl || configuredPublicDownloadBaseUrl || configuredPublicBaseUrl;
-const configuredDownloadPageUrl = effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/download.html` : "";
-const configuredStartUrl =
-  configuredDesktopUrl ||
-  (configuredPublicBaseUrl ? `${configuredPublicBaseUrl.replace(/\/+$/, "")}/app` : "") ||
-  (effectiveDownloadBaseUrl ? `${effectiveDownloadBaseUrl.replace(/\/+$/, "")}/app` : "");
-const defaultPackagedHostedStartUrl = "https://nfgcord.com/app";
-const defaultPackagedHostedFallbackUrl = "https://nfgcord.com/download";
-const packagedHostedFallbackUrl = configuredDownloadPageUrl || defaultPackagedHostedFallbackUrl;
-const allowHostedDevLaunch = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_DEV", false);
-// Certificate checks stay ON unless someone deliberately sets
+// Environment overrides of the target address, the update manifest and certificate checks are honoured by unpackaged
+// dev builds only. The packaged app always opens https://nfgcord.com/app with certificate checks on (see
+// lib/launch-config.js); the names of ignored overrides are logged at startup, never their values.
+const launchSettings = launchConfig.readLaunchConfig(process.env, { isPackaged: app.isPackaged });
+const configuredDesktopUrl = launchSettings.desktopUrl;
+const configuredDownloadPageUrl = launchSettings.downloadPageUrl;
+const configuredStartUrl = launchSettings.configuredStartUrl;
+const packagedHostedFallbackUrl = launchConfig.resolveHostedFallbackUrl(launchSettings);
+const allowHostedDevLaunch = launchSettings.allowHostedDev;
+// Certificate checks stay ON unless an unpackaged dev build deliberately sets
 // NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=true (e.g. testing against a self-signed dev host).
 // Turning them off by default let anyone on the network impersonate the server.
-const allowHostedCertBypass = parseBooleanEnv("NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS", false);
+const allowHostedCertBypass = launchSettings.allowCertBypass;
 if (allowHostedCertBypass) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   app.commandLine.appendSwitch("ignore-certificate-errors");
 }
+// The packaged app also drops TLS-weakening switches and NODE_TLS_REJECT_UNAUTHORIZED=0 passed in from outside.
+const strippedTlsOverrides = [];
+if (app.isPackaged) {
+  for (const name of launchConfig.tlsSwitchesPresent((value) => app.commandLine.hasSwitch(value))) {
+    app.commandLine.removeSwitch(name);
+    strippedTlsOverrides.push(`--${name}`);
+  }
+  if (process.env.NODE_TLS_REJECT_UNAUTHORIZED !== undefined && String(process.env.NODE_TLS_REJECT_UNAUTHORIZED).trim() === "0") {
+    delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    strippedTlsOverrides.push("NODE_TLS_REJECT_UNAUTHORIZED");
+  }
+}
 const shouldForceLocalInDev = !app.isPackaged && !allowHostedDevLaunch;
-const startUrl =
-  shouldForceLocalInDev && configuredStartUrl && !isLocalHostTarget(configuredStartUrl)
-    ? localStartUrl
-    : configuredStartUrl || (app.isPackaged ? defaultPackagedHostedStartUrl : localStartUrl);
+const startUrl = launchConfig.resolveStartUrl(launchSettings);
 const isLocalStartTarget = isLocalHostTarget(startUrl);
+/** Which pages are trusted in this run (lib/origin-rules.js): the hosted app; dev builds also local dev servers. */
+const originPolicy = originRules.createOriginPolicy({ isPackaged: app.isPackaged, startUrl });
 const desktopLaunchMode = isLocalStartTarget ? "local-dev" : "hosted";
 const appIconPath =
   process.platform === "win32"
@@ -127,6 +100,15 @@ const appIconPath =
     : path.join(__dirname, "..", "web", "public", "brand", "nexusforge-main-logo.png");
 const fallbackPath = path.join(__dirname, "fallback.html");
 const splashPath = path.join(__dirname, "splash.html");
+/**
+ * What classifySender needs: the trust policy and the bundled pages that use the bridge. The local-recovery page
+ * (fallback.html) is a dev tool: only dev builds show it, so the packaged app does not trust it either.
+ */
+const bundledPagePolicy = { policy: originPolicy, splashPath, fallbackPath: app.isPackaged ? null : fallbackPath };
+/** Handed to every window that uses preload.js; the preload exposes the bridge only to these pages. */
+const bridgeScopeArgument = originRules.bridgeScopeArgument(
+  originRules.bridgeScope(originPolicy, [bundledPagePolicy.splashPath, bundledPagePolicy.fallbackPath]),
+);
 const startupWaitTimeoutMs = 90000;
 const localStartUrlProbeTimeoutMs = 120000;
 const startupQuickRecoveryTimeoutMs = 15000;
@@ -138,14 +120,7 @@ const desktopUaToken = "NexusForgeDesktop";
 const desktopUserAgentSuffix = ` ${desktopUaToken}/${app.getVersion()}`;
 const stableCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-cache");
 const stableCodeCacheDir = path.join(app.getPath("temp"), "nexusforge-desktop-code-cache");
-const manifestOverride = normalizeUrl(process.env.NEXUSFORGE_UPDATE_MANIFEST_URL || "");
-const updateManifestUrl = manifestOverride
-  ? manifestOverride
-  : effectiveDownloadBaseUrl
-  ? `${effectiveDownloadBaseUrl.replace(/\/$/, "")}/desktop-update.json`
-  : app.isPackaged
-  ? `${new URL(packagedHostedFallbackUrl).origin}/desktop-update.json`
-  : null;
+const updateManifestUrl = launchConfig.resolveUpdateManifestUrl(launchSettings);
 const updateCheckIntervalMs = 15 * 60 * 1000;
 const remindLaterDelayMs = 60 * 60 * 1000;
 const viewChangesSnoozeDelayMs = 15 * 60 * 1000;
@@ -195,11 +170,8 @@ const updateStatePath = path.join(app.getPath("userData"), "update-state.json");
 const launchedFromStartupArg = process.argv.some((arg) => /^(--|\/)startup$/i.test(String(arg || "").trim()));
 const requestedHiddenArg = process.argv.some((arg) => /^(--|\/)(hidden|minimized)$/i.test(String(arg || "").trim()));
 
-let desktopPreferences = {
-  launchOnStartup: process.platform === "win32" && app.isPackaged,
-  minimizeToTray: true,
-  startMinimized: true,
-};
+// Launch at login is off unless the user turns it on; stored choices are kept as they are (lib/desktop-preferences.js).
+let desktopPreferences = desktopPrefs.defaultDesktopPreferences();
 
 let startupRuntime = {
   stage: "Booting desktop shell",
@@ -250,7 +222,7 @@ let localStackStatus = {
   started: false,
   running: false,
   autoStartEnabled: isLocalStartTarget,
-  localRecoveryEnabled: isLocalStartTarget || Boolean(process.env.NEXUSFORGE_WORKSPACE_PATH),
+  localRecoveryEnabled: isLocalStartTarget || Boolean(launchSettings.workspacePath),
   port3000Open: false,
   port4000Open: false,
   port4001Open: false,
@@ -297,13 +269,19 @@ function appendLocalStackHistory(message) {
   };
 }
 
+// startup.log is capped (lib/log-rotation.js): about 2.5 MB per file plus one older file (startup.log.1).
+const startupLog = createRotatingLog(startupLogPath);
+let startupLogDirReady = false;
 function appendStartupLog(message) {
   try {
-    fs.mkdirSync(path.dirname(startupLogPath), { recursive: true });
-    fs.appendFileSync(startupLogPath, `${new Date().toISOString()} ${message}\n`, "utf8");
+    if (!startupLogDirReady) {
+      fs.mkdirSync(path.dirname(startupLogPath), { recursive: true });
+      startupLogDirReady = true;
+    }
   } catch {
     // Best-effort diagnostics logging only.
   }
+  startupLog.append(`${new Date().toISOString()} ${message}\n`);
 }
 
 function markStartupTiming(label, detail = "", once = true) {
@@ -346,21 +324,8 @@ function readDesktopPreferences() {
       return;
     }
     const parsed = JSON.parse(fs.readFileSync(desktopPreferencesPath, "utf8"));
-    desktopPreferences = {
-      ...desktopPreferences,
-      launchOnStartup:
-        typeof parsed?.launchOnStartup === "boolean"
-          ? parsed.launchOnStartup
-          : desktopPreferences.launchOnStartup,
-      minimizeToTray:
-        typeof parsed?.minimizeToTray === "boolean"
-          ? parsed.minimizeToTray
-          : desktopPreferences.minimizeToTray,
-      startMinimized:
-        typeof parsed?.startMinimized === "boolean"
-          ? parsed.startMinimized
-          : desktopPreferences.startMinimized,
-    };
+    // Stored values are used exactly as stored; only missing ones take the (new) defaults.
+    desktopPreferences = desktopPrefs.mergeStoredPreferences(parsed);
   } catch (error) {
     console.warn("[Nexus Forge Gaming Desktop] Unable to read desktop preferences:", error);
   }
@@ -378,6 +343,7 @@ function persistDesktopPreferences() {
 function applyLaunchOnStartupPreference() {
   try {
     if (process.platform === "win32") {
+      // Off (the default) also removes an entry that 1.0.16 and older registered without asking.
       app.setLoginItemSettings({
         openAtLogin: Boolean(desktopPreferences.launchOnStartup),
         openAsHidden: Boolean(desktopPreferences.startMinimized),
@@ -481,26 +447,7 @@ function createAppTray() {
   try {
     appTray = new Tray(appIconPath);
     appTray.setToolTip("Nexus Forge Gaming Desktop");
-    appTray.setContextMenu(
-      Menu.buildFromTemplate([
-        {
-          label: "Open Nexus Forge Gaming",
-          click: () => {
-            showMainWindow();
-          },
-        },
-        {
-          type: "separator",
-        },
-        {
-          label: "Quit",
-          click: () => {
-            isQuitting = true;
-            app.quit();
-          },
-        },
-      ]),
-    );
+    refreshTrayMenu();
 
     appTray.on("click", () => {
       if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isVisible()) {
@@ -516,6 +463,58 @@ function createAppTray() {
     });
   } catch (error) {
     console.warn("[Nexus Forge Gaming Desktop] Unable to create tray icon:", error);
+  }
+}
+
+/** Applies a preference change from the user (tray menu or the page), saves it and updates the login item. */
+function changeDesktopPreferences(patch) {
+  desktopPreferences = desktopPrefs.applyPreferencePatch(desktopPreferences, patch);
+  persistDesktopPreferences();
+  applyLaunchOnStartupPreference();
+  refreshTrayMenu();
+  return desktopPrefs.publicPreferences(desktopPreferences);
+}
+
+function refreshTrayMenu() {
+  if (!appTray) {
+    return;
+  }
+  const template = [
+    {
+      label: "Open Nexus Forge Gaming",
+      click: () => {
+        showMainWindow();
+      },
+    },
+  ];
+  if (process.platform === "win32" || process.platform === "darwin") {
+    // Launch at login is off unless turned on here (or by the page); it is never registered without asking.
+    template.push({
+      label: process.platform === "win32" ? "Start with Windows" : "Open at login",
+      type: "checkbox",
+      checked: Boolean(desktopPreferences.launchOnStartup),
+      click: (item) => {
+        changeDesktopPreferences({ launchOnStartup: Boolean(item.checked) });
+        appendStartupLog(`[preferences] launch at login turned ${item.checked ? "on" : "off"} from the tray menu`);
+      },
+    });
+  }
+  template.push(
+    {
+      type: "separator",
+    },
+    {
+      label: "Quit",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  );
+  try {
+    appTray.setContextMenu(Menu.buildFromTemplate(template));
+  } catch (error) {
+    console.warn("[Nexus Forge Gaming Desktop] Unable to update the tray menu:", error);
   }
 }
 
@@ -539,8 +538,20 @@ function persistUpdateState() {
   }
 }
 
+/** The kind of page the main window shows right now ("app", "fallback") or null for anything untrusted. */
+function mainWindowPageKind() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return null;
+  }
+  return originRules.classifySender(
+    { windowRole: "main", isTopFrame: true, url: mainWindow.webContents.getURL() },
+    bundledPagePolicy,
+  );
+}
+
 function emitUpdateRuntime() {
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  // Update details (including the installer's local path) go to trusted pages only.
+  if (mainWindowPageKind()) {
     mainWindow.webContents.send("nexusforge-desktop:update-state", updateRuntime);
   }
   if (splashWindow && !splashWindow.isDestroyed()) {
@@ -678,41 +689,27 @@ async function downloadUpdateInstaller(downloadUrl, latestVersion) {
   fs.mkdirSync(updateDownloadDir, { recursive: true });
   const installerName = normalizeUpdateFilename(latestVersion, downloadUrl);
   const destinationPath = path.join(updateDownloadDir, installerName);
-  const tempPath = `${destinationPath}.download`;
 
-  const response = await fetchWithTimeout(downloadUrl, { cache: "no-store" }, 10000);
-  if (!response.ok || !response.body) {
-    throw new Error(`Installer download failed (${response.status}).`);
-  }
-
-  const totalBytes = Number.parseInt(response.headers.get("content-length") || "0", 10) || 0;
-  const reader = response.body.getReader();
-  const fileHandle = fs.openSync(tempPath, "w");
-  let receivedBytes = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
+  // Aborts when no bytes arrive for 60 s, refuses installers over 300 MB, and removes the partial file on any
+  // failure (lib/update-download.js). The SHA-256 check still runs after this and again right before launch.
+  let lastPercent = -1;
+  const result = await updateDownload.downloadToFile({
+    url: downloadUrl,
+    destinationPath,
+    onProgress: (receivedBytes, totalBytes) => {
+      const downloadPercent = totalBytes ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : 0;
+      if (downloadPercent === lastPercent) {
+        return;
       }
-      if (value) {
-        fs.writeSync(fileHandle, value);
-        receivedBytes += value.length;
-        const downloadPercent = totalBytes > 0 ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : 0;
-        updateRuntime = {
-          ...updateRuntime,
-          downloadPercent,
-        };
-        emitUpdateRuntime();
-      }
-    }
-  } finally {
-    fs.closeSync(fileHandle);
-  }
-
-  fs.renameSync(tempPath, destinationPath);
-  return destinationPath;
+      lastPercent = downloadPercent;
+      updateRuntime = {
+        ...updateRuntime,
+        downloadPercent,
+      };
+      emitUpdateRuntime();
+    },
+  });
+  return result.path;
 }
 
 function normalizeDownloadCandidates(primaryUrl, secondaryUrls) {
@@ -848,10 +845,15 @@ async function beginBackgroundUpdateDownload(forceInstallAfterDownload = false) 
   emitUpdateRuntime();
 
   try {
-    const candidateUrls = normalizeDownloadCandidates(updateRuntime.downloadUrl, updateRuntime.downloadUrls);
+    // The packaged app downloads installers over https only.
+    const candidateUrls = normalizeDownloadCandidates(updateRuntime.downloadUrl, updateRuntime.downloadUrls).filter((value) =>
+      updateDownload.isAcceptableDownloadUrl(value, { isPackaged: app.isPackaged }),
+    );
     if (!candidateUrls.length) {
-      throw new Error("No update download URL is available in the update manifest.");
+      throw new Error("No usable update download URL is available in the update manifest.");
     }
+    // Partial files left by an earlier run that was closed mid-download.
+    updateDownload.removeStalePartialDownloads(updateDownloadDir);
 
     let installerPath = null;
     let lastDownloadError = null;
@@ -1064,10 +1066,15 @@ function createSplashWindow() {
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
+      nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
+      additionalArguments: [bridgeScopeArgument],
     },
   });
 
+  // The splash never navigates and opens no windows; it only shows startup progress.
+  splashWindow.webContents.on("will-navigate", (event) => event.preventDefault());
+  splashWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   void splashWindow.loadFile(splashPath);
   splashWindow.webContents.once("did-finish-load", () => {
     markStartupTiming("splash-did-finish-load");
@@ -1197,11 +1204,15 @@ function getDiscoveredWorkspaceCandidates() {
 }
 
 function resolveWorkspacePath() {
+  // Dev builds only: the packaged app has no workspace and never scans the drive for one.
+  if (app.isPackaged) {
+    return null;
+  }
   if (localStackStatus.workspacePath && isWorkspaceRoot(localStackStatus.workspacePath)) {
     return localStackStatus.workspacePath;
   }
 
-  const envWorkspace = process.env.NEXUSFORGE_WORKSPACE_PATH;
+  const envWorkspace = launchSettings.workspacePath;
   const defaultWorkspace = path.resolve(__dirname, "..", "..");
   const candidates = [envWorkspace, defaultWorkspace, ...getDiscoveredWorkspaceCandidates()].filter(Boolean);
   const seen = new Set();
@@ -1398,6 +1409,12 @@ async function loadMainWindowUrlWithRetry(url, options = {}) {
   const delayMs = Number(options.delayMs || 700);
   const probeTimeoutMs = Number(options.probeTimeoutMs || 5000);
 
+  // Only trusted pages are ever loaded into the main window: it carries the preload bridge.
+  if (!originPolicy.isTrustedUrl(url) || (app.isPackaged && originRules.isLoopbackUrl(url))) {
+    appendStartupLog(`[navigation] refused to load an untrusted target: ${originRules.originForLog(url)}`);
+    throw new Error(`Refused to load an untrusted target (${originRules.originForLog(url)}).`);
+  }
+
   let lastError = null;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     if (!mainWindow || mainWindow.isDestroyed()) {
@@ -1434,25 +1451,16 @@ async function waitForUrlReachable(url, options = {}) {
   const intervalMs = Number(options.intervalMs || 500);
   const startedAt = Date.now();
 
-  const agent = (() => {
-    try {
-      const parsed = new URL(url);
-      if (allowHostedCertBypass && parsed.protocol === "https:" && /(^|\.)nexusforge\.app$/i.test(parsed.hostname)) {
-        return new https.Agent({ rejectUnauthorized: false });
-      }
-    } catch {
-      // Ignore malformed URL.
-    }
-    return undefined;
-  })();
-
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        cache: "no-store",
-        agent,
-      });
+      const response = await fetchWithTimeout(
+        url,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+        Math.max(1000, Math.min(10000, timeoutMs)),
+      );
 
       if (response.status >= 200 && response.status < 400) {
         return true;
@@ -1476,11 +1484,8 @@ function resolveHostedStartTargets() {
     "https://nfgcord.com/app",
     "https://nfgcord.com",
     "https://nfgcord.com/download",
-    "https://www.nfgcord.com/app",
-    "https://www.nfgcord.com",
-    "https://www.nfgcord.com/download",
-    "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
-    "https://trhpruductions.github.io/-NEXUSFORGE",
+    // www.nfgcord.com only redirects here, and the old GitHub Pages site is not a trusted page (it would have been
+    // given the desktop bridge), so neither is a fallback any more.
   ];
 
   const appendOriginTargets = (value) => {
@@ -1508,28 +1513,14 @@ function resolveHostedStartTargets() {
     // Ignore malformed manifest URLs in target resolution.
   }
 
-  return Array.from(new Set(candidates.filter(Boolean)));
+  // Trusted pages only; the packaged app never gets a loopback address here.
+  return originRules.trustedLoadTargets(candidates, originPolicy);
 }
 
 function resolveHostedRecoveryTargets() {
-  const recoveryTargets = [
-    ...resolveHostedStartTargets(),
-    "https://nfgcord.com/login?redirect=/app",
-    "https://www.nfgcord.com/login?redirect=/app",
-    "https://nfgcord.com/download",
-    "https://trhpruductions.github.io/-NEXUSFORGE/download.html",
-  ];
+  const recoveryTargets = [...resolveHostedStartTargets(), "https://nfgcord.com/login?redirect=/app", "https://nfgcord.com/download"];
 
-  return Array.from(new Set(recoveryTargets.filter(Boolean)));
-}
-
-function isTrustedHostedDomain(candidateUrl) {
-  try {
-    const { hostname } = new URL(candidateUrl);
-    return /(^|\.)nexusforge\.app$/i.test(hostname);
-  } catch {
-    return false;
-  }
+  return originRules.trustedLoadTargets(recoveryTargets, originPolicy);
 }
 
 async function waitForLocalStackReady(timeoutMs) {
@@ -1551,6 +1542,10 @@ async function waitForLocalStackReady(timeoutMs) {
 }
 
 async function tryLocalFallbackFromHosted() {
+  // Dev builds only: the packaged app never falls back to a local (127.0.0.1 / localhost) address.
+  if (app.isPackaged) {
+    return false;
+  }
   const port3000Open = await probePort(3000);
   if (!port3000Open) {
     return false;
@@ -1632,6 +1627,39 @@ function isDestroyedWindowError(error) {
   return /object has been destroyed/i.test(detail) || /ERR_INVALID_STATE/i.test(detail);
 }
 
+/** How many times in a row the offline page was shown; it retries less often each time. Reset by a good load. */
+let offlineAttempt = 0;
+
+/**
+ * The page shown when the hosted app cannot be reached ("offline") or keeps crashing ("crashed"): a local data: page
+ * (lib/offline-page.js) with a Retry button that goes back to the app's own address. It gets no bridge.
+ */
+function showOfflinePage(reason, kind = "offline") {
+  appendStartupLog(`[offline] showing the ${kind} page: ${reason}`);
+  const targetWindow = mainWindow;
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    return;
+  }
+  const retryUrl = originPolicy.isTrustedUrl(startUrl) ? startUrl : launchConfig.DEFAULT_HOSTED_START_URL;
+  const autoRetrySeconds = kind === "offline" ? offlinePage.offlineRetryDelaySeconds(offlineAttempt) : 0;
+  offlineAttempt += 1;
+  try {
+    void targetWindow.loadURL(offlinePage.offlinePageUrl({ kind, retryUrl, autoRetrySeconds })).catch((error) => {
+      if (!isDestroyedWindowError(error)) {
+        appendStartupLog(`[offline] could not show the offline page: ${String(error)}`);
+      }
+    });
+  } catch (error) {
+    if (!isDestroyedWindowError(error)) {
+      appendStartupLog(`[offline] could not show the offline page: ${String(error)}`);
+    }
+    return;
+  }
+  if (!targetWindow.isDestroyed()) {
+    revealMainWindow();
+  }
+}
+
 function loadFallbackPage(message) {
   updateLocalStackStatus({ message });
   appendLocalStackHistory(message);
@@ -1639,6 +1667,13 @@ function loadFallbackPage(message) {
 
   const targetWindow = mainWindow;
   if (!targetWindow || targetWindow.isDestroyed()) {
+    return;
+  }
+
+  // The local-recovery page (start the local stack, choose a workspace) is a dev tool for local targets. Everyone
+  // else, and the packaged app always, gets the offline page instead.
+  if (app.isPackaged || !isLocalStartTarget) {
+    showOfflinePage(message);
     return;
   }
 
@@ -1666,6 +1701,11 @@ function loadFallbackPage(message) {
 }
 
 async function startLocalStack(reason) {
+  // Runs `npm run dev` in a workspace folder: a dev-build tool only. The packaged app never does this, whoever asks.
+  if (app.isPackaged) {
+    appendStartupLog(`[local-stack] refused in the packaged app (${reason})`);
+    return localStackStatus;
+  }
   updateStartupRuntime({
     stage: "Starting local services",
     detail: "Launching the workspace recovery process.",
@@ -1850,7 +1890,22 @@ async function startLocalStack(reason) {
   return localStackStatus;
 }
 
-async function ensureAppReachable(trigger) {
+/** Set while ensureAppReachable is loading targets, so did-fail-load does not react to its own attempts. */
+let appReachabilityPromise = null;
+
+/** Connects the main window to the app. Overlapping calls share one attempt instead of racing each other. */
+function ensureAppReachable(trigger) {
+  if (appReachabilityPromise) {
+    appendStartupLog(`[recovery] connection attempt already running; joined by trigger=${trigger}`);
+    return appReachabilityPromise;
+  }
+  appReachabilityPromise = ensureAppReachableNow(trigger).finally(() => {
+    appReachabilityPromise = null;
+  });
+  return appReachabilityPromise;
+}
+
+async function ensureAppReachableNow(trigger) {
   markStartupTiming("ensure-app-reachable-start", `trigger=${trigger}`, false);
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
@@ -2208,40 +2263,183 @@ if (process.platform === "win32") {
 }
 
 app.on("certificate-error", (event, _webContents, url, error, _certificate, callback) => {
-  const allowBypass = allowHostedCertBypass && isTrustedHostedDomain(url);
+  // Only an unpackaged dev build that set NEXUSFORGE_ALLOW_HOSTED_CERT_BYPASS=true, and only for trusted pages.
+  const allowBypass = originRules.certificateBypassAllowed(url, {
+    isPackaged: app.isPackaged,
+    bypassRequested: allowHostedCertBypass,
+    policy: originPolicy,
+  });
   if (!allowBypass) {
     callback(false);
     return;
   }
 
   event.preventDefault();
-  appendStartupLog(`[tls] certificate bypass accepted for ${url} (${error})`);
+  appendStartupLog(`[tls] certificate bypass accepted for ${originRules.originForLog(url)} (${error})`);
   callback(true);
 });
 
-/** Origins the app window may load and keep inside itself. The preload bridge is handed to every page in it. */
-function trustedAppOrigins() {
-  const origins = new Set(["https://nfgcord.com", "https://nexusforge.app"]);
-  try {
-    origins.add(new URL(startUrl).origin);
-  } catch {
-    // A malformed start URL adds nothing; the hosted origins above still apply.
+/**
+ * True for the trusted app pages (lib/origin-rules.js: nfgcord.com; dev builds also local dev servers) and for the
+ * bundled splash and local-recovery pages. These are the only pages the app window keeps inside itself.
+ */
+function isAllowedAppUrl(value) {
+  if (originPolicy.isTrustedUrl(value)) {
+    return true;
   }
-  return origins;
+  return [bundledPagePolicy.splashPath, bundledPagePolicy.fallbackPath].some((localPath) => originRules.isBundledPage(value, localPath));
 }
 
-/** True for the hosted or local app pages, and for the bundled splash and fallback pages. */
-function isAllowedAppUrl(value) {
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
+// ---- IPC: every channel goes through one sender check (lib/ipc-policy.js) ----
+
+/** Which of the app's windows a webContents belongs to. */
+function windowRoleOf(contents) {
+  if (mainWindow && !mainWindow.isDestroyed() && contents === mainWindow.webContents) {
+    return "main";
+  }
+  if (splashWindow && !splashWindow.isDestroyed() && contents === splashWindow.webContents) {
+    return "splash";
+  }
+  return "other";
+}
+
+const ipcRefusalsLogged = new Map();
+const checkIpcSender = createIpcGuard({
+  roleOf: windowRoleOf,
+  classify: (sender) => originRules.classifySender(sender, bundledPagePolicy),
+  isPackaged: app.isPackaged,
+  onRefused: (channel, reason, sender) => {
+    // One line per channel, reason and window, at most 20 of each, so a page cannot flood the log.
+    const key = `${channel}|${reason}|${sender ? sender.windowRole : "gone"}`;
+    const count = (ipcRefusalsLogged.get(key) || 0) + 1;
+    ipcRefusalsLogged.set(key, count);
+    if (count <= 20) {
+      appendStartupLog(
+        `[ipc] refused ${channel}: ${reason} (window=${sender ? sender.windowRole : "gone"} top=${sender ? sender.isTopFrame : "n/a"} page=${sender ? originRules.originForLog(sender.url) : "n/a"})`,
+      );
+    }
+  },
+});
+
+const registeredIpcChannels = [];
+
+/** ipcMain.handle with the sender check. The handler gets (event, pageKind, ...args). Refused calls reject. */
+function handleIpc(channel, handler) {
+  ipcMain.handle(channel, async (event, ...args) => {
+    const decision = checkIpcSender(channel, event);
+    if (!decision.allowed) {
+      throw new Error(`Nexus Forge Gaming Desktop refused ${channel} from this page.`);
+    }
+    return handler(event, decision.page, ...args);
+  });
+  registeredIpcChannels.push({ channel, kind: "handle" });
+}
+
+/** ipcMain.on with the sender check. Refused messages are dropped. */
+function onIpc(channel, listener) {
+  ipcMain.on(channel, (event, ...args) => {
+    const decision = checkIpcSender(channel, event);
+    if (!decision.allowed) {
+      return;
+    }
+    listener(event, decision.page, ...args);
+  });
+  registeredIpcChannels.push({ channel, kind: "on" });
+}
+
+function removeIpcHandlers() {
+  for (const { channel, kind } of registeredIpcChannels.splice(0)) {
+    if (kind === "handle") {
+      ipcMain.removeHandler(channel);
+    } else {
+      ipcMain.removeAllListeners(channel);
+    }
+  }
+}
+
+// ---- Permissions: camera, microphone, notifications and the like (lib/permission-rules.js) ----
+
+/** The main window or one of its popouts. Other windows (splash, picker, What's New) never get permissions. */
+function isAppWebContents(contents) {
+  if (!contents) {
     return false;
   }
-  if (url.protocol === "file:") {
-    return [splashPath, fallbackPath].some((localPath) => url.pathname === pathToFileURL(localPath).pathname);
+  if (mainWindow && !mainWindow.isDestroyed() && contents === mainWindow.webContents) {
+    return true;
   }
-  return trustedAppOrigins().has(url.origin);
+  for (const child of popoutWindows) {
+    if (!child.isDestroyed() && child.webContents === contents) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The origin of a webContents' top frame. A popout's about:blank page reports its opener's origin. */
+function topOriginOf(contents) {
+  try {
+    const frameOrigin = contents && contents.mainFrame ? contents.mainFrame.origin : null;
+    return originRules.originOf(frameOrigin) || originRules.originOf(contents ? contents.getURL() : null);
+  } catch {
+    return null;
+  }
+}
+
+const permissionRefusalsLogged = new Set();
+function logPermissionRefusal(kind, permission, origin, reason) {
+  const key = `${kind}|${permission}|${origin}|${reason}`;
+  if (permissionRefusalsLogged.has(key) || permissionRefusalsLogged.size > 200) {
+    return;
+  }
+  permissionRefusalsLogged.add(key);
+  appendStartupLog(`[permissions] refused ${kind} ${permission} for ${origin || "unknown origin"}: ${reason}`);
+}
+
+function registerPermissionHandlers() {
+  const ses = session.defaultSession;
+  ses.setPermissionRequestHandler((contents, permission, callback, details) => {
+    let allowed = false;
+    try {
+      const isMainFrame = Boolean(details && details.isMainFrame);
+      const topOrigin = topOriginOf(contents);
+      let requestingOrigin =
+        originRules.originOf(details && details.securityOrigin) || originRules.originOf(details && details.requestingUrl);
+      if (!requestingOrigin && isMainFrame) {
+        // A popout's about:blank page asks with its opener's origin.
+        requestingOrigin = topOrigin;
+      }
+      const decision = decidePermission(
+        { permission, appWindow: isAppWebContents(contents), topOrigin, requestingOrigin, isMainFrame },
+        originPolicy,
+      );
+      allowed = decision.allowed;
+      if (!allowed) {
+        logPermissionRefusal("request", permission, requestingOrigin, decision.reason);
+      }
+    } catch (error) {
+      appendStartupLog(`[permissions] request check failed, refused: ${String(error)}`);
+      allowed = false;
+    }
+    callback(allowed);
+  });
+  ses.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
+    try {
+      const isMainFrame = Boolean(details && details.isMainFrame);
+      const topOrigin = topOriginOf(contents);
+      const origin =
+        originRules.originOf(details && details.securityOrigin) || originRules.originOf(requestingOrigin) || (isMainFrame ? topOrigin : null);
+      const decision = decidePermission(
+        { permission, appWindow: isAppWebContents(contents), topOrigin, requestingOrigin: origin, isMainFrame },
+        originPolicy,
+      );
+      if (!decision.allowed) {
+        logPermissionRefusal("check", permission, origin, decision.reason);
+      }
+      return decision.allowed;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /** Opens a link in the user's browser. Only web addresses: never file: or other custom protocols. */
@@ -2299,7 +2497,7 @@ function registerScreenShareHandler() {
     };
     try {
       // One log line per request: the outcome only. Source names (window titles) and screen contents are never logged.
-      if (!isAllowedAppUrl(request.securityOrigin)) {
+      if (!originPolicy.isTrustedOrigin(request.securityOrigin)) {
         let origin = "(unreadable origin)";
         try {
           origin = new URL(request.securityOrigin).origin;
@@ -2360,6 +2558,8 @@ function createWindow() {
       : null),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
+      // Which pages the preload may hand the bridge to (trusted origins and bundled pages only).
+      additionalArguments: [bridgeScopeArgument],
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -2371,7 +2571,7 @@ function createWindow() {
   // draws the voice room, a shared screen or the member list into it, so they share its call and streams. Every
   // other link or window opens in the browser.
   mainWindow.webContents.setWindowOpenHandler(({ url, frameName, features }) => {
-    if (isPopoutRequest(url, frameName) && isAllowedAppUrl(mainWindow.webContents.getURL())) {
+    if (isPopoutRequest(url, frameName) && originPolicy.isTrustedUrl(mainWindow.webContents.getURL())) {
       const size = popoutSize(features);
       return {
         action: "allow",
@@ -2407,14 +2607,55 @@ function createWindow() {
   });
   keepAppNavigationInside(mainWindow.webContents);
 
-  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    appendStartupLog(`[renderer-console] level=${level} line=${line} source=${sourceId} msg=${message}`);
+  // Page warnings and errors only, shortened (lib/log-rotation.js). Info and debug messages are not written to disk.
+  // One parameter only: Electron 42 warns about listeners that take the deprecated positional arguments.
+  mainWindow.webContents.on("console-message", (details) => {
+    const line = formatConsoleMessage({
+      level: details?.level,
+      message: details?.message,
+      lineNumber: details?.lineNumber,
+      sourceId: details?.sourceId,
+    });
+    if (line) {
+      appendStartupLog(line);
+    }
   });
+  // A crashed page is reloaded, waiting longer each time; after repeated crashes the error page is shown instead.
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    appendStartupLog(`[renderer-gone] reason=${details.reason} exitCode=${details.exitCode} exitStatus=${details.exitStatus}`);
+    appendStartupLog(`[renderer-gone] reason=${details.reason} exitCode=${details.exitCode}`);
+    clearRendererHangTimer();
+    // Popouts are drawn by the page that just went away; they cannot work without it.
+    closePopoutWindows();
+    scheduleRendererRecovery(details.reason);
   });
-  mainWindow.webContents.on("crashed", () => {
-    appendStartupLog("[renderer-crashed] Renderer process crashed.");
+  // A page that stops responding gets a grace period; if it is still stuck, its renderer is restarted (and the
+  // render-process-gone handler above reloads it).
+  mainWindow.on("unresponsive", () => {
+    appendStartupLog("[renderer-unresponsive] the page stopped responding");
+    if (rendererHangTimer) {
+      return;
+    }
+    rendererHangTimer = setTimeout(() => {
+      rendererHangTimer = null;
+      if (isQuitting || !mainWindow || mainWindow.isDestroyed()) {
+        return;
+      }
+      appendStartupLog(
+        `[renderer-unresponsive] still not responding after ${Math.round(rendererRecovery.settings.unresponsiveGraceMs / 1000)}s; restarting the page`,
+      );
+      try {
+        mainWindow.webContents.forcefullyCrashRenderer();
+      } catch (error) {
+        appendStartupLog(`[renderer-unresponsive] could not restart the renderer: ${String(error)}`);
+        scheduleRendererRecovery("unresponsive");
+      }
+    }, rendererRecovery.settings.unresponsiveGraceMs);
+  });
+  mainWindow.on("responsive", () => {
+    if (rendererHangTimer) {
+      appendStartupLog("[renderer-unresponsive] the page is responding again");
+    }
+    clearRendererHangTimer();
   });
 
   // Desktop-only launch guard: append token while preserving Chromium UA compatibility.
@@ -2483,14 +2724,76 @@ function createWindow() {
     revealMainWindow();
   });
 
-  mainWindow.webContents.on("did-fail-load", (_event, errorCode) => {
+  mainWindow.webContents.on("did-finish-load", () => {
+    // A trusted page loaded: the next offline page starts again from the shortest retry delay.
+    if (mainWindowPageKind() === "app") {
+      offlineAttempt = 0;
+    }
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _errorDescription, _validatedUrl, isMainFrame) => {
     markStartupTiming("main-did-fail-load", `errorCode=${errorCode}`, false);
-    appendStartupLog(`[did-fail-load] errorCode=${errorCode}`);
-    if (!isLocalStartTarget || errorCode === -3) {
+    appendStartupLog(`[did-fail-load] errorCode=${errorCode} mainFrame=${Boolean(isMainFrame)}`);
+    // A frame inside the page (an embed) failing is the page's business; -3 is a cancelled navigation.
+    if (isMainFrame === false || errorCode === -3) {
       return;
     }
-    void ensureAppReachable("did-fail-load");
+    // ensureAppReachable handles failures of its own loads.
+    if (appReachabilityPromise) {
+      return;
+    }
+    if (isLocalStartTarget) {
+      void ensureAppReachable("did-fail-load");
+      return;
+    }
+    // Hosted (and always in the packaged app): show the offline page rather than the browser's error page, which
+    // would otherwise stay in the window with no way back.
+    showOfflinePage(`did-fail-load errorCode=${errorCode}`);
   });
+}
+
+/** Restart bookkeeping for the main window's page (lib/crash-recovery.js). */
+const rendererRecovery = createRendererRecovery();
+let rendererRecoveryTimer = null;
+let rendererHangTimer = null;
+
+function clearRendererHangTimer() {
+  if (rendererHangTimer) {
+    clearTimeout(rendererHangTimer);
+    rendererHangTimer = null;
+  }
+}
+
+function scheduleRendererRecovery(reason) {
+  if (isQuitting || !mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  if (rendererRecoveryTimer) {
+    appendStartupLog(`[renderer-recovery] a reload is already scheduled (${reason})`);
+    return;
+  }
+  const decision = rendererRecovery.decide(reason, Date.now());
+  if (decision.action === "ignore") {
+    return;
+  }
+  if (decision.action === "give-up") {
+    appendStartupLog(`[renderer-recovery] the page failed ${decision.attempts} times in a short time (last: ${reason}); not reloading again automatically`);
+    showOfflinePage(`renderer ${reason}`, "crashed");
+    return;
+  }
+  appendStartupLog(`[renderer-recovery] reason=${reason} attempt=${decision.attempt}; reloading in ${decision.delayMs}ms`);
+  rendererRecoveryTimer = setTimeout(() => {
+    rendererRecoveryTimer = null;
+    if (isQuitting || !mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+    const current = mainWindow.webContents.getURL();
+    if (current && (isAllowedAppUrl(current) || current.startsWith("data:"))) {
+      mainWindow.webContents.reload();
+    } else {
+      void ensureAppReachable("renderer-recovery");
+    }
+  }, decision.delayMs);
 }
 
 function stopSpawnedLocalStack() {
@@ -2532,7 +2835,15 @@ app.on("second-instance", () => {
 app.whenReady().then(async () => {
   markStartupTiming("app-when-ready");
   registerScreenShareHandler();
+  registerPermissionHandlers();
   appendStartupLog(`[startup-timing] log-path="${startupLogPath}"`);
+  if (launchSettings.ignoredEnv.length) {
+    // Names only, never values.
+    appendStartupLog(`[security] packaged build ignored these environment overrides: ${launchSettings.ignoredEnv.join(", ")}`);
+  }
+  if (strippedTlsOverrides.length) {
+    appendStartupLog(`[security] packaged build removed TLS-weakening overrides: ${strippedTlsOverrides.join(", ")}`);
+  }
   appendStartupLog(
     updateManifestUrl
       ? `[startup] updateManifestUrl=${updateManifestUrl}`
@@ -2580,9 +2891,13 @@ app.whenReady().then(async () => {
     timestamp: new Date().toISOString(),
   };
 
-  // The splash's own minimize and close buttons. Accepted from the splash window only; close quits the app.
-  ipcMain.on("nexusforge-desktop:splash-control", (event, action) => {
-    if (!splashWindow || splashWindow.isDestroyed() || event.sender !== splashWindow.webContents) return;
+  // Every channel below goes through handleIpc / onIpc, which check the sender first (lib/ipc-policy.js): the top
+  // frame of the main window on a trusted page, or of the splash window on the bundled splash page, for the channels
+  // that page kind may use. Dev-only channels are refused in the packaged app.
+
+  // The splash's own minimize and close buttons. Accepted from the splash page only; close quits the app.
+  onIpc("nexusforge-desktop:splash-control", (_event, _page, action) => {
+    if (!splashWindow || splashWindow.isDestroyed()) return;
     if (action === "minimize") {
       splashWindow.minimize();
     } else if (action === "close") {
@@ -2591,13 +2906,27 @@ app.whenReady().then(async () => {
       app.quit();
     }
   });
-  ipcMain.handle("nexusforge-desktop:get-startup-health", () => startupHealth);
-  ipcMain.handle("nexusforge-desktop:get-local-stack-status", async () => {
-    await refreshLocalPortStatus();
-    return localStackStatus;
+  handleIpc("nexusforge-desktop:get-startup-health", async () => startupHealth);
+  handleIpc("nexusforge-desktop:get-local-stack-status", async (_event, page) => {
+    // Ports are only probed for local dev targets; a hosted page gets the launch mode without any local details.
+    if (isLocalStartTarget && !app.isPackaged) {
+      await refreshLocalPortStatus();
+    }
+    if (page === "fallback") {
+      return localStackStatus;
+    }
+    return {
+      launchMode: localStackStatus.launchMode,
+      startUrl: localStackStatus.startUrl,
+      localRecoveryEnabled: Boolean(localStackStatus.localRecoveryEnabled),
+      running: Boolean(localStackStatus.running),
+      message: localStackStatus.message,
+      lastError: localStackStatus.lastError,
+      timestamp: localStackStatus.timestamp,
+    };
   });
-  ipcMain.handle("nexusforge-desktop:get-update-state", async () => updateRuntime);
-  ipcMain.handle("nexusforge-desktop:get-pricing-catalog", async () => {
+  handleIpc("nexusforge-desktop:get-update-state", async () => updateRuntime);
+  handleIpc("nexusforge-desktop:get-pricing-catalog", async () => {
     try {
       const catalog = await fetchPricingCatalog();
       return {
@@ -2613,15 +2942,15 @@ app.whenReady().then(async () => {
       };
     }
   });
-  ipcMain.handle("nexusforge-desktop:get-desktop-preferences", async () => ({ ...desktopPreferences }));
-  ipcMain.handle("nexusforge-desktop:is-fullscreen", async (event) => {
-    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
+  handleIpc("nexusforge-desktop:get-desktop-preferences", async () => desktopPrefs.publicPreferences(desktopPreferences));
+  handleIpc("nexusforge-desktop:is-fullscreen", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
     return mainWindow.isFullScreen();
   });
   // Settings > Appearance > Layout > Reset layout: the window goes back to its default size, centred on the screen it
   // is on. Only the main window's page may ask.
-  ipcMain.handle("nexusforge-desktop:reset-window-layout", async (event) => {
-    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) return false;
+  handleIpc("nexusforge-desktop:reset-window-layout", async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
     if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
     if (mainWindow.isMaximized()) mainWindow.unmaximize();
     const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea;
@@ -2631,33 +2960,26 @@ app.whenReady().then(async () => {
     saveWindowState();
     return true;
   });
-  ipcMain.handle("nexusforge-desktop:update-desktop-preferences", async (_event, patch = {}) => {
-    const next = {
-      ...desktopPreferences,
-      ...(typeof patch?.launchOnStartup === "boolean" ? { launchOnStartup: patch.launchOnStartup } : null),
-      ...(typeof patch?.minimizeToTray === "boolean" ? { minimizeToTray: patch.minimizeToTray } : null),
-      ...(typeof patch?.startMinimized === "boolean" ? { startMinimized: patch.startMinimized } : null),
-    };
-
-    desktopPreferences = next;
-    persistDesktopPreferences();
-    applyLaunchOnStartupPreference();
-    return { ...desktopPreferences };
+  handleIpc("nexusforge-desktop:update-desktop-preferences", async (_event, _page, patch = {}) => {
+    if (patch && typeof patch.launchOnStartup === "boolean" && patch.launchOnStartup !== desktopPreferences.launchOnStartup) {
+      appendStartupLog(`[preferences] launch at login turned ${patch.launchOnStartup ? "on" : "off"} by the app page`);
+    }
+    return changeDesktopPreferences(patch);
   });
-  ipcMain.handle("nexusforge-desktop:check-updates-now", async () => checkForUpdates("manual"));
-  ipcMain.handle("nexusforge-desktop:download-update-now", async () => {
+  handleIpc("nexusforge-desktop:check-updates-now", async () => checkForUpdates("manual"));
+  handleIpc("nexusforge-desktop:download-update-now", async () => {
     resolveStartupUpdatePrompt("accept");
     await beginBackgroundUpdateDownload(false);
     return updateRuntime;
   });
-  ipcMain.handle("nexusforge-desktop:resolve-update-prompt", async (_event, choice) => {
+  handleIpc("nexusforge-desktop:resolve-update-prompt", async (_event, _page, choice) => {
     resolveStartupUpdatePrompt(String(choice || "skip"));
     return {
       success: true,
       choice: String(choice || "skip"),
     };
   });
-  ipcMain.handle("nexusforge-desktop:restart-for-update", async () => {
+  handleIpc("nexusforge-desktop:restart-for-update", async () => {
     if (updateRuntime.downloaded && updateRuntime.installerPath) {
       await installDownloadedUpdate();
       return { restarting: true };
@@ -2666,8 +2988,9 @@ app.whenReady().then(async () => {
     app.exit(0);
     return { restarting: true };
   });
-  ipcMain.handle("nexusforge-desktop:start-local-stack", async () => startLocalStack("manual-ui"));
-  ipcMain.handle("nexusforge-desktop:set-workspace-path", async (_event, candidatePath) => {
+  // Dev builds only (refused in the packaged app by the guard, and by startLocalStack itself).
+  handleIpc("nexusforge-desktop:start-local-stack", async () => startLocalStack("manual-ui"));
+  handleIpc("nexusforge-desktop:set-workspace-path", async (_event, _page, candidatePath) => {
     const normalizedCandidate = String(candidatePath || "").trim();
     if (!normalizedCandidate) {
       return { success: false, reason: "Workspace path is empty." };
@@ -2688,11 +3011,11 @@ app.whenReady().then(async () => {
     appendLocalStackHistory(`Workspace path configured: ${resolvedPath}`);
     return { success: true, workspacePath: resolvedPath };
   });
-  ipcMain.handle("nexusforge-desktop:retry-app-load", async () => {
-    await ensureAppReachable("manual-retry");
-    return localStackStatus;
+  handleIpc("nexusforge-desktop:retry-app-load", async (_event, page) => {
+    await ensureAppReachable(`manual-retry-${page}`);
+    return page === "fallback" ? localStackStatus : { launchMode: localStackStatus.launchMode, message: localStackStatus.message };
   });
-  ipcMain.handle("nexusforge-desktop:open-local-stack-log", async () => {
+  handleIpc("nexusforge-desktop:open-local-stack-log", async () => {
     if (!isLocalStartTarget) {
       const message = "No local stack log is available in hosted mode.";
       updateLocalStackStatus({ message, lastError: null });
@@ -2708,7 +3031,7 @@ app.whenReady().then(async () => {
     appendLocalStackHistory(message);
     return { opened: false, logPath: localStackLogPath };
   });
-  ipcMain.handle("nexusforge-desktop:run-maintenance", async () => {
+  handleIpc("nexusforge-desktop:run-maintenance", async () => {
     resetDevQuotaDatabase();
     await prepareDevSessionStorage();
 
@@ -2730,7 +3053,7 @@ app.whenReady().then(async () => {
 
     return startupHealth;
   });
-  ipcMain.handle("nexusforge-desktop:reload-window", async () => {
+  handleIpc("nexusforge-desktop:reload-window", async () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.reloadIgnoringCache();
       mainWindow.focus();
@@ -2750,7 +3073,7 @@ app.whenReady().then(async () => {
 
     return startupHealth;
   });
-  ipcMain.handle("nexusforge-desktop:restart-clean-session", async () => {
+  handleIpc("nexusforge-desktop:restart-clean-session", async () => {
     resetDevQuotaDatabase();
     resetIsolatedDevSession();
     await prepareDevSessionStorage();
@@ -2844,18 +3167,10 @@ app.on("will-quit", () => {
     startupRevealTimer = null;
   }
   stopSpawnedLocalStack();
-  ipcMain.removeAllListeners("nexusforge-desktop:splash-control");
-  ipcMain.removeHandler("nexusforge-desktop:get-startup-health");
-  ipcMain.removeHandler("nexusforge-desktop:get-local-stack-status");
-  ipcMain.removeHandler("nexusforge-desktop:get-update-state");
-  ipcMain.removeHandler("nexusforge-desktop:get-desktop-preferences");
-  ipcMain.removeHandler("nexusforge-desktop:update-desktop-preferences");
-  ipcMain.removeHandler("nexusforge-desktop:check-updates-now");
-  ipcMain.removeHandler("nexusforge-desktop:restart-for-update");
-  ipcMain.removeHandler("nexusforge-desktop:start-local-stack");
-  ipcMain.removeHandler("nexusforge-desktop:retry-app-load");
-  ipcMain.removeHandler("nexusforge-desktop:open-local-stack-log");
-  ipcMain.removeHandler("nexusforge-desktop:run-maintenance");
-  ipcMain.removeHandler("nexusforge-desktop:reload-window");
-  ipcMain.removeHandler("nexusforge-desktop:restart-clean-session");
+  clearRendererHangTimer();
+  if (rendererRecoveryTimer) {
+    clearTimeout(rendererRecoveryTimer);
+    rendererRecoveryTimer = null;
+  }
+  removeIpcHandlers();
 });

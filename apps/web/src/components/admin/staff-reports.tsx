@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, MessageSquare, RotateCcw, Trash2, X } from "lucide-react";
 import { getApiErrorMessage, handleReport, listStaffReports, type ReportStatus } from "@/lib/api";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
 import { SuspensionControl } from "@/components/admin/suspension-control";
 import type { SuspensionInfo } from "@/lib/suspension";
 
@@ -26,6 +26,7 @@ const danger = "inline-flex h-8 items-center gap-1.5 rounded-lg border border-ro
 export function StaffReports() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken } = useAuthStore();
+  const queryScope = useQueryScope();
   const [status, setStatus] = useState<ReportStatus>("OPEN");
   const [kind, setKind] = useState<"DM" | "CHANNEL" | "">("DM");
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -34,7 +35,7 @@ export function StaffReports() {
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const reportsQuery = useQuery({
-    queryKey: ["staff-reports", status, kind, accessToken],
+    queryKey: ["staff-reports", status, kind, queryScope],
     queryFn: () => listStaffReports(accessToken!, { status, kind: kind || undefined }),
     enabled: Boolean(accessToken),
   });

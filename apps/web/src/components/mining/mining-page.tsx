@@ -6,8 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Coins, Cpu, Gauge, Loader2, Pickaxe, Plus, Power, Trash2, TrendingUp, X, Zap } from "lucide-react";
 import { api, authHeaders, getApiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth-store";
-import { useEscapeKey } from "@/lib/use-escape-key";
+import { useAuthStore, useQueryScope } from "@/store/auth-store";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 type Rig = { rigId: string; name: string; tier: string; hashRate: number; efficiency: number; status: string; currentYield: string; purchasedAt: string; totalYield: string };
 type Stats = { rigCount: number; activeRigs: number; totalHashRate: number; avgEfficiency: number; totalYield: string; pendingYield: string; estimatedHourlyIncome: string };
@@ -32,18 +32,19 @@ function fmt(value: string | number) {
 export function MiningPage() {
   const queryClient = useQueryClient();
   const { accessToken, csrfToken, user } = useAuthStore();
+  const queryScope = useQueryScope();
   const [buyOpen, setBuyOpen] = useState(false);
-  useEscapeKey(buyOpen, () => setBuyOpen(false));
+  const buyDialog = useDialogFocus({ open: buyOpen, onClose: () => setBuyOpen(false), label: "Deploy a rig" });
   const [tier, setTier] = useState("BASIC");
   const [name, setName] = useState("");
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const headers = { headers: authHeaders(accessToken, csrfToken) };
-  const rigsQuery = useQuery({ queryKey: ["mining-rigs", accessToken], queryFn: async () => (await api.get<{ rigs: Rig[] }>("/api/mining/rigs", headers)).data.rigs, enabled: Boolean(accessToken), refetchInterval: 30_000 });
-  const statsQuery = useQuery({ queryKey: ["mining-stats", accessToken], queryFn: async () => (await api.get<Stats>("/api/mining/stats", headers)).data, enabled: Boolean(accessToken), refetchInterval: 30_000 });
+  const rigsQuery = useQuery({ queryKey: ["mining-rigs", queryScope], queryFn: async () => (await api.get<{ rigs: Rig[] }>("/api/mining/rigs", headers)).data.rigs, enabled: Boolean(accessToken), refetchInterval: 30_000 });
+  const statsQuery = useQuery({ queryKey: ["mining-stats", queryScope], queryFn: async () => (await api.get<Stats>("/api/mining/stats", headers)).data, enabled: Boolean(accessToken), refetchInterval: 30_000 });
   const pricingQuery = useQuery({ queryKey: ["mining-pricing"], queryFn: async () => (await api.get<Pricing[]>("/api/mining/pricing")).data });
   const coinsQuery = useQuery({
-    queryKey: ["economy", user?.id, accessToken],
+    queryKey: ["economy", user?.id, queryScope],
     queryFn: async () => (await api.get<Array<{ currencyType: string; balance: string }>>(`/api/economy/${user!.id}`, headers)).data,
     enabled: Boolean(accessToken && user?.id),
   });
@@ -197,7 +198,7 @@ export function MiningPage() {
       </div>
 
       {buyOpen ? (
-        <div role="dialog" aria-modal="true" aria-label="Deploy a rig" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <div {...buyDialog} className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setBuyOpen(false)} />
           <div className="relative w-full max-w-md rounded-2xl border border-amber-500/25 bg-[#0d1119] p-5">
             <h3 className="nf-heading mb-3 text-base font-bold text-white">Deploy a rig</h3>
