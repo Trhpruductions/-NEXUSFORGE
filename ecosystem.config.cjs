@@ -13,6 +13,11 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 2000,
       watch: false,
+      // pm2 can't send SIGINT/SIGTERM on Windows, so it sends a "shutdown" message instead. The API then closes
+      // HTTP, sockets, background jobs and the database in order (apps/server/src/lib/shutdown.ts, 10 s limit);
+      // pm2 force-stops it only after kill_timeout.
+      shutdown_with_message: true,
+      kill_timeout: 12000,
       env: {
         NODE_ENV: "production",
       },
