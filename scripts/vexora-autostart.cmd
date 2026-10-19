@@ -14,6 +14,9 @@ REM 3. vexora-gateway (local port 3400) and vexora-tunnel (Cloudflare tunnel for
 REM    https://nfgcord.com) are NOT in dump.pm2, so without this step the public
 REM    site stays down after a reboot. They are defined in ecosystem.config.cjs
 REM    and started here when missing.
+REM 4. dump.pm2 holds the API's settings from before graceful shutdown existed (it is never saved, see below).
+REM    If the resurrected API lacks shutdown_with_message, restart it once from ecosystem.config.cjs so pm2
+REM    picks up the settings there (a restart by name does not re-read the file).
 REM
 REM Deliberately NO "pm2 save" here - see the note in
 REM D:\dynamite-bot\scripts\autostart.cmd (a save at logon once overwrote
@@ -31,6 +34,20 @@ set "LOG=D:\NexusForgeDB\autostart.log"
 
 echo ==== %date% %time% logon start >> "%LOG%"
 
+REM Once the database runs as the Windows service "nexusforge-db" (scripts\ops\register-db-service.ps1), Windows
+REM starts it at boot; only make sure it is running, and never start a second copy with pg_ctl.
+sc.exe query nexusforge-db >nul 2>&1
+if not errorlevel 1 (
+  sc.exe query nexusforge-db | find "RUNNING" >nul
+  if errorlevel 1 (
+    echo starting service nexusforge-db >> "%LOG%"
+    sc.exe start nexusforge-db >> "%LOG%" 2>&1
+  ) else (
+    echo service nexusforge-db running >> "%LOG%"
+  )
+  goto :after_postgres
+)
+
 "%PGBIN%\pg_isready.exe" -h 127.0.0.1 -p 5433 -q
 if errorlevel 1 (
   echo starting postgres on 5433 >> "%LOG%"
@@ -43,6 +60,7 @@ if errorlevel 1 (
   echo postgres already up >> "%LOG%"
 )
 
+:after_postgres
 REM Give the pm2 resurrect time to run first.
 timeout /t 60 /nobreak >nul 2>&1
 
@@ -51,15 +69,20 @@ exit /b 0
 
 :ensure
 set "STATE="
-for /f "delims=" %%S in ('node -e "const l=JSON.parse(require('child_process').execSync('pm2 jlist',{encoding:'utf8'}));const p=l.find(x=>x.name===process.argv[1]);console.log(p?p.pm2_env.status:'missing')" %1 2^>nul') do set "STATE=%%S"
+for /f "delims=" %%S in ('node -e "const l=JSON.parse(require('child_process').execSync('pm2 jlist',{encoding:'utf8'}));const p=l.find(x=>x.name===process.argv[1]);const s=p?p.pm2_env.status:'missing';console.log(s==='online'&&process.argv[1]==='nexusforge-backend-workspace'&&p.pm2_env.shutdown_with_message!==true?'stale-settings':s)" %1 2^>nul') do set "STATE=%%S"
 if "%STATE%"=="online" (
   echo %1 online >> "%LOG%"
   goto :eof
 )
-echo %1 status "%STATE%" - starting >> "%LOG%"
+if "%STATE%"=="" (
+  REM pm2 jlist could not be read: do nothing rather than restart apps that may be running fine.
+  echo %1 status unknown - pm2 not readable, left alone >> "%LOG%"
+  goto :eof
+)
+echo %1 status "%STATE%" - starting from ecosystem.config.cjs >> "%LOG%"
 if "%STATE%"=="missing" (
   call pm2 start ecosystem.config.cjs --only %1 --update-env >> "%LOG%" 2>&1
 ) else (
-  call pm2 restart %1 --update-env >> "%LOG%" 2>&1
+  call pm2 restart ecosystem.config.cjs --only %1 --update-env >> "%LOG%" 2>&1
 )
 goto :eof

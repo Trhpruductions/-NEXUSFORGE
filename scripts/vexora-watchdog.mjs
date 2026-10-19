@@ -261,10 +261,30 @@ async function postgresReady() {
   return "accepting connections";
 }
 
+/** Set once the database runs as its own Windows service (scripts/ops/register-db-service.ps1). */
+const DB_SERVICE = process.env.DB_SERVICE || "nexusforge-db";
+
 async function startPostgres() {
   if (DRY_RUN) {
-    log("[dry-run] would run pg_ctl start");
+    log("[dry-run] would start Postgres");
     return "would start Postgres";
+  }
+  // As a service, Windows owns the database: start the service, never a second copy with pg_ctl. The register
+  // script lets this user start it; if that is refused, fall through to pg_ctl so the site still gets a database.
+  const service = await run("sc.exe", ["query", DB_SERVICE]);
+  if (service.ok) {
+    const started = await run("sc.exe", ["start", DB_SERVICE]);
+    for (let i = 0; i < 12; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      try {
+        await postgresReady();
+        return `started service ${DB_SERVICE}`;
+      } catch {
+        // keep waiting
+      }
+    }
+    if (started.ok) return `started service ${DB_SERVICE}; still not ready (see D:\\NexusForgeDB\\data\\log)`;
+    log(`db: could not start service ${DB_SERVICE} (${started.out || started.code}); trying pg_ctl`);
   }
   // Same command as scripts/vexora-autostart.cmd. Detached with no pipes: postgres keeps any
   // inherited handles open, which would otherwise hang this call.

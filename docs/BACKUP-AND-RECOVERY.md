@@ -71,16 +71,21 @@ not a crash. The watchdog noticed after 3 failed checks and started it again at 
 reboot, and no development session was active at that moment).
 
 Because the live database is started from a console with `pg_ctl` rather than as a service, anything that
-closes or interrupts that console can stop it. **Recommended (owner approval, admin rights):** register the
-5433 server as its own Windows service, set to start automatically and restart on failure:
+closes or interrupts that console can stop it. **Fix (needs administrator rights, so the owner runs it):**
+`scripts/ops/register-db-service.ps1` moves it under its own Windows service "nexusforge-db": started by
+Windows at boot, restarted 5/10/30 s after a crash, logs in `D:\NexusForgeDB\data\log`. Open PowerShell with
+"Run as administrator", go to the repo folder, then:
 
 ```
-"C:\Program Files\PostgreSQL\17\bin\pg_ctl.exe" register -N nexusforge-db -D "D:\NexusForgeDB\data" -o "-p 5433 -c listen_addresses=localhost" -S auto
+powershell -ExecutionPolicy Bypass -File scripts\ops\register-db-service.ps1                 # dry run, shows the plan
+powershell -ExecutionPolicy Bypass -File scripts\ops\register-db-service.ps1 -OwnerApproved  # does it
 ```
 
-Then remove the `pg_ctl start` line from `scripts/vexora-autostart.cmd` and change the watchdog's database
-heal to `sc start nexusforge-db`. Do this at a quiet time: the database has to be stopped once to move it
-under the service.
+The database is down for roughly 10-30 seconds during the hand-over; the API reconnects by itself. If the
+service doesn't come up within 60 s the script removes it and starts the database the old way again.
+`scripts/vexora-autostart.cmd` and the watchdog already know about the service: once it exists they start it
+through Windows instead of running a second copy with `pg_ctl` (the watchdog picks this up at its next
+restart; until then it would still start the database the old way if it ever went down).
 
 ## If this PC is lost
 

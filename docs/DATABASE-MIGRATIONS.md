@@ -17,10 +17,16 @@ Checked on 18 Oct 2026:
   baseline as applied, `prisma migrate status` then reports "Database schema is up to date", and the structure
   is unchanged.
 
-## One-time step for the live database (needs the owner's approval)
+## One-time step for the live database (done 19 Oct 2026)
 
-This only records the baseline in the live database's `_prisma_migrations` table (one row). It does not
-change any tables or data.
+**Done on 19 Oct 2026 with the owner's approval**, after a fresh backup
+(`D:\NexusForgeDB\backups-manual\pre-migrate-baseline-20261019-1020`, restore check passed). Before: no
+difference from the schema, `0_init` pending. After: "Database schema is up to date!" and still no
+difference. The test database `nexusforge_test` was marked the same way. CI now builds its throwaway database
+with `prisma migrate deploy`.
+
+The step only records the baseline in the live database's `_prisma_migrations` table (one row). It does not
+change any tables or data. For reference, this is how it was done:
 
 1. Make sure tonight's backup ran, or take one: `node scripts/vexora-backup.mjs`.
 2. From `apps/server`, with `DATABASE_URL` loaded from `apps/server/.env` (load it inside node or a shell
@@ -31,9 +37,7 @@ change any tables or data.
    ```
    The status should say "Database schema is up to date!".
 
-Until this step is done, keep using the old process for the live database.
-
-## The new way to change the schema (after the one-time step)
+## The way to change the schema from now on
 
 1. Edit `prisma/schema.prisma`.
 2. Create the migration against the **test** database (never the live one):

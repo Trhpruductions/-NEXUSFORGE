@@ -23,7 +23,7 @@ Requirements: Node 22 or 24 (CI uses 24), PostgreSQL 15+ (a database named `nexu
 npm install
 cp apps/server/.env.example apps/server/.env      # set DATABASE_URL and the JWT secrets
 cp apps/web/.env.example apps/web/.env.local       # do NOT set NEXT_PUBLIC_API_URL
-cd apps/server && npx prisma db push && npx prisma generate && cd ../..
+cd apps/server && npx prisma migrate deploy && npx prisma generate && cd ../..
 npm run dev
 ```
 
@@ -110,5 +110,8 @@ Set these in `apps/server/.env` to turn on the real thing (the app keeps working
 ## Repository notes
 
 - `var/` holds runtime files (uploads, logs) and is git-ignored.
-- After changing `apps/server/prisma/schema.prisma`, run `npx prisma db push && npx prisma generate` and restart the API.
+- Schema changes go through Prisma migrations: edit `apps/server/prisma/schema.prisma`, create the migration
+  against a test database with `npx prisma migrate dev --name <change>`, review the SQL, commit it, then deploy
+  it with `npx prisma migrate deploy` (after a backup). Never `prisma db push` on the live database. See
+  `docs/DATABASE-MIGRATIONS.md`.
 - The many `*_SUMMARY.md` / `*_CHECKLIST.md` files at the root are historical planning documents from earlier phases. `BETA_TESTING.md` is the current beta runbook.

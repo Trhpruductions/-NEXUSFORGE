@@ -53,9 +53,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Prisma client and schema
+      # The throwaway database is built from the migration files (the same way production is changed), so a
+      # migration that doesn't apply cleanly fails CI before it reaches the live database.
+      - name: Prisma client and migrations
         working-directory: apps/server
-        run: npx prisma generate && npx prisma db push
+        run: npx prisma generate && npx prisma migrate deploy
       - name: Typecheck
         working-directory: apps/server
         run: npx tsc --noEmit -p .
