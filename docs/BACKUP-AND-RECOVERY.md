@@ -26,7 +26,13 @@ stops the instance and deletes its folder. Exit code 0 means PASSED.
 Result on 18 Oct 2026 (backup from 04:00 that day): restored with no errors in 2.1 s, 80 tables, 4,671 rows,
 no missing tables. The uploads copy had every file that existed when it was made.
 
-## Encrypted copies off this PC (ready, switched off)
+## Encrypted copies off this PC (on since 19 Oct 2026: OneDrive)
+
+**Switched on 19 Oct 2026** with `node scripts/ops/setup-offsite-backup.mjs`: the copies go to
+`C:\Users\TRHDEVELOPMENT\OneDrive\NexusForge Backups` (synced to the owner's OneDrive), and the key is in
+`apps/server/.env` as `BACKUP_ENCRYPTION_KEY` (never committed). First copy made the same day, then decrypted
+from the OneDrive folder and fully restore-checked: 80 tables, no errors, all 31 upload files. The 04:00 backup
+now adds a copy every night and keeps the newest 14.
 
 Everything above is on the same PC as the live site. A dead disk, theft, fire or ransomware would take the
 site and its backups together. The nightly backup can also write an **encrypted** copy to a folder that leaves
