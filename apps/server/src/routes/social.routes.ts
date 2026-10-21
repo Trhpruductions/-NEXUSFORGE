@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { evaluateAchievements } from "../lib/achievements.js";
 import { createNotification } from "../lib/notifications.js";
 import { badgeKeysFromRow, profileBadgeSelect } from "../lib/profile-badges.js";
+import { pageLimit } from "../lib/pagination.js";
 import { getIo } from "../lib/realtime.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -224,7 +225,7 @@ socialRouter.get("/posts", async (req, res) => {
 
   // Cursor paging for the feed: pass the last post's id as ?cursor= to get older posts.
   const cursor = typeof req.query.cursor === "string" && /^[0-9a-f-]{36}$/i.test(req.query.cursor) ? req.query.cursor : undefined;
-  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+  const limit = pageLimit(req.query.limit, 20, 50);
 
   const rows = await prisma.post.findMany({
     where: {

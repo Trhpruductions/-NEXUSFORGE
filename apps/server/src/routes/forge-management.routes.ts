@@ -9,6 +9,7 @@ import { isOwnUploadUrl, ownedForgeImageKey, storeForgeImage, swapStoredImage } 
 import { checkProfileImage, PROFILE_IMAGE_LIMITS } from "../lib/image-validation.js";
 import { hashWebhookToken, newWebhookToken } from "./webhooks.routes.js";
 import { generateInviteCode, inviteIsUsable } from "../lib/forge-invites.js";
+import { pageLimit } from "../lib/pagination.js";
 import { canViewChannel, loadMemberContext, privateChannelViewerIds } from "../lib/channel-access.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -871,7 +872,7 @@ forgeManagementRouter.get("/:id/audit-log", async (req, res) => {
   const context = await guard(req, res, "manageForge");
   if (!context) return;
 
-  const limit = Math.min(Math.max(Number(req.query.limit ?? 50) || 50, 1), 100);
+  const limit = pageLimit(req.query.limit, 50, 100);
   const before = typeof req.query.before === "string" && !Number.isNaN(Date.parse(req.query.before)) ? new Date(req.query.before) : undefined;
   const action = typeof req.query.action === "string" && /^[a-z]+(\.[a-z]+)?$/.test(req.query.action) ? req.query.action : undefined;
   const actorId = typeof req.query.actorId === "string" && /^[0-9a-f-]{36}$/i.test(req.query.actorId) ? req.query.actorId : undefined;

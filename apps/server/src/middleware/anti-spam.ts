@@ -91,6 +91,27 @@ export function antiSpam(req: Request, res: Response, next: NextFunction): void 
     return;
   }
 
-  userChannelCooldown.set(key, { timestamp: now, contentHash });
+  // Recorded before the route runs, so two identical sends in flight can't both pass.
+  const previous = userChannelCooldown.get(key);
+  const entry: CooldownEntry = { timestamp: now, contentHash };
+  userChannelCooldown.set(key, entry);
+  res.once("finish", () => restoreIfRefused(userChannelCooldown, key, entry, previous, res.statusCode));
   next();
+}
+
+/**
+ * A message the route refused (timed out, slowmode, automod, bad input) was never sent, so it must not
+ * count as "the same message you just sent". Puts back what was there, unless a later message has
+ * replaced the entry in the meantime.
+ */
+export function restoreIfRefused(
+  entries: Map<string, CooldownEntry>,
+  key: string,
+  entry: CooldownEntry,
+  previous: CooldownEntry | undefined,
+  statusCode: number,
+): void {
+  if (statusCode < 400 || entries.get(key) !== entry) return;
+  if (previous) entries.set(key, previous);
+  else entries.delete(key);
 }

@@ -16,6 +16,7 @@ import { bypassesSlowmode, canViewChannel, channelAccessSelect, isTimedOut, load
 import { logForgeAction } from "../lib/forge-audit.js";
 import { runAutoMod } from "../lib/automod-runtime.js";
 import { messageLengthProblem } from "../lib/user-limits.js";
+import { pageLimit } from "../lib/pagination.js";
 import { buildPollOptions, isPollOpen, POLL_DURATIONS_HOURS, POLL_MAX_OPTIONS, POLL_QUESTION_MAX, validateVote, type PollOption } from "../lib/polls.js";
 
 function timeoutError(until: Date | null) {
@@ -192,7 +193,7 @@ messagesRouter.use(requireCsrf);
 messagesRouter.get("/:channelId", async (req, res) => {
   const channelId = req.params.channelId;
   const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
-  const limit = Math.min(Number(req.query.limit ?? 40), 100);
+  const limit = pageLimit(req.query.limit, 40, 100);
 
   const view = await userCanViewChannel(req.user!.id, channelId);
   if (!view.channel) {
