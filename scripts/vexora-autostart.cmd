@@ -53,9 +53,11 @@ if errorlevel 1 (
   echo starting postgres on 5433 >> "%LOG%"
   REM Output to nul, not %LOG%: postgres inherits the handle and would keep
   REM %LOG% locked, so every later ">> %LOG%" (incl. the pm2 calls) fails.
-  "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -o "-p 5433 -c listen_addresses=localhost" -l "D:\NexusForgeDB\postgres.log" -w -t 60 start >nul 2>&1
+  REM Wait up to 5 minutes: after the PC was switched off without a clean shutdown, crash recovery took 2 min 22 s
+  REM (19 Oct 2026), and a 60-second wait logged "FAILED" while the database was still coming up.
+  "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -o "-p 5433 -c listen_addresses=localhost" -l "D:\NexusForgeDB\postgres.log" -w -t 300 start >nul 2>&1
   "%PGBIN%\pg_isready.exe" -h 127.0.0.1 -p 5433 -q
-  if errorlevel 1 ( echo postgres FAILED to start - see D:\NexusForgeDB\postgres.log >> "%LOG%" ) else ( echo postgres started >> "%LOG%" )
+  if errorlevel 1 ( echo postgres not ready after 5 minutes - see D:\NexusForgeDB\postgres.log >> "%LOG%" ) else ( echo postgres started >> "%LOG%" )
 ) else (
   echo postgres already up >> "%LOG%"
 )
@@ -69,14 +71,17 @@ exit /b 0
 
 :ensure
 set "STATE="
-for /f "delims=" %%S in ('node -e "const l=JSON.parse(require('child_process').execSync('pm2 jlist',{encoding:'utf8'}));const p=l.find(x=>x.name===process.argv[1]);const s=p?p.pm2_env.status:'missing';console.log(s==='online'&&process.argv[1]==='nexusforge-backend-workspace'&&p.pm2_env.shutdown_with_message!==true?'stale-settings':s)" %1 2^>nul') do set "STATE=%%S"
+REM Tries pm2 jlist up to 6 times, 15 s apart: right after a reboot pm2 can be slow, and on 19 Oct 2026 one failed read
+REM left every app alone (and the API without its graceful-shutdown settings).
+for /f "delims=" %%S in ('node scripts\ops\pm2-app-state.mjs %1 6 15 2^>nul') do set "STATE=%%S"
 if "%STATE%"=="online" (
   echo %1 online >> "%LOG%"
   goto :eof
 )
-if "%STATE%"=="" (
+if "%STATE%"=="" set "STATE=unreadable"
+if "%STATE%"=="unreadable" (
   REM pm2 jlist could not be read: do nothing rather than restart apps that may be running fine.
-  echo %1 status unknown - pm2 not readable, left alone >> "%LOG%"
+  echo %1 status unknown - pm2 not readable after 6 tries, left alone >> "%LOG%"
   goto :eof
 )
 echo %1 status "%STATE%" - starting from ecosystem.config.cjs >> "%LOG%"
