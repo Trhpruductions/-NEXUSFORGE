@@ -7,10 +7,10 @@ site, and a "new version" post in the Discord `#app-downloads` channel. The owne
 - On GitHub, the Discord post is made by the **discord-download-link-sync** workflow after a merge to `main`
   that changes `apps/web/public/desktop-update.json`. That job waits for the **release-approval** environment.
 
-**The release-approval environment does not exist yet (checked 18 Oct 2026).** Until it is created with
-required reviewers, it is not a real gate: GitHub creates a missing environment automatically, with no
-reviewers, the first time a job uses it. Today nothing posts only because the Discord secrets are not set.
-Create the environment **before** adding any Discord secret.
+**Created on 21 Oct 2026** (owner's request): environment `release-approval` with **Trhpruductions** as
+required reviewer (self-review allowed, since there is one reviewer) and deployments only from `main`. It has
+no secrets yet. Step 1 below is done; the Discord secrets (step 6) go into this environment, never into
+repository secrets.
 
 ## 1. Create the environment (owner, about 3 minutes)
 
