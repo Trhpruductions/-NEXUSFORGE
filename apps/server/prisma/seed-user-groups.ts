@@ -1,8 +1,18 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
+// Demo data only: never on the live database (nexusforge), whatever the environment says.
+const seedDatabase = new URL(process.env.DATABASE_URL ?? "postgresql://unset/none").pathname.replace(/^\//, "");
+if (seedDatabase === "nexusforge" || process.env.NODE_ENV === "production") {
+  console.error(`Refusing to seed demo users into "${seedDatabase}" (NODE_ENV=${process.env.NODE_ENV ?? "unset"}). Use a local or test database.`);
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
-const sharedPassword = "Sample!2026";
+// Never write passwords here: this repository is public. Set SEED_PASSWORD to sign in to the demo accounts on a
+// local or test database; without it they get a random password that is never shown.
+const sharedPassword = process.env.SEED_PASSWORD || randomBytes(18).toString("base64url");
 const passwordHash = await bcrypt.hash(sharedPassword, 12);
 
 const medalCatalog = [
@@ -570,12 +580,12 @@ async function main() {
     {
       username: "JacksonGaming69",
       email: "jacksongaming69@nexusforge.local",
-      password: "676769Jj$",
+      password: sharedPassword,
     },
     {
       username: "bbrosius",
       email: "bbrosius@nexusforge.local",
-      password: "gofuckyourself",
+      password: sharedPassword,
     },
   ] as const;
 
@@ -636,7 +646,7 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
-        sharedPassword,
+        password: process.env.SEED_PASSWORD ? "from SEED_PASSWORD" : "random (not shown)",
         groups: groupSummaries,
         totalUsers: allUserIds.length,
       },
