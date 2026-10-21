@@ -18,7 +18,7 @@ import { createAccessLogger } from "./lib/access-log.js";
 import { createShutdown } from "./lib/shutdown.js";
 import { stopDailyPulse } from "./lib/daily-pulse.js";
 import { pushSubscriptionGuard } from "./middleware/push-subscription-guard.js";
-import { reportBodyParser } from "./middleware/anonymous-limit.js";
+import { cspReportBodyParser, reportBodyParser } from "./middleware/anonymous-limit.js";
 import { allowedOriginList, LOCAL_ORIGIN_PATTERN } from "./lib/origins.js";
 import { isTimedOut, loadMemberContext, userCanViewChannel } from "./lib/channel-access.js";
 import { hasForgePermission } from "./lib/forge-permissions.js";
@@ -167,6 +167,7 @@ app.use("/uploads", ...localUploadsStatic);
 // The public report endpoints take input from anyone, signed out too: at most 16 KB there (the app-wide
 // parser below allows 10 MB). A body this parser has already read is skipped by the next one.
 app.use(["/api/errors/client", "/api/problem-reports"], reportBodyParser);
+app.use("/api/errors/csp", cspReportBodyParser);
 // ID verification sends the document and an optional selfie as base64 in one JSON body: two 8 MB photos are about
 // 22 MB of text, more than the 10 MB app-wide limit, so a normal phone photo pair was refused as "too large".
 // Only signed-in people get the bigger limit (checked before a byte is parsed); the router still checks CSRF.

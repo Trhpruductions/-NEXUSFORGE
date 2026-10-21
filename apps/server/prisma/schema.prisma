@@ -714,7 +714,8 @@ model ProblemReport {
 /// Shown to staff at /admin/errors; rows unseen for 30 days are cleaned up.
 model ErrorEvent {
   id          String   @id @default(uuid())
-  /// "server" (an API request that failed) or "web" (a crash in someone's browser).
+  /// "server" (an API request that failed), "web" (a crash in someone's browser) or "csp" (a browser report of
+  /// something the Content-Security-Policy blocked or would block).
   source      String   @db.VarChar(12)
   fingerprint String   @unique @db.VarChar(64)
   message     String   @db.VarChar(400)

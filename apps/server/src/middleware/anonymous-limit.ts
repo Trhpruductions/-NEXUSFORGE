@@ -28,3 +28,6 @@ export const REPORT_BODY_LIMIT = "16kb";
 
 /** JSON parser for the public report endpoints; mounted ahead of the app-wide parser, which then skips the body. */
 export const reportBodyParser = express.json({ limit: REPORT_BODY_LIMIT });
+
+/** Content-Security-Policy reports: JSON, but labelled with the two report media types browsers use. */
+export const cspReportBodyParser = express.json({ limit: REPORT_BODY_LIMIT, type: ["application/csp-report", "application/reports+json", "application/json"] });

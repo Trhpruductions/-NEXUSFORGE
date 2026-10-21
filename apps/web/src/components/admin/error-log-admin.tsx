@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, ChevronRight, Globe, Loader2, RefreshCcw, Server, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Globe, Loader2, RefreshCcw, Server, ShieldAlert, Trash2 } from "lucide-react";
 import { getApiErrorMessage, listErrorEvents, resolveErrorEvent, type ErrorEventRow } from "@/lib/api";
 import { useAuthStore, useQueryScope } from "@/store/auth-store";
 
@@ -15,13 +15,16 @@ function ago(iso: string) {
   return `${Math.round(hours / 24)} days ago`;
 }
 
-/** Staff: grouped crashes and server errors, newest first. "Fixed" removes a group; it returns if it happens again. */
+/**
+ * Staff: grouped crashes, server errors and content-policy reports, newest first. "Fixed" removes a group; it
+ * returns if it happens again.
+ */
 export function ErrorLogAdmin() {
   const { accessToken, csrfToken } = useAuthStore();
   const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "server" | "web">("all");
+  const [filter, setFilter] = useState<"all" | ErrorEventRow["source"]>("all");
   const [notice, setNotice] = useState<string | null>(null);
   const query = useQuery({ queryKey: ["error-log", queryScope], queryFn: () => listErrorEvents(accessToken!), enabled: Boolean(accessToken), refetchInterval: 60_000 });
 
@@ -52,6 +55,7 @@ export function ErrorLogAdmin() {
         {filterBtn("all", "All")}
         {filterBtn("server", "Server")}
         {filterBtn("web", "Browsers")}
+        {filterBtn("csp", "Content policy")}
         <span className="ml-auto flex gap-2">
           <button type="button" onClick={() => void query.refetch()} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-200 hover:border-white/25">
             <RefreshCcw className={`h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} /> Refresh
@@ -75,7 +79,7 @@ export function ErrorLogAdmin() {
         <p className="text-sm text-rose-300">{getApiErrorMessage(query.error)}</p>
       ) : !rows.length ? (
         <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/[0.05] p-5 text-sm text-emerald-100">
-          <Check className="mb-2 h-5 w-5" /> Nothing here. No {filter === "web" ? "browser crashes" : filter === "server" ? "server errors" : "crashes or server errors"} recorded in the last 30 days.
+          <Check className="mb-2 h-5 w-5" /> Nothing here. No {filter === "web" ? "browser crashes" : filter === "server" ? "server errors" : filter === "csp" ? "content-policy reports" : "crashes, server errors or content-policy reports"} recorded in the last 30 days.
         </div>
       ) : (
         <ul className="space-y-2">
@@ -84,7 +88,13 @@ export function ErrorLogAdmin() {
               <div className="flex items-start gap-3 p-3">
                 <button type="button" onClick={() => setOpen(open === row.id ? null : row.id)} aria-expanded={open === row.id} className="flex min-w-0 flex-1 items-start gap-2 text-left">
                   {open === row.id ? <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /> : <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />}
-                  {row.source === "server" ? <Server className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" aria-label="Server" /> : <Globe className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-label="Browser" />}
+                  {row.source === "server" ? (
+                    <Server className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" aria-label="Server" />
+                  ) : row.source === "csp" ? (
+                    <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" aria-label="Content policy" />
+                  ) : (
+                    <Globe className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-label="Browser" />
+                  )}
                   <span className="min-w-0">
                     <span className="block break-words text-sm text-slate-100">{row.message}</span>
                     <span className="mt-1 block text-[11px] text-slate-500">

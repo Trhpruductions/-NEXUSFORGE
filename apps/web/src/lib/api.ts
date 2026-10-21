@@ -3382,7 +3382,7 @@ export async function setProblemReportStatus(accessToken: string, csrfToken: str
   return (await api.patch<{ ok: true }>(`/api/problem-reports/${id}`, { status }, { headers: authHeaders(accessToken, csrfToken) })).data;
 }
 
-export type ErrorEventRow = { id: string; source: "server" | "web"; message: string; detail: string | null; path: string | null; count: number; firstSeenAt: string; lastSeenAt: string };
+export type ErrorEventRow = { id: string; source: "server" | "web" | "csp"; message: string; detail: string | null; path: string | null; count: number; firstSeenAt: string; lastSeenAt: string };
 
 export async function listErrorEvents(accessToken: string) {
   return (await api.get<{ errors: ErrorEventRow[]; total: number }>("/api/errors", { headers: authHeaders(accessToken) })).data;

@@ -5,19 +5,21 @@ import { redactPathForLog } from "./log-format.js";
 /** Most distinct problems kept at once, so a flood of junk reports can't fill the database. */
 export const MAX_GROUPS = 2000;
 /**
- * Browser reports can come from anyone (signed out too), so they may only use part of the room. A flood of
- * made-up crash reports used to fill all 2000 slots, after which real server errors were no longer recorded.
+ * Browser reports (crashes and content-policy violations) can come from anyone, signed out too, so together they
+ * may only use part of the room. A flood of made-up crash reports used to fill all 2000 slots, after which real
+ * server errors were no longer recorded.
  */
 export const MAX_WEB_GROUPS = 1000;
 
-/** Whether a new problem of this kind may start a group, given how many groups exist now. */
+/** Whether a new problem of this kind may start a group, given how many groups exist now (`web`: all browser-sent groups). */
 export function hasRoomForNewGroup(source: ErrorReport["source"], counts: { total: number; web: number }): boolean {
   if (counts.total >= MAX_GROUPS) return false;
-  return source !== "web" || counts.web < MAX_WEB_GROUPS;
+  return source === "server" || counts.web < MAX_WEB_GROUPS;
 }
 
 export type ErrorReport = {
-  source: "server" | "web";
+  /** "csp": a page broke (or would break) the Content-Security-Policy; sent by browsers, like "web". */
+  source: "server" | "web" | "csp";
   message: string;
   stack?: string | null;
   path?: string | null;
@@ -72,7 +74,7 @@ export async function recordError(report: ErrorReport) {
     if (bumped.count) return;
     const [total, web] = await Promise.all([
       prisma.errorEvent.count(),
-      report.source === "web" ? prisma.errorEvent.count({ where: { source: "web" } }) : Promise.resolve(0),
+      report.source === "server" ? Promise.resolve(0) : prisma.errorEvent.count({ where: { source: { not: "server" } } }),
     ]);
     if (!hasRoomForNewGroup(report.source, { total, web })) return;
     await prisma.errorEvent.create({ data: { source: report.source, fingerprint, message, detail, path } }).catch(async (error) => {

@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { recordError } from "../lib/error-log.js";
+import { cspErrorReport, parseCspReports } from "../lib/csp-reports.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/admin.js";
 import { requireCsrf } from "../middleware/csrf.js";
@@ -42,6 +43,16 @@ errorsRouter.post("/client", reportLimit, anonymousReportLimit, async (req, res)
   if (parsed.success) {
     await recordError({ source: "web", message: parsed.data.message, stack: parsed.data.stack, path: parsed.data.path });
   }
+  res.status(204).end();
+});
+
+// Content-Security-Policy reports (next.config.ts sends browsers here). A page can report several items at
+// once and reports never carry a sign-in, so the budget is per internet address and a little larger.
+export const CSP_REPORTS_PER_15_MIN = 40;
+const cspReportLimit = anonymousPerIpLimit({ windowMs: 15 * 60 * 1000, limit: CSP_REPORTS_PER_15_MIN, message: "Too many reports." });
+
+errorsRouter.post("/csp", cspReportLimit, async (req, res) => {
+  for (const violation of parseCspReports(req.body)) await recordError(cspErrorReport(violation));
   res.status(204).end();
 });
 
