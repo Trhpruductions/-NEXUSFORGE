@@ -63,6 +63,8 @@ jobs:
         run: npx tsc --noEmit -p .
       - name: Unit tests
         run: npm test -w @nexusforge/server
+      - name: Ops script tests (backup encryption, logon checks)
+        run: node --test "scripts/lib/*.test.mjs"
       - name: Build
         run: npm run build -w @nexusforge/server
 
