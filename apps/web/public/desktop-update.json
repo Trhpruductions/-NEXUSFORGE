@@ -1,18 +1,19 @@
 {
-  "version": "1.0.16",
+  "version": "1.0.17",
   "notes": [
-    "New title bar in the app's colours: drag it to move the window, double-click to maximize or restore, with Windows' own minimize, maximize and close buttons",
-    "Pop out the voice room, a shared screen or the member list into their own windows; it is the same call, nothing is doubled",
-    "Resize or hide the channel list and the member list; the voice room now uses all the space between them",
-    "The window reopens where you left it, and never off-screen after a monitor is unplugged",
+    "Full screen (F11) now hides the title strip properly",
+    "If Nexus Forge Gaming can't be reached, the app shows a clear offline page and reconnects by itself; if the page crashes, it reloads by itself",
+    "Safer: only nfgcord.com can use the desktop app's features, and camera, microphone and screen access are limited to it",
+    "Start with Windows is now off unless you switch it on (tray menu: Start with Windows)",
+    "Smaller download and an updated Electron with the latest security fixes",
     "Known limitations in this beta: chat and direct messages can't be popped out yet, computer sound is not shared with the screen yet, and some strict networks may need a relay server that is not set up yet"
   ],
   "downloadUrl": "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
   "downloadUrls": [
     "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%20Latest.exe",
-    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.16.exe"
+    "https://trhpruductions.github.io/-NEXUSFORGE/NexusForge%20Desktop%20Setup%201.0.17.exe"
   ],
   "downloadFolderUrl": "https://nfgcord.com/download",
-  "sha256": "39f55b71b8c8eff520b4bb0eb9d007c33479443dc939f5d353ca1bed9df8cb8e",
+  "sha256": "dcc7728cba275fb6aff9793d1a3e85bab9dc2a06fb7faaeaeb1935f7e2204859",
   "forceUpdate": false
 }
