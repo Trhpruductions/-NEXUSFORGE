@@ -15,6 +15,8 @@ const baseConfig: NextConfig = {
 const EMBED_FRAME_HOSTS = ["https://www.youtube.com", "https://clips.twitch.tv", "https://player.twitch.tv", "https://kick.com", "https://player.kick.com", "https://streamable.com"];
 /** Chat uploads go from the browser straight to Cloudflare R2 with a presigned link (chat-page.tsx). */
 const UPLOAD_HOSTS = ["https://*.r2.cloudflarestorage.com"];
+/** Cloudflare Web Analytics: Cloudflare adds this script to every page it serves (it reports back to /cdn-cgi/rum here). */
+const ANALYTICS_SCRIPT_HOSTS = ["https://static.cloudflareinsights.com"];
 export const CSP_REPORT_GROUP = "csp";
 
 /**
@@ -36,7 +38,7 @@ export function contentSecurityPolicies(options: { dev: boolean; apiOrigin?: str
   const reportOnly = [
     "default-src 'self'",
     // React needs eval in development only, for its error overlays.
-    `script-src 'self' 'unsafe-inline'${options.dev ? " 'unsafe-eval'" : ""}`,
+    ["script-src 'self' 'unsafe-inline'", ...(options.dev ? ["'unsafe-eval'"] : []), ...ANALYTICS_SCRIPT_HOSTS].join(" "),
     "style-src 'self' 'unsafe-inline'",
     // Avatars, link previews and attachments can come from any https site; crops and previews are blob:/data:.
     "img-src 'self' data: blob: https:",

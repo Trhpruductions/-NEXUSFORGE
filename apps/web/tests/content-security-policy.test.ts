@@ -35,8 +35,10 @@ test("eval is only allowed while developing", () => {
   assert.ok(contentSecurityPolicies({ dev: true }).reportOnly.includes("'unsafe-eval'"));
 });
 
-test("chat uploads (R2) and the video embeds the app offers are allowed", () => {
+test("chat uploads (R2), Cloudflare's analytics script and the video embeds the app offers are allowed", () => {
   const policy = directives(contentSecurityPolicies({ dev: false }).reportOnly);
+  // Found on the live site (21 Oct 2026): Cloudflare inserts this script into every page.
+  assert.ok(policy.get("script-src")?.includes("https://static.cloudflareinsights.com"));
   assert.ok(policy.get("connect-src")?.includes("https://*.r2.cloudflarestorage.com"));
   for (const host of ["https://www.youtube.com", "https://clips.twitch.tv", "https://player.twitch.tv", "https://kick.com", "https://player.kick.com", "https://streamable.com"]) {
     assert.ok(policy.get("frame-src")?.includes(host), `frame-src lacks ${host}`);

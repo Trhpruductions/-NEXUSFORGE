@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Crosshair, Gamepad2, Users2, Wrench } from "lucide-react";
 import { AuthFormCard } from "@/components/auth/auth-form-card";

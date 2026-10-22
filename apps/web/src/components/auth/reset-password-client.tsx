@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthField, authPrimaryButtonClass } from "@/components/auth/auth-field";

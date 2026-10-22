@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/zod.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: [{ name: "zod", message: "Import z from \"@/lib/zod\" (it turns off zod's eval test, which the content policy reports)." }] }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
